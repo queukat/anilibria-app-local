@@ -66,6 +66,8 @@ import ru.radiationx.data.datasource.remote.IApiUtils
 import ru.radiationx.data.datasource.remote.IClient
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.address.ApiConfigChanger
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
+import ru.radiationx.data.datasource.remote.aniliberty.moshi.AniLibertyTupleAdapterFactory
 import ru.radiationx.data.datasource.remote.api.AuthApi
 import ru.radiationx.data.datasource.remote.api.CheckerApi
 import ru.radiationx.data.datasource.remote.api.ConfigurationApi
@@ -161,7 +163,9 @@ class DataModule(context: Context) : QuillModule() {
         }
 
         instance<Moshi> {
-            Moshi.Builder().build()
+            Moshi.Builder()
+                .add(AniLibertyTupleAdapterFactory)
+                .build()
         }
 
 
@@ -190,6 +194,8 @@ class DataModule(context: Context) : QuillModule() {
         singleImpl<AuthHolder, AuthStorage>()
 
         single<ApiConfigChanger>()
+
+        single<AniLibertyApi>()
 
         single<AppCookieJar>()
         single<UnauthorizedInterceptor>()
@@ -293,6 +299,9 @@ class DataModule(context: Context) : QuillModule() {
         /* Player */
         single<PlayerDataSourceProvider>()
         single<PlayerCacheDataSourceProvider>()
+
+        single<AniLibertyApi>()
+
     }
 
     class PreferencesProvider @Inject constructor(

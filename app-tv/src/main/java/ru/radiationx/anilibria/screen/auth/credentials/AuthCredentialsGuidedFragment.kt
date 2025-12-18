@@ -24,6 +24,9 @@ class AuthCredentialsGuidedFragment : FakeGuidedStepFragment() {
 
     private val viewModel by viewModel<AuthCredentialsViewModel>()
 
+    override val handleBackWithRouter: Boolean = false
+
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
@@ -122,12 +125,21 @@ class AuthCredentialsGuidedFragment : FakeGuidedStepFragment() {
                 val code = getFieldValue(CODE_FIELD_ACTION_ID)
                 viewModel.onLoginClicked(login, password, code)
             }
+            else -> super.onGuidedActionClicked(action)
         }
     }
 
+
+
+
     override fun onGuidedActionEditCanceled(action: GuidedAction) {
+        super.onGuidedActionEditCanceled(action)
         validateAction(action)
     }
+
+    override fun onCreateActionsStylist(): GuidedActionsStylist = TouchGuidedActionsStylist()
+
+
 
     override fun onGuidedActionEditedAndProceed(action: GuidedAction): Long {
         return validateAction(action)
@@ -147,8 +159,10 @@ class AuthCredentialsGuidedFragment : FakeGuidedStepFragment() {
             LOGIN_FIELD_ACTION_ID -> {
                 if (loginValid) {
                     action.description = value
+                    notifyActionChanged(findActionPositionById(action.id))
                 } else {
                     action.description = "Поле заполнено неверно"
+                    notifyActionChanged(findActionPositionById(action.id))
                     return GuidedAction.ACTION_ID_CURRENT
                 }
             }
@@ -156,8 +170,11 @@ class AuthCredentialsGuidedFragment : FakeGuidedStepFragment() {
             PASSWORD_FIELD_ACTION_ID -> {
                 if (passwordValid) {
                     action.description = "Поле заполнено верно"
+                    notifyActionChanged(findActionPositionById(action.id))
+
                 } else {
                     action.description = "Поле заполнено неверно"
+                    notifyActionChanged(findActionPositionById(action.id))
                     return GuidedAction.ACTION_ID_CURRENT
                 }
             }
@@ -165,8 +182,11 @@ class AuthCredentialsGuidedFragment : FakeGuidedStepFragment() {
             CODE_FIELD_ACTION_ID -> {
                 if (codeValid) {
                     action.description = value
+                    notifyActionChanged(findActionPositionById(action.id))
+
                 } else {
                     action.description = "Поле заполнено неверно"
+                    notifyActionChanged(findActionPositionById(action.id))
                     return GuidedAction.ACTION_ID_CURRENT
                 }
             }

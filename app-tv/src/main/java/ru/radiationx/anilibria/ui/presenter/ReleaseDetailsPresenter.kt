@@ -1,6 +1,7 @@
 package ru.radiationx.anilibria.ui.presenter
 
 import android.content.res.ColorStateList
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,6 +18,7 @@ import ru.radiationx.anilibria.databinding.RowDetailReleaseBinding
 import ru.radiationx.shared.ktx.android.getCompatColor
 import ru.radiationx.shared.ktx.android.getCompatDrawable
 import ru.radiationx.shared_app.imageloader.showImageUrl
+import timber.log.Timber
 
 class ReleaseDetailsPresenter(
     private val continueClickListener: () -> Unit,
@@ -109,6 +111,9 @@ class LibriaReleaseViewHolder(
     }
 
     private fun bindDetails(details: LibriaDetails) {
+
+        Timber.tag("ReleaseDetailsPresenter").d("extra='${details.extra}'")
+
         if (lastDetails == details) {
             return
         }

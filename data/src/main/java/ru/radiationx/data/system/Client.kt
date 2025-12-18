@@ -8,8 +8,10 @@ import okhttp3.Callback
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import ru.radiationx.data.SharedBuildConfig
 import ru.radiationx.data.datasource.remote.IClient
@@ -149,4 +151,63 @@ open class Client @Inject constructor(
             })
         }
     }
+
+    override suspend fun postJson(url: String, jsonBody: String): String =
+        requireNotNull(postJsonFull(url, jsonBody).body)
+
+    override suspend fun putJson(url: String, jsonBody: String): String =
+        requireNotNull(putJsonFull(url, jsonBody).body)
+
+    override suspend fun deleteJson(url: String, jsonBody: String): String =
+        requireNotNull(deleteJsonFull(url, jsonBody).body)
+
+    private suspend fun postJsonFull(url: String, jsonBody: String): NetworkResponse =
+        requestJsonBody(METHOD_POST, url, jsonBody)
+
+    private suspend fun putJsonFull(url: String, jsonBody: String): NetworkResponse =
+        requestJsonBody(METHOD_PUT, url, jsonBody)
+
+    private suspend fun deleteJsonFull(url: String, jsonBody: String): NetworkResponse =
+        requestJsonBody(METHOD_DELETE, url, jsonBody)
+
+    private suspend fun requestJsonBody(
+        method: String,
+        url: String,
+        jsonBody: String,
+    ): NetworkResponse {
+        val callResponse = requestJsonRaw(method, url, jsonBody)
+        return NetworkResponse(
+            url,
+            callResponse.code,
+            callResponse.message,
+            callResponse.request.url.toString(),
+            callResponse.body?.string().orEmpty(),
+            callResponse.headers(HEADER_HOST_IP).firstOrNull()
+        )
+    }
+
+    private suspend fun requestJsonRaw(
+        method: String,
+        url: String,
+        jsonBody: String,
+    ): Response {
+        return withContext(Dispatchers.IO) {
+            val mediaType = "application/json; charset=utf-8".toMediaType()
+            val body = jsonBody.toRequestBody(mediaType)
+
+            val httpUrl = getHttpUrl(url, method, emptyMap())
+            val request = Request.Builder()
+                .url(httpUrl)
+                .method(method, body) // OkHttp поддерживает DELETE с body
+                .build()
+
+            val call = clientWrapper.get().newCall(request)
+            val callResponse = call.awaitResponse()
+            if (!callResponse.isSuccessful) {
+                throw HttpException(callResponse.code, callResponse.message, callResponse)
+            }
+            callResponse
+        }
+    }
+
 }

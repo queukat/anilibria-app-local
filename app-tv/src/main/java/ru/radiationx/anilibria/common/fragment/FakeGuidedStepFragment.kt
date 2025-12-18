@@ -8,8 +8,13 @@ import ru.radiationx.shared.ktx.android.attachBackPressed
 
 open class FakeGuidedStepFragment : GuidedStepSupportFragment() {
 
+    protected open val handleBackWithRouter: Boolean = true
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (!handleBackWithRouter) return
+
         attachBackPressed {
             if (isEnabled) {
                 get<GuidedRouter>().exit()

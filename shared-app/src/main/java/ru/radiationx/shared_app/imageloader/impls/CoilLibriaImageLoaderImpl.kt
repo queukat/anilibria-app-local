@@ -4,14 +4,11 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.widget.ImageView
-import coil3.Image
-import coil3.ImageLoader
-import coil3.asDrawable
-import coil3.load
-import coil3.network.okhttp.OkHttpNetworkFetcherFactory
-import coil3.request.ErrorResult
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
+import coil.ImageLoader
+import coil.load
+import coil.request.ErrorResult
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -56,18 +53,17 @@ class CoilLibriaImageLoaderImpl @Inject constructor(
 
     private fun createImageLoader(okHttpClient: OkHttpClient): ImageLoader {
         return ImageLoader.Builder(context)
-            .components {
-                add(OkHttpNetworkFetcherFactory(okHttpClient))
-            }
+            .okHttpClient(okHttpClient)
             .build()
     }
 
     override fun showImage(imageView: ImageView, url: String?, config: ImageLoaderScopeConfig) {
+        if (imageView.successUrl == url) {
+            return
+        }
         imageView.load(url, getImageLoader()) {
-            val cacheKey = url.toCacheKey()
-            diskCacheKey(cacheKey)
-            memoryCacheKey(cacheKey)
-            placeholderMemoryCacheKey(cacheKey)
+            diskCacheKey(url.toCacheKey())
+            memoryCacheKey(url.toCacheKey())
             listener(
                 onStart = {
                     config.onStart?.invoke()
@@ -82,27 +78,21 @@ class CoilLibriaImageLoaderImpl @Inject constructor(
                 },
                 onSuccess = { _: ImageRequest, successResult: SuccessResult ->
                     imageView.successUrl = url
-                    if (config.onSuccess != null) {
-                        val bitmap = successResult.image.asBitmap(context)
-                        config.onSuccess.invoke(bitmap)
-                    }
+                    val bitmap = (successResult.drawable as BitmapDrawable).bitmap
+                    config.onSuccess?.invoke(bitmap)
                     config.onComplete?.invoke()
                 }
             )
         }
     }
 
-    override suspend fun loadImageBitmap(context: Context, url: String?): Bitmap? {
+    override suspend fun loadImageBitmap(context: Context, url: String?): Bitmap {
         val request = ImageRequest.Builder(context)
             .diskCacheKey(url.toCacheKey())
             .memoryCacheKey(url.toCacheKey())
             .data(url).build()
         val result = getImageLoader().execute(request)
-        return result.image?.asBitmap(context)
-    }
-
-    private fun Image.asBitmap(context: Context): Bitmap? {
-        return (asDrawable(context.resources) as? BitmapDrawable)?.bitmap
+        return (result.drawable as BitmapDrawable).bitmap
     }
 
     private var ImageView.successUrl: String?

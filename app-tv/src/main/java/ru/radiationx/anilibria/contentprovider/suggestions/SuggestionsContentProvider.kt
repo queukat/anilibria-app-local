@@ -19,24 +19,21 @@ import ru.radiationx.quill.Quill
 class SuggestionsContentProvider : ContentProvider() {
 
     companion object {
-
         const val INTENT_ACTION = "GLOBALSEARCH"
 
         private val queryProjection = SystemSuggestionEntity.projection + arrayOf(
             SearchManager.SUGGEST_COLUMN_INTENT_ACTION,
             SearchManager.SUGGEST_COLUMN_INTENT_DATA_ID
         )
+
         private const val AUTHORITY = "ru.radiationx.anilibria.contentprovider.suggestions"
         private const val SEARCH_SUGGEST = 1
     }
 
     private val uriMatcher by lazy { buildUriMatcher() }
-
     private val searchRepository by lazy { Quill.getRootScope().get(SearchRepository::class) }
 
-    override fun onCreate(): Boolean {
-        return true
-    }
+    override fun onCreate(): Boolean = true
 
     override fun query(
         uri: Uri,
@@ -45,7 +42,9 @@ class SuggestionsContentProvider : ContentProvider() {
         selectionArgs: Array<out String>?,
         sortOrder: String?,
     ): Cursor {
-        runBlocking { App.appCreateAction.filter { it }.first() }
+
+        // Ждём, пока приложение полностью инициализируется
+        runBlocking { App.appInitialized.await() }
 
         return if (uriMatcher.match(uri) == SEARCH_SUGGEST) {
             search(uri.lastPathSegment.orEmpty())
@@ -55,56 +54,36 @@ class SuggestionsContentProvider : ContentProvider() {
     }
 
     override fun getType(uri: Uri): String? = null
-
-    override fun insert(uri: Uri, values: ContentValues?): Uri? {
+    override fun insert(uri: Uri, values: ContentValues?): Uri? =
         throw UnsupportedOperationException("insert is not implemented.")
-    }
-
     override fun update(
-        uri: Uri,
-        values: ContentValues?,
-        selection: String?,
-        selectionArgs: Array<out String>?,
-    ): Int {
-        throw UnsupportedOperationException("update is not implemented.")
-    }
-
-    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int {
+        uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?,
+    ): Int = throw UnsupportedOperationException("update is not implemented.")
+    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int =
         throw UnsupportedOperationException("delete is not implemented.")
-    }
+
+    // --------------------------------------------------------------------
 
     private fun search(query: String): Cursor {
         val result = runBlocking { searchRepository.fastSearch(query) }
-        val matrixCursor = MatrixCursor(queryProjection)
-        result.items.forEach {
-            val entity = it.convertToEntity()
-            val columns = appendProjectionColumns(entity.id, entity.getRow())
-            matrixCursor.addRow(columns)
+        return MatrixCursor(queryProjection).apply {
+            result.items.forEach {
+                val entity = it.convertToEntity()
+                addRow(entity.getRow() + INTENT_ACTION + entity.id)
+            }
         }
-        return matrixCursor
     }
-
-    private fun appendProjectionColumns(id: Int, columns: Array<Any?>): Array<Any?> =
-        columns + INTENT_ACTION + id
 
     private fun SuggestionItem.convertToEntity() = SystemSuggestionEntity(
         id.id,
         names.joinToString(),
-        -1,
-        -1,
+        duration = -1,
+        productionYear = -1,
         cardImage = poster
     )
 
-    private fun buildUriMatcher(): UriMatcher = UriMatcher(UriMatcher.NO_MATCH).apply {
-        addURI(
-            AUTHORITY,
-            "/search/${SearchManager.SUGGEST_URI_PATH_QUERY}",
-            SEARCH_SUGGEST
-        )
-        addURI(
-            AUTHORITY,
-            "/search/${SearchManager.SUGGEST_URI_PATH_QUERY}/*",
-            SEARCH_SUGGEST
-        )
+    private fun buildUriMatcher() = UriMatcher(UriMatcher.NO_MATCH).apply {
+        addURI(AUTHORITY, "/search/${SearchManager.SUGGEST_URI_PATH_QUERY}", SEARCH_SUGGEST)
+        addURI(AUTHORITY, "/search/${SearchManager.SUGGEST_URI_PATH_QUERY}/*", SEARCH_SUGGEST)
     }
 }

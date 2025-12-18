@@ -65,13 +65,16 @@ class DialogExampleFragment : FakeGuidedStepFragment() {
             ACTION_ID_POSITIVE.toLong() -> {
                 guidedRouter.replace(TestGuidedStepScreen())
             }
+
             ACTION_ID_HD.toLong() -> {
                 guidedRouter.close()
             }
+
             ACTION_ID_SD.toLong() -> {
                 guidedRouter.finishGuidedChain()
                 router.navigateTo(TestScreen())
             }
+
             else -> {
                 guidedRouter.navigateTo(TestGuidedStepScreen())
             }

@@ -18,6 +18,21 @@ class SearchTitleView @JvmOverloads constructor(
 
     private var binding: ViewSearchControlsBinding
 
+    enum class Mode {
+        SEARCH,
+        FAVORITES,
+    }
+
+    fun setMode(mode: Mode) {
+        // Keep controls visible for now.
+    }
+
+    fun resetFiltersScroll() {
+        getControls().post { getControls().scrollTo(0, 0) }
+    }
+
+
+
     var year: String?
         get() = binding.searchTitleYear.getWonderText()
         set(value) = binding.searchTitleYear.setWonderText(value)

@@ -6,6 +6,7 @@ import ru.mintrocket.lib.mintpermissions.flows.MintPermissionsFlow
 import ru.radiationx.anilibria.AppBuildConfig
 import ru.radiationx.anilibria.AppMigrationExecutor
 import ru.radiationx.anilibria.TvCheckerSources
+import ru.radiationx.anilibria.common.AniLibertyDetailsOverlay
 import ru.radiationx.data.SharedBuildConfig
 import ru.radiationx.data.analytics.AnalyticsErrorReporter
 import ru.radiationx.data.analytics.AnalyticsSender
@@ -25,12 +26,19 @@ import ru.radiationx.shared_app.analytics.profile.LoggingAnalyticsProfile
 import ru.radiationx.shared_app.imageloader.LibriaImageLoader
 import ru.radiationx.shared_app.imageloader.impls.CoilLibriaImageLoaderImpl
 
+import ru.radiationx.anilibria.common.CardsDataConverter
+import ru.radiationx.anilibria.common.DetailDataConverter
+import ru.radiationx.shared_app.common.SystemUtils
+
 class AppModule(context: Context) : QuillModule() {
 
 
     init {
-        instance { context }
+        // Сохраним applicationContext (из переданного context)
+        val appContext = context.applicationContext
 
+        // Базовые
+        instance { appContext } // если вдруг кому-то ещё нужен сам Context
         singleImpl<SharedBuildConfig, AppBuildConfig>()
         singleImpl<CheckerReserveSources, TvCheckerSources>()
         singleImpl<MigrationExecutor, AppMigrationExecutor>()
@@ -45,6 +53,7 @@ class AppModule(context: Context) : QuillModule() {
             MintPermissionsFlow.dialogFlow
         }
 
+        // Аналитика
         single<AppMetricaAnalyticsSender>()
         single<AppMetricaAnalyticsProfile>()
         single<AppMetricaErrorReporter>()
@@ -56,6 +65,7 @@ class AppModule(context: Context) : QuillModule() {
         singleImpl<AnalyticsSender, CombinedAnalyticsSender>()
         singleImpl<AnalyticsProfile, CombinedAnalyticsProfile>()
         singleImpl<AnalyticsErrorReporter, CombinedErrorReporter>()
-    }
+        single<AniLibertyDetailsOverlay>()
 
+    }
 }

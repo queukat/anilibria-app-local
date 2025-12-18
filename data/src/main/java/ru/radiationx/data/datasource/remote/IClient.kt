@@ -17,4 +17,18 @@ interface IClient {
     suspend fun getRaw(url: String, args: Map<String, String>): Response
     suspend fun postRaw(url: String, args: Map<String, String>): Response
 
+
+    // JSON body variants for AniLiberty v1
+    suspend fun postJson(url: String, jsonBody: String): String {
+        throw UnsupportedOperationException("postJson is not implemented")
+    }
+
+    suspend fun putJson(url: String, jsonBody: String): String {
+        throw UnsupportedOperationException("putJson is not implemented")
+    }
+
+    suspend fun deleteJson(url: String, jsonBody: String): String {
+        throw UnsupportedOperationException("deleteJson is not implemented")
+    }
+
 }

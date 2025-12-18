@@ -10,6 +10,16 @@
     <string name="global_search_hint">Поиск аниме</string>
     <string name="global_search_label">AniLibria TV</string>
     <string name="global_search_settings_description">Аниме на AniLibria TV</string>
-
+    <!-- Заголовок фрагмента -->
+    <string name="search_catalog_title">Каталог</string>
+    <!-- Текст при отсутствии результатов -->
+    <string name="search_empty_text">По данным параметрам ничего не найдено</string>
+    <!-- Заголовок для русской клавиатуры -->
+    <string name="keyboard_russian_header">RU</string>
+    <string name="search_empty">По данным параметрам ничего не найдено</string>
+    <string name="ru_keyboard">Русская клавиатура</string>
     <string name="player_skip">Пропустить</string>
+
+
+
 </resources>

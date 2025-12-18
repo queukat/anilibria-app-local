@@ -26,7 +26,7 @@ class AuthCredentialsViewModel @Inject constructor(
                 authRepository.signIn(login, password, code)
             }.onSuccess {
                 guidedRouter.finishGuidedChain()
-                error.value = "null"
+                error.value = ""
             }.onFailure {
                 Timber.e(it)
                 error.value = it.message.toString()

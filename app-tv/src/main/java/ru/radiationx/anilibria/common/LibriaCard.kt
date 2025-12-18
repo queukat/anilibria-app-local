@@ -9,9 +9,11 @@ data class LibriaCard(
     val type: Type
 ) : CardItem {
 
-    override fun getId(): Int {
-        return type.hashCode()
+    override fun getId(): Int = when (val t = type) {
+        is LibriaCard.Type.Release -> t.releaseId.id
+        is LibriaCard.Type.Youtube -> t.link.hashCode()
     }
+
 
     sealed class Type {
         data class Release(val releaseId: ReleaseId) : Type()

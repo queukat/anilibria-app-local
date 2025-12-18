@@ -58,10 +58,14 @@ class UserStorage @Inject constructor(
                 .getString(KEY_SAVED_USER, null)
                 ?.let { JSONObject(it) }
                 ?.let { userJson ->
+                    val rawAvatar = userJson.optString("avatar", null)
+                    val avatarUrl = rawAvatar
+                        ?.takeUnless { it.isBlank() || it.equals("null", ignoreCase = true) }
+
                     ProfileItem(
                         id = userJson.getInt("id"),
                         nick = userJson.getString("nick"),
-                        avatarUrl = userJson.getString("avatar"),
+                        avatarUrl = avatarUrl,
                     )
                 }
         }
@@ -69,10 +73,13 @@ class UserStorage @Inject constructor(
 
     private suspend fun localSaveUser(user: ProfileItem) {
         withContext(Dispatchers.IO) {
-            val userJson = JSONObject()
-            userJson.put("id", user.id)
-            userJson.put("nick", user.nick)
-            userJson.put("avatar", user.avatarUrl)
+            val userJson = JSONObject().apply {
+                put("id", user.id)
+                put("nick", user.nick)
+                // не пиши "null" строкой
+                if (user.avatarUrl.isNullOrBlank()) put("avatar", JSONObject.NULL)
+                else put("avatar", user.avatarUrl)
+            }
             sharedPreferences.edit().putString(KEY_SAVED_USER, userJson.toString()).apply()
         }
     }

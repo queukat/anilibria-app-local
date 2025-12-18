@@ -4,33 +4,34 @@ androidnetworktools = "0.4.5.3"
 androidx-appcompat = "1.7.0"
 androidx-cardview = "1.0.0"
 cicerone = "7.1"
-coil = "3.2.0"
+coil = "2.7.0"
 androidx-collection = "1.5.0"
 # do not update to 2.5.3, its a broken release
 conscrypt-android = "2.5.2"
-androidx-core = "1.16.0"
-kotlin-coroutines = "1.10.2"
+androidx-core = "1.15.0"
+kotlin-coroutines = "1.10.1"
 firebaseCore = "21.1.1"
-firebaseMessaging = "24.1.1"
+firebaseMessaging = "24.1.0"
 google-flexbox = "3.0.0"
-androidx-activity = "1.10.1"
-androidx-fragment = "1.8.7"
-kotlin = "2.1.21"
-androidx-constraintlayout = "2.2.1"
+androidx-activity = "1.10.0"
+androidx-fragment = "1.8.5"
+kotlin = "2.1.10"
+androidx-constraintlayout = "2.2.0"
 javax-inject = "1"
 toothpick = "3.1.0"
 toothpick-compiler = "1.1.0"
-androidx-leanback = "1.2.0"
+androidx-leanback = "1.2.0-rc01"
 androidx-leanback-preference = "1.2.0"
 materialprogressbar = "1.6.1"
 chucker = "4.1.0"
-androidx-lifecycle = "2.9.0"
+androidx-lifecycle = "2.8.7"
 google-material = "1.12.0"
-media3 = "1.7.1"
+# wait release 1.5.1+ to avoid aspect-ratio bug
+media3 = "1.6.0"
 minitemplator = "1.4.1"
 mintpermissions = "1.1.2"
-yandex-mobileads = "7.12.3"
-yandex-appmetrica = "7.9.0"
+yandex-mobileads = "7.11.0"
+yandex-appmetrica = "7.7.0"
 moshi = "1.15.2"
 okhttp = "4.12.0"
 androidx-palette = "1.0.0"
@@ -39,10 +40,16 @@ androidx-recyclerview = "1.4.0"
 androidx-swiperefreshlayout = "1.1.0"
 timber = "5.0.1"
 viewbindingpropertydelegate = "2.0.4"
-android-plugin = "8.10.0"
-ksp-plugin = "2.1.21-2.0.1"
+android-plugin = "8.9.0"
+kotlin-plugin = "2.1.10"
+ksp-plugin = "2.1.10-1.0.29"
 gms-plugin = "4.4.2"
-appmetrica-plugin = "1.0.1"
+ben-plugin = "0.47.0"
+zxing-core = "3.5.2"
+appmetrica-plugin = "1.3.0"
+versionCatalogUpdate = "1.0.1"
+
+
 
 
 [libraries]
@@ -52,8 +59,7 @@ androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "a
 androidx-cardview = { module = "androidx.cardview:cardview", version.ref = "androidx-cardview" }
 chucker = { module = "com.github.chuckerteam.chucker:library", version.ref = "chucker" }
 cicerone = { module = "com.github.terrakok:cicerone", version.ref = "cicerone" }
-coil = { module = "io.coil-kt.coil3:coil", version.ref = "coil" }
-coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
+coil = { module = "io.coil-kt:coil", version.ref = "coil" }
 androidx-collection-ktx = { module = "androidx.collection:collection-ktx", version.ref = "androidx-collection" }
 conscrypt-android = { module = "org.conscrypt:conscrypt-android", version.ref = "conscrypt-android" }
 androidx-constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "androidx-constraintlayout" }
@@ -101,12 +107,20 @@ androidx-recyclerview = { module = "androidx.recyclerview:recyclerview", version
 androidx-swiperefreshlayout = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "androidx-swiperefreshlayout" }
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 viewbindingpropertydelegate = { module = "dev.androidbroadcast.vbpd:vbpd-reflection", version.ref = "viewbindingpropertydelegate" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing-core" }
+media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
+media3-datasource = { module = "androidx.media3:media3-datasource", version.ref = "media3" }
+media3-database = { module = "androidx.media3:media3-database", version.ref = "media3" }
+
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "android-plugin" }
 android-library = { id = "com.android.library", version.ref = "android-plugin" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin-plugin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin-plugin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp-plugin" }
 gms = { id = "com.google.gms.google-services", version.ref = "gms-plugin" }
+benManesVersions = { id = "com.github.ben-manes.versions", version.ref = "ben-plugin" }
 appmetrica = { id = "io.appmetrica.analytics", version.ref = "appmetrica-plugin" }
+version-catalog-update = { id = "nl.littlerobots.version-catalog-update", version.ref = "versionCatalogUpdate" }
