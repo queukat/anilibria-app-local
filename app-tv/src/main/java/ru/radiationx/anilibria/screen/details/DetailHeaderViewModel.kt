@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import ru.radiationx.anilibria.common.AniLibertyDetailDataConverter
+import ru.radiationx.anilibria.common.AniLibertyDetailsOverlay
 import ru.radiationx.anilibria.common.DetailDataConverter
 import ru.radiationx.anilibria.common.DetailsState
 import ru.radiationx.anilibria.common.LibriaCard
@@ -19,6 +21,9 @@ import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.PlayerEpisodesGuidedScreen
 import ru.radiationx.anilibria.screen.PlayerScreen
 import ru.radiationx.anilibria.screen.player.PlayerController
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.release.Release
@@ -28,9 +33,6 @@ import ru.radiationx.data.repository.FavoriteRepository
 import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
 import javax.inject.Inject
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
-import ru.radiationx.data.entity.response.aniliberty.AniLibertyRelease
-import ru.radiationx.anilibria.common.AniLibertyDetailsOverlay
 
 
 /**
@@ -51,7 +53,9 @@ class DetailHeaderViewModel @Inject constructor(
     private val playerController: PlayerController,
     private val aniLibertyApi: AniLibertyApi,
     private val aniOverlay: AniLibertyDetailsOverlay,
-    ) : LifecycleViewModel() {
+    private val aniDetailConverter: AniLibertyDetailDataConverter,
+) : LifecycleViewModel() {
+
     private val v1Release = MutableStateFlow<AniLibertyRelease?>(null)
 
 
@@ -72,20 +76,23 @@ class DetailHeaderViewModel @Inject constructor(
     init {
         updateProgress()
 
+        // быстрый локальный кеш (legacy)
         releaseInteractor.getItem(releaseId)?.also {
-            updateRelease(it, emptyList(), null)
+            updateRelease(it, emptyList(), v1Release.value)
         }
 
+        // v1-first запрос
         viewModelScope.launch {
             coRunCatching {
                 aniLibertyApi.getRelease(
                     idOrAlias = releaseId.id.toString(),
-                    include = "genres,episodes,age_rating"
+                    fields = AniLibertyReleaseFields.DetailsHeader
                 )
             }.onSuccess { v1Release.value = it }
                 .onFailure { Timber.e(it) }
         }
 
+        // как только что-то меняется — пересобираем детали
         combine(
             releaseInteractor.observeFull(releaseId),
             releaseInteractor.observeAccesses(releaseId),
@@ -97,7 +104,6 @@ class DetailHeaderViewModel @Inject constructor(
             updateRelease(releaseFull, accesses, v1)
         }.launchIn(viewModelScope)
     }
-
 
     override fun onResume() {
         super.onResume()
@@ -197,19 +203,54 @@ class DetailHeaderViewModel @Inject constructor(
     // -----------------------------------
     // Вспомогательные приватные методы
     // -----------------------------------
-    private fun updateRelease(release: Release, accesses: List<EpisodeAccess>, v1: AniLibertyRelease?) {
+    private fun updateRelease(
+        release: Release?,
+        accesses: List<EpisodeAccess>,
+        v1: AniLibertyRelease?,
+    ) {
         currentRelease = release
 
-        val base = converter.toDetail(release, isFullLoaded, accesses)
-        releaseData.value = if (v1 != null) aniOverlay.apply(base, v1) else base
+        val hasViewed = accesses.any { it.isViewed }
+        val isFavorite = release?.favoriteInfo?.isAdded == true
 
-        updateProgress()
+        val legacyDetails: LibriaDetails? = release?.let {
+            converter.toDetail(it, isFullLoaded, accesses)
+        }
+
+        val details: LibriaDetails? = when {
+            // v1 пришёл + есть legacy → overlay на legacy (и все action-флаги сохраняются)
+            v1 != null && legacyDetails != null -> {
+                aniOverlay.apply(legacyDetails, v1)
+            }
+
+            // v1 пришёл, legacy ещё нет → показываем v1 (действия пока прячем)
+            v1 != null -> {
+                val d = aniDetailConverter.toDetail(
+                    releaseId = releaseId,
+                    r = v1,
+                    isFavorite = isFavorite,
+                    hasViewed = hasViewed,
+                )
+                d.copy(
+                    hasEpisodes = false,
+                    hasWebPlayer = false,
+                    hasFullHd = false,
+                )
+            }
+
+            // v1 нет → fallback на legacy
+            legacyDetails != null -> legacyDetails
+
+            else -> null
+        }
+
+        releaseData.value = details
+        updateProgress(details)
     }
 
-
-    private fun updateProgress() {
+    private fun updateProgress(details: LibriaDetails? = releaseData.value) {
         progressState.value = DetailsState(
-            loadingProgress = (currentRelease == null),
+            loadingProgress = (details == null),
             updateProgress = (favoriteJob?.isActive == true)
         )
     }

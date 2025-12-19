@@ -28,14 +28,17 @@ private class AniLibertyViewTimecodeJsonAdapter : JsonAdapter<AniLibertyViewTime
     override fun fromJson(reader: JsonReader): AniLibertyViewTimecode {
         reader.beginArray()
 
+        if (!reader.hasNext()) throw JsonDataException("AniLibertyViewTimecode: empty tuple")
         val episodeId = reader.nextString()
+
+        if (!reader.hasNext()) throw JsonDataException("AniLibertyViewTimecode: missing time")
         val time = reader.nextDouble()
+
+        if (!reader.hasNext()) throw JsonDataException("AniLibertyViewTimecode: missing isWatched")
         val isWatched = reader.nextBoolean()
 
         // если сервер внезапно пришлет больше значений, пропустим их
-        while (reader.hasNext()) {
-            reader.skipValue()
-        }
+        while (reader.hasNext()) reader.skipValue()
 
         reader.endArray()
         return AniLibertyViewTimecode(
@@ -60,13 +63,14 @@ private class AniLibertyCollectionIdItemJsonAdapter : JsonAdapter<AniLibertyColl
     override fun fromJson(reader: JsonReader): AniLibertyCollectionIdItem {
         reader.beginArray()
 
+        if (!reader.hasNext()) throw JsonDataException("AniLibertyCollectionIdItem: empty tuple")
         // в спеках number, поэтому читаем double и приводим к int
         val releaseId = reader.nextDouble().toInt()
+
+        if (!reader.hasNext()) throw JsonDataException("AniLibertyCollectionIdItem: missing type")
         val type = reader.nextString()
 
-        while (reader.hasNext()) {
-            reader.skipValue()
-        }
+        while (reader.hasNext()) reader.skipValue()
 
         reader.endArray()
         return AniLibertyCollectionIdItem(

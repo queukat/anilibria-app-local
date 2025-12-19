@@ -1,7 +1,7 @@
 package ru.radiationx.anilibria.common
 
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import ru.radiationx.data.entity.domain.types.ReleaseId
-import ru.radiationx.data.entity.response.aniliberty.AniLibertyRelease
 import java.text.NumberFormat
 import javax.inject.Inject
 

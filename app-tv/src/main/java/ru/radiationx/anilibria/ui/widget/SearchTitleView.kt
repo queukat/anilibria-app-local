@@ -3,6 +3,7 @@ package ru.radiationx.anilibria.ui.widget
 import android.content.Context
 import android.graphics.Rect
 import android.util.AttributeSet
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.TextView
@@ -95,4 +96,31 @@ class SearchTitleView @JvmOverloads constructor(
         this.text = text
         this.isVisible = text != null
     }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            // если фокус сейчас внутри фильтров/контролов
+            if (binding.searchTitleYear.hasFocus()
+                || binding.searchTitleSeason.hasFocus()
+                || binding.searchTitleGenre.hasFocus()
+                || binding.searchTitleSort.hasFocus()
+                || binding.searchTitleComplete.hasFocus()
+            ) {
+                val other = findViewById<View>(R.id.title_other)
+                if (other.visibility == View.VISIBLE && other.isFocusable) {
+                    other.requestFocus()
+                    return true
+                }
+
+                val orb = findViewById<View>(R.id.title_orb)
+                if (orb.visibility == View.VISIBLE && orb.isFocusable) {
+                    orb.requestFocus()
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+
 }

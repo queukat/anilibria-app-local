@@ -8,6 +8,7 @@ import android.widget.FrameLayout
 import androidx.core.view.isInvisible
 import androidx.core.view.updateLayoutParams
 import androidx.leanback.app.VerticalGridSupportFragment
+import androidx.leanback.widget.VerticalGridView
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.ui.widget.ShadowDescriptionView
 import kotlin.math.max
@@ -15,6 +16,9 @@ import kotlin.math.max
 open class BaseVerticalGridFragment : VerticalGridSupportFragment() {
 
     private var shadowDescriptionView: ShadowDescriptionView? = null
+
+    protected val browseGridView: VerticalGridView?
+        get() = view?.findViewById(androidx.leanback.R.id.browse_grid)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)

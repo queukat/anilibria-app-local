@@ -5,7 +5,7 @@ plugins {
     alias libs.plugins.android.application
     alias libs.plugins.kotlin.android
     alias libs.plugins.ksp
-    alias libs.plugins.appmetrica
+//    alias libs.plugins.appmetrica
 }
 
 static def getDateTime() {
@@ -46,18 +46,42 @@ android {
             outputFileName = "${appName}_v${versionName}.apk"
         }
     }
+
+
+
+        signingConfigs {
+            debug {
+                // дефолтный debug keystore
+                storeFile file("${System.getProperty("user.home")}/.android/debug.keystore")
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
+        }
+
+        buildTypes {
+            debug {
+                signingConfig signingConfigs.debug
+            }
+            release {
+                signingConfig signingConfigs.debug  // <-- вот это
+                minifyEnabled false
+                proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            }
+        }
+
 }
 
 kotlin {
     jvmToolchain(jvm_toolchain_version)
 }
 
-appmetrica {
-    Properties properties = new Properties()
-    properties.load(project.rootProject.file('local.properties').newDataInputStream())
-    String propApiKey = properties.get("appmetrica_post_api_key", "")
-    setPostApiKey(propApiKey)
-}
+//appmetrica {
+//    Properties properties = new Properties()
+//    properties.load(project.rootProject.file('local.properties').newDataInputStream())
+//    String propApiKey = properties.get("appmetrica_post_api_key", "")
+//    setPostApiKey(propApiKey)
+//}
 
 dependencies {
     implementation libs.kotlin.stdlib

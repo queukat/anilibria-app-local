@@ -1,11 +1,12 @@
 package ru.radiationx.anilibria.common
 
-import android.util.Log
-import ru.radiationx.data.entity.response.aniliberty.AniLibertyRelease
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import timber.log.Timber
 import javax.inject.Inject
 
 class AniLibertyDetailsOverlay @Inject constructor() {
+
+    private val host = "https://aniliberty.top"
 
     fun apply(base: LibriaDetails, v1: AniLibertyRelease): LibriaDetails {
 
@@ -13,21 +14,19 @@ class AniLibertyDetailsOverlay @Inject constructor() {
         val titleEn = (v1.name?.english ?: v1.name?.alternative).takeIfNotBlank() ?: base.titleEn
 
         val age = v1.ageRating?.label ?: v1.ageRating?.value
-        val publish = v1.publishDay?.description ?: v1.publishDay?.value
+        val publish = v1.publishDay?.description ?: v1.publishDay?.value?.toString()
         val duration = v1.averageDurationOfEpisode
             ?.takeIf { it > 0 }
             ?.let { "$it мин." }
 
         val extraAddon = listOfNotNull(
             age?.let { "Рейтинг: $it" },
-            publish?.let { "Выход: $it" },
             duration,
         ).joinToString(" • ")
 
         Timber.tag("AniLibertyDetailsOverla")
             .d("ageRating=${v1.ageRating} publishDay=${v1.publishDay} duration=${v1.averageDurationOfEpisode}")
         Timber.tag("AniLibertyDetailsOverla").d("extraAddon='$extraAddon'")
-
 
         val extra = listOf(base.extra, extraAddon)
             .filter { it.isNotBlank() }
@@ -40,9 +39,12 @@ class AniLibertyDetailsOverlay @Inject constructor() {
             .distinct()
             .joinToString(" • ")
 
-        val image = v1.poster?.optimized?.preview
+        // v1 часто отдаёт относительные пути (/storage/...), поэтому приводим к абсолютным
+        val v1ImagePath = v1.poster?.optimized?.preview
             ?: v1.poster?.preview
             ?: v1.poster?.thumbnail
+
+        val image = v1ImagePath.toAbsoluteAniLibertyUrl()
             ?: base.image
 
         val description = v1.description.takeIfNotBlank() ?: base.description
@@ -71,4 +73,15 @@ class AniLibertyDetailsOverlay @Inject constructor() {
     }
 
     private fun String?.takeIfNotBlank(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun String?.toAbsoluteAniLibertyUrl(): String? {
+        val s = this?.trim().orEmpty()
+        if (s.isEmpty()) return null
+        return when {
+            s.startsWith("http://") || s.startsWith("https://") -> s
+            s.startsWith("//") -> "https:$s"
+            s.startsWith("/") -> host + s
+            else -> s
+        }
+    }
 }

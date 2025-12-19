@@ -1,6 +1,7 @@
 package ru.radiationx.data.datasource.remote.aniliberty
 
 import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 import ru.radiationx.data.ApiClient
 import ru.radiationx.data.datasource.remote.IClient
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyCollectionAddBody
@@ -9,7 +10,6 @@ import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReleaseIdBo
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyViewTimecode
 import ru.radiationx.data.datasource.remote.fetchResponse
 import ru.radiationx.data.entity.response.PaginatedResponse
-import ru.radiationx.data.entity.response.aniliberty.AniLibertyRelease
 import javax.inject.Inject
 
 /**
@@ -83,17 +83,37 @@ class AniLibertyApi @Inject constructor(
 
     // region Releases
 
-    suspend fun getRelease(idOrAlias: String, include: String? = null, exclude: String? = null): AniLibertyRelease {
+    /**
+     * Один метод вместо двух:
+     * - либо передаём fields (предпочтительно),
+     * - либо сырые include/exclude (если нужно быстро).
+     *
+     * exclude имеет приоритет над include на стороне API.
+     */
+    suspend fun getRelease(
+        idOrAlias: String,
+        fields: AniLibertyReleaseFields? = null,
+        include: String? = null,
+        exclude: String? = null,
+    ): AniLibertyRelease {
         val args = mutableMapOf<String, String>()
-        args.putIfNotBlank("include", include)
-        args.putIfNotBlank("exclude", exclude)
+
+        val includeValue = fields?.includeParam() ?: include
+        val excludeValue = fields?.excludeParam() ?: exclude
+
+        args.putIfNotBlank("include", includeValue)
+        args.putIfNotBlank("exclude", excludeValue)
 
         val url = "$baseUrl/anime/releases/$idOrAlias"
         val json = client.get(url, args)
         return json.fetchResponse(moshi)
     }
 
-    suspend fun getLatestReleases(limit: Int? = null, include: String? = null, exclude: String? = null): List<AniLibertyRelease> {
+    suspend fun getLatestReleases(
+        limit: Int? = null,
+        include: String? = null,
+        exclude: String? = null,
+    ): List<AniLibertyRelease> {
         val args = mutableMapOf<String, String>()
         if (limit != null && limit > 0) args["limit"] = limit.toString()
         args.putIfNotBlank("include", include)
@@ -143,7 +163,11 @@ class AniLibertyApi @Inject constructor(
         return response.toPaginatedResponse()
     }
 
-    suspend fun getRandomReleases(limit: Int = 1, include: String? = null, exclude: String? = null): List<AniLibertyRelease> {
+    suspend fun getRandomReleases(
+        limit: Int = 1,
+        include: String? = null,
+        exclude: String? = null,
+    ): List<AniLibertyRelease> {
         val args = mutableMapOf<String, String>()
         if (limit > 0) args["limit"] = limit.toString()
         args.putIfNotBlank("include", include)
@@ -153,7 +177,7 @@ class AniLibertyApi @Inject constructor(
         return json.fetchResponse(moshi)
     }
 
-    suspend fun getReleaseMembers(idOrAlias: String): List<ru.radiationx.data.entity.response.aniliberty.AniLibertyReleaseMember> {
+    suspend fun getReleaseMembers(idOrAlias: String): List<AniLibertyReleaseMember> {
         val json = client.get("$baseUrl/anime/releases/$idOrAlias/members", emptyMap())
         return json.fetchResponse(moshi)
     }
@@ -185,14 +209,10 @@ class AniLibertyApi @Inject constructor(
         return response.toPaginatedResponse()
     }
 
-    // endregion
-
-    // Favorites
-
     suspend fun addToFavorites(releaseIds: List<Int>): List<Int> {
         val body = releaseIds.distinct().map { AniLibertyReleaseIdBody(it) }
         val jsonBody = moshi.adapter<List<AniLibertyReleaseIdBody>>(
-            com.squareup.moshi.Types.newParameterizedType(List::class.java, AniLibertyReleaseIdBody::class.java)
+            Types.newParameterizedType(List::class.java, AniLibertyReleaseIdBody::class.java)
         ).toJson(body)
 
         val json = client.postJson("$baseUrl/accounts/users/me/favorites", jsonBody)
@@ -202,48 +222,52 @@ class AniLibertyApi @Inject constructor(
     suspend fun removeFromFavorites(releaseIds: List<Int>): List<Int> {
         val body = releaseIds.distinct().map { AniLibertyReleaseIdBody(it) }
         val jsonBody = moshi.adapter<List<AniLibertyReleaseIdBody>>(
-            com.squareup.moshi.Types.newParameterizedType(List::class.java, AniLibertyReleaseIdBody::class.java)
+            Types.newParameterizedType(List::class.java, AniLibertyReleaseIdBody::class.java)
         ).toJson(body)
 
         val json = client.deleteJson("$baseUrl/accounts/users/me/favorites", jsonBody)
         return json.fetchResponse(moshi)
     }
 
-    // Collections
+    // endregion
+
+    // region Collections
 
     suspend fun getUserCollectionIds(): List<AniLibertyCollectionIdItem> {
         val json = client.get("$baseUrl/accounts/users/me/collections/ids", emptyMap())
-        return json.fetchListOrNestedList<AniLibertyCollectionIdItem>(moshi)
+        return json.fetchListOrNestedList(moshi)
     }
 
     suspend fun addToCollections(items: List<AniLibertyCollectionAddBody>): List<AniLibertyCollectionIdItem> {
         val safeItems = items.distinctBy { it.releaseId to it.typeOfCollection }
         val jsonBody = moshi.adapter<List<AniLibertyCollectionAddBody>>(
-            com.squareup.moshi.Types.newParameterizedType(List::class.java, AniLibertyCollectionAddBody::class.java)
+            Types.newParameterizedType(List::class.java, AniLibertyCollectionAddBody::class.java)
         ).toJson(safeItems)
 
         val json = client.postJson("$baseUrl/accounts/users/me/collections", jsonBody)
-        return json.fetchListOrNestedList<AniLibertyCollectionIdItem>(moshi)
+        return json.fetchListOrNestedList(moshi)
     }
 
     suspend fun removeFromCollections(releaseIds: List<Int>): List<AniLibertyCollectionIdItem> {
         val body = releaseIds.distinct().map { AniLibertyReleaseIdBody(it) }
         val jsonBody = moshi.adapter<List<AniLibertyReleaseIdBody>>(
-            com.squareup.moshi.Types.newParameterizedType(List::class.java, AniLibertyReleaseIdBody::class.java)
+            Types.newParameterizedType(List::class.java, AniLibertyReleaseIdBody::class.java)
         ).toJson(body)
 
         val json = client.deleteJson("$baseUrl/accounts/users/me/collections", jsonBody)
-        return json.fetchListOrNestedList<AniLibertyCollectionIdItem>(moshi)
+        return json.fetchListOrNestedList(moshi)
     }
 
-    // Views timecodes (tuple array response)
+    // endregion
+
+    // region Views timecodes (tuple array response)
 
     suspend fun getUserViewTimecodes(since: String? = null): List<AniLibertyViewTimecode> {
         val args = mutableMapOf<String, String>()
-        args.putIfNotBlank("since", since) // параметр есть в спеках :contentReference[oaicite:8]{index=8}
+        args.putIfNotBlank("since", since)
         val json = client.get("$baseUrl/accounts/users/me/views/timecodes", args)
-        return json.fetchListOrNestedList<AniLibertyViewTimecode>(moshi)
+        return json.fetchListOrNestedList(moshi)
     }
 
-
+    // endregion
 }

@@ -1,15 +1,17 @@
 package ru.radiationx.anilibria.screen.watching
 
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.os.bundleOf
 import androidx.leanback.app.BrowseSupportFragment
 import androidx.leanback.app.GuidedStepSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
+import androidx.leanback.widget.BaseGridView
 import androidx.leanback.widget.OnItemViewClickedListener
 import androidx.leanback.widget.VerticalGridPresenter
+import androidx.leanback.widget.VerticalGridView
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
@@ -24,6 +26,7 @@ import ru.radiationx.shared.ktx.android.subscribeTo
 import ru.radiationx.shared_app.di.quillParentViewModel
 import timber.log.Timber
 import kotlin.math.roundToInt
+
 
 class WatchingFavoritesGridFragment :
     BaseVerticalGridFragment(),
@@ -68,6 +71,27 @@ class WatchingFavoritesGridFragment :
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val grid = view.findViewById<VerticalGridView>(androidx.leanback.R.id.browse_grid)
+
+        grid?.setOnKeyInterceptListener(object : BaseGridView.OnKeyInterceptListener {
+            override fun onInterceptKeyEvent(event: KeyEvent): Boolean {
+                if (event.action != KeyEvent.ACTION_DOWN) return false
+
+                if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    val pos = grid.selectedPosition
+                    val columns = computeColumns()
+                    val isTopRow = pos in 0 until columns
+
+                    if (isTopRow) {
+                        (titleView as? SearchTitleView)?.requestFocus(View.FOCUS_UP)
+                        return true
+                    }
+                }
+                return false
+            }
+        })
+
 
         val fm = hostFm()
 
