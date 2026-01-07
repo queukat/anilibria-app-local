@@ -5,7 +5,9 @@ import com.squareup.moshi.JsonClass
 
 /**
  * Модель релиза под AniLiberty v1
- * соответствует components.schemas.models.anime.releases.v1.release
+ * Swagger: models.anime.releases.v1.release
+ *
+ * Сейчас это заготовка, не подключена к боевым сценариям.
  */
 @JsonClass(generateAdapter = true)
 data class AniLibertyRelease(
@@ -15,7 +17,7 @@ data class AniLibertyRelease(
     @Json(name = "type") val type: Type?,
     @Json(name = "year") val year: Int?,
     @Json(name = "season") val season: Season?,
-    @Json(name = "poster") val poster: AniLibertyImageWithOptimized?, // commons...image.withOptimized
+    @Json(name = "poster") val poster: AniLibertyImageWithOptimized?,
     @Json(name = "fresh_at") val freshAt: String?,
     @Json(name = "created_at") val createdAt: String?,
     @Json(name = "updated_at") val updatedAt: String?,
@@ -37,18 +39,15 @@ data class AniLibertyRelease(
     @Json(name = "added_in_postponed_collection") val postponedCount: Int?,
     @Json(name = "added_in_abandoned_collection") val abandonedCount: Int?,
 
-    // Expanded fields (в ответах list/release/latest встречаются по include’ам)
     @Json(name = "genres") val genres: List<AniLibertyGenre>?,
     @Json(name = "members") val members: List<AniLibertyReleaseMember>?,
     @Json(name = "episodes") val episodes: List<AniLibertyEpisode>?,
     @Json(name = "torrents") val torrents: List<AniLibertyTorrent>?,
     @Json(name = "sponsor") val sponsor: AniLibertySponsor?,
 
-    // Только в /anime/releases/latest
     @Json(name = "latest_episode") val latestEpisode: AniLibertyEpisode?,
 ) {
 
-    /** Названия релиза */
     @JsonClass(generateAdapter = true)
     data class Name(
         @Json(name = "main") val main: String?,
@@ -56,45 +55,55 @@ data class AniLibertyRelease(
         @Json(name = "alternative") val alternative: String?,
     )
 
-    /** Тип (ТВ, OVA, фильм и т.п.) */
+    /**
+     * Swagger: models.anime.releases.v1.release.type
+     * value: enums.anime.releases.release.type (TV, ONA, WEB, OVA, OAD, MOVIE, DORAMA, SPECIAL)
+     */
     @JsonClass(generateAdapter = true)
     data class Type(
-        @Json(name = "value") val value: String?, // enums.anime.releases.release.type
+        @Json(name = "value") val value: AniLibertyReleaseType?,
         @Json(name = "description") val description: String?,
     )
 
-    /** Сезон выхода (зима/весна/лето/осень) */
+    /**
+     * Swagger: models.anime.releases.v1.release.season
+     * value: enums.anime.releases.release.season (winter, spring, summer, autumn)
+     */
     @JsonClass(generateAdapter = true)
     data class Season(
-        @Json(name = "value") val value: String?, // enums.anime.releases.release.season
+        @Json(name = "value") val value: AniLibertySeason?,
         @Json(name = "description") val description: String?,
     )
 
-    /** Возрастной рейтинг */
+    /**
+     * Swagger: models.anime.releases.v1.release.ageRating
+     * value: enums.anime.releases.release.ageRating (R0_PLUS, R6_PLUS, R12_PLUS, R16_PLUS, R18_PLUS)
+     */
     @JsonClass(generateAdapter = true)
     data class AgeRating(
-        @Json(name = "value") val value: String?, // enums.anime.releases.release.ageRating
+        @Json(name = "value") val value: AniLibertyAgeRating?,
         @Json(name = "label") val label: String?,
         @Json(name = "is_adult") val isAdult: Boolean?,
         @Json(name = "description") val description: String?,
     )
 
-    /** День выхода */
+    /**
+     * Swagger: models.anime.releases.v1.release.publishDay
+     * value: enums.anime.releases.release.publishDay (1..7)
+     */
     @JsonClass(generateAdapter = true)
     data class PublishDay(
-        @Json(name = "value") val value: Int?, // enums.anime.releases.release.publishDay (integer)
+        @Json(name = "value") val value: AniLibertyPublishDay?,
         @Json(name = "description") val description: String?,
     )
 }
 
-/** commons.v1.models.components.image */
 @JsonClass(generateAdapter = true)
 data class AniLibertyImage(
     @Json(name = "preview") val preview: String?,
     @Json(name = "thumbnail") val thumbnail: String?,
 )
 
-/** commons.v1.models.components.image.withOptimized */
 @JsonClass(generateAdapter = true)
 data class AniLibertyImageWithOptimized(
     @Json(name = "preview") val preview: String?,
@@ -112,13 +121,17 @@ data class AniLibertyGenre(
 
 @JsonClass(generateAdapter = true)
 data class AniLibertyReleaseMemberRole(
-    @Json(name = "value") val value: String?,
+    /**
+     * value: enums.anime.releases.release.member.role
+     * poster, timing, voicing, editing, decorating, translating
+     */
+    @Json(name = "value") val value: AniLibertyReleaseMemberRoleType?,
     @Json(name = "description") val description: String?,
 )
 
 @JsonClass(generateAdapter = true)
 data class AniLibertyReleaseMemberUser(
-    @Json(name = "id") val id: Int?,
+    @Json(name = "id") val id: Double?,
     @Json(name = "avatar") val avatar: AniLibertyImageWithOptimized?,
 )
 
@@ -126,7 +139,7 @@ data class AniLibertyReleaseMemberUser(
 data class AniLibertyReleaseMember(
     @Json(name = "id") val id: String?,
     @Json(name = "role") val role: AniLibertyReleaseMemberRole?,
-    @Json(name = "user") val user: AniLibertyReleaseMemberUser?, // oneOf + nullable
+    @Json(name = "user") val user: AniLibertyReleaseMemberUser?,
     @Json(name = "nickname") val nickname: String?,
 )
 
@@ -140,19 +153,19 @@ data class AniLibertyEpisodeSkip(
 data class AniLibertyEpisode(
     @Json(name = "id") val id: String?,
     @Json(name = "name") val name: String?,
-    @Json(name = "ordinal") val ordinal: Double?, // schema: number (может быть дробным)
+    @Json(name = "ordinal") val ordinal: Double?,
     @Json(name = "ending") val ending: AniLibertyEpisodeSkip?,
     @Json(name = "opening") val opening: AniLibertyEpisodeSkip?,
     @Json(name = "preview") val preview: AniLibertyImageWithOptimized?,
     @Json(name = "hls_480") val hls480: String?,
     @Json(name = "hls_720") val hls720: String?,
     @Json(name = "hls_1080") val hls1080: String?,
-    @Json(name = "duration") val duration: Double?,     // schema: number
+    @Json(name = "duration") val duration: Double?,
     @Json(name = "rutube_id") val rutubeId: String?,
     @Json(name = "youtube_id") val youtubeId: String?,
     @Json(name = "updated_at") val updatedAt: String?,
-    @Json(name = "sort_order") val sortOrder: Double?,  // schema: number
-    @Json(name = "release_id") val releaseId: Double?,  // schema: number
+    @Json(name = "sort_order") val sortOrder: Double?,
+    @Json(name = "release_id") val releaseId: Double?,
     @Json(name = "name_english") val nameEnglish: String?,
 )
 

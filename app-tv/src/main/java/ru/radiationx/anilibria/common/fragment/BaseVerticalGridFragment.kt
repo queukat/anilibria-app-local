@@ -43,15 +43,26 @@ open class BaseVerticalGridFragment : VerticalGridSupportFragment() {
         gridView.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
             val cardDescriptionView =
                 shadowDescriptionView?.getCardDescriptionView() ?: return@addOnLayoutChangeListener
-            val newWidth =
-                max(v.width - v.paddingLeft - v.paddingRight, cardDescriptionView.minimumWidth)
+
+            val newWidth = max(
+                v.width - v.paddingLeft - v.paddingRight,
+                cardDescriptionView.minimumWidth
+            )
             val currentWidth = cardDescriptionView.layoutParams.width
-            if (currentWidth != newWidth) {
-                cardDescriptionView.updateLayoutParams {
-                    width = newWidth
+            if (currentWidth == newWidth) return@addOnLayoutChangeListener
+
+            // Avoid triggering requestLayout during an ongoing layout pass
+            if (cardDescriptionView.isInLayout) {
+                cardDescriptionView.post {
+                    if (cardDescriptionView.layoutParams.width != newWidth) {
+                        cardDescriptionView.updateLayoutParams { width = newWidth }
+                    }
                 }
+            } else {
+                cardDescriptionView.updateLayoutParams { width = newWidth }
             }
         }
+
     }
 
     override fun onDestroyView() {

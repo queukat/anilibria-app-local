@@ -1,5 +1,7 @@
+// File: WatchingFavoritesGridFragment.kt
 package ru.radiationx.anilibria.screen.watching
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -9,9 +11,9 @@ import androidx.leanback.app.BrowseSupportFragment
 import androidx.leanback.app.GuidedStepSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.BaseGridView
+import androidx.leanback.widget.OnChildLaidOutListener
 import androidx.leanback.widget.OnItemViewClickedListener
 import androidx.leanback.widget.VerticalGridPresenter
-import androidx.leanback.widget.VerticalGridView
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
@@ -26,7 +28,6 @@ import ru.radiationx.shared.ktx.android.subscribeTo
 import ru.radiationx.shared_app.di.quillParentViewModel
 import timber.log.Timber
 import kotlin.math.roundToInt
-
 
 class WatchingFavoritesGridFragment :
     BaseVerticalGridFragment(),
@@ -69,48 +70,42 @@ class WatchingFavoritesGridFragment :
         (titleView as? SearchTitleView)?.resetFiltersScroll()
     }
 
+    @SuppressLint("RestrictedApi")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val grid = view.findViewById<VerticalGridView>(androidx.leanback.R.id.browse_grid)
+        runCatching {
+            mainFragmentAdapter.fragmentHost.notifyViewCreated(mainFragmentAdapter)
+        }
 
-        grid?.setOnKeyInterceptListener(object : BaseGridView.OnKeyInterceptListener {
-            override fun onInterceptKeyEvent(event: KeyEvent): Boolean {
-                if (event.action != KeyEvent.ACTION_DOWN) return false
+        val grid = browseGridView
+        setupFocusBridge(grid)
 
-                if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                    val pos = grid.selectedPosition
-                    val columns = computeColumns()
-                    val isTopRow = pos in 0 until columns
-
-                    if (isTopRow) {
-                        (titleView as? SearchTitleView)?.requestFocus(View.FOCUS_UP)
-                        return true
-                    }
-                }
-                return false
+        grid?.setOnChildLaidOutListener(OnChildLaidOutListener { _, _, position, _ ->
+            if (position == 0) {
+                updateTitleVisibility()
             }
         })
 
-
-        val fm = hostFm()
-
-        fm.setFragmentResultListener(REQ_YEAR, viewLifecycleOwner) { _, b ->
+        hostFm().setFragmentResultListener(REQ_YEAR, viewLifecycleOwner) { _, b ->
             viewModel.onYearSelected(b.getInt(SingleChoiceGuidedStepFragment.RESULT_INDEX))
         }
-        fm.setFragmentResultListener(REQ_SEASON, viewLifecycleOwner) { _, b ->
+        hostFm().setFragmentResultListener(REQ_SEASON, viewLifecycleOwner) { _, b ->
             viewModel.onSeasonSelected(b.getInt(SingleChoiceGuidedStepFragment.RESULT_INDEX))
         }
-        fm.setFragmentResultListener(REQ_GENRE, viewLifecycleOwner) { _, b ->
+        hostFm().setFragmentResultListener(REQ_GENRE, viewLifecycleOwner) { _, b ->
             viewModel.onGenreSelected(b.getInt(SingleChoiceGuidedStepFragment.RESULT_INDEX))
         }
 
-
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
 
-        val tv = (titleView as? SearchTitleView)
-        tv?.apply {
+        (titleView as? SearchTitleView)?.apply {
             setMode(SearchTitleView.Mode.FAVORITES)
+//            (titleViewAdapter as? ru.radiationx.anilibria.ui.widget.BrowseTitleView.Adapter)?.apply {
+//                setOther("Каталог")
+//                setOnOtherClickedListener { viewModel.onLinkCardClick() }
+//            }
+
 
             setYearClickListener { viewModel.onYearClick() }
             setSeasonClickListener { viewModel.onSeasonClick() }
@@ -124,15 +119,15 @@ class WatchingFavoritesGridFragment :
             subscribeTo(viewModel.genreLabel) { genre = it }
             subscribeTo(viewModel.sortLabel) { sort = it }
             subscribeTo(viewModel.onlyCompletedLabel) { onlyCompleted = it }
+
+            setupTitleControlsNextFocusDown()
         }
 
         subscribeTo(viewModel.cardsData) { list ->
             cardsAdapter.setItems(list, CardDiffCallback)
             setDescriptionVisible(list.any { it is LibriaCard })
-
         }
 
-        // Диалоги выбора фильтров
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.dialogRequests.collect { req ->
                 when (req) {
@@ -144,6 +139,7 @@ class WatchingFavoritesGridFragment :
                             selectedIndex = req.selectedIndex
                         )
                     }
+
                     is WatchingFavoritesViewModel.DialogRequest.ChooseSeason -> {
                         showChoiceDialog(
                             requestKey = REQ_SEASON,
@@ -152,6 +148,7 @@ class WatchingFavoritesGridFragment :
                             selectedIndex = req.selectedIndex
                         )
                     }
+
                     is WatchingFavoritesViewModel.DialogRequest.ChooseGenre -> {
                         showChoiceDialog(
                             requestKey = REQ_GENRE,
@@ -164,16 +161,6 @@ class WatchingFavoritesGridFragment :
             }
         }
 
-        parentFragmentManager.setFragmentResultListener(REQ_YEAR, viewLifecycleOwner) { _, b ->
-            viewModel.onYearSelected(b.getInt(SingleChoiceGuidedStepFragment.RESULT_INDEX))
-        }
-        parentFragmentManager.setFragmentResultListener(REQ_SEASON, viewLifecycleOwner) { _, b ->
-            viewModel.onSeasonSelected(b.getInt(SingleChoiceGuidedStepFragment.RESULT_INDEX))
-        }
-        parentFragmentManager.setFragmentResultListener(REQ_GENRE, viewLifecycleOwner) { _, b ->
-            viewModel.onGenreSelected(b.getInt(SingleChoiceGuidedStepFragment.RESULT_INDEX))
-        }
-
         setOnItemViewClickedListener(OnItemViewClickedListener { _, item, _, _ ->
             when (item) {
                 is LibriaCard -> viewModel.onLibriaCardClick(item)
@@ -183,19 +170,106 @@ class WatchingFavoritesGridFragment :
         })
 
         setOnItemViewSelectedListener { _, item, _, _ ->
+            updateTitleVisibility()
+
             Timber.d("selected = $item")
             when (item) {
                 is LibriaCard -> {
                     setDescriptionVisible(true)
                     setDescription(item.title, item.description)
                 }
+
                 null -> {
                     // Keep the last description state.
                 }
+
                 else -> {
                     setDescriptionVisible(false)
                 }
             }
+        }
+    }
+
+    private fun setupFocusBridge(grid: BaseGridView?) {
+        grid ?: return
+
+        grid.nextFocusUpId = R.id.searchTitleYear
+
+
+
+        grid.setOnKeyInterceptListener(object : BaseGridView.OnKeyInterceptListener {
+            override fun onInterceptKeyEvent(event: KeyEvent): Boolean {
+                if (event.action != KeyEvent.ACTION_DOWN) return false
+                if (event.keyCode != KeyEvent.KEYCODE_DPAD_UP) return false
+
+                val pos = grid.selectedPosition
+                if (pos < 0) return false
+
+                val columns = computeColumns()
+                val isTopRow = pos in 0 until columns
+                if (!isTopRow) return false
+
+                showTitleView(true)
+
+                // не перехватываем, пусть система сделает фокус по nextFocusUpId
+                return false
+            }
+        })
+
+    }
+
+    private fun focusTitleControls(): Boolean {
+        val root = titleView ?: return false
+
+        val ids = listOf(
+            R.id.title_other,
+            R.id.searchTitleYear,
+            R.id.searchTitleSeason,
+            R.id.searchTitleGenre,
+            R.id.searchTitleSort,
+            R.id.searchTitleComplete
+        )
+
+        for (id in ids) {
+            val v = root.findViewById<View>(id)
+            if (v != null && v.isShown && v.isFocusable) {
+                if (v.requestFocus()) return true
+            }
+        }
+
+        return root.requestFocus()
+    }
+
+    private fun setupTitleControlsNextFocusDown() {
+        val root = titleView ?: return
+        val downId = androidx.leanback.R.id.browse_grid
+
+        val ids = listOf(
+            R.id.title_other,
+            R.id.searchTitleYear,
+            R.id.searchTitleSeason,
+            R.id.searchTitleGenre,
+            R.id.searchTitleSort,
+            R.id.searchTitleComplete
+        )
+
+        ids.forEach { id ->
+            root.findViewById<View>(id)?.nextFocusDownId = downId
+        }
+    }
+
+    private fun updateTitleVisibility() {
+        val grid = browseGridView ?: return
+        val pos = grid.selectedPosition
+        if (pos < 0) return
+
+        val show = !grid.hasPreviousViewInSameRow(pos)
+        showTitleView(show)
+    }
+
+    private fun showTitleView(show: Boolean) {
+        runCatching {
+            mainFragmentAdapter.fragmentHost.showTitleView(show)
         }
     }
 

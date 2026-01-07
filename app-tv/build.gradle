@@ -98,6 +98,7 @@ dependencies {
     implementation libs.androidx.constraintlayout
 
     implementation libs.cicerone
+    implementation libs.androidx.tools.core
 
     compileOnly libs.toothpick
     ksp libs.toothpick.compiler

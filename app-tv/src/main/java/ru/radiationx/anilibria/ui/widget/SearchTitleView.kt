@@ -6,6 +6,7 @@ import android.util.AttributeSet
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.view.isVisible
 import ru.radiationx.anilibria.R
@@ -17,7 +18,8 @@ class SearchTitleView @JvmOverloads constructor(
     defStyleAttr: Int = androidx.leanback.R.attr.browseTitleViewStyle
 ) : BrowseTitleView(context, attrs, defStyleAttr) {
 
-    private var binding: ViewSearchControlsBinding
+    private val binding: ViewSearchControlsBinding
+    private var mode: Mode = Mode.SEARCH
 
     enum class Mode {
         SEARCH,
@@ -25,14 +27,27 @@ class SearchTitleView @JvmOverloads constructor(
     }
 
     fun setMode(mode: Mode) {
-        // Keep controls visible for now.
+        this.mode = mode
+
+        val upTarget = when (mode) {
+            Mode.SEARCH -> R.id.title_orb
+            Mode.FAVORITES -> R.id.title_other
+        }
+
+        val controls = listOf(
+            binding.searchTitleYear,
+            binding.searchTitleSeason,
+            binding.searchTitleGenre,
+            binding.searchTitleSort,
+            binding.searchTitleComplete,
+        )
+        controls.forEach { it.nextFocusUpId = upTarget }
+        getControls().nextFocusUpId = upTarget
     }
 
     fun resetFiltersScroll() {
         getControls().post { getControls().scrollTo(0, 0) }
     }
-
-
 
     var year: String?
         get() = binding.searchTitleYear.getWonderText()
@@ -55,9 +70,9 @@ class SearchTitleView @JvmOverloads constructor(
         set(value) = binding.searchTitleComplete.setWonderText(value)
 
     init {
-        binding =
-            ViewSearchControlsBinding.inflate(LayoutInflater.from(context), getControls(), true)
+        binding = ViewSearchControlsBinding.inflate(LayoutInflater.from(context), getControls(), true)
         getControls().isVisible = true
+        setMode(Mode.SEARCH)
     }
 
     fun setYearClickListener(listener: OnClickListener?) {
@@ -80,14 +95,73 @@ class SearchTitleView @JvmOverloads constructor(
         binding.searchTitleComplete.setOnClickListener(listener)
     }
 
-    override fun onRequestFocusInDescendants(
-        direction: Int,
-        previouslyFocusedRect: Rect?
-    ): Boolean {
-        if (findFocus() == null && direction == View.FOCUS_UP && getControls().requestFocus()) {
-            return true
+    override fun onRequestFocusInDescendants(direction: Int, previouslyFocusedRect: Rect?): Boolean {
+        if (findFocus() == null && direction == View.FOCUS_UP) {
+            // 1) сначала фильтры
+            if (getControls().requestFocus()) return true
+
+            // 2) если фильтры не взяли фокус, тогда верхние кнопки
+            if (mode == Mode.FAVORITES && tryFocusTop()) return true
         }
         return super.onRequestFocusInDescendants(direction, previouslyFocusedRect)
+    }
+
+
+    private fun isFocusInsideFilters(): Boolean =
+        binding.searchTitleYear.hasFocus() ||
+            binding.searchTitleSeason.hasFocus() ||
+            binding.searchTitleGenre.hasFocus() ||
+            binding.searchTitleSort.hasFocus() ||
+            binding.searchTitleComplete.hasFocus()
+
+    private fun tryFocusTop(): Boolean {
+        val root = rootView
+
+        // Prefer a visible/focusable "other" button. There may be multiple views
+        // with the same id in the hierarchy (e.g. this SearchTitleView and parent toolbar).
+        findFirstFocusableById(root, R.id.title_other)
+            ?.let { if (it.requestFocus()) return true }
+
+        findFirstFocusableById(root, R.id.title_orb)
+            ?.let { if (it.requestFocus()) return true }
+
+        val buttons: ViewGroup? = root.findViewById(R.id.title_buttons)
+        if (buttons?.requestFocus() == true) return true
+
+        return false
+    }
+
+    private fun findFirstFocusableById(root: View, id: Int): View? {
+        var result: View? = null
+
+        fun walk(v: View) {
+            if (result != null) return
+
+            if (v.id == id && v.isShown && v.isFocusable) {
+                result = v
+                return
+            }
+
+            if (v is ViewGroup) {
+                for (i in 0 until v.childCount) {
+                    walk(v.getChildAt(i))
+                    if (result != null) return
+                }
+            }
+        }
+
+        walk(root)
+        return result
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            if (isFocusInsideFilters()) {
+                // Не глотаем UP, если реально не смогли перевести фокус
+                if (tryFocusTop()) return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     private fun TextView.getWonderText(): String? = text?.toString()
@@ -95,31 +169,6 @@ class SearchTitleView @JvmOverloads constructor(
     private fun TextView.setWonderText(text: String?) {
         this.text = text
         this.isVisible = text != null
-    }
-
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            // если фокус сейчас внутри фильтров/контролов
-            if (binding.searchTitleYear.hasFocus()
-                || binding.searchTitleSeason.hasFocus()
-                || binding.searchTitleGenre.hasFocus()
-                || binding.searchTitleSort.hasFocus()
-                || binding.searchTitleComplete.hasFocus()
-            ) {
-                val other = findViewById<View>(R.id.title_other)
-                if (other.visibility == View.VISIBLE && other.isFocusable) {
-                    other.requestFocus()
-                    return true
-                }
-
-                val orb = findViewById<View>(R.id.title_orb)
-                if (orb.visibility == View.VISIBLE && orb.isFocusable) {
-                    orb.requestFocus()
-                    return true
-                }
-            }
-        }
-        return super.dispatchKeyEvent(event)
     }
 
 

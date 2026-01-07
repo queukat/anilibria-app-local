@@ -1,5 +1,6 @@
 package ru.radiationx.anilibria.screen.watching
 
+import android.os.SystemClock
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
@@ -8,8 +9,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -44,7 +43,6 @@ class WatchingFavoritesViewModel @Inject constructor(
 
     val cardsData = MutableStateFlow<List<CardItem>>(listOf(LoadingCard()))
 
-
     val dialogRequests = MutableSharedFlow<DialogRequest>(extraBufferCapacity = 1)
 
     val yearLabel = MutableStateFlow("Год: любой")
@@ -67,7 +65,7 @@ class WatchingFavoritesViewModel @Inject constructor(
     private var releasesCache: List<Release> = emptyList()
 
     private var currentAuthState: AuthState? = null
-
+    private var isResumed: Boolean = false
 
     init {
         authRepository
@@ -75,8 +73,13 @@ class WatchingFavoritesViewModel @Inject constructor(
             .distinctUntilChanged()
             .onEach { state ->
                 currentAuthState = state
+
+                if (!isResumed) {
+                    return@onEach
+                }
+
                 if (state == AuthState.AUTH) {
-                    reloadFromNetwork()
+                    handleEnterWithHotCache()
                 } else {
                     showNeedAuth()
                 }
@@ -84,15 +87,19 @@ class WatchingFavoritesViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-
     override fun onResume(owner: LifecycleOwner) {
+        isResumed = true
+
         if (currentAuthState == AuthState.AUTH) {
-            reloadFromNetwork()
+            handleEnterWithHotCache()
         } else {
             showNeedAuth()
         }
     }
 
+    override fun onPause(owner: LifecycleOwner) {
+        isResumed = false
+    }
 
     fun onLibriaCardClick(card: LibriaCard) {
         cardRouter.navigate(card)
@@ -104,12 +111,11 @@ class WatchingFavoritesViewModel @Inject constructor(
 
     fun onLinkCardClick() {
         if (currentAuthState == AuthState.AUTH) {
-            reloadFromNetwork()
+            reloadFromNetwork(showLoading = true)
         } else {
             showNeedAuth()
         }
     }
-
 
     fun onLoadingCardClick() {
         // No-op for now.
@@ -121,13 +127,13 @@ class WatchingFavoritesViewModel @Inject constructor(
             SortMode.BY_TITLE -> SortMode.BY_DATE
         }
         updateLabels()
-        rebuildFromCache()
+        cardsData.value = rebuildFromCache()
     }
 
     fun onOnlyCompletedClick() {
         onlyCompletedFilter = !onlyCompletedFilter
         updateLabels()
-        rebuildFromCache()
+        cardsData.value = rebuildFromCache()
     }
 
     fun onYearClick() {
@@ -166,47 +172,84 @@ class WatchingFavoritesViewModel @Inject constructor(
     fun onYearSelected(index: Int) {
         yearFilter = if (index <= 0) null else availableYears.getOrNull(index - 1)
         updateLabels()
-        rebuildFromCache()
+        cardsData.value = rebuildFromCache()
     }
 
     fun onSeasonSelected(index: Int) {
         seasonFilter = if (index <= 0) null else availableSeasons.getOrNull(index - 1)
         updateLabels()
-        rebuildFromCache()
+        cardsData.value = rebuildFromCache()
     }
 
     fun onGenreSelected(index: Int) {
         genreFilter = if (index <= 0) null else availableGenres.getOrNull(index - 1)
         updateLabels()
-        rebuildFromCache()
+        cardsData.value = rebuildFromCache()
     }
 
-    private fun reloadFromNetwork() {
+    private fun handleEnterWithHotCache() {
+        if (loadJob?.isActive == true) {
+            return
+        }
+
+        val cached = sharedReleasesCache
+        if (cached != null) {
+            releasesCache = cached
+            updateAvailableFilters(cached)
+            cardsData.value = rebuildFromCache()
+
+            if (isCacheStale()) {
+                reloadFromNetwork(showLoading = false)
+            }
+        } else {
+            reloadFromNetwork(showLoading = true)
+        }
+    }
+
+    private fun isCacheStale(): Boolean {
+        val updatedAt = sharedUpdatedAt
+        if (updatedAt <= 0L) return true
+        val now = SystemClock.elapsedRealtime()
+        return (now - updatedAt) > STALE_MS
+    }
+
+    private fun reloadFromNetwork(showLoading: Boolean = true) {
+        if (showLoading) {
+            cardsData.value = listOf(LoadingCard())
+        }
+
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
-            cardsData.value = listOf(LoadingCard(title = "Загрузка…"))
-
             try {
                 val all = loadAllFavoritesSafe()
                 releasesCache = all
+
+                sharedReleasesCache = all
+                sharedUpdatedAt = SystemClock.elapsedRealtime()
+
                 updateAvailableFilters(all)
-                rebuildFromCache()
+                cardsData.value = rebuildFromCache()
             } catch (e: Throwable) {
-                // если класс HttpException у тебя свой, можно так:
                 val is401 = (e is ru.radiationx.data.system.HttpException && e.code == 401)
 
                 if (is401) {
                     showNeedAuth()
-                } else {
-                    cardsData.value = listOf(
-                        LoadingCard(
-                            title = "Ошибка загрузки",
-                            description = e.message ?: "",
-                            isError = true
-                        ),
-                        LinkCard("Повторить")
-                    )
+                    return@launch
                 }
+
+                val hasSomethingToShow = releasesCache.isNotEmpty() && cardsData.value.isNotEmpty()
+                if (!showLoading && hasSomethingToShow) {
+                    return@launch
+                }
+
+                cardsData.value = listOf(
+                    LoadingCard(
+                        title = "Ошибка загрузки",
+                        description = e.message ?: "",
+                        isError = true
+                    ),
+                    LinkCard("Повторить")
+                )
             }
         }
     }
@@ -221,7 +264,6 @@ class WatchingFavoritesViewModel @Inject constructor(
             LinkCard("Открой профиль и войди")
         )
     }
-
 
     private suspend fun loadAllFavoritesSafe(): List<Release> {
         val result = LinkedHashMap<Int, Release>()
@@ -250,12 +292,9 @@ class WatchingFavoritesViewModel @Inject constructor(
         return result.values.toList()
     }
 
-    private fun rebuildFromCache() {
+    private fun rebuildFromCache(): List<CardItem> {
         val src = releasesCache
-        if (src.isEmpty()) {
-            cardsData.value = emptyList()
-            return
-        }
+        if (src.isEmpty()) return emptyList()
 
         val filtered = src.asSequence()
             .filter { r ->
@@ -274,10 +313,12 @@ class WatchingFavoritesViewModel @Inject constructor(
                     .thenByDescending { seasonRank(it.season) }
                     .thenByDescending { it.torrentUpdate }
             )
+
             SortMode.BY_TITLE -> filtered.sortedBy { it.title }
         }
 
-        cardsData.value = sorted.map { converter.toCard(it) }
+        return sorted
+            .map { converter.toCard(it) }
             .ifEmpty { listOf(LinkCard("Ничего не найдено")) }
     }
 
@@ -332,5 +373,11 @@ class WatchingFavoritesViewModel @Inject constructor(
             "осен" in s || "aut" in s || "fall" in s -> 4
             else -> Int.MIN_VALUE
         }
+    }
+
+    private companion object {
+        private var sharedReleasesCache: List<Release>? = null
+        private var sharedUpdatedAt: Long = 0L
+        private const val STALE_MS = 2 * 60 * 1000L
     }
 }

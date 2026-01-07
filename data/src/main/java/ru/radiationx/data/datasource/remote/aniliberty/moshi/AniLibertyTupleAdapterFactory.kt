@@ -6,8 +6,12 @@ import com.squareup.moshi.JsonReader
 import com.squareup.moshi.JsonWriter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyCollectionType
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseEpisodeId
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyCollectionIdItem
-import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyViewTimecode
+import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyEpisodeTimecode
+import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReleaseEpisodeTimecode
 import java.lang.reflect.Type
 
 object AniLibertyTupleAdapterFactory : JsonAdapter.Factory {
@@ -16,42 +20,151 @@ object AniLibertyTupleAdapterFactory : JsonAdapter.Factory {
         val raw = Types.getRawType(type)
 
         return when (raw) {
-            AniLibertyViewTimecode::class.java -> AniLibertyViewTimecodeJsonAdapter()
+            AniLibertyReleaseEpisodeTimecode::class.java -> AniLibertyReleaseEpisodeTimecodeJsonAdapter()
+            AniLibertyEpisodeTimecode::class.java -> AniLibertyEpisodeTimecodeJsonAdapter()
             AniLibertyCollectionIdItem::class.java -> AniLibertyCollectionIdItemJsonAdapter()
             else -> null
         }
     }
 }
 
-private class AniLibertyViewTimecodeJsonAdapter : JsonAdapter<AniLibertyViewTimecode>() {
+private class AniLibertyReleaseEpisodeTimecodeJsonAdapter : JsonAdapter<AniLibertyReleaseEpisodeTimecode>() {
 
-    override fun fromJson(reader: JsonReader): AniLibertyViewTimecode {
+    override fun fromJson(reader: JsonReader): AniLibertyReleaseEpisodeTimecode {
+        return when (reader.peek()) {
+            JsonReader.Token.BEGIN_ARRAY -> fromTuple(reader)
+            JsonReader.Token.BEGIN_OBJECT -> fromObject(reader)
+            else -> throw JsonDataException("AniLibertyReleaseEpisodeTimecode: expected array or object, was ${reader.peek()}")
+        }
+    }
+
+    private fun fromTuple(reader: JsonReader): AniLibertyReleaseEpisodeTimecode {
         reader.beginArray()
 
-        if (!reader.hasNext()) throw JsonDataException("AniLibertyViewTimecode: empty tuple")
+        if (!reader.hasNext()) throw JsonDataException("AniLibertyReleaseEpisodeTimecode: empty tuple")
         val episodeId = reader.nextString()
 
-        if (!reader.hasNext()) throw JsonDataException("AniLibertyViewTimecode: missing time")
+        if (!reader.hasNext()) throw JsonDataException("AniLibertyReleaseEpisodeTimecode: missing time")
         val time = reader.nextDouble()
 
-        if (!reader.hasNext()) throw JsonDataException("AniLibertyViewTimecode: missing isWatched")
+        if (!reader.hasNext()) throw JsonDataException("AniLibertyReleaseEpisodeTimecode: missing isWatched")
         val isWatched = reader.nextBoolean()
 
-        // если сервер внезапно пришлет больше значений, пропустим их
         while (reader.hasNext()) reader.skipValue()
 
         reader.endArray()
-        return AniLibertyViewTimecode(
-            releaseEpisodeId = episodeId,
+        return AniLibertyReleaseEpisodeTimecode(
+            releaseEpisodeId = AniLibertyReleaseEpisodeId(episodeId),
             time = time,
             isWatched = isWatched,
         )
     }
 
-    override fun toJson(writer: JsonWriter, value: AniLibertyViewTimecode?) {
-        if (value == null) throw JsonDataException("AniLibertyViewTimecode was null")
+    private fun fromObject(reader: JsonReader): AniLibertyReleaseEpisodeTimecode {
+        reader.beginObject()
+
+        var episodeId: String? = null
+        var time: Double? = null
+        var isWatched: Boolean? = null
+
+        while (reader.hasNext()) {
+            when (reader.nextName()) {
+                "release_episode_id", "releaseEpisodeId" -> episodeId = reader.nextString()
+                "time" -> time = reader.nextDouble()
+                "is_watched", "isWatched" -> isWatched = reader.nextBoolean()
+                else -> reader.skipValue()
+            }
+        }
+
+        reader.endObject()
+
+        val safeEpisodeId = episodeId ?: throw JsonDataException("AniLibertyReleaseEpisodeTimecode: missing release_episode_id")
+        val safeTime = time ?: throw JsonDataException("AniLibertyReleaseEpisodeTimecode: missing time")
+        val safeIsWatched = isWatched ?: throw JsonDataException("AniLibertyReleaseEpisodeTimecode: missing is_watched")
+
+        return AniLibertyReleaseEpisodeTimecode(
+            releaseEpisodeId = AniLibertyReleaseEpisodeId(safeEpisodeId),
+            time = safeTime,
+            isWatched = safeIsWatched,
+        )
+    }
+
+    override fun toJson(writer: JsonWriter, value: AniLibertyReleaseEpisodeTimecode?) {
+        if (value == null) throw JsonDataException("AniLibertyReleaseEpisodeTimecode was null")
         writer.beginArray()
-        writer.value(value.releaseEpisodeId)
+        writer.value(value.releaseEpisodeId.value)
+        writer.value(value.time)
+        writer.value(value.isWatched)
+        writer.endArray()
+    }
+}
+
+private class AniLibertyEpisodeTimecodeJsonAdapter : JsonAdapter<AniLibertyEpisodeTimecode>() {
+
+    override fun fromJson(reader: JsonReader): AniLibertyEpisodeTimecode {
+        return when (reader.peek()) {
+            JsonReader.Token.BEGIN_ARRAY -> fromTuple(reader)
+            JsonReader.Token.BEGIN_OBJECT -> fromObject(reader)
+            else -> throw JsonDataException("AniLibertyEpisodeTimecode: expected array or object, was ${reader.peek()}")
+        }
+    }
+
+    private fun fromTuple(reader: JsonReader): AniLibertyEpisodeTimecode {
+        reader.beginArray()
+
+        if (!reader.hasNext()) throw JsonDataException("AniLibertyEpisodeTimecode: empty tuple")
+
+        val firstToken = reader.peek()
+        val time = when (firstToken) {
+            JsonReader.Token.STRING -> {
+                reader.skipValue()
+                if (!reader.hasNext()) throw JsonDataException("AniLibertyEpisodeTimecode: missing time after id")
+                reader.nextDouble()
+            }
+            JsonReader.Token.NUMBER -> reader.nextDouble()
+            else -> throw JsonDataException("AniLibertyEpisodeTimecode: unexpected token for first item: $firstToken")
+        }
+
+        if (!reader.hasNext()) throw JsonDataException("AniLibertyEpisodeTimecode: missing isWatched")
+        val isWatched = reader.nextBoolean()
+
+        while (reader.hasNext()) reader.skipValue()
+
+        reader.endArray()
+        return AniLibertyEpisodeTimecode(
+            time = time,
+            isWatched = isWatched,
+        )
+    }
+
+    private fun fromObject(reader: JsonReader): AniLibertyEpisodeTimecode {
+        reader.beginObject()
+
+        var time: Double? = null
+        var isWatched: Boolean? = null
+
+        while (reader.hasNext()) {
+            when (reader.nextName()) {
+                "time" -> time = reader.nextDouble()
+                "is_watched", "isWatched" -> isWatched = reader.nextBoolean()
+                else -> reader.skipValue()
+            }
+        }
+
+        reader.endObject()
+
+        val safeTime = time ?: throw JsonDataException("AniLibertyEpisodeTimecode: missing time")
+        val safeIsWatched = isWatched ?: throw JsonDataException("AniLibertyEpisodeTimecode: missing is_watched")
+
+        return AniLibertyEpisodeTimecode(
+            time = safeTime,
+            isWatched = safeIsWatched,
+        )
+    }
+
+    override fun toJson(writer: JsonWriter, value: AniLibertyEpisodeTimecode?) {
+        if (value == null) throw JsonDataException("AniLibertyEpisodeTimecode was null")
+        writer.beginArray()
         writer.value(value.time)
         writer.value(value.isWatched)
         writer.endArray()
@@ -64,7 +177,6 @@ private class AniLibertyCollectionIdItemJsonAdapter : JsonAdapter<AniLibertyColl
         reader.beginArray()
 
         if (!reader.hasNext()) throw JsonDataException("AniLibertyCollectionIdItem: empty tuple")
-        // в спеках number, поэтому читаем double и приводим к int
         val releaseId = reader.nextDouble().toInt()
 
         if (!reader.hasNext()) throw JsonDataException("AniLibertyCollectionIdItem: missing type")
@@ -74,16 +186,16 @@ private class AniLibertyCollectionIdItemJsonAdapter : JsonAdapter<AniLibertyColl
 
         reader.endArray()
         return AniLibertyCollectionIdItem(
-            releaseId = releaseId,
-            typeOfCollection = type,
+            releaseId = AniLibertyReleaseId(releaseId),
+            typeOfCollection = AniLibertyCollectionType(type),
         )
     }
 
     override fun toJson(writer: JsonWriter, value: AniLibertyCollectionIdItem?) {
         if (value == null) throw JsonDataException("AniLibertyCollectionIdItem was null")
         writer.beginArray()
-        writer.value(value.releaseId)
-        writer.value(value.typeOfCollection)
+        writer.value(value.releaseId.value)
+        writer.value(value.typeOfCollection.value)
         writer.endArray()
     }
 }

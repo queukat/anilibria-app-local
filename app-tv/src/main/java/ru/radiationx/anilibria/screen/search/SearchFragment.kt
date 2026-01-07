@@ -143,4 +143,6 @@ class SearchFragment : BaseVerticalGridFragment() {
             startEntranceTransition()
         }
     }
+
+
 }

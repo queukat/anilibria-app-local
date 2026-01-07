@@ -1,5 +1,6 @@
 package ru.radiationx.anilibria.screen.main
 
+import android.os.SystemClock
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
@@ -24,6 +25,9 @@ class MainFavoritesViewModel @Inject constructor(
     private val cardRouter: LibriaCardRouter,
 ) : BaseCardsViewModel() {
 
+    private val cacheTtlMs: Long = 2 * 60 * 1000L
+    private var lastLoadAtMs: Long = 0L
+
     override val defaultTitle: String = "Обновления в избранном"
 
     override val loadOnCreate: Boolean = false
@@ -42,12 +46,21 @@ class MainFavoritesViewModel @Inject constructor(
 
     override fun onResume() {
         super.onResume()
-        onRefreshClick()
+
+        val now = SystemClock.elapsedRealtime()
+        val isExpired = lastLoadAtMs != 0L && (now - lastLoadAtMs) > cacheTtlMs
+
+        if (cardsData.value.isEmpty() || isExpired) {
+            onRefreshClick()
+        }
     }
 
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> = favoriteRepository
         .getFavorites(requestPage)
-        .also { releaseInteractor.updateItemsCache(it.data) }
+        .also {
+            lastLoadAtMs = SystemClock.elapsedRealtime()
+            releaseInteractor.updateItemsCache(it.data)
+        }
         .let { favoriteItems ->
             favoriteItems.data.sortedByDescending { it.torrentUpdate }.map { converter.toCard(it) }
         }

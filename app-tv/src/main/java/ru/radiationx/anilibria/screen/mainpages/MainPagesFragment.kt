@@ -154,13 +154,14 @@ class MainPagesFragment : BrowseSupportFragment() {
 
     override fun setTitleView(titleView: View?) {
         super.setTitleView(titleView)
-        (titleViewAdapter as? BrowseTitleView.Adapter?)?.setOnAlertClickedListener(
-            mOnAlertClickedListener
-        )
-        (titleViewAdapter as? BrowseTitleView.Adapter?)?.setOnOtherClickedListener(
-            mOnOtherClickedListener
-        )
+
+        (titleViewAdapter as? BrowseTitleView.Adapter?)?.setOnAlertClickedListener(mOnAlertClickedListener)
+        (titleViewAdapter as? BrowseTitleView.Adapter?)?.setOnOtherClickedListener(mOnOtherClickedListener)
+
+        // важно: переустановить текст на новом titleView
+        (titleViewAdapter as? BrowseTitleView.Adapter?)?.setOther("Каталог")
     }
+
 
     private fun setAlert(alertText: CharSequence?) {
         (titleViewAdapter as? BrowseTitleView.Adapter?)?.setAlert(alertText)

@@ -1,12 +1,26 @@
 package ru.radiationx.anilibria.screen.watching
 
 import android.os.Bundle
+import android.view.View
 import androidx.core.os.bundleOf
 import androidx.leanback.app.GuidedStepSupportFragment
 import androidx.leanback.widget.GuidanceStylist
 import androidx.leanback.widget.GuidedAction
 
 class SingleChoiceGuidedStepFragment : GuidedStepSupportFragment() {
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val optionsSize = requireArguments().getStringArrayList(ARG_OPTIONS)?.size ?: 0
+        val selectedIndex = requireArguments().getInt(ARG_SELECTED_INDEX, -1)
+
+        if (selectedIndex in 0 until optionsSize) {
+            view.post {
+                selectedActionPosition = selectedIndex
+            }
+        }
+    }
 
     override fun onCreateGuidance(savedInstanceState: Bundle?): GuidanceStylist.Guidance {
         return GuidanceStylist.Guidance(
@@ -19,10 +33,14 @@ class SingleChoiceGuidedStepFragment : GuidedStepSupportFragment() {
 
     override fun onCreateActions(actions: MutableList<GuidedAction>, savedInstanceState: Bundle?) {
         val options = requireArguments().getStringArrayList(ARG_OPTIONS).orEmpty()
+        val selectedIndex = requireArguments().getInt(ARG_SELECTED_INDEX, -1).coerceAtLeast(-1)
+
         options.forEachIndexed { index, title ->
             actions += GuidedAction.Builder(requireContext())
                 .id(index.toLong())
                 .title(title)
+                .checkSetId(GuidedAction.DEFAULT_CHECK_SET_ID)
+                .checked(index == selectedIndex)
                 .build()
         }
     }
