@@ -1,6 +1,8 @@
 package ru.radiationx.anilibria.common
 
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyPublishDay
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertySeason
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import java.text.NumberFormat
 import javax.inject.Inject
@@ -23,12 +25,16 @@ class AniLibertyDetailDataConverter @Inject constructor() {
             ?.take(3)
             ?.joinToString(", ")
 
+        val seasonText = r.season?.description?.takeIfNotBlank()
+            ?: seasonToRu(r.season?.value)
+
         val yearSeason = listOfNotNull(
-            r.year?.toString(),
-            r.season?.description ?: r.season?.value
+            r.year?.toString()?.takeIfNotBlank(),
+            seasonText,
         ).joinToString(" ")
 
-        val type = r.type?.description ?: r.type?.value
+        val typeText = r.type?.description?.takeIfNotBlank()
+            ?: r.type?.value?.value?.takeIfNotBlank()
 
         val episodesText = r.episodesTotal
             ?.takeIf { it > 0 }
@@ -39,13 +45,16 @@ class AniLibertyDetailDataConverter @Inject constructor() {
             ?.takeIf { it > 0 }
             ?.let { "$it мин." }
 
-        val ageText = r.ageRating?.label ?: r.ageRating?.value
-        val publishText = r.publishDay?.description ?: r.publishDay?.value
+        val ageText = r.ageRating?.label?.takeIfNotBlank()
+            ?: r.ageRating?.value?.value?.takeIfNotBlank()
+
+        val publishText = r.publishDay?.description?.takeIfNotBlank()
+            ?: publishDayToRu(r.publishDay?.value)
 
         val extra = listOfNotNull(
             genres,
-            yearSeason.ifBlank { null },
-            type,
+            yearSeason.takeIfNotBlank(),
+            typeText,
             episodesText,
             durationText,
             publishText?.let { "Выход: $it" },
@@ -103,5 +112,30 @@ class AniLibertyDetailDataConverter @Inject constructor() {
         if (r.isInProduction == true) blocks += "В производстве"
 
         return blocks.distinct().joinToString(" • ")
+    }
+
+    private fun String?.takeIfNotBlank(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun publishDayToRu(day: AniLibertyPublishDay?): String? {
+        return when (day?.value) {
+            1 -> "Понедельник"
+            2 -> "Вторник"
+            3 -> "Среда"
+            4 -> "Четверг"
+            5 -> "Пятница"
+            6 -> "Суббота"
+            7 -> "Воскресенье"
+            else -> null
+        }
+    }
+
+    private fun seasonToRu(season: AniLibertySeason?): String? {
+        return when (season?.value) {
+            "winter" -> "зима"
+            "spring" -> "весна"
+            "summer" -> "лето"
+            "autumn" -> "осень"
+            else -> season?.value
+        }
     }
 }

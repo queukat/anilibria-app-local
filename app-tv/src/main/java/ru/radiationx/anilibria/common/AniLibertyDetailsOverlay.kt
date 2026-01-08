@@ -1,5 +1,6 @@
 package ru.radiationx.anilibria.common
 
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyPublishDay
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import timber.log.Timber
 import javax.inject.Inject
@@ -13,20 +14,25 @@ class AniLibertyDetailsOverlay @Inject constructor() {
         val titleRu = v1.name?.main.takeIfNotBlank() ?: base.titleRu
         val titleEn = (v1.name?.english ?: v1.name?.alternative).takeIfNotBlank() ?: base.titleEn
 
-        val age = v1.ageRating?.label ?: v1.ageRating?.value
-        val publish = v1.publishDay?.description ?: v1.publishDay?.value?.toString()
+        val age = v1.ageRating?.label?.takeIfNotBlank()
+            ?: v1.ageRating?.value?.value?.takeIfNotBlank()
+
+        val publish = v1.publishDay?.description?.takeIfNotBlank()
+            ?: publishDayToRu(v1.publishDay?.value)
+
         val duration = v1.averageDurationOfEpisode
             ?.takeIf { it > 0 }
             ?.let { "$it мин." }
 
         val extraAddon = listOfNotNull(
+            publish?.let { "Выход: $it" },
             age?.let { "Рейтинг: $it" },
             duration,
         ).joinToString(" • ")
 
-        Timber.tag("AniLibertyDetailsOverla")
+        Timber.tag("AniLibertyDetailsOverlay")
             .d("ageRating=${v1.ageRating} publishDay=${v1.publishDay} duration=${v1.averageDurationOfEpisode}")
-        Timber.tag("AniLibertyDetailsOverla").d("extraAddon='$extraAddon'")
+        Timber.tag("AniLibertyDetailsOverlay").d("extraAddon='$extraAddon'")
 
         val extra = listOf(base.extra, extraAddon)
             .filter { it.isNotBlank() }
@@ -39,7 +45,7 @@ class AniLibertyDetailsOverlay @Inject constructor() {
             .distinct()
             .joinToString(" • ")
 
-        // v1 часто отдаёт относительные пути (/storage/...), поэтому приводим к абсолютным
+        // v1 often returns relative paths (/storage/...), normalize to absolute
         val v1ImagePath = v1.poster?.optimized?.preview
             ?: v1.poster?.preview
             ?: v1.poster?.thumbnail
@@ -82,6 +88,19 @@ class AniLibertyDetailsOverlay @Inject constructor() {
             s.startsWith("//") -> "https:$s"
             s.startsWith("/") -> host + s
             else -> s
+        }
+    }
+
+    private fun publishDayToRu(day: AniLibertyPublishDay?): String? {
+        return when (day?.value) {
+            1 -> "Понедельник"
+            2 -> "Вторник"
+            3 -> "Среда"
+            4 -> "Четверг"
+            5 -> "Пятница"
+            6 -> "Суббота"
+            7 -> "Воскресенье"
+            else -> null
         }
     }
 }

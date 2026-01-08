@@ -9,27 +9,8 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 data class AniLibertyReleaseIdBody(
     @Json(name = "release_id") val releaseId: Int,
 ) {
-    constructor(releaseId: AniLibertyReleaseId) : this(releaseId = releaseId.value)
-}
-
-@JsonClass(generateAdapter = true)
-data class AniLibertyCollectionAddBody(
-    @Json(name = "release_id") val releaseId: Int,
-    @Json(name = "type_of_collection") val typeOfCollection: String,
-) {
-    constructor(
-        releaseId: Int,
-        typeOfCollection: AniLibertyCollectionType,
-    ) : this(
-        releaseId = releaseId,
-        typeOfCollection = typeOfCollection.value,
-    )
-
-    constructor(
-        releaseId: AniLibertyReleaseId,
-        typeOfCollection: AniLibertyCollectionType,
-    ) : this(
-        releaseId = releaseId.value,
-        typeOfCollection = typeOfCollection.value,
-    )
+    companion object {
+        fun from(releaseId: AniLibertyReleaseId): AniLibertyReleaseIdBody =
+            AniLibertyReleaseIdBody(releaseId = releaseId.value)
+    }
 }

@@ -10,20 +10,25 @@ data class AniLibertyUserViewTimecodeUpsertBody(
     @Json(name = "is_watched") val isWatched: Boolean,
     @Json(name = "release_episode_id") val releaseEpisodeId: String,
 ) {
-    constructor(
-        time: Double,
-        isWatched: Boolean,
-        releaseEpisodeId: AniLibertyReleaseEpisodeId,
-    ) : this(
-        time = time,
-        isWatched = isWatched,
-        releaseEpisodeId = releaseEpisodeId.value,
-    )
+    companion object {
+        fun from(
+            time: Double,
+            isWatched: Boolean,
+            releaseEpisodeId: AniLibertyReleaseEpisodeId,
+        ): AniLibertyUserViewTimecodeUpsertBody = AniLibertyUserViewTimecodeUpsertBody(
+            time = time,
+            isWatched = isWatched,
+            releaseEpisodeId = releaseEpisodeId.value,
+        )
+    }
 }
 
 @JsonClass(generateAdapter = true)
 data class AniLibertyUserViewTimecodeDeleteBody(
     @Json(name = "release_episode_id") val releaseEpisodeId: String,
 ) {
-    constructor(releaseEpisodeId: AniLibertyReleaseEpisodeId) : this(releaseEpisodeId = releaseEpisodeId.value)
+    companion object {
+        fun from(releaseEpisodeId: AniLibertyReleaseEpisodeId): AniLibertyUserViewTimecodeDeleteBody =
+            AniLibertyUserViewTimecodeDeleteBody(releaseEpisodeId = releaseEpisodeId.value)
+    }
 }

@@ -32,7 +32,7 @@ internal class AniLibertyQueryParams private constructor(
             if (!items.isNullOrEmpty()) args[key] = items.joinToString(",") { mapper(it) }
         }
 
-        fun applyFields(fields: AniLibertyQueryFields?) {
+        fun applyFields(fields: AniLibertyFieldSpec?) {
             putIfNotBlank("include", fields?.includeParam())
             putIfNotBlank("exclude", fields?.excludeParam())
         }
@@ -41,8 +41,7 @@ internal class AniLibertyQueryParams private constructor(
     }
 
     companion object {
-        inline fun build(block: Builder.() -> Unit): Map<String, String> {
-            return Builder().apply(block).build().toMap()
-        }
+        inline fun build(block: Builder.() -> Unit): Map<String, String> =
+            Builder().apply(block).build().toMap()
     }
 }

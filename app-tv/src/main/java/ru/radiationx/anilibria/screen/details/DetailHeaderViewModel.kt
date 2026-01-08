@@ -24,9 +24,11 @@ import ru.radiationx.anilibria.screen.player.PlayerController
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.release.Release
+import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.repository.FavoriteRepository
@@ -34,14 +36,6 @@ import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
 import javax.inject.Inject
 
-
-/**
- * ViewModel для «шапки» (детальной части экрана),
- * показывающей большое изображение, описание, кнопки «Play», «Продолжить» и т.д.
- *
- * Замечание: чтобы при клике на LinkCard/LoadingCard не было "unresolved reference",
- * добавлены no-op методы onLinkCardClick() / onLoadingCardClick() / onLibriaCardClick().
- */
 class DetailHeaderViewModel @Inject constructor(
     argExtra: DetailExtra,
     private val releaseInteractor: ReleaseInteractor,
@@ -58,11 +52,7 @@ class DetailHeaderViewModel @Inject constructor(
 
     private val v1Release = MutableStateFlow<AniLibertyRelease?>(null)
 
-
-    /** Состояние детали для «шапки» (название, описание, постер, кнопки и т.д.) */
     val releaseData = MutableStateFlow<LibriaDetails?>(null)
-
-    /** Отдельный стейт (прогресс, обновление и т.д.) */
     val progressState = MutableStateFlow(DetailsState())
 
     private var currentRelease: Release? = null
@@ -71,28 +61,29 @@ class DetailHeaderViewModel @Inject constructor(
     private var selectEpisodeJob: Job? = null
     private var favoriteJob: Job? = null
 
-    private val releaseId = argExtra.id
+    private val releaseId: ReleaseId = argExtra.id
 
     init {
         updateProgress()
 
-        // быстрый локальный кеш (legacy)
+        // fast local cache (legacy)
         releaseInteractor.getItem(releaseId)?.also {
             updateRelease(it, emptyList(), v1Release.value)
         }
 
-        // v1-first запрос
+        // v1-first request (new API)
         viewModelScope.launch {
+            val key = releaseId.toAniLibertyKey()
             coRunCatching {
                 aniLibertyApi.getRelease(
-                    idOrAlias = releaseId.id.toString(),
-                    fields = AniLibertyReleaseFields.DetailsHeader
+                    key = key,
+                    fields = AniLibertyReleaseFields.DetailsHeader,
                 )
             }.onSuccess { v1Release.value = it }
                 .onFailure { Timber.e(it) }
         }
 
-        // как только что-то меняется — пересобираем детали
+        // whenever something changes - rebuild details
         combine(
             releaseInteractor.observeFull(releaseId),
             releaseInteractor.observeAccesses(releaseId),
@@ -107,12 +98,10 @@ class DetailHeaderViewModel @Inject constructor(
 
     override fun onResume() {
         super.onResume()
-        // Следим за «selectEpisodeRelay»
         selectEpisodeJob?.cancel()
         selectEpisodeJob = playerController
             .selectEpisodeRelay
             .onEach { episodeId ->
-                // Переходим сразу на PlayerScreen
                 router.navigateTo(PlayerScreen(releaseId, episodeId))
             }
             .launchIn(viewModelScope)
@@ -122,10 +111,6 @@ class DetailHeaderViewModel @Inject constructor(
         super.onPause()
         selectEpisodeJob?.cancel()
     }
-
-    // --------------------------------
-    // Основные методы (логика кнопок)
-    // --------------------------------
 
     fun onContinueClick() {
         viewModelScope.launch {
@@ -137,7 +122,6 @@ class DetailHeaderViewModel @Inject constructor(
         }
     }
 
-    /** Кнопка «Play» */
     fun onPlayClick() {
         val release = currentRelease ?: return
         if (release.episodes.isEmpty()) return
@@ -145,7 +129,6 @@ class DetailHeaderViewModel @Inject constructor(
         if (release.episodes.size == 1) {
             router.navigateTo(PlayerScreen(releaseId, null))
         } else {
-            // Если серий > 1, откроем «список серий»
             viewModelScope.launch {
                 val episodeId = releaseInteractor.getAccesses(releaseId)
                     .maxByOrNull { it.lastAccessRaw }?.id
@@ -154,12 +137,10 @@ class DetailHeaderViewModel @Inject constructor(
         }
     }
 
-    /** Кнопка «Избранное» */
     fun onFavoriteClick() {
         val release = currentRelease ?: return
         favoriteJob?.cancel()
         favoriteJob = viewModelScope.launch {
-            // Если юзер не авторизован
             if (authRepository.getAuthState() != AuthState.AUTH) {
                 guidedRouter.open(AuthGuidedScreen())
                 return@launch
@@ -171,7 +152,6 @@ class DetailHeaderViewModel @Inject constructor(
                     favoriteRepository.addFavorite(releaseId)
                 }
             }.onSuccess { updatedRelease ->
-                // Обновим локальный кэш
                 currentRelease?.let { old ->
                     val newData = old.copy(favoriteInfo = updatedRelease.favoriteInfo)
                     releaseInteractor.updateFullCache(newData)
@@ -182,27 +162,16 @@ class DetailHeaderViewModel @Inject constructor(
         updateProgress()
     }
 
-    /** Кнопка «Описание» */
-    fun onDescriptionClick() {
-        // Пока заглушка
-    }
+    fun onDescriptionClick() { /* no-op for now */ }
 
-    /** Кнопка «Другое» (сбросить просмотры, отметить как просмотрено и т.д.) */
     fun onOtherClick() {
         guidedRouter.open(DetailOtherGuidedScreen(releaseId))
     }
 
-    // -----------------------------------
-    // No-op методы, если DetailFragment
-    // вызывает onLinkCardClick() / onLibriaCardClick()
-    // -----------------------------------
     fun onLinkCardClick() { /* no-op */ }
     fun onLoadingCardClick() { /* no-op */ }
     fun onLibriaCardClick(card: LibriaCard) { /* no-op */ }
 
-    // -----------------------------------
-    // Вспомогательные приватные методы
-    // -----------------------------------
     private fun updateRelease(
         release: Release?,
         accesses: List<EpisodeAccess>,
@@ -218,12 +187,12 @@ class DetailHeaderViewModel @Inject constructor(
         }
 
         val details: LibriaDetails? = when {
-            // v1 пришёл + есть legacy → overlay на legacy (и все action-флаги сохраняются)
+            // v1 arrived + legacy exists -> overlay v1 onto legacy to keep action flags/progress
             v1 != null && legacyDetails != null -> {
                 aniOverlay.apply(legacyDetails, v1)
             }
 
-            // v1 пришёл, legacy ещё нет → показываем v1 (действия пока прячем)
+            // v1 arrived but no legacy yet -> show v1, hide actions for now
             v1 != null -> {
                 val d = aniDetailConverter.toDetail(
                     releaseId = releaseId,
@@ -238,7 +207,7 @@ class DetailHeaderViewModel @Inject constructor(
                 )
             }
 
-            // v1 нет → fallback на legacy
+            // no v1 -> fallback to legacy
             legacyDetails != null -> legacyDetails
 
             else -> null
@@ -253,5 +222,15 @@ class DetailHeaderViewModel @Inject constructor(
             loadingProgress = (details == null),
             updateProgress = (favoriteJob?.isActive == true)
         )
+    }
+
+    private fun ReleaseId.toAniLibertyKey(): AniLibertyReleaseKey {
+        // Prefer numeric id if it fits, otherwise fall back to alias string
+        val raw = runCatching { this.id.toLong() }.getOrNull()
+        return if (raw != null && raw > 0 && raw <= Int.MAX_VALUE.toLong()) {
+            AniLibertyReleaseKey.id(raw.toInt())
+        } else {
+            AniLibertyReleaseKey.alias(this.id.toString())
+        }
     }
 }
