@@ -38,12 +38,20 @@ class SearchViewModel @Inject constructor(
     }
 
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
-        progressState.value = requestPage == firstPage
-        val result = searchRepository
-            .searchReleases(searchForm, requestPage)
-            .data.map { converter.toCard(it) }
-        progressState.value = false
-        return result
+        val needProgress = requestPage == firstPage
+        if (needProgress) {
+            progressState.value = true
+        }
+        return try {
+            searchRepository
+                .searchReleases(searchForm, requestPage)
+                .data
+                .map { converter.toCard(it) }
+        } finally {
+            if (needProgress) {
+                progressState.value = false
+            }
+        }
     }
 
     fun onSearchClick() {

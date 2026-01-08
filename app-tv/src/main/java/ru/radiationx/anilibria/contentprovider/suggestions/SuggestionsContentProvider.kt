@@ -7,8 +7,6 @@ import android.content.UriMatcher
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import ru.radiationx.anilibria.App
 import ru.radiationx.anilibria.contentprovider.SystemSuggestionEntity
@@ -19,6 +17,10 @@ import ru.radiationx.quill.Quill
 class SuggestionsContentProvider : ContentProvider() {
 
     companion object {
+        /**
+         * Для Leanback/GlobalSearch. Оставляем как есть, чтобы не ломать интеграцию на ТВ,
+         * но при необходимости можно заменить на Intent.ACTION_VIEW/SEARCH.
+         */
         const val INTENT_ACTION = "GLOBALSEARCH"
 
         private val queryProjection = SystemSuggestionEntity.projection + arrayOf(
@@ -41,31 +43,37 @@ class SuggestionsContentProvider : ContentProvider() {
         selection: String?,
         selectionArgs: Array<out String>?,
         sortOrder: String?,
-    ): Cursor {
+    ): Cursor = runBlocking {
 
-        // Ждём, пока приложение полностью инициализируется
-        runBlocking { App.appInitialized.await() }
+        // Ждём, пока приложение полностью инициализируется (DI, базы и т.п.)
+        App.appInitialized.await()
 
-        return if (uriMatcher.match(uri) == SEARCH_SUGGEST) {
-            search(uri.lastPathSegment.orEmpty())
+        if (uriMatcher.match(uri) == SEARCH_SUGGEST) {
+            searchInternal(uri.lastPathSegment.orEmpty())
         } else {
             throw IllegalArgumentException("Unknown Uri: $uri")
         }
     }
 
     override fun getType(uri: Uri): String? = null
+
     override fun insert(uri: Uri, values: ContentValues?): Uri? =
         throw UnsupportedOperationException("insert is not implemented.")
+
     override fun update(
-        uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?,
+        uri: Uri,
+        values: ContentValues?,
+        selection: String?,
+        selectionArgs: Array<out String>?,
     ): Int = throw UnsupportedOperationException("update is not implemented.")
+
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int =
         throw UnsupportedOperationException("delete is not implemented.")
 
     // --------------------------------------------------------------------
 
-    private fun search(query: String): Cursor {
-        val result = runBlocking { searchRepository.fastSearch(query) }
+    private suspend fun searchInternal(query: String): Cursor {
+        val result = searchRepository.fastSearch(query)
         return MatrixCursor(queryProjection).apply {
             result.items.forEach {
                 val entity = it.convertToEntity()
@@ -83,7 +91,8 @@ class SuggestionsContentProvider : ContentProvider() {
     )
 
     private fun buildUriMatcher() = UriMatcher(UriMatcher.NO_MATCH).apply {
-        addURI(AUTHORITY, "/search/${SearchManager.SUGGEST_URI_PATH_QUERY}", SEARCH_SUGGEST)
-        addURI(AUTHORITY, "/search/${SearchManager.SUGGEST_URI_PATH_QUERY}/*", SEARCH_SUGGEST)
+        // UriMatcher ожидает path без ведущего "/"
+        addURI(AUTHORITY, "search/${SearchManager.SUGGEST_URI_PATH_QUERY}", SEARCH_SUGGEST)
+        addURI(AUTHORITY, "search/${SearchManager.SUGGEST_URI_PATH_QUERY}/*", SEARCH_SUGGEST)
     }
 }

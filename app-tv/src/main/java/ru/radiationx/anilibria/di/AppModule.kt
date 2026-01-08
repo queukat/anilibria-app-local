@@ -26,19 +26,14 @@ import ru.radiationx.shared_app.analytics.profile.LoggingAnalyticsProfile
 import ru.radiationx.shared_app.imageloader.LibriaImageLoader
 import ru.radiationx.shared_app.imageloader.impls.CoilLibriaImageLoaderImpl
 
-import ru.radiationx.anilibria.common.CardsDataConverter
-import ru.radiationx.anilibria.common.DetailDataConverter
-import ru.radiationx.shared_app.common.SystemUtils
-
 class AppModule(context: Context) : QuillModule() {
-
 
     init {
         // Сохраним applicationContext (из переданного context)
         val appContext = context.applicationContext
 
         // Базовые
-        instance { appContext } // если вдруг кому-то ещё нужен сам Context
+        instance<Context> { appContext } // application Context
         singleImpl<SharedBuildConfig, AppBuildConfig>()
         singleImpl<CheckerReserveSources, TvCheckerSources>()
         singleImpl<MigrationExecutor, AppMigrationExecutor>()
@@ -66,6 +61,5 @@ class AppModule(context: Context) : QuillModule() {
         singleImpl<AnalyticsProfile, CombinedAnalyticsProfile>()
         singleImpl<AnalyticsErrorReporter, CombinedErrorReporter>()
         single<AniLibertyDetailsOverlay>()
-
     }
 }

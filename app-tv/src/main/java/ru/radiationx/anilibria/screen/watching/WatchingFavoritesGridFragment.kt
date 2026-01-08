@@ -195,8 +195,6 @@ class WatchingFavoritesGridFragment :
 
         grid.nextFocusUpId = R.id.searchTitleYear
 
-
-
         grid.setOnKeyInterceptListener(object : BaseGridView.OnKeyInterceptListener {
             override fun onInterceptKeyEvent(event: KeyEvent): Boolean {
                 if (event.action != KeyEvent.ACTION_DOWN) return false
@@ -215,7 +213,6 @@ class WatchingFavoritesGridFragment :
                 return false
             }
         })
-
     }
 
     private fun focusTitleControls(): Boolean {
@@ -263,7 +260,9 @@ class WatchingFavoritesGridFragment :
         val pos = grid.selectedPosition
         if (pos < 0) return
 
-        val show = !grid.hasPreviousViewInSameRow(pos)
+        // Опция A: показываем шапку только когда фокус находится в верхнем ряду сетки.
+        val columns = computeColumns()
+        val show = pos in 0 until columns
         showTitleView(show)
     }
 
