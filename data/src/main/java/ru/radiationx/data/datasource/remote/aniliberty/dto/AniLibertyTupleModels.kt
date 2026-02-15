@@ -1,23 +1,28 @@
 package ru.radiationx.data.datasource.remote.aniliberty.dto
 
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyCollectionType
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseEpisodeId
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 
+@JsonClass(generateAdapter = true)
 data class AniLibertyReleaseEpisodeTimecode(
-    val releaseEpisodeId: AniLibertyReleaseEpisodeId,
-    val time: Double,
-    val isWatched: Boolean,
+    @Json(name = "release_episode_id") val releaseEpisodeId: AniLibertyReleaseEpisodeId,
+    @Json(name = "time") val time: Double,
+    @Json(name = "is_watched") val isWatched: Boolean,
 )
 
 typealias AniLibertyViewTimecode = AniLibertyReleaseEpisodeTimecode
 
+@JsonClass(generateAdapter = true)
 data class AniLibertyEpisodeTimecode(
-    val time: Double,
-    val isWatched: Boolean,
+    @Json(name = "time") val time: Double,
+    @Json(name = "is_watched") val isWatched: Boolean,
 )
 
+@JsonClass(generateAdapter = true)
 data class AniLibertyCollectionIdItem(
-    val releaseId: AniLibertyReleaseId,
-    val typeOfCollection: AniLibertyCollectionType,
+    @Json(name = "release_id") val releaseId: AniLibertyReleaseId,
+    @Json(name = "type_of_collection") val typeOfCollection: AniLibertyCollectionType,
 )

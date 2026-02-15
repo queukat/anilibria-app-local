@@ -13,226 +13,327 @@ import ru.radiationx.anilibria.screen.PlayerEpisodesGuidedScreen
 import ru.radiationx.anilibria.screen.PlayerQualityGuidedScreen
 import ru.radiationx.anilibria.screen.PlayerSpeedGuidedScreen
 import ru.radiationx.data.datasource.holders.PreferencesHolder
+import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.common.PlayerQuality
 import ru.radiationx.data.entity.domain.release.Episode
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.repository.HistoryRepository
-import ru.radiationx.shared.ktx.EventFlow
+import ru.radiationx.data.repository.UserViewsRepository
 import ru.radiationx.shared.ktx.coRunCatching
+import timber.log.Timber
 import javax.inject.Inject
 
 class PlayerViewModel @Inject constructor(
     private val argExtra: PlayerExtra,
     private val releaseInteractor: ReleaseInteractor,
     private val historyRepository: HistoryRepository,
+    private val userViewsRepository: UserViewsRepository,
+    private val authRepository: AuthRepository,
     private val preferencesHolder: PreferencesHolder,
     private val guidedRouter: GuidedRouter,
     private val playerController: PlayerController,
 ) : LifecycleViewModel() {
 
     val videoData = MutableStateFlow<Video?>(null)
+    val seekState = MutableStateFlow<Long?>(null)
+
     val qualityState = MutableStateFlow<PlayerQuality?>(null)
     val speedState = MutableStateFlow<Float?>(null)
-    val playAction = EventFlow<Boolean>()
+    val playAction = MutableStateFlow<Boolean?>(null)
 
-    private var currentEpisodes = mutableListOf<Episode>()
-    private var currentReleases: List<Release>? = null
+    private var currentReleases: List<Release> = emptyList()
+    private var currentEpisodes: List<Episode> = emptyList()
+
+    private var currentRelease: Release? = null
     private var currentEpisode: Episode? = null
-    private var currentQuality: PlayerQuality? = null
-    private var currentComplete: Boolean? = null
+
+    private var currentDuration: Long = 0L
+    private var currentComplete: Boolean = false
+
+    private var currentQuality: PlayerQuality = preferencesHolder.playerQuality.value
+    private var currentSpeed: Float = preferencesHolder.playSpeed.value
+
+    private var canSyncRemoteViews: Boolean = false
 
     init {
+        // PlayerController — singleton. Сбрасываем данные, чтобы guided-экраны
+        // не подхватывали список серий от предыдущего просмотра.
         playerController.reset()
-        qualityState.value = preferencesHolder.playerQuality.value
-        speedState.value = preferencesHolder.playSpeed.value
 
-        playerController
-            .selectEpisodeRelay
-            .onEach { episodeId ->
-                currentEpisodes
-                    .firstOrNull { it.id == episodeId }
-                    ?.also { playEpisode(it, true) }
-            }
+        // Auth: включаем удалённую синхронизацию прогресса только если AUTH.
+        authRepository.observeAuthState()
+            .onEach { canSyncRemoteViews = it == AuthState.AUTH }
             .launchIn(viewModelScope)
 
-        preferencesHolder
-            .playerQuality
-            .onEach {
-                currentQuality = it
-                updateQuality()
+        // Quality
+        preferencesHolder.playerQuality
+            .onEach { quality ->
+                currentQuality = quality
+                qualityState.value = quality
                 updateEpisode()
             }
             .launchIn(viewModelScope)
 
-        preferencesHolder
-            .playSpeed
-            .onEach {
-                speedState.value = it
+        // Speed
+        preferencesHolder.playSpeed
+            .onEach { speed ->
+                currentSpeed = speed
+                speedState.value = speed
             }
             .launchIn(viewModelScope)
 
-        viewModelScope.launch {
-            coRunCatching {
-                releaseInteractor.loadWithFranchises(argExtra.releaseId)
-            }.onSuccess { releases ->
-                playerController.data.value = releases
-                currentReleases = releases
-                currentEpisodes.clear()
-                currentEpisodes.addAll(releases.flatMap { it.episodes.reversed() })
-                val episodeId = currentEpisode?.id ?: argExtra.episodeId
-                val episode = currentEpisodes
-                    .firstOrNull { it.id == episodeId }
-                    ?: currentEpisodes.firstOrNull()
-                episode?.also { playEpisode(it) }
-            }.onFailure {
-
+        // Episode selection from guided screens (end-episode / episodes list)
+        playerController.selectEpisodeRelay
+            .onEach { episodeId ->
+                val episode = currentEpisodes.firstOrNull { it.id == episodeId } ?: return@onEach
+                playEpisode(episode)
             }
+            .launchIn(viewModelScope)
+
+        // Load initial release(s)
+        viewModelScope.launch {
+            val releases = releaseInteractor.loadWithFranchises(argExtra.releaseId)
+            currentReleases = releases
+            playerController.data.value = releases
+
+            currentRelease = releases.firstOrNull { it.id == argExtra.releaseId } ?: releases.firstOrNull()
+            currentEpisodes = releases.flatMap { it.episodes.reversed() }
+
+            val initialEpisodeId = argExtra.episodeId
+                ?: runCatching {
+                    // local continue (legacy)
+                    releaseInteractor
+                        .getAccesses(argExtra.releaseId)
+                        .maxByOrNull { it.lastAccessRaw }
+                        ?.id
+                }.getOrNull()
+                ?: run {
+                    // remote continue (AniLiberty) — best effort
+                    if (authRepository.getAuthState() == AuthState.AUTH) {
+                        runCatching { userViewsRepository.findLatestEpisodeIdForRelease(argExtra.releaseId) }.getOrNull()
+                    } else {
+                        null
+                    }
+                }
+
+            val episode = currentEpisodes.firstOrNull { it.id == initialEpisodeId }
+                ?: currentEpisodes.firstOrNull()
+
+            episode?.also { playEpisode(it) }
         }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        playerController.bindPlayer()
+
+        // Если плеер вернулся из бэкстека/конфига и данные уже есть — отдадим их в controller.
+        if (currentReleases.isNotEmpty()) {
+            playerController.data.value = currentReleases
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Экран плеера больше не активен (view уничтожен) — очищаем singleton-состояние,
+        // иначе следующий экран может увидеть «чужие» серии.
+        playerController.unbindPlayer()
     }
 
     override fun onCleared() {
         super.onCleared()
-        playerController.reset()
+        // На всякий случай (если view уже уничтожен, а ViewModel очищается позже)
+        playerController.unbindPlayer()
     }
 
-    private fun getCurrentRelease(): Release? {
-        val episodeId = currentEpisode?.id ?: return null
-        return currentReleases?.find { it.id == episodeId.releaseId }
+    override fun onResume() {
+        super.onResume()
+        playAction.value = true
+    }
+
+    override fun onPause() {
+        super.onPause()
+        playAction.value = false
     }
 
     fun onPauseClick(position: Long) {
         saveEpisode(position)
+        playAction.value = false
     }
 
-    fun onNextClick(position: Long) {
-        getNextEpisode()?.also {
-            saveEpisode(position)
-            playEpisode(it)
+    fun onPrepare(duration: Long) {
+        currentDuration = duration
+        val episode = currentEpisode ?: return
+
+        viewModelScope.launch {
+            // If already completed, open end screens
+            val access = releaseInteractor.getAccess(episode.id)
+            currentComplete = access != null && access.seek >= duration
+
+            if (currentComplete) {
+                getCurrentRelease()?.also { release ->
+                    openEndGuidedScreen(release, episode)
+                }
+            } else {
+                playAction.value = true
+            }
         }
-    }
-
-    fun onPrevClick(position: Long) {
-        getPrevEpisode()?.also {
-            saveEpisode(position)
-            playEpisode(it)
-        }
-    }
-
-    fun onEpisodesClick(position: Long) {
-        val release = getCurrentRelease() ?: return
-        val episode = currentEpisode ?: return
-        saveEpisode(position)
-        guidedRouter.open(PlayerEpisodesGuidedScreen(release.id, episode.id))
-    }
-
-
-    fun onQualityClick(position: Long) {
-        val release = getCurrentRelease() ?: return
-        val episode = currentEpisode ?: return
-        saveEpisode(position)
-        guidedRouter.open(PlayerQualityGuidedScreen(release.id, episode.id))
-    }
-
-    fun onSpeedClick() {
-        val release = getCurrentRelease() ?: return
-        val episode = currentEpisode ?: return
-        guidedRouter.open(PlayerSpeedGuidedScreen(release.id, episode.id))
     }
 
     fun onComplete(position: Long) {
+        currentComplete = true
+        saveEpisode(position)
+        playAction.value = false
+
+        // Автоплей следующей серии (если включено и серия существует)
+        val next = getNextEpisode()
+        if (next != null && preferencesHolder.playerAutoplay.value) {
+            // важно: сбросить флаг, иначе следующий эпизод может сохраниться как "просмотрен"
+            currentComplete = false
+            playEpisode(next)
+            return
+        }
+
         val release = getCurrentRelease() ?: return
         val episode = currentEpisode ?: return
-        if (currentComplete == true) return
-        currentComplete = true
+        openEndGuidedScreen(release, episode)
+    }
 
+
+    fun onNextClick(position: Long) {
         saveEpisode(position)
-        val nextEpisode = getNextEpisode()
-        if (nextEpisode != null) {
-            playEpisode(nextEpisode)
+        val next = getNextEpisode() ?: return
+        playEpisode(next)
+    }
+
+    fun onPrevClick(position: Long) {
+        saveEpisode(position)
+        val prev = getPrevEpisode() ?: return
+        playEpisode(prev)
+    }
+
+    fun onQualityClick(position: Long) {
+        saveEpisode(position)
+        guidedRouter.open(PlayerQualityGuidedScreen(getCurrentReleaseId() ?: return, currentEpisode?.id))
+    }
+
+    fun onSpeedClick() {
+        guidedRouter.open(PlayerSpeedGuidedScreen(getCurrentReleaseId() ?: return, currentEpisode?.id))
+    }
+
+    fun onEpisodesClick(position: Long) {
+        saveEpisode(position)
+        guidedRouter.open(PlayerEpisodesGuidedScreen(getCurrentReleaseId() ?: return, currentEpisode?.id))
+    }
+
+    private fun openEndGuidedScreen(release: Release, episode: Episode) {
+        val next = getNextEpisode()
+
+        if (next != null) {
+            guidedRouter.open(PlayerEndEpisodeGuidedScreen(release.id, episode.id))
         } else {
             guidedRouter.open(PlayerEndSeasonGuidedScreen(release.id, episode.id))
         }
     }
 
-    fun onPrepare(duration: Long) {
+    private fun saveEpisode(position: Long) {
         val release = getCurrentRelease() ?: return
         val episode = currentEpisode ?: return
+
+        // фиксируем значения ДО launch, чтобы переключение эпизода не ломало расчёт
+        val isWatched = currentComplete || (currentDuration > 0 && position >= currentDuration)
+        val remotePosition = if (isWatched) 0L else position
+
         viewModelScope.launch {
-            val access = releaseInteractor.getAccess(episode.id)
-            val complete = access != null && access.seek >= duration
-            if (currentComplete == complete) return@launch
-            currentComplete = complete
-            if (complete) {
-                playAction.emit(false)
-                val nextEpisode = getNextEpisode()
-                if (nextEpisode == null) {
-                    guidedRouter.open(PlayerEndSeasonGuidedScreen(release.id, episode.id))
-                } else {
-                    guidedRouter.open(PlayerEndEpisodeGuidedScreen(release.id, episode.id))
+            // local progress (legacy) — always
+            releaseInteractor.setAccessSeek(episode.id, position)
+
+            // remote progress (AniLiberty) — best effort
+            if (canSyncRemoteViews) {
+                runCatching {
+                    userViewsRepository.upsertEpisodeTimecode(
+                        episodeId = episode.id,
+                        positionMs = remotePosition,
+                        isWatched = isWatched,
+                    )
                 }
-            } else {
-                playAction.emit(true)
+            }
+
+            // local "history"
+            coRunCatching {
+                historyRepository.putRelease(release)
+            }.onFailure {
+                Timber.e(it)
             }
         }
     }
 
-    private fun getNextEpisode(): Episode? =
-        currentEpisodes.getOrNull(getCurrentEpisodeIndex() + 1)
 
-    private fun getPrevEpisode(): Episode? =
-        currentEpisodes.getOrNull(getCurrentEpisodeIndex() - 1)
-
-    private fun getCurrentEpisodeIndex(): Int =
-        currentEpisodes.indexOfFirst { it.id == currentEpisode?.id }
-
-    private fun saveEpisode(position: Long) {
-        val episode = currentEpisode ?: return
-        if (position < 0) {
-            return
-        }
-        viewModelScope.launch {
-            releaseInteractor.setAccessSeek(episode.id, position)
-        }
-    }
-
-    private fun playEpisode(episode: Episode, force: Boolean = false) {
+    private fun playEpisode(episode: Episode) {
         currentEpisode = episode
-        currentComplete = null
-        updateQuality()
-        updateEpisode(force)
-        viewModelScope.launch {
-            historyRepository.putReleaseId(episode.id.releaseId)
-        }
+        currentRelease = currentReleases.firstOrNull { it.id == episode.id.releaseId } ?: currentReleases.firstOrNull()
+        updateEpisode(force = true)
     }
 
-    private fun updateQuality() {
-        val quality = currentQuality ?: return
-        qualityState.value = currentEpisode?.qualityInfo?.getActualFor(quality) ?: quality
+    private fun getCurrentRelease(): Release? {
+        return currentRelease ?: currentReleases.firstOrNull()
+    }
+
+    private fun getNextEpisode(): Episode? {
+        val current = currentEpisode ?: return null
+        val idx = currentEpisodes.indexOfFirst { it.id == current.id }
+        if (idx < 0) return null
+        return currentEpisodes.getOrNull(idx + 1)
+    }
+
+    private fun getPrevEpisode(): Episode? {
+        val current = currentEpisode ?: return null
+        val idx = currentEpisodes.indexOfFirst { it.id == current.id }
+        if (idx < 0) return null
+        return currentEpisodes.getOrNull(idx - 1)
     }
 
     private fun updateEpisode(force: Boolean = false) {
         val release = getCurrentRelease() ?: return
         val episode = currentEpisode ?: return
-        val quality = currentQuality ?: return
+        val quality = currentQuality
+
         viewModelScope.launch {
             val newUrl = episode.qualityInfo.getSafeUrlFor(quality)
-            val access = releaseInteractor.getAccess(episode.id)
+
+            // local (legacy): always available
+            val localSeek = releaseInteractor.getAccess(episode.id)?.seek ?: 0L
+
+            // remote (AniLiberty): enables "continue on another device"
+            val remoteSeek = if (canSyncRemoteViews) {
+                runCatching { userViewsRepository.getEpisodeTimecode(episode.id)?.positionMs ?: 0L }.getOrDefault(0L)
+            } else {
+                0L
+            }
+
+            val seek = maxOf(localSeek, remoteSeek)
+
             val newVideo = Video(
                 url = newUrl,
-                seek = access?.seek ?: 0,
+                seek = seek,
                 title = release.title.orEmpty(),
                 subtitle = episode.title.orEmpty(),
-                episode.skips
+                skips = episode.skips,
             )
+
             if (force || videoData.value?.url != newVideo.url) {
                 videoData.value = newVideo
+            } else if (videoData.value?.seek != newVideo.seek) {
+                // url тот же, но seek изменился — отправим «одноразовый» сигнал.
+                seekState.value = newVideo.seek
             }
         }
     }
-    fun getCurrentReleaseId(): ReleaseId? {
-        return getCurrentRelease()?.id // getCurrentRelease() уже есть в коде
-    }
 
+    fun getCurrentReleaseId(): ReleaseId? {
+        return currentEpisode?.id?.releaseId ?: argExtra.releaseId
+    }
 }

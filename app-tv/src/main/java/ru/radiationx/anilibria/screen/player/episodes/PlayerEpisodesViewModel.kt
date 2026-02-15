@@ -1,12 +1,17 @@
 package ru.radiationx.anilibria.screen.player.episodes
 
 import androidx.lifecycle.viewModelScope
+import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
+import ru.radiationx.anilibria.screen.PlayerScreen
 import ru.radiationx.anilibria.screen.player.PlayerController
 import ru.radiationx.anilibria.screen.player.PlayerExtra
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
@@ -22,30 +27,46 @@ class PlayerEpisodesViewModel @Inject constructor(
     private val releaseInteractor: ReleaseInteractor,
     private val guidedRouter: GuidedRouter,
     private val playerController: PlayerController,
+    private val router: Router,
 ) : LifecycleViewModel() {
 
     val episodesData = MutableStateFlow<List<Group>>(emptyList())
     val selectedAction = MutableStateFlow<Action?>(null)
 
     init {
-        val playerData = playerController.data.value
-        if (playerData != null) {
-            updateEpisodes(playerData)
-        } else {
-            releaseInteractor
-                .observeFull(argExtra.releaseId)
-                .onEach {
-                    updateEpisodes(listOf(it))
+        val releasesFlow = if (playerController.isPlayerActive) {
+            // Внутри плеера: используем данные из PlayerController (там могут быть франшизы/сезоны).
+            // Если данные ещё не успели загрузиться — временно показываем только текущий релиз.
+            playerController.data.flatMapLatest { releases ->
+                if (releases != null) {
+                    flowOf(releases)
+                } else {
+                    releaseInteractor.observeFull(argExtra.releaseId).map { listOf(it) }
                 }
-                .launchIn(viewModelScope)
+            }
+        } else {
+            // Снаружи плеера (например, из Details): всегда грузим релиз по аргументу.
+            // Даже если в PlayerController остались данные от прошлого просмотра.
+            releaseInteractor.observeFull(argExtra.releaseId).map { listOf(it) }
         }
+
+        releasesFlow
+            .onEach { updateEpisodes(it) }
+            .launchIn(viewModelScope)
     }
 
     fun applyEpisode(actionId: Long) {
+        val action = episodesData.value.findAction { it.id == actionId } ?: return
+        val episodeId = action.episodeId
+
         guidedRouter.close()
-        val action = episodesData.value.findAction { it.id == actionId }
-        if (action != null) {
-            playerController.selectEpisodeRelay.emit(action.episodeId)
+
+        if (playerController.isPlayerActive) {
+            // Плеер уже открыт — просто переключаем серию
+            playerController.selectEpisodeRelay.emit(episodeId)
+        } else {
+            // Плеера нет — открываем экран просмотра
+            router.navigateTo(PlayerScreen(episodeId.releaseId, episodeId))
         }
     }
 

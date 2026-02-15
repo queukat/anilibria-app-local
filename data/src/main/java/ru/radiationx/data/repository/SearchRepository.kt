@@ -7,6 +7,9 @@ import kotlinx.coroutines.withContext
 import ru.radiationx.data.datasource.holders.GenresHolder
 import ru.radiationx.data.datasource.holders.YearsHolder
 import ru.radiationx.data.datasource.remote.address.ApiConfig
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.datasource.remote.api.ReleaseApi
 import ru.radiationx.data.datasource.remote.api.SearchApi
 import ru.radiationx.data.entity.domain.Paginated
@@ -19,6 +22,7 @@ import ru.radiationx.data.entity.domain.search.Suggestions
 import ru.radiationx.data.entity.mapper.toDomain
 import ru.radiationx.data.entity.mapper.toGenreItem
 import ru.radiationx.data.entity.mapper.toSuggestionDomain
+import ru.radiationx.data.entity.mapper.toSuggestionDomainOrNull
 import ru.radiationx.data.entity.mapper.toYearItem
 import ru.radiationx.data.interactors.ReleaseUpdateMiddleware
 import ru.radiationx.data.system.ApiUtils
@@ -28,6 +32,7 @@ import javax.inject.Inject
 class SearchRepository @Inject constructor(
     private val searchApi: SearchApi,
     private val releaseApi: ReleaseApi,
+    private val aniLibertyApi: AniLibertyApi,
     private val genresHolder: GenresHolder,
     private val yearsHolder: YearsHolder,
     private val updateMiddleware: ReleaseUpdateMiddleware,
@@ -51,17 +56,58 @@ class SearchRepository @Inject constructor(
         }
     }
 
+    /**
+     * Быстрый поиск для подсказок (TV GlobalSearch / Suggestions).
+     *
+     * Приоритет:
+     * 1) AniLiberty v1 (новое API) — быстрее и стабильнее для подсказок
+     * 2) Legacy API — fallback на случай проблем/временной недоступности v1
+     */
     suspend fun fastSearch(query: String): Suggestions = withContext(Dispatchers.IO) {
         val releaseId = getQueryId(query)
+
         val items = if (releaseId != null) {
-            releaseApi
-                .getReleasesByIds(listOf(releaseId))
-                .map { it.toSuggestionDomain(apiUtils, apiConfig) }
+            // --- "id123" : точечная загрузка релиза ---
+            val v1Item = runCatching {
+                aniLibertyApi.getRelease(
+                    key = AniLibertyReleaseKey.id(releaseId),
+                    fields = AniLibertyReleaseFields.Suggestions,
+                ).toSuggestionDomainOrNull(apiUtils)
+            }.getOrNull()
+
+            if (v1Item != null) {
+                listOf(v1Item)
+            } else {
+                // fallback на legacy
+                runCatching {
+                    releaseApi
+                        .getReleasesByIds(listOf(releaseId))
+                        .map { it.toSuggestionDomain(apiUtils, apiConfig) }
+                }.getOrElse { emptyList() }
+            }
         } else {
-            searchApi
-                .fastSearch(query)
-                .map { it.toDomain(apiUtils, apiConfig) }
+            // --- обычный запрос ---
+            val v1Items = runCatching {
+                aniLibertyApi
+                    .searchAppReleases(
+                        query = query,
+                        fields = AniLibertyReleaseFields.Suggestions,
+                    )
+                    .mapNotNull { it.toSuggestionDomainOrNull(apiUtils) }
+            }.getOrNull()
+
+            if (!v1Items.isNullOrEmpty()) {
+                v1Items
+            } else {
+                // fallback на legacy
+                runCatching {
+                    searchApi
+                        .fastSearch(query)
+                        .map { it.toDomain(apiUtils, apiConfig) }
+                }.getOrElse { emptyList() }
+            }
         }
+
         Suggestions(query, items)
     }
 
@@ -122,5 +168,4 @@ class SearchRepository @Inject constructor(
             listOf("зима", "весна", "лето", "осень").map { SeasonItem(it.capitalizeDefault(), it) }
         }
     }
-
 }

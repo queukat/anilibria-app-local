@@ -31,11 +31,39 @@ data class AniLibertyReleaseFields(
     }
 
     companion object Presets {
+
+        /**
+         * Пресет под шапку деталей.
+         *
+         * Цель: убрать самые тяжёлые списки (episodes/members/torrents), оставив информацию,
+         * достаточную для title/poster/extra (year, season, type, age, publish_day и т.п.).
+         */
         val DetailsHeader: AniLibertyReleaseFields = AniLibertyReleaseFields(
             exclude = setOf(
                 AniLibertyReleaseExclude.EPISODES,
                 AniLibertyReleaseExclude.MEMBERS,
                 AniLibertyReleaseExclude.TORRENTS,
+            )
+        )
+
+        /**
+         * Пресет под подсказки (TV GlobalSearch / Suggestions).
+         *
+         * В отличие от [DetailsHeader] дополнительно пытаемся "срезать" текстовые поля,
+         * чтобы уменьшить размер ответа.
+         *
+         * Если бэкенд не поддержит excludeRaw для этих полей — он просто их проигнорирует,
+         * и это не сломает функционал.
+         */
+        val Suggestions: AniLibertyReleaseFields = AniLibertyReleaseFields(
+            exclude = setOf(
+                AniLibertyReleaseExclude.EPISODES,
+                AniLibertyReleaseExclude.MEMBERS,
+                AniLibertyReleaseExclude.TORRENTS,
+            ),
+            excludeRaw = setOf(
+                AniLibertyFieldName("description"),
+                AniLibertyFieldName("notification"),
             )
         )
     }

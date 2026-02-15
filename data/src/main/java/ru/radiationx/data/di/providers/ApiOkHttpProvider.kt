@@ -8,6 +8,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import ru.radiationx.data.SharedBuildConfig
 import ru.radiationx.data.analytics.features.SslCompatAnalytics
 import ru.radiationx.data.datasource.remote.address.ApiConfig
+import ru.radiationx.data.datasource.remote.interceptors.AniLibertyAuthInterceptor
 import ru.radiationx.data.datasource.remote.interceptors.UnauthorizedInterceptor
 import ru.radiationx.data.sslcompat.SslCompat
 import ru.radiationx.data.sslcompat.appendSslCompat
@@ -25,6 +26,7 @@ class ApiOkHttpProvider @Inject constructor(
     private val appCookieJar: AppCookieJar,
     private val apiConfig: ApiConfig,
     private val sharedBuildConfig: SharedBuildConfig,
+    private val aniLibertyAuthInterceptor: AniLibertyAuthInterceptor,
     private val unauthorizedInterceptor: UnauthorizedInterceptor,
     private val sslCompat: SslCompat,
     private val sslCompatAnalytics: SslCompatAnalytics
@@ -82,6 +84,10 @@ class ApiOkHttpProvider @Inject constructor(
                 it.proceed(additionalHeadersRequest)
             }
 
+            // Adds Authorization: Bearer <token> for AniLiberty host only.
+            addInterceptor(aniLibertyAuthInterceptor)
+
+            // Clears local auth state on 401.
             addInterceptor(unauthorizedInterceptor)
 
             cookieJar(appCookieJar)

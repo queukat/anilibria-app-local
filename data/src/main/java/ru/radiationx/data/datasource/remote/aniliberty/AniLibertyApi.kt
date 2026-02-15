@@ -1,3 +1,4 @@
+
 package ru.radiationx.data.datasource.remote.aniliberty
 
 import com.squareup.moshi.Moshi
@@ -213,8 +214,21 @@ class AniLibertyApi @Inject constructor(
 
     // Auth
 
-    override suspend fun login(login: String, password: String): AniLibertyAuthTokenResponse {
-        val body = AniLibertyAuthLoginBody(login = login, password = password)
+    override suspend fun login(login: String, password: String): AniLibertyAuthTokenResponse =
+        login(login = login, password = password, code2fa = null)
+
+    /**
+     * Login with optional 2FA code.
+     *
+     * `code2fa` is sent as `fa2code` (legacy field name), because some backends keep this contract.
+     * If backend ignores it, request still succeeds.
+     */
+    suspend fun login(login: String, password: String, code2fa: String?): AniLibertyAuthTokenResponse {
+        val body = AniLibertyAuthLoginBody(
+            login = login,
+            password = password,
+            fa2Code = code2fa?.trim()?.takeIf { it.isNotEmpty() },
+        )
         val json = client.postJson("${Config.BaseUrl}/accounts/users/auth/login", toJsonObject(body))
         return json.fetchResponse(moshi)
     }
@@ -580,13 +594,13 @@ class AniLibertyApi @Inject constructor(
     override suspend fun getScheduleNow(fields: AniLibertyFieldSpec?): AniLibertyScheduleNowResponse {
         val args = AniLibertyQueryParams.build { applyFields(fields) }
         val json = client.get("${Config.BaseUrl}/anime/schedule/now", args)
-        return json.fetchListOrNestedList(moshi)
+        return json.fetchResponse(moshi)
     }
 
     override suspend fun getScheduleWeek(fields: AniLibertyFieldSpec?): AniLibertyScheduleWeekResponse {
         val args = AniLibertyQueryParams.build { applyFields(fields) }
         val json = client.get("${Config.BaseUrl}/anime/schedule/week", args)
-        return json.fetchListOrNestedList(moshi)
+        return json.fetchResponse(moshi)
     }
 
 // Torrents
@@ -625,20 +639,23 @@ class AniLibertyApi @Inject constructor(
 
 // Media
 
-    override suspend fun getMediaVasts(): String {
-        return client.get("${Config.BaseUrl}/media/vasts", emptyMap())
+    override suspend fun getMediaVasts(): List<AniLibertyVast> {
+        val json = client.get("${Config.BaseUrl}/media/vasts", emptyMap())
+        return json.fetchResponse(moshi)
     }
 
     override suspend fun getMediaManifestXml(): String {
         return client.get("${Config.BaseUrl}/media/manifest.xml", emptyMap())
     }
 
-    override suspend fun getMediaPromotions(): String {
-        return client.get("${Config.BaseUrl}/media/promotions", emptyMap())
+    override suspend fun getMediaPromotions(): AniLibertyMediaPromotionsResponse {
+        val json = client.get("${Config.BaseUrl}/media/promotions", emptyMap())
+        return json.fetchResponse(moshi)
     }
 
-    override suspend fun getMediaVideos(): String {
-        return client.get("${Config.BaseUrl}/media/videos", emptyMap())
+    override suspend fun getMediaVideos(): AniLibertyMediaVideosResponse {
+        val json = client.get("${Config.BaseUrl}/media/videos", emptyMap())
+        return json.fetchResponse(moshi)
     }
 
 // App
@@ -659,3 +676,4 @@ class AniLibertyApi @Inject constructor(
     }
 
 }
+

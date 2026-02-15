@@ -12,6 +12,27 @@ class PlayerController @Inject constructor() {
 
     val selectEpisodeRelay = EventFlow<EpisodeId>()
 
+    /**
+     * true, когда открыт экран плеера и есть активная [PlayerViewModel],
+     * которая умеет реагировать на [selectEpisodeRelay].
+     *
+     * Нужен для guided-экранов (список серий/конец серии/конец сезона),
+     * чтобы понимать: переключать серию в текущем плеере или открывать новый [PlayerScreen]
+     * (например, когда список серий открыт из Details).
+     */
+    @Volatile
+    var isPlayerActive: Boolean = false
+        private set
+
+    fun bindPlayer() {
+        isPlayerActive = true
+    }
+
+    fun unbindPlayer() {
+        isPlayerActive = false
+        reset()
+    }
+
     fun reset() {
         data.value = null
     }

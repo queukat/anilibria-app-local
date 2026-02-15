@@ -1,6 +1,7 @@
 package ru.radiationx.data.entity.mapper
 
 import ru.radiationx.data.datasource.remote.address.ApiConfig
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import ru.radiationx.data.entity.domain.release.GenreItem
 import ru.radiationx.data.entity.domain.release.YearItem
 import ru.radiationx.data.entity.domain.search.SuggestionItem
@@ -34,6 +35,71 @@ fun ReleaseResponse.toSuggestionDomain(
     },
     poster = poster?.appendBaseUrl(apiConfig.baseImagesUrl)
 )
+
+private const val ANI_LIBERTY_HOST = "https://aniliberty.top"
+
+/**
+ * Маппинг из AniLiberty v1 релиза в доменную модель подсказки для поиска.
+ *
+ * Возвращает `null`, если в ответе отсутствует id (на практике это не должно происходить,
+ * но wire-модель допускает nullable поля).
+ */
+fun AniLibertyRelease.toSuggestionDomainOrNull(
+    apiUtils: ApiUtils,
+): SuggestionItem? {
+    val idValue = id?.value ?: return null
+
+    val titleRu = name?.main
+        ?.let { apiUtils.escapeHtml(it).toString() }
+        ?.trim()
+        .orEmpty()
+
+    val titleEn = (name?.english ?: name?.alternative)
+        ?.let { apiUtils.escapeHtml(it).toString() }
+        ?.trim()
+        .orEmpty()
+
+    val names = mutableListOf<String>()
+
+    val fallback = alias?.value?.trim().orEmpty()
+    val first = titleRu
+    val second = titleEn
+
+    when {
+        first.isNotBlank() -> names.add(first)
+        fallback.isNotBlank() -> names.add(fallback)
+        else -> names.add(idValue.toString())
+    }
+
+    if (second.isNotBlank() && second != first) names.add(second)
+
+    val posterUrl = (
+        poster?.optimized?.preview
+            ?: poster?.preview
+            ?: poster?.thumbnail
+        )
+        .toAbsoluteAniLibertyUrl()
+
+    val codeValue = alias?.value?.trim()?.takeIf { it.isNotEmpty() } ?: idValue.toString()
+
+    return SuggestionItem(
+        id = ReleaseId(idValue),
+        code = ReleaseCode(codeValue),
+        names = names,
+        poster = posterUrl,
+    )
+}
+
+private fun String?.toAbsoluteAniLibertyUrl(): String? {
+    val s = this?.trim().orEmpty()
+    if (s.isEmpty()) return null
+    return when {
+        s.startsWith("http://") || s.startsWith("https://") -> s
+        s.startsWith("//") -> "https:$s"
+        s.startsWith("/") -> ANI_LIBERTY_HOST + s
+        else -> s
+    }
+}
 
 fun String.toYearItem(): YearItem = YearItem(
     title = this,

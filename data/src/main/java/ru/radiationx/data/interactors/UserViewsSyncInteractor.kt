@@ -1,0 +1,647 @@
+package ru.radiationx.data.interactors
+
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import ru.radiationx.data.datasource.holders.AuthTokenHolder
+import ru.radiationx.data.datasource.holders.EpisodesCheckerHolder
+import ru.radiationx.data.datasource.holders.HistoryHolder
+import ru.radiationx.data.datasource.holders.UserViewsSyncHolder
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFieldName
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseExclude
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseEpisodeId
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyUserViewHistoryItem
+import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTimecodeUpsertBody
+import ru.radiationx.data.entity.domain.release.EpisodeAccess
+import ru.radiationx.data.entity.domain.types.EpisodeId
+import ru.radiationx.data.entity.domain.types.ReleaseId
+import ru.radiationx.data.entity.response.PaginatedResponse
+import timber.log.Timber
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.security.MessageDigest
+import java.text.SimpleDateFormat
+import java.util.Locale
+import javax.inject.Inject
+import kotlin.math.roundToLong
+
+/**
+ * One-time migration + lightweight ongoing sync for AniLiberty user views.
+ *
+ * Goals:
+ * 1) After updating from an old version (only local progress), upload local timecodes to server.
+ * 2) Import remote-only releases (and remote progress) into local storage.
+ * 3) Resolve conflicts as "max progress wins" (watched > not watched; otherwise bigger timestamp wins).
+ *
+ * Runtime behavior:
+ * - Initial LOCAL -> REMOTE upload runs once (per auth token hash), then player upserts keep server fresh.
+ * - REMOTE -> LOCAL import runs on each app start in "light" mode (few pages),
+ *   and once in "full" mode (all pages) to cover remote-only old history.
+ */
+class UserViewsSyncInteractor @Inject constructor(
+    private val aniLibertyApi: AniLibertyApi,
+    private val authTokenHolder: AuthTokenHolder,
+    private val episodesCheckerHolder: EpisodesCheckerHolder,
+    private val historyHolder: HistoryHolder,
+    private val syncHolder: UserViewsSyncHolder,
+) {
+
+    private val syncMutex = Mutex()
+
+    private val releaseEpisodesMutex = Mutex()
+    private val releaseEpisodesCache = mutableMapOf<ReleaseId, ReleaseEpisodesCache>()
+
+    /**
+     * Best-effort sync. Never throws (except coroutine cancellation).
+     *
+     * NOTE: minSdk is 21, so we avoid a hard dependency on java.time here.
+     */
+    suspend fun syncIfNeeded() = withContext(Dispatchers.IO) {
+        val token = authTokenHolder.getToken()?.takeIf { it.isNotBlank() } ?: return@withContext
+
+        // Hash is used only to detect "same user/session" across launches without persisting raw token.
+        val tokenHash = sha256(token)
+
+        syncMutex.withLock {
+            try {
+                val needUpload = syncHolder.getLastUploadTokenHash() != tokenHash
+                val needFullImport = syncHolder.getLastFullImportTokenHash() != tokenHash
+
+                // 1) One-time upload (migration)
+                if (needUpload) {
+                    val uploadOk = runCatching { uploadLocalToRemoteWithConflicts() }
+                        .getOrElse { error ->
+                            if (error is CancellationException) throw error
+                            Timber.w(error, "UserViewsSync: upload failed")
+                            false
+                        }
+
+                    if (uploadOk) {
+                        syncHolder.setLastUploadTokenHash(tokenHash)
+                    }
+                }
+
+                // 2) Import remote -> local.
+                //    - If full import is not done yet: do full import (all pages).
+                //    - Otherwise: do light import to catch new remote-only items.
+                val importOk = if (needFullImport) {
+                    importRemoteHistoryToLocal(maxPages = MAX_HISTORY_PAGES)
+                        .also { ok ->
+                            if (ok) {
+                                syncHolder.setLastFullImportTokenHash(tokenHash)
+                            }
+                        }
+                } else {
+                    importRemoteHistoryToLocal(maxPages = LIGHT_IMPORT_PAGES)
+                }
+
+                if (!importOk) {
+                    // Not fatal: we'll try again on the next AUTH trigger.
+                    Timber.d("UserViewsSync: import failed (will retry later)")
+                }
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                Timber.w(error, "UserViewsSync: unexpected error")
+            }
+        }
+    }
+
+    /**
+     * Upload local progress to server with conflict resolution.
+     *
+     * Returns true only if:
+     * - we could load remote snapshot (auth/network ok)
+     * - and all upsert chunks completed successfully
+     */
+    private suspend fun uploadLocalToRemoteWithConflicts(): Boolean = withContext(Dispatchers.IO) {
+        val remoteSnapshot = runCatching { aniLibertyApi.getUserViewTimecodes(since = null) }
+            .onFailure { Timber.w(it, "UserViewsSync: failed to load remote timecodes snapshot") }
+            .getOrNull()
+            ?: return@withContext false
+
+        val remoteMap: Map<AniLibertyReleaseEpisodeId, RemoteTimecode> = remoteSnapshot
+            .associate { it.releaseEpisodeId to RemoteTimecode(positionMs = secondsToMs(it.time), isWatched = it.isWatched) }
+
+        val localEpisodes = runCatching { episodesCheckerHolder.getEpisodes() }
+            .onFailure { Timber.w(it, "UserViewsSync: failed to read local episodes") }
+            .getOrNull()
+            ?.filter { it.isViewed || it.seek > 0L }
+            ?: return@withContext false
+
+        if (localEpisodes.isEmpty()) {
+            Timber.d("UserViewsSync: local is empty, upload skipped")
+            return@withContext true
+        }
+
+        val bodiesByEpisodeId = mutableMapOf<String, AniLibertyUserViewTimecodeUpsertBody>()
+
+        localEpisodes
+            .groupBy { it.id.releaseId }
+            .forEach { (releaseId, accesses) ->
+                val cache = getReleaseEpisodesCacheOrNull(releaseId) ?: return@forEach
+
+                accesses.forEach { access ->
+                    val ordinalKey = normalizeOrdinalString(access.id.id)
+                    val aniEpisodeId = cache.byOrdinal[ordinalKey] ?: return@forEach
+                    val durationMs = cache.durationByOrdinalMs[ordinalKey]
+
+                    val localIsWatched = isLocalWatched(access, durationMs)
+
+                    val sendPositionMs = if (localIsWatched) 0L else access.seek
+                    if (!localIsWatched && sendPositionMs < MIN_UPLOAD_POSITION_MS) return@forEach
+
+                    val remote = remoteMap[aniEpisodeId]
+                    if (!shouldUpload(localIsWatched, access.seek, remote)) return@forEach
+
+                    val body = AniLibertyUserViewTimecodeUpsertBody.from(
+                        time = msToSeconds(sendPositionMs),
+                        isWatched = localIsWatched,
+                        releaseEpisodeId = aniEpisodeId,
+                    )
+
+                    val key = body.releaseEpisodeId
+                    val existing = bodiesByEpisodeId[key]
+                    if (existing == null || isUpsertBodyBetter(body, existing)) {
+                        bodiesByEpisodeId[key] = body
+                    }
+                }
+            }
+
+        if (bodiesByEpisodeId.isEmpty()) {
+            Timber.d("UserViewsSync: nothing to upload (all conflicts won by remote or no mappable episodes)")
+            return@withContext true
+        }
+
+        val bodies = bodiesByEpisodeId.values.toList()
+
+        var hadErrors = false
+        bodies
+            .chunked(UPSERT_BATCH_SIZE)
+            .forEach { chunk ->
+                val result = runCatching { aniLibertyApi.upsertUserViewTimecodes(chunk) }
+                if (result.isFailure) {
+                    hadErrors = true
+                    Timber.w(result.exceptionOrNull(), "UserViewsSync: upsert chunk failed (size=${chunk.size})")
+                }
+            }
+
+        !hadErrors
+    }
+
+    /**
+     * Import AniLiberty views history to local storage.
+     *
+     * What we do:
+     * - update local EpisodeAccess (max progress wins)
+     * - add missing releases to local history (remote-only import)
+     *
+     * @param maxPages how many pages to fetch (1-3 for light import, many for full import)
+     */
+    private suspend fun importRemoteHistoryToLocal(
+        maxPages: Int,
+    ): Boolean = withContext(Dispatchers.IO) {
+        val pages = loadHistoryPages(maxPages = maxPages) ?: return@withContext false
+        if (pages.isEmpty()) return@withContext true
+
+        val initialLocalHistoryIds: Set<ReleaseId> = runCatching { historyHolder.getIds().toSet() }
+            .onFailure { Timber.w(it, "UserViewsSync: failed to read local history ids") }
+            .getOrNull()
+            ?: return@withContext false
+
+        val missingReleaseIds = mutableListOf<ReleaseId>()
+
+        // We'll compare against a mutable snapshot so that we don't depend on write ordering.
+        val localEpisodeMap = runCatching { episodesCheckerHolder.getEpisodes() }
+            .onFailure { Timber.w(it, "UserViewsSync: failed to read local episodes for import") }
+            .getOrNull()
+            ?.associateBy { it.id }
+            ?.toMutableMap()
+            ?: return@withContext false
+
+        val updates = mutableListOf<EpisodeAccess>()
+
+        // Process from oldest to newest to keep latest item as the final state.
+        pages.asReversed().forEach { page ->
+            page.data.asReversed().forEach { item ->
+                val releaseId = item.extractReleaseId() ?: return@forEach
+                val ordinal = item.episode?.ordinal ?: item.episode?.sortOrder ?: return@forEach
+
+                val episodeId = EpisodeId(
+                    id = normalizeOrdinalDouble(ordinal),
+                    releaseId = releaseId,
+                )
+
+                // Remote progress
+                val durationMs = item.episode?.duration?.let(::secondsToMs)
+                val remoteIsWatched = item.isWatched == true
+                val remoteTimeMs = item.time?.let(::secondsToMs) ?: 0L
+                val remoteSeekMs = if (remoteIsWatched && durationMs != null && durationMs > 0L) {
+                    durationMs
+                } else {
+                    remoteTimeMs
+                }
+
+                if (!remoteIsWatched && remoteSeekMs < MIN_IMPORT_POSITION_MS) return@forEach
+
+                // Remote-only release import (do not reorder existing local history)
+                if (releaseId !in initialLocalHistoryIds) {
+                    // "move to end" semantics: last occurrence wins
+                    missingReleaseIds.remove(releaseId)
+                    missingReleaseIds.add(releaseId)
+                }
+
+                // Merge with local
+                val local = localEpisodeMap[episodeId]
+                val merged = mergeEpisodeProgress(
+                    episodeId = episodeId,
+                    local = local,
+                    remoteSeekMs = remoteSeekMs,
+                    remoteIsWatched = remoteIsWatched,
+                    durationMs = durationMs,
+                    remoteLastAccessMs = parseTimestampMs(item.updatedAt) ?: parseTimestampMs(item.createdAt),
+                ) ?: return@forEach
+
+                if (merged != local) {
+                    updates.add(merged)
+                    localEpisodeMap[episodeId] = merged
+                }
+            }
+        }
+
+        if (updates.isNotEmpty()) {
+            val ok = runCatching { episodesCheckerHolder.putAllEpisode(updates) }
+                .onFailure { Timber.w(it, "UserViewsSync: failed to update local episodes") }
+                .isSuccess
+            if (!ok) return@withContext false
+        }
+
+        if (missingReleaseIds.isNotEmpty()) {
+            val ok = runCatching { historyHolder.putAllIds(missingReleaseIds) }
+                .onFailure { Timber.w(it, "UserViewsSync: failed to update local history (remote-only import)") }
+                .isSuccess
+            if (!ok) return@withContext false
+        }
+
+        true
+    }
+
+    private fun mergeEpisodeProgress(
+        episodeId: EpisodeId,
+        local: EpisodeAccess?,
+        remoteSeekMs: Long,
+        remoteIsWatched: Boolean,
+        durationMs: Long?,
+        remoteLastAccessMs: Long?,
+    ): EpisodeAccess? {
+        val localSeekMs = local?.seek ?: 0L
+
+        // If remote has no meaningful data and local exists - keep local.
+        if (!remoteIsWatched && remoteSeekMs <= 0L && local != null) {
+            return local
+        }
+
+        val localIsWatched = local?.let { isLocalWatched(it, durationMs) } ?: false
+
+        val remoteComparable = when {
+            remoteIsWatched && durationMs != null && durationMs > 0L -> durationMs
+            else -> remoteSeekMs
+        }
+
+        val localComparable = when {
+            localIsWatched && durationMs != null && durationMs > 0L -> durationMs
+            else -> localSeekMs
+        }
+
+        val remoteBetter = when {
+            remoteIsWatched && !localIsWatched -> true
+            !remoteIsWatched && localIsWatched -> false
+            else -> remoteComparable > localComparable + MIN_PROGRESS_DELTA_MS
+        }
+
+        if (!remoteBetter) return local
+
+        val mergedSeekMs = when {
+            remoteIsWatched && durationMs != null && durationMs > 0L -> durationMs
+            else -> maxOf(localSeekMs, remoteSeekMs)
+        }
+
+        val mergedLastAccess = maxOf(
+            local?.lastAccessRaw ?: 0L,
+            remoteLastAccessMs ?: System.currentTimeMillis(),
+        )
+
+        return EpisodeAccess(
+            id = episodeId,
+            seek = mergedSeekMs,
+            isViewed = true,
+            lastAccess = mergedLastAccess,
+        )
+    }
+
+    private suspend fun loadHistoryPages(
+        maxPages: Int,
+    ): List<PaginatedResponse<AniLibertyUserViewHistoryItem>>? {
+        val result = mutableListOf<PaginatedResponse<AniLibertyUserViewHistoryItem>>()
+        var page = 1
+        while (page <= maxPages) {
+            val response = runCatching {
+                aniLibertyApi.getUserViewsHistory(
+                    page = page,
+                    limit = HISTORY_PAGE_LIMIT,
+                    fields = AniLibertyReleaseFields.Suggestions,
+                )
+            }.onFailure {
+                Timber.w(it, "UserViewsSync: failed to load views history page=$page")
+            }.getOrNull() ?: return null
+
+            if (response.data.isEmpty()) break
+            result.add(response)
+
+            val allPages = response.meta.allPages
+            if (allPages != null && page >= allPages) break
+            if (allPages == null && response.data.size < HISTORY_PAGE_LIMIT) break
+
+            page++
+        }
+        return result
+    }
+
+    private suspend fun getReleaseEpisodesCacheOrNull(releaseId: ReleaseId): ReleaseEpisodesCache? {
+        releaseEpisodesMutex.withLock {
+            releaseEpisodesCache[releaseId]?.also { return it }
+        }
+
+        val fieldsForEpisodes = AniLibertyReleaseFields(
+            exclude = setOf(
+                AniLibertyReleaseExclude.MEMBERS,
+                AniLibertyReleaseExclude.TORRENTS,
+            ),
+            excludeRaw = setOf(
+                AniLibertyFieldName("description"),
+                AniLibertyFieldName("notification"),
+            )
+        )
+
+        val release = runCatching {
+            aniLibertyApi.getRelease(
+                key = AniLibertyReleaseKey.id(releaseId.id),
+                fields = fieldsForEpisodes,
+            )
+        }.onFailure {
+            Timber.w(it, "UserViewsSync: failed to load release episodes for releaseId=${releaseId.id}")
+        }.getOrNull() ?: return null
+
+        val episodes = release.episodes.orEmpty()
+            .mapNotNull { ep ->
+                val id = ep.id ?: return@mapNotNull null
+                val ordinal = ep.ordinal ?: ep.sortOrder ?: return@mapNotNull null
+                val ordinalKey = normalizeOrdinalDouble(ordinal)
+
+                EpisodeMeta(
+                    ordinalKey = ordinalKey,
+                    episodeId = id,
+                    durationMs = ep.duration?.let(::secondsToMs),
+                )
+            }
+
+        if (episodes.isEmpty()) return null
+
+        val cache = ReleaseEpisodesCache(
+            byOrdinal = episodes.associate { it.ordinalKey to it.episodeId },
+            durationByOrdinalMs = episodes.mapNotNull { meta ->
+                meta.durationMs?.let { meta.ordinalKey to it }
+            }.toMap(),
+        )
+
+        releaseEpisodesMutex.withLock {
+            releaseEpisodesCache[releaseId] = cache
+        }
+
+        return cache
+    }
+
+    private fun shouldUpload(
+        localIsWatched: Boolean,
+        localSeekMs: Long,
+        remote: RemoteTimecode?,
+    ): Boolean {
+        if (remote == null) return true
+
+        return when {
+            localIsWatched && !remote.isWatched -> true
+            !localIsWatched && remote.isWatched -> false
+            localIsWatched && remote.isWatched -> false
+            else -> localSeekMs > remote.positionMs + MIN_PROGRESS_DELTA_MS
+        }
+    }
+
+    /**
+     * When local storage contains duplicated entries for the same AniLiberty episode (for example "1" vs "1.0"),
+     * we keep the "best" upsert body:
+     * - watched wins over not-watched
+     * - otherwise bigger time wins
+     */
+    private fun isUpsertBodyBetter(
+        candidate: AniLibertyUserViewTimecodeUpsertBody,
+        current: AniLibertyUserViewTimecodeUpsertBody,
+    ): Boolean {
+        return when {
+            candidate.isWatched && !current.isWatched -> true
+            !candidate.isWatched && current.isWatched -> false
+            candidate.isWatched && current.isWatched -> false
+            else -> candidate.time > current.time + 0.001
+        }
+    }
+
+
+    /**
+     * Local "watched" heuristics:
+     * - normal case: seek is within [tolerance] from duration
+     * - legacy/manual case: isViewed=true and seek=0 and lastAccess=0 (mark-all-viewed in old builds)
+     */
+    private fun isLocalWatched(
+        access: EpisodeAccess,
+        durationMs: Long?,
+    ): Boolean {
+        if (!access.isViewed) return false
+
+        // Old "mark as watched": isViewed=true, seek=0, lastAccess=0
+        if (access.seek <= 0L && access.lastAccessRaw <= 0L) return true
+
+        val duration = durationMs ?: return false
+        if (duration <= 0L) return false
+
+        val tolerance = watchedToleranceMs(duration)
+        val threshold = (duration - tolerance).coerceAtLeast(0L)
+        return access.seek >= threshold
+    }
+
+    private fun watchedToleranceMs(durationMs: Long): Long {
+        val percent = (durationMs.toDouble() * WATCHED_TOLERANCE_PERCENT).roundToLong()
+        return percent.coerceIn(WATCHED_TOLERANCE_MIN_MS, WATCHED_TOLERANCE_MAX_MS)
+    }
+
+    private fun normalizeOrdinalString(value: String): String =
+        runCatching {
+            BigDecimal(value.trim()).stripTrailingZeros().toPlainString()
+        }.getOrElse { value.trim() }
+
+    private fun normalizeOrdinalDouble(value: Double): String =
+        runCatching {
+            BigDecimal(value.toString()).stripTrailingZeros().toPlainString()
+        }.getOrElse { value.toString() }
+
+    private fun msToSeconds(ms: Long): Double =
+        BigDecimal(ms).divide(BigDecimal(1000), 3, RoundingMode.HALF_UP).toDouble()
+
+    private fun secondsToMs(seconds: Double): Long = (seconds * 1000.0).roundToLong()
+
+    private fun sha256(value: String): String {
+        val bytes = MessageDigest.getInstance("SHA-256").digest(value.toByteArray())
+        return buildString(bytes.size * 2) {
+            bytes.forEach { b ->
+                append(((b.toInt() and 0xFF).toString(16)).padStart(2, '0'))
+            }
+        }
+    }
+
+    /**
+     * Parses ISO-8601-like timestamps (createdAt/updatedAt from AniLiberty).
+     *
+     * We avoid java.time direct calls because minSdk is 21 and coreLibraryDesugaring is not enabled here.
+     */
+    private fun parseTimestampMs(value: String?): Long? {
+        if (value.isNullOrBlank()) return null
+        val trimmed = value.trim()
+
+        // 1) Try java.time via reflection (works on API 26+ or if desugaring is enabled in the future)
+        javaTimeInstantParser?.let { parser ->
+            runCatching {
+                val instant = parser.parseMethod.invoke(null, trimmed)
+                (parser.toEpochMilliMethod.invoke(instant) as Long)
+            }.getOrNull()?.let { return it }
+        }
+
+        // 2) Fallback: SimpleDateFormat with a normalized offset (+0300 / +0000).
+        val normalized = normalizeIso8601ForSdf(trimmed)
+        return parseWithSdf(normalized)
+    }
+
+    private fun parseWithSdf(value: String): Long? {
+        // Thread-safe approach: create new formatter per call.
+        SIMPLE_DATE_PATTERNS.forEach { pattern ->
+            val formatter = SimpleDateFormat(pattern, Locale.US).apply {
+                isLenient = true
+            }
+            runCatching { formatter.parse(value)?.time }
+                .getOrNull()
+                ?.let { return it }
+        }
+        return null
+    }
+
+    private fun normalizeIso8601ForSdf(value: String): String {
+        var s = value
+
+        // Normalize fractional seconds to 3 digits (SimpleDateFormat uses .SSS)
+        s = normalizeFractionalSeconds(s)
+
+        // Convert trailing Z to RFC822 timezone
+        if (s.endsWith("Z")) {
+            s = s.dropLast(1) + "+0000"
+        }
+
+        // Convert "+03:00" to "+0300"
+        s = s.replace(TZ_COLON_REGEX, "$1$2")
+
+        // If timezone is still missing, assume UTC.
+        if (!TZ_RFC822_REGEX.containsMatchIn(s)) {
+            s += "+0000"
+        }
+
+        return s
+    }
+
+    private fun normalizeFractionalSeconds(value: String): String {
+        val match = FRACTION_REGEX.find(value) ?: return value
+        val fraction = match.groupValues[1]
+        val normalized = when {
+            fraction.length == 3 -> fraction
+            fraction.length < 3 -> fraction.padEnd(3, '0')
+            else -> fraction.substring(0, 3)
+        }
+        return value.replaceRange(match.range, ".$normalized")
+    }
+
+    private fun AniLibertyUserViewHistoryItem.extractReleaseId(): ReleaseId? {
+        val id = releaseId?.value
+            ?: release?.id?.value
+            ?: episode?.releaseId?.value
+        return id?.let(::ReleaseId)
+    }
+
+    private data class ReleaseEpisodesCache(
+        val byOrdinal: Map<String, AniLibertyReleaseEpisodeId>,
+        val durationByOrdinalMs: Map<String, Long>,
+    )
+
+    private data class EpisodeMeta(
+        val ordinalKey: String,
+        val episodeId: AniLibertyReleaseEpisodeId,
+        val durationMs: Long?,
+    )
+
+    private data class RemoteTimecode(
+        val positionMs: Long,
+        val isWatched: Boolean,
+    )
+
+    private data class JavaTimeInstantParser(
+        val parseMethod: java.lang.reflect.Method,
+        val toEpochMilliMethod: java.lang.reflect.Method,
+    )
+
+    private companion object {
+        private const val HISTORY_PAGE_LIMIT = 50
+        private const val LIGHT_IMPORT_PAGES = 3
+
+        /**
+         * "Full import" upper bound. In normal cases `meta.allPages` will stop us earlier.
+         * Keep it reasonably high as a safety net against server-side pagination issues.
+         */
+        private const val MAX_HISTORY_PAGES = 1000
+
+        private const val UPSERT_BATCH_SIZE = 100
+
+        private const val MIN_UPLOAD_POSITION_MS = 5_000L
+        private const val MIN_IMPORT_POSITION_MS = 5_000L
+        private const val MIN_PROGRESS_DELTA_MS = 1_000L
+
+        private const val WATCHED_TOLERANCE_PERCENT = 0.03
+        private const val WATCHED_TOLERANCE_MIN_MS = 5_000L
+        private const val WATCHED_TOLERANCE_MAX_MS = 20_000L
+
+        private val SIMPLE_DATE_PATTERNS = arrayOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+        )
+
+        private val TZ_COLON_REGEX = Regex("([+-]\\d\\d):(\\d\\d)$")
+        private val TZ_RFC822_REGEX = Regex("([+-]\\d\\d\\d\\d)$")
+        private val FRACTION_REGEX = Regex("\\.(\\d{1,9})(?=[Z+-]|$)")
+
+        private val javaTimeInstantParser: JavaTimeInstantParser? by lazy {
+            runCatching {
+                val cls = Class.forName("java.time.Instant")
+                val parseMethod = cls.getMethod("parse", String::class.java)
+                val toEpochMilliMethod = cls.getMethod("toEpochMilli")
+                JavaTimeInstantParser(parseMethod, toEpochMilliMethod)
+            }.getOrNull()
+        }
+    }
+}

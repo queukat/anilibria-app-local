@@ -1,3 +1,4 @@
+
 package ru.radiationx.data.datasource.remote.aniliberty.dto
 
 import com.squareup.moshi.Json
@@ -23,6 +24,8 @@ data class AniLibertyOtpLoginBody(
 data class AniLibertyAuthLoginBody(
     @Json(name = "login") val login: String,
     @Json(name = "password") val password: String,
+    /** Optional 2FA code (legacy field name from old PHP auth). */
+    @Json(name = "fa2code") val fa2Code: String? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -36,3 +39,4 @@ data class AniLibertyPasswordResetBody(
     @Json(name = "password") val password: String,
     @Json(name = "password_confirmation") val passwordConfirmation: String,
 )
+

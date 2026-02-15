@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.widget.ImageView
 import coil.ImageLoader
+import coil.clear
+import coil.dispose
 import coil.load
 import coil.request.ErrorResult
 import coil.request.ImageRequest
@@ -58,12 +60,29 @@ class CoilLibriaImageLoaderImpl @Inject constructor(
     }
 
     override fun showImage(imageView: ImageView, url: String?, config: ImageLoaderScopeConfig) {
-        if (imageView.successUrl == url) {
+        val normalizedUrl = url?.takeIf { it.isNotBlank() }
+
+        // Ключевой фикс: если пришёл null/blank — обязаны сбросить successUrl и очистить ImageView,
+        // иначе потом возможен ранний return на "старом successUrl".
+        if (normalizedUrl == null) {
+            config.onStart?.invoke()
+
+            imageView.successUrl = null
+            imageView.dispose()
+            // отменяем возможную текущую загрузку
+            imageView.setImageDrawable(null)
+
+            config.onComplete?.invoke()
             return
         }
-        imageView.load(url, getImageLoader()) {
-            diskCacheKey(url.toCacheKey())
-            memoryCacheKey(url.toCacheKey())
+
+        if (imageView.successUrl == normalizedUrl) {
+            return
+        }
+
+        imageView.load(normalizedUrl, getImageLoader()) {
+            diskCacheKey(normalizedUrl.toCacheKey())
+            memoryCacheKey(normalizedUrl.toCacheKey())
             listener(
                 onStart = {
                     config.onStart?.invoke()
@@ -77,7 +96,7 @@ class CoilLibriaImageLoaderImpl @Inject constructor(
                     config.onComplete?.invoke()
                 },
                 onSuccess = { _: ImageRequest, successResult: SuccessResult ->
-                    imageView.successUrl = url
+                    imageView.successUrl = normalizedUrl
                     val bitmap = (successResult.drawable as BitmapDrawable).bitmap
                     config.onSuccess?.invoke(bitmap)
                     config.onComplete?.invoke()
@@ -87,10 +106,15 @@ class CoilLibriaImageLoaderImpl @Inject constructor(
     }
 
     override suspend fun loadImageBitmap(context: Context, url: String?): Bitmap {
+        val safeUrl = url?.takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Image url is null or blank")
+
         val request = ImageRequest.Builder(context)
-            .diskCacheKey(url.toCacheKey())
-            .memoryCacheKey(url.toCacheKey())
-            .data(url).build()
+            .diskCacheKey(safeUrl.toCacheKey())
+            .memoryCacheKey(safeUrl.toCacheKey())
+            .data(safeUrl)
+            .build()
+
         val result = getImageLoader().execute(request)
         return (result.drawable as BitmapDrawable).bitmap
     }

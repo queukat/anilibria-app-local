@@ -1,10 +1,10 @@
 package ru.radiationx.anilibria.screen.watching
 
-import android.os.SystemClock
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
@@ -62,10 +63,14 @@ class WatchingFavoritesViewModel @Inject constructor(
     private var availableGenres: List<String> = emptyList()
 
     private var loadJob: Job? = null
+    private var rebuildJob: Job? = null
     private var releasesCache: List<Release> = emptyList()
 
     private var currentAuthState: AuthState? = null
-    private var isResumed: Boolean = false
+
+    private var lastSuccessfulSyncMs: Long = 0L
+
+    private val minRefreshIntervalMs: Long = 2L * 60L * 1000L
 
     init {
         authRepository
@@ -73,13 +78,11 @@ class WatchingFavoritesViewModel @Inject constructor(
             .distinctUntilChanged()
             .onEach { state ->
                 currentAuthState = state
-
-                if (!isResumed) {
-                    return@onEach
-                }
-
                 if (state == AuthState.AUTH) {
-                    handleEnterWithHotCache()
+                    if (releasesCache.isNotEmpty()) {
+                        rebuildFromCache()
+                    }
+                    reloadFromNetwork(showLoading = releasesCache.isEmpty())
                 } else {
                     showNeedAuth()
                 }
@@ -88,17 +91,22 @@ class WatchingFavoritesViewModel @Inject constructor(
     }
 
     override fun onResume(owner: LifecycleOwner) {
-        isResumed = true
-
         if (currentAuthState == AuthState.AUTH) {
-            handleEnterWithHotCache()
+            if (releasesCache.isNotEmpty()) {
+                rebuildFromCache()
+            }
+
+            if (shouldRefreshNow()) {
+                reloadFromNetwork(showLoading = releasesCache.isEmpty())
+            }
         } else {
             showNeedAuth()
         }
     }
 
     override fun onPause(owner: LifecycleOwner) {
-        isResumed = false
+        loadJob?.cancel()
+        rebuildJob?.cancel()
     }
 
     fun onLibriaCardClick(card: LibriaCard) {
@@ -111,7 +119,7 @@ class WatchingFavoritesViewModel @Inject constructor(
 
     fun onLinkCardClick() {
         if (currentAuthState == AuthState.AUTH) {
-            reloadFromNetwork(showLoading = true)
+            reloadFromNetwork(showLoading = releasesCache.isEmpty(), force = true)
         } else {
             showNeedAuth()
         }
@@ -127,13 +135,13 @@ class WatchingFavoritesViewModel @Inject constructor(
             SortMode.BY_TITLE -> SortMode.BY_DATE
         }
         updateLabels()
-        cardsData.value = rebuildFromCache()
+        rebuildFromCache()
     }
 
     fun onOnlyCompletedClick() {
         onlyCompletedFilter = !onlyCompletedFilter
         updateLabels()
-        cardsData.value = rebuildFromCache()
+        rebuildFromCache()
     }
 
     fun onYearClick() {
@@ -172,84 +180,72 @@ class WatchingFavoritesViewModel @Inject constructor(
     fun onYearSelected(index: Int) {
         yearFilter = if (index <= 0) null else availableYears.getOrNull(index - 1)
         updateLabels()
-        cardsData.value = rebuildFromCache()
+        rebuildFromCache()
     }
 
     fun onSeasonSelected(index: Int) {
         seasonFilter = if (index <= 0) null else availableSeasons.getOrNull(index - 1)
         updateLabels()
-        cardsData.value = rebuildFromCache()
+        rebuildFromCache()
     }
 
     fun onGenreSelected(index: Int) {
         genreFilter = if (index <= 0) null else availableGenres.getOrNull(index - 1)
         updateLabels()
-        cardsData.value = rebuildFromCache()
+        rebuildFromCache()
     }
 
-    private fun handleEnterWithHotCache() {
-        if (loadJob?.isActive == true) {
+    private fun shouldRefreshNow(): Boolean {
+        val now = System.currentTimeMillis()
+        if (lastSuccessfulSyncMs == 0L) return true
+        return (now - lastSuccessfulSyncMs) >= minRefreshIntervalMs
+    }
+
+    private fun reloadFromNetwork(showLoading: Boolean, force: Boolean = false) {
+        if (!force && !showLoading && !shouldRefreshNow()) {
             return
-        }
-
-        val cached = sharedReleasesCache
-        if (cached != null) {
-            releasesCache = cached
-            updateAvailableFilters(cached)
-            cardsData.value = rebuildFromCache()
-
-            if (isCacheStale()) {
-                reloadFromNetwork(showLoading = false)
-            }
-        } else {
-            reloadFromNetwork(showLoading = true)
-        }
-    }
-
-    private fun isCacheStale(): Boolean {
-        val updatedAt = sharedUpdatedAt
-        if (updatedAt <= 0L) return true
-        val now = SystemClock.elapsedRealtime()
-        return (now - updatedAt) > STALE_MS
-    }
-
-    private fun reloadFromNetwork(showLoading: Boolean = true) {
-        if (showLoading) {
-            cardsData.value = listOf(LoadingCard())
         }
 
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
+            if (showLoading) {
+                cardsData.value = listOf(LoadingCard(title = "Загрузка…"))
+            }
+
             try {
-                val all = loadAllFavoritesSafe()
+                val all = withContext(Dispatchers.IO) {
+                    loadAllFavoritesSafe()
+                }
+
                 releasesCache = all
+                lastSuccessfulSyncMs = System.currentTimeMillis()
 
-                sharedReleasesCache = all
-                sharedUpdatedAt = SystemClock.elapsedRealtime()
+                val filters = withContext(Dispatchers.Default) {
+                    computeAvailableFilters(all)
+                }
+                availableYears = filters.years
+                availableSeasons = filters.seasons
+                availableGenres = filters.genres
 
-                updateAvailableFilters(all)
-                cardsData.value = rebuildFromCache()
+                rebuildFromCache()
             } catch (e: Throwable) {
                 val is401 = (e is ru.radiationx.data.system.HttpException && e.code == 401)
 
                 if (is401) {
                     showNeedAuth()
-                    return@launch
+                } else {
+                    if (showLoading) {
+                        cardsData.value = listOf(
+                            LoadingCard(
+                                title = "Ошибка загрузки",
+                                description = e.message ?: "",
+                                isError = true
+                            ),
+                            LinkCard("Повторить")
+                        )
+                    }
+                    // If showLoading is false, keep cached UI as is.
                 }
-
-                val hasSomethingToShow = releasesCache.isNotEmpty() && cardsData.value.isNotEmpty()
-                if (!showLoading && hasSomethingToShow) {
-                    return@launch
-                }
-
-                cardsData.value = listOf(
-                    LoadingCard(
-                        title = "Ошибка загрузки",
-                        description = e.message ?: "",
-                        isError = true
-                    ),
-                    LinkCard("Повторить")
-                )
             }
         }
     }
@@ -292,51 +288,75 @@ class WatchingFavoritesViewModel @Inject constructor(
         return result.values.toList()
     }
 
-    private fun rebuildFromCache(): List<CardItem> {
-        val src = releasesCache
-        if (src.isEmpty()) return emptyList()
-
-        val filtered = src.asSequence()
-            .filter { r ->
-                if (!onlyCompletedFilter) true else r.statusCode == Release.STATUS_CODE_COMPLETE
+    private fun rebuildFromCache() {
+        rebuildJob?.cancel()
+        rebuildJob = viewModelScope.launch {
+            val src = releasesCache
+            if (src.isEmpty()) {
+                cardsData.value = emptyList()
+                return@launch
             }
-            .filter { r -> yearFilter?.let { r.year == it } ?: true }
-            .filter { r -> seasonFilter?.let { r.season == it } ?: true }
-            .filter { r ->
-                genreFilter?.let { g -> r.genres.any { it.equals(g, ignoreCase = true) } } ?: true
+
+            val sortMode = currentSort
+            val onlyCompleted = onlyCompletedFilter
+            val year = yearFilter
+            val season = seasonFilter
+            val genre = genreFilter
+
+            val sorted = withContext(Dispatchers.Default) {
+                val filtered = src.asSequence()
+                    .filter { r ->
+                        if (!onlyCompleted) true else r.statusCode == Release.STATUS_CODE_COMPLETE
+                    }
+                    .filter { r -> year?.let { r.year == it } ?: true }
+                    .filter { r -> season?.let { r.season == it } ?: true }
+                    .filter { r ->
+                        genre?.let { g -> r.genres.any { it.equals(g, ignoreCase = true) } } ?: true
+                    }
+                    .toList()
+
+                when (sortMode) {
+                    SortMode.BY_DATE -> filtered.sortedWith(
+                        compareByDescending<Release> { parseYear(it.year) }
+                            .thenByDescending { seasonRank(it.season) }
+                            .thenByDescending { it.torrentUpdate }
+                    )
+                    SortMode.BY_TITLE -> filtered.sortedBy { it.title }
+                }
             }
-            .toList()
 
-        val sorted = when (currentSort) {
-            SortMode.BY_DATE -> filtered.sortedWith(
-                compareByDescending<Release> { parseYear(it.year) }
-                    .thenByDescending { seasonRank(it.season) }
-                    .thenByDescending { it.torrentUpdate }
-            )
-
-            SortMode.BY_TITLE -> filtered.sortedBy { it.title }
+            cardsData.value = sorted.map { converter.toCard(it) }
+                .ifEmpty { listOf(LinkCard("Ничего не найдено")) }
         }
-
-        return sorted
-            .map { converter.toCard(it) }
-            .ifEmpty { listOf(LinkCard("Ничего не найдено")) }
     }
 
-    private fun updateAvailableFilters(releases: List<Release>) {
-        availableYears = releases
+    private data class Filters(
+        val years: List<String>,
+        val seasons: List<String>,
+        val genres: List<String>
+    )
+
+    private fun computeAvailableFilters(releases: List<Release>): Filters {
+        val years = releases
             .mapNotNull { it.year }
             .distinct()
             .sortedWith(compareByDescending { parseYear(it) })
 
-        availableSeasons = releases
+        val seasons = releases
             .mapNotNull { it.season }
             .distinct()
             .sortedWith(compareBy { seasonRank(it) })
 
-        availableGenres = releases
+        val genres = releases
             .flatMap { it.genres }
             .distinct()
             .sorted()
+
+        return Filters(
+            years = years,
+            seasons = seasons,
+            genres = genres
+        )
     }
 
     private fun updateLabels() {
@@ -359,13 +379,12 @@ class WatchingFavoritesViewModel @Inject constructor(
 
     private fun parseYear(value: String?): Int {
         if (value.isNullOrBlank()) return Int.MIN_VALUE
-        val m = Regex("""\d{4}""").find(value) ?: return Int.MIN_VALUE
-        return m.value.toIntOrNull() ?: Int.MIN_VALUE
+        val digits = value.filter { it.isDigit() }
+        return digits.toIntOrNull() ?: Int.MIN_VALUE
     }
 
     private fun seasonRank(value: String?): Int {
-        if (value.isNullOrBlank()) return Int.MIN_VALUE
-        val s = value.lowercase()
+        val s = value?.lowercase().orEmpty()
         return when {
             "зим" in s || "win" in s -> 1
             "весн" in s || "spr" in s -> 2
@@ -373,11 +392,5 @@ class WatchingFavoritesViewModel @Inject constructor(
             "осен" in s || "aut" in s || "fall" in s -> 4
             else -> Int.MIN_VALUE
         }
-    }
-
-    private companion object {
-        private var sharedReleasesCache: List<Release>? = null
-        private var sharedUpdatedAt: Long = 0L
-        private const val STALE_MS = 2 * 60 * 1000L
     }
 }

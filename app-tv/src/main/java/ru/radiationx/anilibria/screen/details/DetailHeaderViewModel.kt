@@ -1,5 +1,7 @@
+
 package ru.radiationx.anilibria.screen.details
 
+import androidx.fragment.app.FragmentFactory
 import androidx.lifecycle.viewModelScope
 import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.Job
@@ -8,31 +10,30 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import ru.radiationx.anilibria.common.AniLibertyDetailDataConverter
 import ru.radiationx.anilibria.common.AniLibertyDetailsOverlay
 import ru.radiationx.anilibria.common.DetailDataConverter
 import ru.radiationx.anilibria.common.DetailsState
-import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaDetails
+import ru.radiationx.anilibria.common.fragment.FakeGuidedStepFragment
+import ru.radiationx.anilibria.common.fragment.GuidedAppScreen
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.AuthGuidedScreen
 import ru.radiationx.anilibria.screen.DetailOtherGuidedScreen
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.PlayerEpisodesGuidedScreen
 import ru.radiationx.anilibria.screen.PlayerScreen
-import ru.radiationx.anilibria.screen.player.PlayerController
+import ru.radiationx.anilibria.screen.details.description.DetailDescriptionGuidedFragment
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.entity.common.AuthState
-import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.repository.FavoriteRepository
-import ru.radiationx.shared.ktx.coRunCatching
+import ru.radiationx.data.repository.UserViewsRepository
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -41,83 +42,97 @@ class DetailHeaderViewModel @Inject constructor(
     private val releaseInteractor: ReleaseInteractor,
     private val favoriteRepository: FavoriteRepository,
     private val authRepository: AuthRepository,
+    private val userViewsRepository: UserViewsRepository,
     private val converter: DetailDataConverter,
     private val router: Router,
     private val guidedRouter: GuidedRouter,
-    private val playerController: PlayerController,
     private val aniLibertyApi: AniLibertyApi,
     private val aniOverlay: AniLibertyDetailsOverlay,
-    private val aniDetailConverter: AniLibertyDetailDataConverter,
 ) : LifecycleViewModel() {
-
-    private val v1Release = MutableStateFlow<AniLibertyRelease?>(null)
-
-    val releaseData = MutableStateFlow<LibriaDetails?>(null)
-    val progressState = MutableStateFlow(DetailsState())
-
-    private var currentRelease: Release? = null
-    private var isFullLoaded = false
-
-    private var selectEpisodeJob: Job? = null
-    private var favoriteJob: Job? = null
 
     private val releaseId: ReleaseId = argExtra.id
 
+    val releaseData = MutableStateFlow<LibriaDetails?>(null)
+    val progressState = MutableStateFlow(DetailsState(loadingProgress = true))
+
+    private val v1ReleaseState = MutableStateFlow<AniLibertyRelease?>(null)
+
+    private var currentRelease: Release? = null
+
+    private var favoriteJob: Job? = null
+    private var v1Job: Job? = null
+
     init {
-        updateProgress()
-
-        // fast local cache (legacy)
-        releaseInteractor.getItem(releaseId)?.also {
-            updateRelease(it, emptyList(), v1Release.value)
-        }
-
-        // v1-first request (new API)
-        viewModelScope.launch {
-            val key = releaseId.toAniLibertyKey()
-            coRunCatching {
-                aniLibertyApi.getRelease(
-                    key = key,
-                    fields = AniLibertyReleaseFields.DetailsHeader,
-                )
-            }.onSuccess { v1Release.value = it }
-                .onFailure { Timber.e(it) }
-        }
-
-        // whenever something changes - rebuild details
+        // Combine:
+        //  - legacy release (старое API)
+        //  - local accesses (local progress)
+        //  - optional AniLiberty release (новое API, best-effort)
         combine(
             releaseInteractor.observeFull(releaseId),
             releaseInteractor.observeAccesses(releaseId),
-            v1Release
-        ) { releaseFull, accesses, v1 ->
-            isFullLoaded = true
-            Triple(releaseFull, accesses, v1)
-        }.onEach { (releaseFull, accesses, v1) ->
-            updateRelease(releaseFull, accesses, v1)
-        }.launchIn(viewModelScope)
-    }
+            v1ReleaseState,
+        ) { release, accesses, v1 ->
+            Triple(release, accesses, v1)
+        }
+            .onEach { (release, accesses, v1) ->
+                currentRelease = release
 
-    override fun onResume() {
-        super.onResume()
-        selectEpisodeJob?.cancel()
-        selectEpisodeJob = playerController
-            .selectEpisodeRelay
-            .onEach { episodeId ->
-                router.navigateTo(PlayerScreen(releaseId, episodeId))
+                val baseDetails = converter.toDetail(
+                    releaseItem = release,
+                    isFull = true,
+                    accesses = accesses,
+                )
+
+                // Overlay from AniLiberty (if удалось загрузить) — иначе остаёмся на legacy.
+                val details = v1?.let { aniOverlay.apply(baseDetails, it) } ?: baseDetails
+
+                releaseData.value = details
+
+                // Убираем "initial loading" как только получили хотя бы один результат.
+                if (progressState.value.loadingProgress) {
+                    progressState.value = progressState.value.copy(loadingProgress = false)
+                }
             }
             .launchIn(viewModelScope)
-    }
 
-    override fun onPause() {
-        super.onPause()
-        selectEpisodeJob?.cancel()
+        // Best-effort loading of AniLiberty details.
+        v1Job = viewModelScope.launch {
+            val v1 = runCatching {
+                aniLibertyApi.getRelease(
+                    key = AniLibertyReleaseKey.id(releaseId.id),
+                    fields = AniLibertyReleaseFields.DetailsHeader,
+                )
+            }.getOrElse { error ->
+                Timber.w(error, "AniLiberty: failed to load details header for $releaseId")
+                null
+            }
+            v1ReleaseState.value = v1
+        }
     }
 
     fun onContinueClick() {
         viewModelScope.launch {
-            val accesses = releaseInteractor.getAccesses(releaseId)
-            val lastEpisode = accesses.maxByOrNull { it.lastAccessRaw }
-            lastEpisode?.also {
-                router.navigateTo(PlayerScreen(releaseId, it.id))
+            // 1) local progress (legacy) — primary
+            val localEpisodeId = runCatching {
+                releaseInteractor
+                    .getAccesses(releaseId)
+                    .maxByOrNull { it.lastAccessRaw }
+                    ?.id
+            }.getOrNull()
+
+            if (localEpisodeId != null) {
+                router.navigateTo(PlayerScreen(releaseId, localEpisodeId))
+                return@launch
+            }
+
+            // 2) remote progress (AniLiberty) — fallback ("continue on another device")
+            if (authRepository.getAuthState() == AuthState.AUTH) {
+                val remoteEpisodeId =
+                    runCatching { userViewsRepository.findLatestNotWatchedEpisodeIdForRelease(releaseId) }
+                        .getOrNull()
+                if (remoteEpisodeId != null) {
+                    router.navigateTo(PlayerScreen(releaseId, remoteEpisodeId))
+                }
             }
         }
     }
@@ -126,111 +141,107 @@ class DetailHeaderViewModel @Inject constructor(
         val release = currentRelease ?: return
         if (release.episodes.isEmpty()) return
 
+        // Если серия одна — просто запускаем плеер (episodeId = null безопасно).
         if (release.episodes.size == 1) {
             router.navigateTo(PlayerScreen(releaseId, null))
-        } else {
-            viewModelScope.launch {
-                val episodeId = releaseInteractor.getAccesses(releaseId)
-                    .maxByOrNull { it.lastAccessRaw }?.id
-                guidedRouter.open(PlayerEpisodesGuidedScreen(releaseId, episodeId))
+            return
+        }
+
+        // Если серий много — открываем выбор серий (guided).
+        viewModelScope.launch {
+            // 1) local seed (legacy)
+            val localEpisodeId = runCatching {
+                releaseInteractor
+                    .getAccesses(releaseId)
+                    .maxByOrNull { it.lastAccessRaw }
+                    ?.id
+            }.getOrNull()
+
+            // 2) remote seed (AniLiberty) fallback
+            val seedEpisodeId = localEpisodeId ?: run {
+                if (authRepository.getAuthState() == AuthState.AUTH) {
+                    runCatching { userViewsRepository.findLatestEpisodeIdForRelease(releaseId) }.getOrNull()
+                } else {
+                    null
+                }
             }
+
+            guidedRouter.open(PlayerEpisodesGuidedScreen(releaseId, seedEpisodeId))
         }
     }
 
     fun onFavoriteClick() {
         val release = currentRelease ?: return
+
         favoriteJob?.cancel()
         favoriteJob = viewModelScope.launch {
             if (authRepository.getAuthState() != AuthState.AUTH) {
                 guidedRouter.open(AuthGuidedScreen())
                 return@launch
             }
-            coRunCatching {
-                if (release.favoriteInfo.isAdded) {
+
+            progressState.value = progressState.value.copy(updateProgress = true)
+
+            try {
+                val wasFavorite = release.favoriteInfo.isAdded
+
+                // 1) server mutate (token-first repository)
+                if (wasFavorite) {
                     favoriteRepository.deleteFavorite(releaseId)
                 } else {
                     favoriteRepository.addFavorite(releaseId)
                 }
-            }.onSuccess { updatedRelease ->
-                currentRelease?.let { old ->
-                    val newData = old.copy(favoriteInfo = updatedRelease.favoriteInfo)
-                    releaseInteractor.updateFullCache(newData)
+
+                // 2) update local cached release (keep full legacy model intact)
+                val rating = release.favoriteInfo.rating
+                val newRating = when {
+                    wasFavorite -> (rating - 1).coerceAtLeast(0)
+                    else -> rating + 1
                 }
-            }.onFailure { Timber.e(it) }
-            updateProgress()
+
+                val updatedRelease = release.copy(
+                    favoriteInfo = release.favoriteInfo.copy(
+                        rating = newRating,
+                        isAdded = !wasFavorite,
+                    )
+                )
+
+                currentRelease = updatedRelease
+                releaseInteractor.updateFullCache(updatedRelease)
+            } catch (error: Throwable) {
+                Timber.e(error)
+            } finally {
+                progressState.value = progressState.value.copy(updateProgress = false)
+            }
         }
-        updateProgress()
     }
 
-    fun onDescriptionClick() { /* no-op for now */ }
+    fun onDescriptionClick() {
+        val details = releaseData.value ?: return
+
+        val title = details.titleRu.ifBlank { "Описание" }
+        val message = details.description.ifBlank { "Описание отсутствует" }
+
+        guidedRouter.open(
+            object : GuidedAppScreen() {
+                override fun createFragment(factory: FragmentFactory): FakeGuidedStepFragment {
+                    return DetailDescriptionGuidedFragment.newInstance(
+                        title = title,
+                        message = message,
+                    )
+                }
+            }
+        )
+    }
 
     fun onOtherClick() {
         guidedRouter.open(DetailOtherGuidedScreen(releaseId))
     }
 
-    fun onLinkCardClick() { /* no-op */ }
-    fun onLoadingCardClick() { /* no-op */ }
-    fun onLibriaCardClick(card: LibriaCard) { /* no-op */ }
-
-    private fun updateRelease(
-        release: Release?,
-        accesses: List<EpisodeAccess>,
-        v1: AniLibertyRelease?,
-    ) {
-        currentRelease = release
-
-        val hasViewed = accesses.any { it.isViewed }
-        val isFavorite = release?.favoriteInfo?.isAdded == true
-
-        val legacyDetails: LibriaDetails? = release?.let {
-            converter.toDetail(it, isFullLoaded, accesses)
-        }
-
-        val details: LibriaDetails? = when {
-            // v1 arrived + legacy exists -> overlay v1 onto legacy to keep action flags/progress
-            v1 != null && legacyDetails != null -> {
-                aniOverlay.apply(legacyDetails, v1)
-            }
-
-            // v1 arrived but no legacy yet -> show v1, hide actions for now
-            v1 != null -> {
-                val d = aniDetailConverter.toDetail(
-                    releaseId = releaseId,
-                    r = v1,
-                    isFavorite = isFavorite,
-                    hasViewed = hasViewed,
-                )
-                d.copy(
-                    hasEpisodes = false,
-                    hasWebPlayer = false,
-                    hasFullHd = false,
-                )
-            }
-
-            // no v1 -> fallback to legacy
-            legacyDetails != null -> legacyDetails
-
-            else -> null
-        }
-
-        releaseData.value = details
-        updateProgress(details)
-    }
-
-    private fun updateProgress(details: LibriaDetails? = releaseData.value) {
-        progressState.value = DetailsState(
-            loadingProgress = (details == null),
-            updateProgress = (favoriteJob?.isActive == true)
-        )
-    }
-
-    private fun ReleaseId.toAniLibertyKey(): AniLibertyReleaseKey {
-        // Prefer numeric id if it fits, otherwise fall back to alias string
-        val raw = runCatching { this.id.toLong() }.getOrNull()
-        return if (raw != null && raw > 0 && raw <= Int.MAX_VALUE.toLong()) {
-            AniLibertyReleaseKey.id(raw.toInt())
-        } else {
-            AniLibertyReleaseKey.alias(this.id.toString())
-        }
+    override fun onCleared() {
+        super.onCleared()
+        favoriteJob?.cancel()
+        v1Job?.cancel()
     }
 }
+

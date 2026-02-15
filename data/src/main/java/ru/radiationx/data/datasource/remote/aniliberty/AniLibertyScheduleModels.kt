@@ -4,14 +4,29 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 /**
- * Scaffold wire model.
- * Adjust when you have exact swagger for schedule endpoints.
+ * Models for schedule endpoints according to OpenAPI:
+ *
+ * GET /anime/schedule/now  -> { today: [...], tomorrow: [...], yesterday: [...] }
+ * GET /anime/schedule/week -> { data: [...] }
+ *
+ * items are models.anime.schedule.v1.releaseInSchedule
  */
 @JsonClass(generateAdapter = true)
-data class AniLibertyScheduleDay(
-    @Json(name = "day") val day: AniLibertyPublishDay?,
-    @Json(name = "releases") val releases: List<AniLibertyRelease>?,
+data class AniLibertyReleaseInSchedule(
+    @Json(name = "release") val release: AniLibertyRelease? = null,
+    @Json(name = "full_season_is_released") val fullSeasonIsReleased: Boolean? = null,
+    @Json(name = "published_release_episode") val publishedReleaseEpisode: AniLibertyEpisode? = null,
+    @Json(name = "next_release_episode_number") val nextReleaseEpisodeNumber: Int? = null,
 )
 
-typealias AniLibertyScheduleNowResponse = List<AniLibertyRelease>
-typealias AniLibertyScheduleWeekResponse = List<AniLibertyScheduleDay>
+@JsonClass(generateAdapter = true)
+data class AniLibertyScheduleNowResponse(
+    @Json(name = "today") val today: List<AniLibertyReleaseInSchedule>? = null,
+    @Json(name = "tomorrow") val tomorrow: List<AniLibertyReleaseInSchedule>? = null,
+    @Json(name = "yesterday") val yesterday: List<AniLibertyReleaseInSchedule>? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class AniLibertyScheduleWeekResponse(
+    @Json(name = "data") val data: List<AniLibertyReleaseInSchedule>? = null,
+)

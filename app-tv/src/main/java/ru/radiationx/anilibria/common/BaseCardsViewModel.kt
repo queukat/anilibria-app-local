@@ -82,7 +82,8 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
 
     /** Нажали на «LoadingCard», если она была в состоянии ошибки. */
     open fun onLoadingCardClick() {
-        loadPage(currentPage)
+        val pageToLoad = if (currentPage >= firstPage) currentPage else firstPage
+        loadPage(pageToLoad)
     }
 
     /** При клике по обычной карточке (LibriaCard). Переопределяйте в наследниках. */
@@ -140,7 +141,7 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
             coRunCatching {
                 withContext(Dispatchers.IO) { getLoader(requestPage) }
             }.onSuccess { newCards ->
-                val isFirstPage = requestPage <= 1
+                val isFirstPage = requestPage == firstPage
                 val allowModify = if (isFirstPage) {
                     needsModify(newCards, currentCards)
                 } else true

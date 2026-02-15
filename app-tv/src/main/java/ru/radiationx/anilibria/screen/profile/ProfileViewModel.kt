@@ -1,8 +1,6 @@
 package ru.radiationx.anilibria.screen.profile
 
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -34,9 +32,8 @@ class ProfileViewModel @Inject constructor(
         guidedRouter.open(AuthGuidedScreen())
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     fun onSignOutClick() {
-        GlobalScope.launch {
+        viewModelScope.launch {
             coRunCatching {
                 authRepository.signOut()
             }.onFailure {

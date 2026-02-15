@@ -5,16 +5,13 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class AniLibertyUserViewHistoryItem(
-    @Json(name = "release_episode_id") val releaseEpisodeId: AniLibertyReleaseEpisodeId? = null,
-    @Json(name = "release_id") val releaseId: AniLibertyReleaseId? = null,
-
-    @Json(name = "time") val time: Double? = null,
-    @Json(name = "is_watched") val isWatched: Boolean? = null,
-
-    @Json(name = "created_at") val createdAt: String? = null,
-    @Json(name = "updated_at") val updatedAt: String? = null,
-
-    @Json(name = "release_episode") val releaseEpisode: ReleaseEpisodeWithRelease? = null,
+    @Json(name = "release_episode_id") val releaseEpisodeId: AniLibertyReleaseEpisodeId?,
+    @Json(name = "release_id") val releaseId: AniLibertyReleaseId?,
+    @Json(name = "time") val time: Double?,
+    @Json(name = "is_watched") val isWatched: Boolean?,
+    @Json(name = "created_at") val createdAt: String?,
+    @Json(name = "updated_at") val updatedAt: String?,
+    @Json(name = "release_episode") val releaseEpisode: ReleaseEpisodeWithRelease?,
 ) {
 
     val episode: AniLibertyEpisode?
@@ -25,24 +22,23 @@ data class AniLibertyUserViewHistoryItem(
 
     @JsonClass(generateAdapter = true)
     data class ReleaseEpisodeWithRelease(
-        @Json(name = "id") val id: AniLibertyReleaseEpisodeId? = null,
-        @Json(name = "name") val name: String? = null,
-        @Json(name = "ordinal") val ordinal: Double? = null,
-        @Json(name = "ending") val ending: AniLibertyEpisodeSkip? = null,
-        @Json(name = "opening") val opening: AniLibertyEpisodeSkip? = null,
-        @Json(name = "preview") val preview: AniLibertyImageWithOptimized? = null,
-        @Json(name = "hls_480") val hls480: String? = null,
-        @Json(name = "hls_720") val hls720: String? = null,
-        @Json(name = "hls_1080") val hls1080: String? = null,
-        @Json(name = "duration") val duration: Double? = null,
-        @Json(name = "rutube_id") val rutubeId: String? = null,
-        @Json(name = "youtube_id") val youtubeId: String? = null,
-        @Json(name = "updated_at") val updatedAt: String? = null,
-        @Json(name = "sort_order") val sortOrder: Double? = null,
-        @Json(name = "release_id") val releaseId: AniLibertyReleaseId? = null,
-        @Json(name = "name_english") val nameEnglish: String? = null,
-
-        @Json(name = "release") val release: AniLibertyRelease? = null,
+        @Json(name = "id") val id: AniLibertyReleaseEpisodeId?,
+        @Json(name = "name") val name: String?,
+        @Json(name = "ordinal") val ordinal: Double?,
+        @Json(name = "ending") val ending: AniLibertyEpisodeSkip?,
+        @Json(name = "opening") val opening: AniLibertyEpisodeSkip?,
+        @Json(name = "preview") val preview: AniLibertyImageWithOptimized?,
+        @Json(name = "hls_480") val hls480: String?,
+        @Json(name = "hls_720") val hls720: String?,
+        @Json(name = "hls_1080") val hls1080: String?,
+        @Json(name = "duration") val duration: Double?,
+        @Json(name = "rutube_id") val rutubeId: String?,
+        @Json(name = "youtube_id") val youtubeId: String?,
+        @Json(name = "updated_at") val updatedAt: String?,
+        @Json(name = "sort_order") val sortOrder: Double?,
+        @Json(name = "release_id") val releaseId: AniLibertyReleaseId?,
+        @Json(name = "name_english") val nameEnglish: String?,
+        @Json(name = "release") val release: AniLibertyRelease?,
     ) {
         fun toEpisode(): AniLibertyEpisode = AniLibertyEpisode(
             id = id,

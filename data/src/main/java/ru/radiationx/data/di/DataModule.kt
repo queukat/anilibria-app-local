@@ -1,3 +1,4 @@
+
 @file:Suppress("DEPRECATION")
 
 package ru.radiationx.data.di
@@ -49,6 +50,7 @@ import ru.radiationx.data.analytics.features.YoutubeVideosAnalytics
 import ru.radiationx.data.analytics.profile.AnalyticsInstallerProfileDataSource
 import ru.radiationx.data.analytics.profile.AnalyticsMainProfileDataSource
 import ru.radiationx.data.datasource.holders.AuthHolder
+import ru.radiationx.data.datasource.holders.AuthTokenHolder
 import ru.radiationx.data.datasource.holders.CookieHolder
 import ru.radiationx.data.datasource.holders.DonationHolder
 import ru.radiationx.data.datasource.holders.DownloadsHolder
@@ -62,6 +64,7 @@ import ru.radiationx.data.datasource.holders.SocialAuthHolder
 import ru.radiationx.data.datasource.holders.TeamsHolder
 import ru.radiationx.data.datasource.holders.UserHolder
 import ru.radiationx.data.datasource.holders.YearsHolder
+import ru.radiationx.data.datasource.holders.UserViewsSyncHolder
 import ru.radiationx.data.datasource.remote.IApiUtils
 import ru.radiationx.data.datasource.remote.IClient
 import ru.radiationx.data.datasource.remote.address.ApiConfig
@@ -82,10 +85,13 @@ import ru.radiationx.data.datasource.remote.api.SearchApi
 import ru.radiationx.data.datasource.remote.api.TeamsApi
 import ru.radiationx.data.datasource.remote.api.YoutubeApi
 import ru.radiationx.data.datasource.remote.interceptors.UnauthorizedInterceptor
+import ru.radiationx.data.datasource.remote.interceptors.AniLibertyAuthInterceptor
 import ru.radiationx.data.datasource.remote.parsers.AuthParser
 import ru.radiationx.data.datasource.remote.parsers.PagesParser
 import ru.radiationx.data.datasource.storage.ApiConfigStorage
 import ru.radiationx.data.datasource.storage.AuthStorage
+import ru.radiationx.data.datasource.storage.AuthTokenStorage
+import ru.radiationx.data.datasource.storage.UserViewsSyncStorage
 import ru.radiationx.data.datasource.storage.CookiesStorage
 import ru.radiationx.data.datasource.storage.DonationStorage
 import ru.radiationx.data.datasource.storage.DownloadsStorage
@@ -114,9 +120,12 @@ import ru.radiationx.data.downloader.RemoteFileRepository
 import ru.radiationx.data.downloader.RemoteFileStorage
 import ru.radiationx.data.interactors.HistoryRuntimeCache
 import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.interactors.UserViewsSyncInteractor
 import ru.radiationx.data.interactors.ReleaseUpdateMiddleware
 import ru.radiationx.data.migration.MigrationDataSource
 import ru.radiationx.data.migration.MigrationDataSourceImpl
+import ru.radiationx.data.migration.MigrationExecutor
+import ru.radiationx.data.migration.MigrationExecutorImpl
 import ru.radiationx.data.player.PlayerCacheDataSourceProvider
 import ru.radiationx.data.player.PlayerDataSourceProvider
 import ru.radiationx.data.repository.AuthRepository
@@ -126,6 +135,7 @@ import ru.radiationx.data.repository.DonationRepository
 import ru.radiationx.data.repository.FavoriteRepository
 import ru.radiationx.data.repository.FeedRepository
 import ru.radiationx.data.repository.HistoryRepository
+import ru.radiationx.data.repository.UserViewsRepository
 import ru.radiationx.data.repository.MenuRepository
 import ru.radiationx.data.repository.PageRepository
 import ru.radiationx.data.repository.ReleaseRepository
@@ -192,12 +202,15 @@ class DataModule(context: Context) : QuillModule() {
         singleImpl<CookieHolder, CookiesStorage>()
         singleImpl<UserHolder, UserStorage>()
         singleImpl<AuthHolder, AuthStorage>()
+        singleImpl<AuthTokenHolder, AuthTokenStorage>()
+        singleImpl<UserViewsSyncHolder, UserViewsSyncStorage>()
 
         single<ApiConfigChanger>()
 
         single<AniLibertyApi>()
 
         single<AppCookieJar>()
+        single<AniLibertyAuthInterceptor>()
         single<UnauthorizedInterceptor>()
         single<ApiConfig>()
         single<ApiConfigStorage>()
@@ -219,7 +232,6 @@ class DataModule(context: Context) : QuillModule() {
         singleImpl<IApiUtils, ApiUtils>()
 
         single<AuthParser>()
-        single<PagesParser>()
         single<PagesParser>()
 
         single<AuthApi>()
@@ -258,20 +270,24 @@ class DataModule(context: Context) : QuillModule() {
 
         single<HistoryRuntimeCache>()
 
+        single<UserViewsRepository>()
+        single<UserViewsSyncInteractor>()
 
-        /* Analytics */
-        single<ActivityLaunchAnalytics>()
-        single<SslCompatAnalytics>()
-        single<AnalyticsMainProfileDataSource>()
         single<AnalyticsInstallerProfileDataSource>()
-        single<AuthDeviceAnalytics>()
-        single<AuthMainAnalytics>()
+        single<AnalyticsMainProfileDataSource>()
+
         single<AuthSocialAnalytics>()
+        single<AuthMainAnalytics>()
         single<AuthVkAnalytics>()
+        single<AuthDeviceAnalytics>()
+        single<ActivityLaunchAnalytics>()
         single<CatalogAnalytics>()
         single<CatalogFilterAnalytics>()
         single<CommentsAnalytics>()
-        single<ConfiguringAnalytics>()
+        single<DonationCardAnalytics>()
+        single<DonationDetailAnalytics>()
+        single<DonationDialogAnalytics>()
+        single<DonationYooMoneyAnalytics>()
         single<FastSearchAnalytics>()
         single<FavoritesAnalytics>()
         single<FeedAnalytics>()
@@ -281,57 +297,48 @@ class DataModule(context: Context) : QuillModule() {
         single<ReleaseAnalytics>()
         single<ScheduleAnalytics>()
         single<SettingsAnalytics>()
+        single<SslCompatAnalytics>()
+        single<TeamsAnalytics>()
         single<UpdaterAnalytics>()
         single<WebPlayerAnalytics>()
         single<YoutubeAnalytics>()
         single<YoutubeVideosAnalytics>()
-        single<DonationCardAnalytics>()
-        single<DonationDetailAnalytics>()
-        single<DonationDialogAnalytics>()
-        single<DonationYooMoneyAnalytics>()
-        single<TeamsAnalytics>()
+        single<ConfiguringAnalytics>()
 
-        /* Ads */
         single<AdsConfigApi>()
         single<AdsConfigStorage>()
         single<AdsConfigRepository>()
 
-        /* Player */
+// стало
         single<PlayerDataSourceProvider>()
         single<PlayerCacheDataSourceProvider>()
 
-        single<AniLibertyApi>()
+        singleImpl<MigrationExecutor, MigrationExecutorImpl>()
+
 
     }
 
-    class PreferencesProvider @Inject constructor(
-        private val context: Context,
+    internal class PreferencesProvider @Inject constructor(
+        private val context: Context
     ) : Provider<SharedPreferences> {
-        @Suppress("DEPRECATION")
+        override fun get(): SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+    }
+
+
+    internal class DataPreferencesProvider @Inject constructor(
+        @Suppress("unused") private val context: Context,
+        private val preferencesProvider: PreferencesProvider,
+    ) : Provider<SharedPreferences> {
+
+
         override fun get(): SharedPreferences {
-            // for strict-mode pass
-            return runBlocking {
-                withContext(Dispatchers.IO) {
-                    PreferenceManager.getDefaultSharedPreferences(context)
-                }
-            }
+            //noinspection deprecation
+            return context.getSharedPreferences(
+                "data_storage",
+                Context.MODE_PRIVATE
+            ) ?: preferencesProvider.get()
         }
     }
-
-    class DataPreferencesProvider @Inject constructor(
-        private val context: Context,
-    ) : Provider<SharedPreferences> {
-        override fun get(): SharedPreferences {
-            // for strict-mode pass
-            return runBlocking {
-                withContext(Dispatchers.IO) {
-                    context.getSharedPreferences(
-                        "${context.packageName}_datastorage",
-                        Context.MODE_PRIVATE
-                    )
-                }
-            }
-        }
-    }
-
 }
+
+

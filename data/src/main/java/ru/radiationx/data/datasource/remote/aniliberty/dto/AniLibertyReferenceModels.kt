@@ -7,6 +7,8 @@ import com.squareup.moshi.JsonClass
 data class AniLibertyReferenceValueDescription(
     @Json(name = "value") val value: String?,
     @Json(name = "description") val description: String?,
+    // Нужно для некоторых references (например favorites/references/sorting), где есть label
+    @Json(name = "label") val label: String? = null,
 )
 
 @JsonClass(generateAdapter = true)

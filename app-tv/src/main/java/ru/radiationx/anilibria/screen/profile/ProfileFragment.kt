@@ -36,12 +36,26 @@ class ProfileFragment : Fragment(R.layout.fragment_profile),
         backgroundManager.clearGradient()
 
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
-        viewModel.profileData.onEach {
-            if (!it?.avatarUrl.isNullOrEmpty()) {
-                binding.profileAvatar.showImageUrl(it?.avatarUrl)
+        viewModel.profileData.onEach { profile ->
+            val hasAuth = (profile != null)
+
+            if (hasAuth) {
+                val avatarUrl = profile?.avatarUrl
+                if (avatarUrl.isNullOrBlank()) {
+                    // Сбрасываем прошлую загрузку/кэш-тег и ставим стабильный плейсхолдер
+                    binding.profileAvatar.showImageUrl(null)
+                    binding.profileAvatar.setImageResource(R.drawable.ic_anilibria_splash)
+                } else {
+                    binding.profileAvatar.showImageUrl(avatarUrl)
+                }
+            } else {
+                // Важно очистить прошлый state, чтобы не было "фантомных" картинок при logout/login
+                binding.profileAvatar.showImageUrl(null)
+                binding.profileAvatar.setImageDrawable(null)
             }
-            binding.profileNick.text = it?.nick
-            val hasAuth = (it != null)
+
+            binding.profileNick.text = profile?.nick
+
             binding.profileAvatar.isVisible = hasAuth
             binding.profileNick.isVisible = hasAuth
             binding.profileSignIn.isGone = hasAuth

@@ -1,6 +1,7 @@
 package ru.radiationx.data.datasource.remote.aniliberty
 
 import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ import ru.radiationx.data.entity.response.PaginatedResponse
  * }
  */
 
+@JsonClass(generateAdapter = true)
 data class AniLibertyPagination(
     @Json(name = "total") val total: Int?,
     @Json(name = "count") val count: Int?,
@@ -31,10 +33,12 @@ data class AniLibertyPagination(
     @Json(name = "total_pages") val totalPages: Int?,
 )
 
+@JsonClass(generateAdapter = true)
 data class AniLibertyMeta(
     @Json(name = "pagination") val pagination: AniLibertyPagination?,
 )
 
+@JsonClass(generateAdapter = true)
 data class AniLibertyPaginatedResponse<T>(
     @Json(name = "data") val data: List<T>?,
     @Json(name = "meta") val meta: AniLibertyMeta?,
@@ -51,6 +55,7 @@ suspend inline fun <reified T> String.fetchAniLibertyPaginated(
         T::class.java,
     )
     val adapter = moshi.adapter<AniLibertyPaginatedResponse<T>>(type)
+
     adapter.fromJson(this@fetchAniLibertyPaginated)
         ?: throw IllegalStateException("Can't parse AniLiberty response, result is null")
 }

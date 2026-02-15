@@ -30,6 +30,12 @@ class SuggestionsContentProvider : ContentProvider() {
 
         private const val AUTHORITY = "ru.radiationx.anilibria.contentprovider.suggestions"
         private const val SEARCH_SUGGEST = 1
+
+        /**
+         * GlobalSearch может дёргать provider посимвольно.
+         * Ограничиваем кол-во результатов, чтобы не раздувать Cursor.
+         */
+        private const val MAX_SUGGESTIONS = 20
     }
 
     private val uriMatcher by lazy { buildUriMatcher() }
@@ -72,13 +78,23 @@ class SuggestionsContentProvider : ContentProvider() {
 
     // --------------------------------------------------------------------
 
-    private suspend fun searchInternal(query: String): Cursor {
+    private suspend fun searchInternal(rawQuery: String): Cursor {
+        val query = rawQuery.trim()
+
+        // Минимальная длина, чтобы не спамить сетью при посимвольном вводе.
+        if (query.length < 3) {
+            return MatrixCursor(queryProjection)
+        }
+
         val result = searchRepository.fastSearch(query)
+
         return MatrixCursor(queryProjection).apply {
-            result.items.forEach {
-                val entity = it.convertToEntity()
-                addRow(entity.getRow() + INTENT_ACTION + entity.id)
-            }
+            result.items
+                .take(MAX_SUGGESTIONS)
+                .forEach {
+                    val entity = it.convertToEntity()
+                    addRow(entity.getRow() + INTENT_ACTION + entity.id)
+                }
         }
     }
 

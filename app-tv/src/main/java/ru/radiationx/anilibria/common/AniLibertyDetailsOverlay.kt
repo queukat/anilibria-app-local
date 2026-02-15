@@ -25,7 +25,6 @@ class AniLibertyDetailsOverlay @Inject constructor() {
             ?.let { "$it мин." }
 
         val extraAddon = listOfNotNull(
-            publish?.let { "Выход: $it" },
             age?.let { "Рейтинг: $it" },
             duration,
         ).joinToString(" • ")

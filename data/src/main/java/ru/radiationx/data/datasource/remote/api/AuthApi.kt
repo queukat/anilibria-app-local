@@ -2,6 +2,7 @@ package ru.radiationx.data.datasource.remote.api
 
 import android.net.Uri
 import com.squareup.moshi.Moshi
+import okhttp3.Response
 import org.json.JSONObject
 import ru.radiationx.data.ApiClient
 import ru.radiationx.data.datasource.remote.ApiError
@@ -16,6 +17,7 @@ import ru.radiationx.data.entity.domain.auth.SocialAuthException
 import ru.radiationx.data.entity.response.auth.OtpInfoResponse
 import ru.radiationx.data.entity.response.auth.SocialAuthResponse
 import ru.radiationx.data.entity.response.other.ProfileResponse
+import ru.radiationx.data.system.HttpException
 import ru.radiationx.shared.ktx.android.nullString
 import java.util.regex.Pattern
 import javax.inject.Inject
@@ -132,8 +134,32 @@ class AuthApi @Inject constructor(
     }
 
     suspend fun signOut() {
-        val args = mapOf<String, String>()
-        client.post("${apiConfig.baseUrl}/public/logout.php", args)
+        val logoutUrl = "${apiConfig.baseUrl}/public/logout.php"
+        val args: Map<String, String> = emptyMap()
+
+        try {
+            client.post(logoutUrl, args)
+        } catch (ex: HttpException) {
+            // Legacy logout может вернуть 302 + Set-Cookie(PHPSESSID=deleted),
+            // а OkHttp доходит по редиректу до "/" и получает 404.
+            // Если в цепочке priorResponse был редирект именно с logout.php — считаем logout успешным.
+            if (isLegacyLogoutRedirectSuccess(ex.response, logoutUrl)) {
+                return
+            }
+            throw ex
+        }
     }
 
+    private fun isLegacyLogoutRedirectSuccess(response: Response, logoutUrl: String): Boolean {
+        var current: Response? = response
+        while (current != null) {
+            val reqUrl = current.request.url.toString()
+            val isLogoutCall = (reqUrl == logoutUrl) || reqUrl.endsWith("/public/logout.php")
+            if (isLogoutCall && current.code in 300..399) {
+                return true
+            }
+            current = current.priorResponse
+        }
+        return false
+    }
 }

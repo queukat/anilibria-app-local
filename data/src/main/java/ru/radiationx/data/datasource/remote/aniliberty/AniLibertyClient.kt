@@ -163,10 +163,10 @@ interface AniLibertyTorrentsClient {
 }
 
 interface AniLibertyMediaClient {
-    suspend fun getMediaVasts(): String
+    suspend fun getMediaVasts(): List<AniLibertyVast>
     suspend fun getMediaManifestXml(): String
-    suspend fun getMediaPromotions(): String
-    suspend fun getMediaVideos(): String
+    suspend fun getMediaPromotions(): AniLibertyMediaPromotionsResponse
+    suspend fun getMediaVideos(): AniLibertyMediaVideosResponse
 }
 
 interface AniLibertyAppClient {

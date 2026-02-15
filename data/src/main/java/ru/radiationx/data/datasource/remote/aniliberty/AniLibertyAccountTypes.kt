@@ -4,6 +4,9 @@ package ru.radiationx.data.datasource.remote.aniliberty
 value class AniLibertySocialProvider(val value: String) {
     companion object {
         val Vk = AniLibertySocialProvider("vk")
+        val Google = AniLibertySocialProvider("google")
+        val Patreon = AniLibertySocialProvider("patreon")
+        val Discord = AniLibertySocialProvider("discord")
     }
 }
 
@@ -27,16 +30,34 @@ value class AniLibertyCollectionType(val value: String) {
 /**
  * Сортировка избранного.
  * Swagger: enums.accounts.users.user.favorite.filter.sorting
+ *
+ * OpenAPI enum:
+ * CREATED_AT_DESC, CREATED_AT_ASC,
+ * FRESH_AT_DESC, FRESH_AT_ASC,
+ * RATING_DESC, RATING_ASC,
+ * YEAR_DESC, YEAR_ASC
  */
 @JvmInline
 value class AniLibertyFavoriteSorting(val value: String) {
     companion object {
         val RatingDesc = AniLibertyFavoriteSorting("RATING_DESC")
         val RatingAsc = AniLibertyFavoriteSorting("RATING_ASC")
-        val FreshDesc = AniLibertyFavoriteSorting("FRESH_DESC")
-        val FreshAsc = AniLibertyFavoriteSorting("FRESH_ASC")
-        val CreatedDesc = AniLibertyFavoriteSorting("CREATED_DESC")
-        val CreatedAsc = AniLibertyFavoriteSorting("CREATED_ASC")
+
+        // актуальные имена (как в каталоге)
+        val FreshAtDesc = AniLibertyFavoriteSorting("FRESH_AT_DESC")
+        val FreshAtAsc = AniLibertyFavoriteSorting("FRESH_AT_ASC")
+
+        val CreatedAtDesc = AniLibertyFavoriteSorting("CREATED_AT_DESC")
+        val CreatedAtAsc = AniLibertyFavoriteSorting("CREATED_AT_ASC")
+
+        val YearDesc = AniLibertyFavoriteSorting("YEAR_DESC")
+        val YearAsc = AniLibertyFavoriteSorting("YEAR_ASC")
+
+        // backward aliases (если где-то уже использовались старые имена)
+        val FreshDesc = FreshAtDesc
+        val FreshAsc = FreshAtAsc
+        val CreatedDesc = CreatedAtDesc
+        val CreatedAsc = CreatedAtAsc
     }
 }
 
