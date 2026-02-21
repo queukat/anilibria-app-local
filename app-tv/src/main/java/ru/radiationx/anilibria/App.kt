@@ -10,6 +10,7 @@ import ru.mintrocket.lib.mintpermissions.ext.initMintPermissions
 import ru.mintrocket.lib.mintpermissions.flows.ext.initMintPermissionsFlow
 import ru.radiationx.anilibria.di.AppModule
 import ru.radiationx.data.di.DataModule
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import ru.radiationx.quill.Quill
 import timber.log.Timber
 
@@ -75,4 +76,11 @@ class App : Application() {
             val mgr = getSystemService(ACTIVITY_SERVICE) as ActivityManager
             mgr.runningAppProcesses?.firstOrNull { it.pid == pid }?.processName == packageName
         }
+
+    override fun onTerminate() {
+        runCatching {
+            Quill.getRootScope().get(ApplicationCoroutineScope::class).shutdown()
+        }
+        super.onTerminate()
+    }
 }

@@ -7,20 +7,11 @@ import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.screen.ScheduleScreen
-import ru.radiationx.data.interactors.ReleaseInteractor
-import ru.radiationx.data.repository.ScheduleRepository
-import ru.radiationx.shared.ktx.asDayNameDeclension
-import ru.radiationx.shared.ktx.asDayPretext
-import ru.radiationx.shared.ktx.asMsk
-import ru.radiationx.shared.ktx.getDayOfWeek
-import ru.radiationx.shared.ktx.isSameDay
-import ru.radiationx.shared.ktx.lowercaseDefault
-import java.util.Date
+import ru.radiationx.data.interactors.tv.TvContentUseCase
 import javax.inject.Inject
 
 class MainScheduleViewModel @Inject constructor(
-    private val scheduleRepository: ScheduleRepository,
-    private val releaseInteractor: ReleaseInteractor,
+    private val tvContentUseCase: TvContentUseCase,
     private val converter: CardsDataConverter,
     private val router: Router,
     private val cardRouter: LibriaCardRouter,
@@ -37,35 +28,14 @@ class MainScheduleViewModel @Inject constructor(
         onRefreshClick()
     }
 
-    override suspend fun getLoader(requestPage: Int): List<LibriaCard> = scheduleRepository
-        .loadSchedule()
-        .also { days ->
-            val allReleases = days.map { day -> day.items.map { it.releaseItem } }.flatten()
-            releaseInteractor.updateItemsCache(allReleases)
-        }
-        .let { schedueDays ->
-            val currentTime = System.currentTimeMillis()
-            val mskTime = System.currentTimeMillis().asMsk()
-
-            val mskDay = mskTime.getDayOfWeek()
-
-
-            val dayTitle = if (Date(currentTime).isSameDay(Date(mskTime))) {
-                "Ожидается сегодня"
-            } else {
-                "Ожидается ${mskDay.asDayPretext()} ${
-                    mskDay.asDayNameDeclension().lowercaseDefault()
-                } (по МСК)"
-            }
-            rowTitle.value = dayTitle
-
-            val items = schedueDays.firstOrNull { it.day == mskDay }?.items?.map { it.releaseItem }
-                .orEmpty()
-
-            items.map { converter.toCard(it) }
-        }
+    override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
+        val payload = tvContentUseCase.loadMainSchedule(currentTimeMs = System.currentTimeMillis())
+        rowTitle.value = payload.title
+        return payload.releases.map { converter.toCard(it) }
+    }
 
     override fun hasMoreCards(newCards: List<LibriaCard>, allCards: List<LibriaCard>): Boolean {
+        // Здесь LinkCard используется как "Открыть полное расписание", а не пагинация.
         return true
     }
 

@@ -1,12 +1,11 @@
 package ru.radiationx.shared_app.analytics.profile
 
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import ru.radiationx.data.analytics.profile.AnalyticsInstallerProfileDataSource
 import ru.radiationx.data.analytics.profile.AnalyticsProfile
 import ru.radiationx.data.analytics.profile.AnalyticsMainProfileDataSource
 import ru.radiationx.data.analytics.profile.ProfileAttribute
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import ru.radiationx.shared_app.analytics.AnalyticsCodecsProfileDataSource
 import timber.log.Timber
 import javax.inject.Inject
@@ -14,7 +13,8 @@ import javax.inject.Inject
 class LoggingAnalyticsProfile @Inject constructor(
     private val main: AnalyticsMainProfileDataSource,
     private val codecs: AnalyticsCodecsProfileDataSource,
-    private val installer: AnalyticsInstallerProfileDataSource
+    private val installer: AnalyticsInstallerProfileDataSource,
+    private val applicationScope: ApplicationCoroutineScope,
 ) : AnalyticsProfile {
 
     override fun update() {
@@ -25,9 +25,8 @@ class LoggingAnalyticsProfile @Inject constructor(
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     private fun unsafeUpdate() {
-        GlobalScope.launch {
+        applicationScope.launch {
             val mainAttributes = main.getAttributes()
             val codecAttributes = codecs.getAttributes()
             val installerAttributes = installer.getAttributes()

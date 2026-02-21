@@ -5,6 +5,13 @@
 
 Android TV приложение: [RuStore](https://www.rustore.ru/catalog/app/ru.radiationx.anilibria.app.tv) | [Releases](https://github.com/anilibria/anilibria-app/releases?q=tv)
 
+# Сборка модулей
+В репозитории есть два app-модуля: `:app-mobile` и `:app-tv`.
+Используйте явные задачи модулей, потому что `:app:*` неоднозначен и не запускается.
+
+- TV: `./gradlew.bat :app-tv:assembleDebug :app-tv:testDebugUnitTest :app-tv:lintDebug`
+- Mobile: `./gradlew.bat :app-mobile:assembleDebug :app-mobile:testDebugUnitTest :app-mobile:lintDebug`
+
 # Лицензия #
 Исходный код распостраняется под лицензией GPL v3
 

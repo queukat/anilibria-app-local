@@ -8,6 +8,7 @@ import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import ru.radiationx.anilibria.App
 import ru.radiationx.anilibria.contentprovider.SystemSuggestionEntity
 import ru.radiationx.data.entity.domain.search.SuggestionItem
@@ -36,10 +37,20 @@ class SuggestionsContentProvider : ContentProvider() {
          * Ограничиваем кол-во результатов, чтобы не раздувать Cursor.
          */
         private const val MAX_SUGGESTIONS = 20
+        private const val QUERY_TIMEOUT_MS = 900L
+        private const val CACHE_TTL_MS = 5_000L
+        private const val MIN_REQUEST_INTERVAL_MS = 150L
     }
 
     private val uriMatcher by lazy { buildUriMatcher() }
     private val searchRepository by lazy { Quill.getRootScope().get(SearchRepository::class) }
+    private val queryExecutor = SuggestionQueryExecutor<SuggestionItem>(
+        minQueryLength = 3,
+        maxResults = MAX_SUGGESTIONS,
+        timeoutMs = QUERY_TIMEOUT_MS,
+        cacheTtlMs = CACHE_TTL_MS,
+        minRequestIntervalMs = MIN_REQUEST_INTERVAL_MS,
+    )
 
     override fun onCreate(): Boolean = true
 
@@ -49,13 +60,15 @@ class SuggestionsContentProvider : ContentProvider() {
         selection: String?,
         selectionArgs: Array<out String>?,
         sortOrder: String?,
-    ): Cursor = runBlocking {
-
-        // Ждём, пока приложение полностью инициализируется (DI, базы и т.п.)
-        App.appInitialized.await()
-
+    ): Cursor {
         if (uriMatcher.match(uri) == SEARCH_SUGGEST) {
-            searchInternal(uri.lastPathSegment.orEmpty())
+            val items = queryExecutor.execute(uri.lastPathSegment.orEmpty(), ::fetchSuggestions)
+            return MatrixCursor(queryProjection).apply {
+                items.forEach {
+                    val entity = it.convertToEntity()
+                    addRow(entity.getRow() + INTENT_ACTION + entity.id)
+                }
+            }
         } else {
             throw IllegalArgumentException("Unknown Uri: $uri")
         }
@@ -76,25 +89,15 @@ class SuggestionsContentProvider : ContentProvider() {
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int =
         throw UnsupportedOperationException("delete is not implemented.")
 
-    // --------------------------------------------------------------------
+    override fun shutdown() {
+        queryExecutor.shutdown()
+        super.shutdown()
+    }
 
-    private suspend fun searchInternal(rawQuery: String): Cursor {
-        val query = rawQuery.trim()
-
-        // Минимальная длина, чтобы не спамить сетью при посимвольном вводе.
-        if (query.length < 3) {
-            return MatrixCursor(queryProjection)
-        }
-
-        val result = searchRepository.fastSearch(query)
-
-        return MatrixCursor(queryProjection).apply {
-            result.items
-                .take(MAX_SUGGESTIONS)
-                .forEach {
-                    val entity = it.convertToEntity()
-                    addRow(entity.getRow() + INTENT_ACTION + entity.id)
-                }
+    private fun fetchSuggestions(query: String): List<SuggestionItem> = runBlocking {
+        withTimeout(QUERY_TIMEOUT_MS) {
+            App.appInitialized.await()
+            searchRepository.fastSearch(query).items
         }
     }
 

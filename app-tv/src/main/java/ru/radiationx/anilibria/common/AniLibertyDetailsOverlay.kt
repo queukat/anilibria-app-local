@@ -1,36 +1,43 @@
 package ru.radiationx.anilibria.common
 
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyPublishDay
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
+import ru.radiationx.data.interactors.tv.DetailHeaderRemoteData
 import timber.log.Timber
 import javax.inject.Inject
 
 class AniLibertyDetailsOverlay @Inject constructor() {
 
     private val host = "https://aniliberty.top"
+    private val durationRegex = Regex("""\b\d+\s*мин\.?\b""", RegexOption.IGNORE_CASE)
 
-    fun apply(base: LibriaDetails, v1: AniLibertyRelease): LibriaDetails {
+    fun apply(base: LibriaDetails, v1: DetailHeaderRemoteData): LibriaDetails {
 
-        val titleRu = v1.name?.main.takeIfNotBlank() ?: base.titleRu
-        val titleEn = (v1.name?.english ?: v1.name?.alternative).takeIfNotBlank() ?: base.titleEn
+        val titleRu = v1.titleRu.takeIfNotBlank() ?: base.titleRu
+        val titleEn = v1.titleEn.takeIfNotBlank() ?: base.titleEn
 
-        val age = v1.ageRating?.label?.takeIfNotBlank()
-            ?: v1.ageRating?.value?.value?.takeIfNotBlank()
+        val age = v1.ageRatingLabel?.takeIfNotBlank()
+            ?: v1.ageRatingValue?.takeIfNotBlank()
 
-        val publish = v1.publishDay?.description?.takeIfNotBlank()
-            ?: publishDayToRu(v1.publishDay?.value)
+        val baseExtra = base.extra
 
-        val duration = v1.averageDurationOfEpisode
+        val durationRaw = v1.averageDurationOfEpisode
             ?.takeIf { it > 0 }
             ?.let { "$it мин." }
 
+        val durationToAdd = durationRaw?.takeIf { !durationRegex.containsMatchIn(baseExtra) }
+
+        val ageToAdd = age?.takeIf {
+            !baseExtra.contains("рейтинг", ignoreCase = true) &&
+                !baseExtra.contains(it, ignoreCase = true)
+        }
+
         val extraAddon = listOfNotNull(
-            age?.let { "Рейтинг: $it" },
-            duration,
+            ageToAdd?.let { "Рейтинг: $it" },
+            durationToAdd,
         ).joinToString(" • ")
 
+
         Timber.tag("AniLibertyDetailsOverlay")
-            .d("ageRating=${v1.ageRating} publishDay=${v1.publishDay} duration=${v1.averageDurationOfEpisode}")
+            .d("ageRating=$age duration=${v1.averageDurationOfEpisode}")
         Timber.tag("AniLibertyDetailsOverlay").d("extraAddon='$extraAddon'")
 
         val extra = listOf(base.extra, extraAddon)
@@ -45,9 +52,8 @@ class AniLibertyDetailsOverlay @Inject constructor() {
             .joinToString(" • ")
 
         // v1 often returns relative paths (/storage/...), normalize to absolute
-        val v1ImagePath = v1.poster?.optimized?.preview
-            ?: v1.poster?.preview
-            ?: v1.poster?.thumbnail
+        val v1ImagePath = v1.posterPreview
+            ?: v1.posterThumbnail
 
         val image = v1ImagePath.toAbsoluteAniLibertyUrl()
             ?: base.image
@@ -64,7 +70,7 @@ class AniLibertyDetailsOverlay @Inject constructor() {
         )
     }
 
-    private fun buildAnnounce(v1: AniLibertyRelease): String {
+    private fun buildAnnounce(v1: DetailHeaderRemoteData): String {
         val parts = mutableListOf<String>()
 
         if (v1.isBlockedByGeo == true) parts += "Недоступно в вашем регионе"
@@ -87,19 +93,6 @@ class AniLibertyDetailsOverlay @Inject constructor() {
             s.startsWith("//") -> "https:$s"
             s.startsWith("/") -> host + s
             else -> s
-        }
-    }
-
-    private fun publishDayToRu(day: AniLibertyPublishDay?): String? {
-        return when (day?.value) {
-            1 -> "Понедельник"
-            2 -> "Вторник"
-            3 -> "Среда"
-            4 -> "Четверг"
-            5 -> "Пятница"
-            6 -> "Суббота"
-            7 -> "Воскресенье"
-            else -> null
         }
     }
 }

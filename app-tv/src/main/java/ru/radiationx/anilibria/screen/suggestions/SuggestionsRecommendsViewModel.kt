@@ -4,11 +4,9 @@ import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 import ru.radiationx.data.entity.domain.search.SearchForm
 import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.interactors.tv.TvContentUseCase
 import ru.radiationx.data.repository.FavoriteRepository
 import ru.radiationx.data.repository.HistoryRepository
 import ru.radiationx.data.repository.SearchRepository
@@ -22,7 +20,7 @@ import javax.inject.Inject
  * 2) Legacy fallback: топ по рейтингу из старого каталога
  */
 class SuggestionsRecommendsViewModel @Inject constructor(
-    private val aniLibertyApi: AniLibertyApi,
+    private val tvContentUseCase: TvContentUseCase,
     private val searchRepository: SearchRepository,
     private val releaseInteractor: ReleaseInteractor,
     private val converter: CardsDataConverter,
@@ -41,15 +39,10 @@ class SuggestionsRecommendsViewModel @Inject constructor(
 
         // 1) Пробуем v1 рекомендации, используя seed по избранному/истории.
         val seedId = resolveSeedReleaseId()
-        val v1Cards = runCatching {
-            aniLibertyApi.getRecommendedReleases(
-                limit = RECOMMEND_LIMIT,
-                releaseId = seedId?.let { AniLibertyReleaseId(it) },
-                fields = AniLibertyReleaseFields.Suggestions,
-            )
-        }.getOrNull()
+        val v1Cards = runCatching { tvContentUseCase.loadV1Recommendations(seedId, RECOMMEND_LIMIT) }
+            .getOrNull()
             ?.asSequence()
-            ?.mapNotNull { converter.toCardOrNull(it) }
+            ?.map { converter.toCard(it) }
             ?.filterNot { card ->
                 // Сервис может вернуть дубликаты — подстрахуемся.
                 (card.type as? LibriaCard.Type.Release)?.releaseId?.id == null

@@ -122,6 +122,8 @@ import ru.radiationx.data.interactors.HistoryRuntimeCache
 import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.interactors.UserViewsSyncInteractor
 import ru.radiationx.data.interactors.ReleaseUpdateMiddleware
+import ru.radiationx.data.interactors.tv.TvContentUseCase
+import ru.radiationx.data.interactors.tv.TvContentUseCaseImpl
 import ru.radiationx.data.migration.MigrationDataSource
 import ru.radiationx.data.migration.MigrationDataSourceImpl
 import ru.radiationx.data.migration.MigrationExecutor
@@ -144,6 +146,7 @@ import ru.radiationx.data.repository.SearchRepository
 import ru.radiationx.data.repository.TeamsRepository
 import ru.radiationx.data.repository.YoutubeRepository
 import ru.radiationx.data.sslcompat.SslCompat
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import ru.radiationx.data.system.ApiUtils
 import ru.radiationx.data.system.AppCookieJar
 import ru.radiationx.quill.QuillModule
@@ -267,11 +270,13 @@ class DataModule(context: Context) : QuillModule() {
         single<ReleaseUpdateMiddleware>()
 
         single<ReleaseInteractor>()
+        single<ApplicationCoroutineScope>()
 
         single<HistoryRuntimeCache>()
 
         single<UserViewsRepository>()
         single<UserViewsSyncInteractor>()
+        singleImpl<TvContentUseCase, TvContentUseCaseImpl>()
 
         single<AnalyticsInstallerProfileDataSource>()
         single<AnalyticsMainProfileDataSource>()
@@ -340,5 +345,3 @@ class DataModule(context: Context) : QuillModule() {
         }
     }
 }
-
-
