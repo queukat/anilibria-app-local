@@ -8,8 +8,6 @@ import android.content.SharedPreferences
 import android.preference.PreferenceManager
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import okhttp3.ConnectionSpec
 import ru.radiationx.data.ApiClient
 import ru.radiationx.data.DataPreferences

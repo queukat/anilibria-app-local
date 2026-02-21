@@ -1,0 +1,41 @@
+build:
+  maxIssues: 0
+
+complexity:
+  active: false
+
+coroutines:
+  active: false
+
+empty-blocks:
+  active: false
+
+exceptions:
+  active: false
+
+naming:
+  active: false
+
+performance:
+  active: false
+
+potential-bugs:
+  active: false
+
+comments:
+  active: false
+
+style:
+  active: true
+  ForbiddenImport:
+    active: true
+    imports:
+      - "kotlinx.coroutines.GlobalScope"
+      - "kotlinx.coroutines.runBlocking"
+    excludes:
+      - "**/SuggestionsContentProvider.kt"
+      - "**/AniLibertyAuthInterceptor.kt"
+      - "**/UnauthorizedInterceptor.kt"
+      - "**/ApiConfig.kt"
+      - "**/AppCookieJar.kt"
+      - "**/CoilLibriaImageLoaderImpl.kt"

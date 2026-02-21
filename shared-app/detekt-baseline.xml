@@ -1,0 +1,44 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>NewLineAtEndOfFile:AnalyticsCodecsProfileDataSource.kt$ru.radiationx.shared_app.analytics.AnalyticsCodecsProfileDataSource.kt</ID>
+    <ID>NewLineAtEndOfFile:AppMetricaAnalyticsSender.kt$ru.radiationx.shared_app.analytics.events.AppMetricaAnalyticsSender.kt</ID>
+    <ID>NewLineAtEndOfFile:AppMetricaErrorReporter.kt$ru.radiationx.shared_app.analytics.errors.AppMetricaErrorReporter.kt</ID>
+    <ID>NewLineAtEndOfFile:CodecOutputType.kt$ru.radiationx.shared_app.codecs.types.CodecOutputType.kt</ID>
+    <ID>NewLineAtEndOfFile:CodecProcessingType.kt$ru.radiationx.shared_app.codecs.types.CodecProcessingType.kt</ID>
+    <ID>NewLineAtEndOfFile:CodecQuery.kt$ru.radiationx.shared_app.codecs.types.CodecQuery.kt</ID>
+    <ID>NewLineAtEndOfFile:CodecType.kt$ru.radiationx.shared_app.codecs.types.CodecType.kt</ID>
+    <ID>NewLineAtEndOfFile:CombinedAnalyticsProfile.kt$ru.radiationx.shared_app.analytics.profile.CombinedAnalyticsProfile.kt</ID>
+    <ID>NewLineAtEndOfFile:CombinedAnalyticsSender.kt$ru.radiationx.shared_app.analytics.events.CombinedAnalyticsSender.kt</ID>
+    <ID>NewLineAtEndOfFile:CombinedErrorReporter.kt$ru.radiationx.shared_app.analytics.errors.CombinedErrorReporter.kt</ID>
+    <ID>NewLineAtEndOfFile:CompatDrawableSpan.kt$ru.radiationx.shared_app.common.CompatDrawableSpan.kt</ID>
+    <ID>NewLineAtEndOfFile:ImageCacheKeyGenerator.kt$ru.radiationx.shared_app.imageloader.utils.ImageCacheKeyGenerator.kt</ID>
+    <ID>NewLineAtEndOfFile:ImageUtilsExt.kt$ru.radiationx.shared_app.imageloader.utils.ImageUtilsExt.kt</ID>
+    <ID>NewLineAtEndOfFile:KnownCodec.kt$ru.radiationx.shared_app.codecs.types.KnownCodec.kt</ID>
+    <ID>NewLineAtEndOfFile:LibriaImageLoader.kt$ru.radiationx.shared_app.imageloader.LibriaImageLoader.kt</ID>
+    <ID>NewLineAtEndOfFile:LibriaImageLoaderRoot.kt$ru.radiationx.shared_app.imageloader.LibriaImageLoaderRoot.kt</ID>
+    <ID>NewLineAtEndOfFile:LifecycleTimeCounter.kt$ru.radiationx.shared_app.analytics.LifecycleTimeCounter.kt</ID>
+    <ID>NewLineAtEndOfFile:LoggingAnalyticsSender.kt$ru.radiationx.shared_app.analytics.events.LoggingAnalyticsSender.kt</ID>
+    <ID>NewLineAtEndOfFile:LoggingErrorReporter.kt$ru.radiationx.shared_app.analytics.errors.LoggingErrorReporter.kt</ID>
+    <ID>NewLineAtEndOfFile:MediaCodecsFinder.kt$ru.radiationx.shared_app.codecs.MediaCodecsFinder.kt</ID>
+    <ID>NewLineAtEndOfFile:MediaCodecsProvider.kt$ru.radiationx.shared_app.codecs.MediaCodecsProvider.kt</ID>
+    <ID>NewLineAtEndOfFile:MultiActionExecutorExt.kt$ru.radiationx.shared_app.controllers.actionmulti.MultiActionExecutorExt.kt</ID>
+    <ID>NewLineAtEndOfFile:MultiActionParams.kt$ru.radiationx.shared_app.controllers.actionmulti.MultiActionParams.kt</ID>
+    <ID>NewLineAtEndOfFile:MultiEventError.kt$ru.radiationx.shared_app.controllers.actionmulti.MultiEventError.kt</ID>
+    <ID>NewLineAtEndOfFile:MultiEventSuccess.kt$ru.radiationx.shared_app.controllers.actionmulti.MultiEventSuccess.kt</ID>
+    <ID>NewLineAtEndOfFile:PageLoader.kt$ru.radiationx.shared_app.controllers.loaderpage.PageLoader.kt</ID>
+    <ID>NewLineAtEndOfFile:PageLoaderAction.kt$ru.radiationx.shared_app.controllers.loaderpage.PageLoaderAction.kt</ID>
+    <ID>NewLineAtEndOfFile:PageLoaderStateExt.kt$ru.radiationx.shared_app.controllers.loaderpage.PageLoaderStateExt.kt</ID>
+    <ID>NewLineAtEndOfFile:SimpleActivityLifecycleCallbacks.kt$ru.radiationx.shared_app.common.SimpleActivityLifecycleCallbacks.kt</ID>
+    <ID>NewLineAtEndOfFile:SingleEventError.kt$ru.radiationx.shared_app.controllers.actionsingle.SingleEventError.kt</ID>
+    <ID>NewLineAtEndOfFile:SingleEventSuccess.kt$ru.radiationx.shared_app.controllers.actionsingle.SingleEventSuccess.kt</ID>
+    <ID>NewLineAtEndOfFile:SingleLoaderState.kt$ru.radiationx.shared_app.controllers.loadersingle.SingleLoaderState.kt</ID>
+    <ID>NewLineAtEndOfFile:SingleLoaderStateExt.kt$ru.radiationx.shared_app.controllers.loadersingle.SingleLoaderStateExt.kt</ID>
+    <ID>NewLineAtEndOfFile:StringQuery.kt$ru.radiationx.shared_app.controllers.loadersearch.StringQuery.kt</ID>
+    <ID>NewLineAtEndOfFile:SystemUtils.kt$ru.radiationx.shared_app.common.SystemUtils.kt</ID>
+    <ID>ReturnCount:ImageCacheKeyGenerator.kt$ImageCacheKeyGenerator$fun generate(imageUri: String?): String?</ID>
+    <ID>WildcardImport:CodecExt.kt$import ru.radiationx.shared_app.codecs.types.*</ID>
+    <ID>WildcardImport:MediaCodecsProvider.kt$import ru.radiationx.shared_app.codecs.types.*</ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>NewLineAtEndOfFile:Quill.kt$ru.radiationx.quill.Quill.kt</ID>
+    <ID>NewLineAtEndOfFile:QuillFieldExt.kt$ru.radiationx.quill.QuillFieldExt.kt</ID>
+    <ID>NewLineAtEndOfFile:QuillModule.kt$ru.radiationx.quill.QuillModule.kt</ID>
+    <ID>NewLineAtEndOfFile:QuillScope.kt$ru.radiationx.quill.QuillScope.kt</ID>
+    <ID>NewLineAtEndOfFile:QuillScopeViewModel.kt$ru.radiationx.quill.QuillScopeViewModel.kt</ID>
+    <ID>NewLineAtEndOfFile:QuillViewModelExt.kt$ru.radiationx.quill.QuillViewModelExt.kt</ID>
+    <ID>NewLineAtEndOfFile:QuillViewModelFactories.kt$ru.radiationx.quill.QuillViewModelFactories.kt</ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -19,3 +19,11 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Keep Moshi-generated adapters for @JsonClass models used across app-tv/data/shared modules.
+-if @com.squareup.moshi.JsonClass class *
+-keep class <1>JsonAdapter { *; }
+
+# Keep Toothpick generated factories/member injectors resolved at runtime.
+-keep class **__Factory { *; }
+-keep class **__MemberInjector { *; }

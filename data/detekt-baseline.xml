@@ -1,0 +1,358 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LoopWithTooManyJumpStatements:UserViewsMigration.kt$UserViewsMigration$for</ID>
+    <ID>LoopWithTooManyJumpStatements:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$while</ID>
+    <ID>MagicNumber:AnalyticsExtensions.kt$1000f</ID>
+    <ID>MagicNumber:AniLibertyAccountTypes.kt$AniLibertyPublishDay$7</ID>
+    <ID>MagicNumber:AniLibertyReleaseMapper.kt$1000L</ID>
+    <ID>MagicNumber:AniLibertyRequests.kt$AniLibertyCatalogRequest$10</ID>
+    <ID>MagicNumber:AniLibertyRequests.kt$AniLibertyCollectionsFilterRequest$10</ID>
+    <ID>MagicNumber:AniLibertyRequests.kt$AniLibertyFavoritesFilterRequest$10</ID>
+    <ID>MagicNumber:AuthApi.kt$AuthApi$300</ID>
+    <ID>MagicNumber:AuthApi.kt$AuthApi$399</ID>
+    <ID>MagicNumber:AuthApi.kt$AuthApi$400</ID>
+    <ID>MagicNumber:AuthMapper.kt$1000.0</ID>
+    <ID>MagicNumber:AuthMapper.kt$1000L</ID>
+    <ID>MagicNumber:AuthMapper.kt$1_000_000_000L</ID>
+    <ID>MagicNumber:AuthMapper.kt$1_000_000_000_000L</ID>
+    <ID>MagicNumber:AuthParser.kt$AuthParser$400</ID>
+    <ID>MagicNumber:AuthParser.kt$AuthParser$401</ID>
+    <ID>MagicNumber:AuthParser.kt$AuthParser$403</ID>
+    <ID>MagicNumber:AuthParser.kt$AuthParser$404</ID>
+    <ID>MagicNumber:AuthParser.kt$AuthParser$409</ID>
+    <ID>MagicNumber:ConfigurationApi.kt$ConfigurationApi$10_000</ID>
+    <ID>MagicNumber:ConfigurationApi.kt$ConfigurationApi$15_000</ID>
+    <ID>MagicNumber:ConfigurationRepository.kt$ConfigurationRepository$15_000</ID>
+    <ID>MagicNumber:OkHttpConfig.kt$15</ID>
+    <ID>MagicNumber:OkHttpConfig.kt$25</ID>
+    <ID>MagicNumber:OtherMapper.kt$1000L</ID>
+    <ID>MagicNumber:PageRepository.kt$PageRepository$15_000</ID>
+    <ID>MagicNumber:PlayerCacheDataSourceProvider.kt$PlayerCacheDataSourceProvider$1024</ID>
+    <ID>MagicNumber:PlayerCacheDataSourceProvider.kt$PlayerCacheDataSourceProvider$50</ID>
+    <ID>MagicNumber:PlayerDataSourceProvider.kt$PlayerDataSourceProvider$4</ID>
+    <ID>MagicNumber:PreferencesStorage.kt$PreferencesStorage$0.25f</ID>
+    <ID>MagicNumber:PreferencesStorage.kt$PreferencesStorage$0.5f</ID>
+    <ID>MagicNumber:PreferencesStorage.kt$PreferencesStorage$0.75f</ID>
+    <ID>MagicNumber:PreferencesStorage.kt$PreferencesStorage$1.25f</ID>
+    <ID>MagicNumber:PreferencesStorage.kt$PreferencesStorage$1.5f</ID>
+    <ID>MagicNumber:PreferencesStorage.kt$PreferencesStorage$1.75f</ID>
+    <ID>MagicNumber:QualityInfo.kt$QualityInfo$3</ID>
+    <ID>MagicNumber:RemoteFileRepository.kt$100</ID>
+    <ID>MagicNumber:ScheduleRepository.kt$ScheduleRepository$1000L</ID>
+    <ID>MagicNumber:TvContentUseCase.kt$TvContentUseCaseImpl$3</ID>
+    <ID>MagicNumber:TvContentUseCase.kt$TvContentUseCaseImpl$4</ID>
+    <ID>MagicNumber:TvContentUseCase.kt$TvContentUseCaseImpl$5</ID>
+    <ID>MagicNumber:TvContentUseCase.kt$TvContentUseCaseImpl$6</ID>
+    <ID>MagicNumber:TvContentUseCase.kt$TvContentUseCaseImpl$7</ID>
+    <ID>MagicNumber:UnauthorizedInterceptor.kt$UnauthorizedInterceptor$401</ID>
+    <ID>MagicNumber:UserViewsMigration.kt$UserViewsMigration$0.03</ID>
+    <ID>MagicNumber:UserViewsMigration.kt$UserViewsMigration$1000.0</ID>
+    <ID>MagicNumber:UserViewsMigration.kt$UserViewsMigration$400</ID>
+    <ID>MagicNumber:UserViewsMigration.kt$UserViewsMigration$401</ID>
+    <ID>MagicNumber:UserViewsMigration.kt$UserViewsMigration$429</ID>
+    <ID>MagicNumber:UserViewsMigration.kt$UserViewsMigration$499</ID>
+    <ID>MagicNumber:UserViewsRepository.kt$UserViewsRepository$1000.0</ID>
+    <ID>MagicNumber:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$0.001</ID>
+    <ID>MagicNumber:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$0xFF</ID>
+    <ID>MagicNumber:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$1000</ID>
+    <ID>MagicNumber:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$1000.0</ID>
+    <ID>MagicNumber:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$16</ID>
+    <ID>MagicNumber:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$3</ID>
+    <ID>MaxLineLength:AniLibertyApi.kt$AniLibertyApi$override suspend</ID>
+    <ID>MaxLineLength:AniLibertyApi.kt$AniLibertyApi$suspend</ID>
+    <ID>MaxLineLength:AniLibertyClient.kt$AniLibertyAccountsClient$suspend</ID>
+    <ID>MaxLineLength:AniLibertyClient.kt$AniLibertyAccountsClient$suspend fun getUserCollectionReleasesByBody(body: AniLibertyCollectionsReleasesBody): PaginatedResponse&lt;AniLibertyRelease&gt;</ID>
+    <ID>MaxLineLength:AniLibertyClient.kt$AniLibertyAccountsClient$suspend fun getUserCollectionReleasesFiltered(request: AniLibertyCollectionsFilterRequest): PaginatedResponse&lt;AniLibertyRelease&gt;</ID>
+    <ID>MaxLineLength:AniLibertyClient.kt$AniLibertyAccountsClient$suspend fun getUserCollectionsReferenceTypes(): List&lt;ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReferenceValueDescription&gt;</ID>
+    <ID>MaxLineLength:AniLibertyClient.kt$AniLibertyAccountsClient$suspend fun getUserFavoriteReleasesFiltered(request: AniLibertyFavoritesFilterRequest): PaginatedResponse&lt;AniLibertyRelease&gt;</ID>
+    <ID>MaxLineLength:AniLibertyClient.kt$AniLibertyAccountsClient$suspend fun getUserFavoritesReferenceSorting(): List&lt;ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReferenceValueDescription&gt;</ID>
+    <ID>MaxLineLength:AniLibertyClient.kt$AniLibertyAccountsClient$suspend fun getUserFavoritesReferenceTypes(): List&lt;ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReferenceValueDescription&gt;</ID>
+    <ID>MaxLineLength:AniLibertyTupleAdapterFactory.kt$AniLibertyReleaseEpisodeTimecodeJsonAdapter$else -&gt; throw JsonDataException("AniLibertyReleaseEpisodeTimecode: expected array or object, was ${reader.peek()}")</ID>
+    <ID>MaxLineLength:AniLibertyTupleAdapterFactory.kt$AniLibertyReleaseEpisodeTimecodeJsonAdapter$val safeEpisodeId = episodeId ?: throw JsonDataException("AniLibertyReleaseEpisodeTimecode: missing release_episode_id")</ID>
+    <ID>MaxLineLength:Client.kt$Client.Companion$"mobileApp Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.170 Safari/537.36 OPR/53.0.2907.68"</ID>
+    <ID>MaxLineLength:ConfiguringInteractor.kt$ConfiguringInteractor$status = "Доступнные прокси: ${proxies.size}; будет использован ${bestProxy.first.tag} адреса ${addressByProxy.tag}"</ID>
+    <ID>MaxLineLength:PagesParser.kt$PagesParser$"(&lt;div[^&gt;]*?class=\"[^\"]*?news-body[^\"]*?\"[^&gt;]*?&gt;[\\s\\S]*?&lt;\\/div&gt;)[^&lt;]*?&lt;div[^&gt;]*?(?:id=\"vk_comments|class=\"[^\"]*?side[^\"]*?\")"</ID>
+    <ID>MaxLineLength:UserViewsMigration.kt$UserViewsMigration$"UserViewsMigration: finished with fatal errors (userId=%d, fatal=%b, upsertOk=%b, localOk=%b) - will retry later"</ID>
+    <ID>MaxLineLength:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$.</ID>
+    <ID>NewLineAtEndOfFile:ActivityLaunchAnalytics.kt$ru.radiationx.data.analytics.features.ActivityLaunchAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:AdsConfigApi.kt$ru.radiationx.data.ads.AdsConfigApi.kt</ID>
+    <ID>NewLineAtEndOfFile:AdsConfigStorage.kt$ru.radiationx.data.ads.AdsConfigStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:Analytics.kt$ru.radiationx.data.analytics.features.Analytics.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsAppTheme.kt$ru.radiationx.data.analytics.features.model.AnalyticsAppTheme.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsAuthState.kt$ru.radiationx.data.analytics.features.model.AnalyticsAuthState.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsConfigState.kt$ru.radiationx.data.analytics.features.model.AnalyticsConfigState.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsConstants.kt$ru.radiationx.data.analytics.AnalyticsConstants.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsDonationAmountType.kt$ru.radiationx.data.analytics.features.model.AnalyticsDonationAmountType.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsDonationPaymentType.kt$ru.radiationx.data.analytics.features.model.AnalyticsDonationPaymentType.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsEpisodeFinishAction.kt$ru.radiationx.data.analytics.features.model.AnalyticsEpisodeFinishAction.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsErrorReporter.kt$ru.radiationx.data.analytics.AnalyticsErrorReporter.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsExtensions.kt$ru.radiationx.data.analytics.features.extensions.AnalyticsExtensions.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsInstallerProfileDataSource.kt$ru.radiationx.data.analytics.profile.AnalyticsInstallerProfileDataSource.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsMainProfileDataSource.kt$ru.radiationx.data.analytics.profile.AnalyticsMainProfileDataSource.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsPip.kt$ru.radiationx.data.analytics.features.model.AnalyticsPip.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsPlayer.kt$ru.radiationx.data.analytics.features.model.AnalyticsPlayer.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsProfile.kt$ru.radiationx.data.analytics.profile.AnalyticsProfile.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsProfileDataSource.kt$ru.radiationx.data.analytics.profile.AnalyticsProfileDataSource.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsQuality.kt$ru.radiationx.data.analytics.features.model.AnalyticsQuality.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsSeasonFinishAction.kt$ru.radiationx.data.analytics.features.model.AnalyticsSeasonFinishAction.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsSender.kt$ru.radiationx.data.analytics.AnalyticsSender.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsThemeProvider.kt$ru.radiationx.data.analytics.profile.AnalyticsThemeProvider.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsTransport.kt$ru.radiationx.data.analytics.features.model.AnalyticsTransport.kt</ID>
+    <ID>NewLineAtEndOfFile:AnalyticsVideoScale.kt$ru.radiationx.data.analytics.features.model.AnalyticsVideoScale.kt</ID>
+    <ID>NewLineAtEndOfFile:ApiAddress.kt$ru.radiationx.data.datasource.remote.address.ApiAddress.kt</ID>
+    <ID>NewLineAtEndOfFile:ApiConfig.kt$ru.radiationx.data.datasource.remote.address.ApiConfig.kt</ID>
+    <ID>NewLineAtEndOfFile:ApiConfigAddressResponse.kt$ru.radiationx.data.entity.response.config.ApiConfigAddressResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:ApiConfigChanger.kt$ru.radiationx.data.datasource.remote.address.ApiConfigChanger.kt</ID>
+    <ID>NewLineAtEndOfFile:ApiConfigProxyResponse.kt$ru.radiationx.data.entity.response.config.ApiConfigProxyResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:ApiConfigStorage.kt$ru.radiationx.data.datasource.storage.ApiConfigStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:ApiNetworkClient.kt$ru.radiationx.data.di.providers.ApiNetworkClient.kt</ID>
+    <ID>NewLineAtEndOfFile:ApiProxy.kt$ru.radiationx.data.datasource.remote.address.ApiProxy.kt</ID>
+    <ID>NewLineAtEndOfFile:AppCookieJar.kt$ru.radiationx.data.system.AppCookieJar.kt</ID>
+    <ID>NewLineAtEndOfFile:AuthDeviceAnalytics.kt$ru.radiationx.data.analytics.features.AuthDeviceAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:AuthHolder.kt$ru.radiationx.data.datasource.holders.AuthHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:AuthMainAnalytics.kt$ru.radiationx.data.analytics.features.AuthMainAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:AuthSocialAnalytics.kt$ru.radiationx.data.analytics.features.AuthSocialAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:AuthState.kt$ru.radiationx.data.entity.common.AuthState.kt</ID>
+    <ID>NewLineAtEndOfFile:AuthStorage.kt$ru.radiationx.data.datasource.storage.AuthStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:AuthTokenStorage.kt$ru.radiationx.data.datasource.storage.AuthTokenStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:AuthVkAnalytics.kt$ru.radiationx.data.analytics.features.AuthVkAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:BlockedInfo.kt$ru.radiationx.data.entity.domain.release.BlockedInfo.kt</ID>
+    <ID>NewLineAtEndOfFile:BlockedInfoResponse.kt$ru.radiationx.data.entity.response.release.BlockedInfoResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:CatalogAnalytics.kt$ru.radiationx.data.analytics.features.CatalogAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:CatalogFilterAnalytics.kt$ru.radiationx.data.analytics.features.CatalogFilterAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:CheckerApi.kt$ru.radiationx.data.datasource.remote.api.CheckerApi.kt</ID>
+    <ID>NewLineAtEndOfFile:CheckerReserveSources.kt$ru.radiationx.data.datasource.remote.common.CheckerReserveSources.kt</ID>
+    <ID>NewLineAtEndOfFile:ClientWrapper.kt$ru.radiationx.data.system.ClientWrapper.kt</ID>
+    <ID>NewLineAtEndOfFile:CommentsAnalytics.kt$ru.radiationx.data.analytics.features.CommentsAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:ConfigMapper.kt$ru.radiationx.data.entity.mapper.ConfigMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:ConfigScreenState.kt$ru.radiationx.data.entity.common.ConfigScreenState.kt</ID>
+    <ID>NewLineAtEndOfFile:ConfigurationApi.kt$ru.radiationx.data.datasource.remote.api.ConfigurationApi.kt</ID>
+    <ID>NewLineAtEndOfFile:ConfigurationRepository.kt$ru.radiationx.data.repository.ConfigurationRepository.kt</ID>
+    <ID>NewLineAtEndOfFile:ConfiguringAnalytics.kt$ru.radiationx.data.analytics.features.ConfiguringAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:ConfiguringInteractor.kt$ru.radiationx.data.interactors.ConfiguringInteractor.kt</ID>
+    <ID>NewLineAtEndOfFile:Constants.kt$ru.radiationx.data.entity.domain.other.Constants.kt</ID>
+    <ID>NewLineAtEndOfFile:CookieHolder.kt$ru.radiationx.data.datasource.holders.CookieHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:CookiesStorage.kt$ru.radiationx.data.datasource.storage.CookiesStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationApi.kt$ru.radiationx.data.datasource.remote.api.DonationApi.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationCardAnalytics.kt$ru.radiationx.data.analytics.features.DonationCardAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationCardsResponse.kt$ru.radiationx.data.entity.response.donation.DonationCardsResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationContentButtonResponse.kt$ru.radiationx.data.entity.response.donation.content.DonationContentButtonResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationContentCaptionResponse.kt$ru.radiationx.data.entity.response.donation.content.DonationContentCaptionResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationContentDividerResponse.kt$ru.radiationx.data.entity.response.donation.content.DonationContentDividerResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationContentHeaderResponse.kt$ru.radiationx.data.entity.response.donation.content.DonationContentHeaderResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationContentItemResponse.kt$ru.radiationx.data.entity.response.donation.DonationContentItemResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationContentItems.kt$ru.radiationx.data.entity.domain.donation.DonationContentItems.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationDetailAnalytics.kt$ru.radiationx.data.analytics.features.DonationDetailAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationDialog.kt$ru.radiationx.data.entity.domain.donation.DonationDialog.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationDialogAnalytics.kt$ru.radiationx.data.analytics.features.DonationDialogAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationDialogResponse.kt$ru.radiationx.data.entity.response.donation.content_data.DonationDialogResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationHolder.kt$ru.radiationx.data.datasource.holders.DonationHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationRepository.kt$ru.radiationx.data.repository.DonationRepository.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationStorage.kt$ru.radiationx.data.datasource.storage.DonationStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:DonationYooMoneyAnalytics.kt$ru.radiationx.data.analytics.features.DonationYooMoneyAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:DownloadedFile.kt$ru.radiationx.data.downloader.DownloadedFile.kt</ID>
+    <ID>NewLineAtEndOfFile:DownloadsHolder.kt$ru.radiationx.data.datasource.holders.DownloadsHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:DownloadsStorage.kt$ru.radiationx.data.datasource.storage.DownloadsStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:Episode.kt$ru.radiationx.data.entity.domain.release.Episode.kt</ID>
+    <ID>NewLineAtEndOfFile:EpisodeAccess.kt$ru.radiationx.data.entity.domain.release.EpisodeAccess.kt</ID>
+    <ID>NewLineAtEndOfFile:EpisodeAccessDb.kt$ru.radiationx.data.entity.db.EpisodeAccessDb.kt</ID>
+    <ID>NewLineAtEndOfFile:EpisodeAccessExport.kt$ru.radiationx.data.historyfile.models.EpisodeAccessExport.kt</ID>
+    <ID>NewLineAtEndOfFile:EpisodeAccessLegacyDb.kt$ru.radiationx.data.entity.db.EpisodeAccessLegacyDb.kt</ID>
+    <ID>NewLineAtEndOfFile:EpisodeAccessMapper.kt$ru.radiationx.data.entity.mapper.EpisodeAccessMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:EpisodeMapper.kt$ru.radiationx.data.entity.mapper.EpisodeMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:EpisodeResponse.kt$ru.radiationx.data.entity.response.release.EpisodeResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:EpisodesCheckerHolder.kt$ru.radiationx.data.datasource.holders.EpisodesCheckerHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:EpisodesCheckerStorage.kt$ru.radiationx.data.datasource.storage.EpisodesCheckerStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:ErrorReporterConstants.kt$ru.radiationx.data.analytics.ErrorReporterConstants.kt</ID>
+    <ID>NewLineAtEndOfFile:ExternalEpisode.kt$ru.radiationx.data.entity.domain.release.ExternalEpisode.kt</ID>
+    <ID>NewLineAtEndOfFile:ExternalEpisodeResponse.kt$ru.radiationx.data.entity.response.release.ExternalEpisodeResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:ExternalPlaylist.kt$ru.radiationx.data.entity.domain.release.ExternalPlaylist.kt</ID>
+    <ID>NewLineAtEndOfFile:ExternalPlaylistResponse.kt$ru.radiationx.data.entity.response.release.ExternalPlaylistResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:FastSearchAnalytics.kt$ru.radiationx.data.analytics.features.FastSearchAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:FavoriteApi.kt$ru.radiationx.data.datasource.remote.api.FavoriteApi.kt</ID>
+    <ID>NewLineAtEndOfFile:FavoriteInfo.kt$ru.radiationx.data.entity.domain.release.FavoriteInfo.kt</ID>
+    <ID>NewLineAtEndOfFile:FavoriteInfoResponse.kt$ru.radiationx.data.entity.response.release.FavoriteInfoResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:FavoritesAnalytics.kt$ru.radiationx.data.analytics.features.FavoritesAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:FeedAnalytics.kt$ru.radiationx.data.analytics.features.FeedAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:FeedApi.kt$ru.radiationx.data.datasource.remote.api.FeedApi.kt</ID>
+    <ID>NewLineAtEndOfFile:FeedItem.kt$ru.radiationx.data.entity.domain.feed.FeedItem.kt</ID>
+    <ID>NewLineAtEndOfFile:FeedMapper.kt$ru.radiationx.data.entity.mapper.FeedMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:FeedRepository.kt$ru.radiationx.data.repository.FeedRepository.kt</ID>
+    <ID>NewLineAtEndOfFile:FeedResponse.kt$ru.radiationx.data.entity.response.feed.FeedResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:FranchiseInfo.kt$ru.radiationx.data.entity.domain.release.FranchiseInfo.kt</ID>
+    <ID>NewLineAtEndOfFile:FranchiseInfoResponse.kt$ru.radiationx.data.entity.response.release.FranchiseInfoResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:FranchiseMapper.kt$ru.radiationx.data.entity.mapper.FranchiseMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:GenresHolder.kt$ru.radiationx.data.datasource.holders.GenresHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:GenresStorage.kt$ru.radiationx.data.datasource.storage.GenresStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:HistoryAnalytics.kt$ru.radiationx.data.analytics.features.HistoryAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:HistoryExport.kt$ru.radiationx.data.historyfile.models.HistoryExport.kt</ID>
+    <ID>NewLineAtEndOfFile:HistoryFileRepository.kt$ru.radiationx.data.historyfile.HistoryFileRepository.kt</ID>
+    <ID>NewLineAtEndOfFile:HistoryHolder.kt$ru.radiationx.data.datasource.holders.HistoryHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:HistoryReleases.kt$ru.radiationx.data.entity.domain.HistoryReleases.kt</ID>
+    <ID>NewLineAtEndOfFile:HistoryRepository.kt$ru.radiationx.data.repository.HistoryRepository.kt</ID>
+    <ID>NewLineAtEndOfFile:HistoryRuntimeCache.kt$ru.radiationx.data.interactors.HistoryRuntimeCache.kt</ID>
+    <ID>NewLineAtEndOfFile:HistoryStorage.kt$ru.radiationx.data.datasource.storage.HistoryStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:HttpException.kt$ru.radiationx.data.system.HttpException.kt</ID>
+    <ID>NewLineAtEndOfFile:Ids.kt$ru.radiationx.data.entity.domain.types.Ids.kt</ID>
+    <ID>NewLineAtEndOfFile:LinkMenuItem.kt$ru.radiationx.data.entity.domain.other.LinkMenuItem.kt</ID>
+    <ID>NewLineAtEndOfFile:LinkMenuResponse.kt$ru.radiationx.data.entity.response.other.LinkMenuResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:MainClientWrapper.kt$ru.radiationx.data.di.providers.MainClientWrapper.kt</ID>
+    <ID>NewLineAtEndOfFile:MainNetworkClient.kt$ru.radiationx.data.di.providers.MainNetworkClient.kt</ID>
+    <ID>NewLineAtEndOfFile:MainOkHttpProvider.kt$ru.radiationx.data.di.providers.MainOkHttpProvider.kt</ID>
+    <ID>NewLineAtEndOfFile:Mapper.kt$ru.radiationx.data.ads.Mapper.kt</ID>
+    <ID>NewLineAtEndOfFile:Mapper.kt$ru.radiationx.data.historyfile.mapper.Mapper.kt</ID>
+    <ID>NewLineAtEndOfFile:Members.kt$ru.radiationx.data.entity.domain.release.Members.kt</ID>
+    <ID>NewLineAtEndOfFile:MembersResponse.kt$ru.radiationx.data.entity.response.release.MembersResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:MenuApi.kt$ru.radiationx.data.datasource.remote.api.MenuApi.kt</ID>
+    <ID>NewLineAtEndOfFile:MenuHolder.kt$ru.radiationx.data.datasource.holders.MenuHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:MenuMapper.kt$ru.radiationx.data.entity.mapper.MenuMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:MenuRepository.kt$ru.radiationx.data.repository.MenuRepository.kt</ID>
+    <ID>NewLineAtEndOfFile:MenuStorage.kt$ru.radiationx.data.datasource.storage.MenuStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:MigrationDataSource.kt$ru.radiationx.data.migration.MigrationDataSource.kt</ID>
+    <ID>NewLineAtEndOfFile:MigrationDataSourceImpl.kt$ru.radiationx.data.migration.MigrationDataSourceImpl.kt</ID>
+    <ID>NewLineAtEndOfFile:MigrationExecutor.kt$ru.radiationx.data.migration.MigrationExecutor.kt</ID>
+    <ID>NewLineAtEndOfFile:OtherAnalytics.kt$ru.radiationx.data.analytics.features.OtherAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:OtherMapper.kt$ru.radiationx.data.entity.mapper.OtherMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:OtpInfo.kt$ru.radiationx.data.entity.domain.auth.OtpInfo.kt</ID>
+    <ID>NewLineAtEndOfFile:OtpInfoResponse.kt$ru.radiationx.data.entity.response.auth.OtpInfoResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:PageAnalytics.kt$ru.radiationx.data.analytics.features.PageAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:PageApi.kt$ru.radiationx.data.datasource.remote.api.PageApi.kt</ID>
+    <ID>NewLineAtEndOfFile:PageLibria.kt$ru.radiationx.data.entity.domain.page.PageLibria.kt</ID>
+    <ID>NewLineAtEndOfFile:PagesParser.kt$ru.radiationx.data.datasource.remote.parsers.PagesParser.kt</ID>
+    <ID>NewLineAtEndOfFile:PaginationMapper.kt$ru.radiationx.data.entity.mapper.PaginationMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerAnalytics.kt$ru.radiationx.data.analytics.features.PlayerAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerCacheDataSourceProvider.kt$ru.radiationx.data.player.PlayerCacheDataSourceProvider.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerDataSourceProvider.kt$ru.radiationx.data.player.PlayerDataSourceProvider.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerOkHttpProvider.kt$ru.radiationx.data.di.providers.PlayerOkHttpProvider.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerQuality.kt$ru.radiationx.data.entity.common.PlayerQuality.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerSkips.kt$ru.radiationx.data.entity.domain.release.PlayerSkips.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerSkipsResponse.kt$ru.radiationx.data.entity.response.release.PlayerSkipsResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerTransport.kt$ru.radiationx.data.entity.common.PlayerTransport.kt</ID>
+    <ID>NewLineAtEndOfFile:PreferencesHolder.kt$ru.radiationx.data.datasource.holders.PreferencesHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:PreferencesStorage.kt$ru.radiationx.data.datasource.storage.PreferencesStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:ProfileAttribute.kt$ru.radiationx.data.analytics.profile.ProfileAttribute.kt</ID>
+    <ID>NewLineAtEndOfFile:ProfileConstants.kt$ru.radiationx.data.analytics.profile.ProfileConstants.kt</ID>
+    <ID>NewLineAtEndOfFile:ProfileItem.kt$ru.radiationx.data.entity.domain.other.ProfileItem.kt</ID>
+    <ID>NewLineAtEndOfFile:Qualifiers.kt$ru.radiationx.data.Qualifiers.kt</ID>
+    <ID>NewLineAtEndOfFile:QualityInfo.kt$ru.radiationx.data.entity.domain.release.QualityInfo.kt</ID>
+    <ID>NewLineAtEndOfFile:RandomRelease.kt$ru.radiationx.data.entity.domain.release.RandomRelease.kt</ID>
+    <ID>NewLineAtEndOfFile:RandomReleaseResponse.kt$ru.radiationx.data.entity.response.release.RandomReleaseResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseAnalytics.kt$ru.radiationx.data.analytics.features.ReleaseAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseApi.kt$ru.radiationx.data.datasource.remote.api.ReleaseApi.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseHistoryExport.kt$ru.radiationx.data.historyfile.models.ReleaseHistoryExport.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseInteractor.kt$ru.radiationx.data.interactors.ReleaseInteractor.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseMapper.kt$ru.radiationx.data.entity.mapper.ReleaseMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseUpdate.kt$ru.radiationx.data.entity.domain.release.ReleaseUpdate.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseUpdateDb.kt$ru.radiationx.data.entity.db.ReleaseUpdateDb.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseUpdateExport.kt$ru.radiationx.data.historyfile.models.ReleaseUpdateExport.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseUpdateHolder.kt$ru.radiationx.data.datasource.holders.ReleaseUpdateHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseUpdateMapper.kt$ru.radiationx.data.entity.mapper.ReleaseUpdateMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseUpdateMiddleware.kt$ru.radiationx.data.interactors.ReleaseUpdateMiddleware.kt</ID>
+    <ID>NewLineAtEndOfFile:ReleaseUpdateStorage.kt$ru.radiationx.data.datasource.storage.ReleaseUpdateStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:RemoteFileHolder.kt$ru.radiationx.data.downloader.RemoteFileHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:RemoteFileRepository.kt$ru.radiationx.data.downloader.RemoteFileRepository.kt</ID>
+    <ID>NewLineAtEndOfFile:RemoteFileSaveData.kt$ru.radiationx.data.downloader.RemoteFileSaveData.kt</ID>
+    <ID>NewLineAtEndOfFile:RemoteFileStorage.kt$ru.radiationx.data.downloader.RemoteFileStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:RutubeEpisode.kt$ru.radiationx.data.entity.domain.release.RutubeEpisode.kt</ID>
+    <ID>NewLineAtEndOfFile:ScheduleAnalytics.kt$ru.radiationx.data.analytics.features.ScheduleAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:ScheduleApi.kt$ru.radiationx.data.datasource.remote.api.ScheduleApi.kt</ID>
+    <ID>NewLineAtEndOfFile:ScheduleDay.kt$ru.radiationx.data.entity.domain.schedule.ScheduleDay.kt</ID>
+    <ID>NewLineAtEndOfFile:ScheduleDayResponse.kt$ru.radiationx.data.entity.response.schedule.ScheduleDayResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:ScheduleItem.kt$ru.radiationx.data.entity.domain.feed.ScheduleItem.kt</ID>
+    <ID>NewLineAtEndOfFile:ScheduleMapper.kt$ru.radiationx.data.entity.mapper.ScheduleMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:ScheduleRepository.kt$ru.radiationx.data.repository.ScheduleRepository.kt</ID>
+    <ID>NewLineAtEndOfFile:SearchForm.kt$ru.radiationx.data.entity.domain.search.SearchForm.kt</ID>
+    <ID>NewLineAtEndOfFile:SettingsAnalytics.kt$ru.radiationx.data.analytics.features.SettingsAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:SharedBuildConfig.kt$ru.radiationx.data.SharedBuildConfig.kt</ID>
+    <ID>NewLineAtEndOfFile:SimpleClientWrapper.kt$ru.radiationx.data.di.providers.SimpleClientWrapper.kt</ID>
+    <ID>NewLineAtEndOfFile:SimpleNetworkClient.kt$ru.radiationx.data.di.providers.SimpleNetworkClient.kt</ID>
+    <ID>NewLineAtEndOfFile:SimpleOkHttpProvider.kt$ru.radiationx.data.di.providers.SimpleOkHttpProvider.kt</ID>
+    <ID>NewLineAtEndOfFile:SocialAuth.kt$ru.radiationx.data.entity.domain.auth.SocialAuth.kt</ID>
+    <ID>NewLineAtEndOfFile:SocialAuthException.kt$ru.radiationx.data.entity.domain.auth.SocialAuthException.kt</ID>
+    <ID>NewLineAtEndOfFile:SocialAuthHolder.kt$ru.radiationx.data.datasource.holders.SocialAuthHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:SocialAuthResponse.kt$ru.radiationx.data.entity.response.auth.SocialAuthResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:SocialAuthStorage.kt$ru.radiationx.data.datasource.storage.SocialAuthStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:SourceEpisode.kt$ru.radiationx.data.entity.domain.release.SourceEpisode.kt</ID>
+    <ID>NewLineAtEndOfFile:SslCompat.kt$ru.radiationx.data.sslcompat.SslCompat.kt</ID>
+    <ID>NewLineAtEndOfFile:SslCompatAnalytics.kt$ru.radiationx.data.analytics.features.SslCompatAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:SslCompatExt.kt$ru.radiationx.data.sslcompat.SslCompatExt.kt</ID>
+    <ID>NewLineAtEndOfFile:SuggestionItem.kt$ru.radiationx.data.entity.domain.search.SuggestionItem.kt</ID>
+    <ID>NewLineAtEndOfFile:SuggestionResponse.kt$ru.radiationx.data.entity.response.search.SuggestionResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:SuspendMutableStateFlow.kt$ru.radiationx.data.datasource.SuspendMutableStateFlow.kt</ID>
+    <ID>NewLineAtEndOfFile:Team.kt$ru.radiationx.data.entity.domain.team.Team.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamResponse.kt$ru.radiationx.data.entity.response.team.TeamResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamRole.kt$ru.radiationx.data.entity.domain.team.TeamRole.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamRoleResponse.kt$ru.radiationx.data.entity.response.team.TeamRoleResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamUser.kt$ru.radiationx.data.entity.domain.team.TeamUser.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamUserResponse.kt$ru.radiationx.data.entity.response.team.TeamUserResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:Teams.kt$ru.radiationx.data.entity.domain.team.Teams.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamsAnalytics.kt$ru.radiationx.data.analytics.features.TeamsAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamsApi.kt$ru.radiationx.data.datasource.remote.api.TeamsApi.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamsHolder.kt$ru.radiationx.data.datasource.holders.TeamsHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamsMapper.kt$ru.radiationx.data.entity.mapper.TeamsMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamsRepository.kt$ru.radiationx.data.repository.TeamsRepository.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamsResponse.kt$ru.radiationx.data.entity.response.team.TeamsResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:TeamsStorage.kt$ru.radiationx.data.datasource.storage.TeamsStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:TimeCounter.kt$ru.radiationx.data.analytics.TimeCounter.kt</ID>
+    <ID>NewLineAtEndOfFile:TorrentItem.kt$ru.radiationx.data.entity.domain.release.TorrentItem.kt</ID>
+    <ID>NewLineAtEndOfFile:TorrentMapper.kt$ru.radiationx.data.entity.mapper.TorrentMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:TorrentResponse.kt$ru.radiationx.data.entity.response.release.TorrentResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:UpdateData.kt$ru.radiationx.data.entity.domain.updater.UpdateData.kt</ID>
+    <ID>NewLineAtEndOfFile:UpdateDataResponse.kt$ru.radiationx.data.entity.response.updater.UpdateDataResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:UpdaterAnalytics.kt$ru.radiationx.data.analytics.features.UpdaterAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:UserHolder.kt$ru.radiationx.data.datasource.holders.UserHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:UserStorage.kt$ru.radiationx.data.datasource.storage.UserStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:VkComments.kt$ru.radiationx.data.entity.domain.page.VkComments.kt</ID>
+    <ID>NewLineAtEndOfFile:VkCommentsResponse.kt$ru.radiationx.data.entity.response.page.VkCommentsResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:WebPlayerAnalytics.kt$ru.radiationx.data.analytics.features.WebPlayerAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:WrongHostException.kt$ru.radiationx.data.system.WrongHostException.kt</ID>
+    <ID>NewLineAtEndOfFile:YearsHolder.kt$ru.radiationx.data.datasource.holders.YearsHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:YearsStorage.kt$ru.radiationx.data.datasource.storage.YearsStorage.kt</ID>
+    <ID>NewLineAtEndOfFile:YooMoneyMapper.kt$ru.radiationx.data.entity.mapper.YooMoneyMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:YoutubeAnalytics.kt$ru.radiationx.data.analytics.features.YoutubeAnalytics.kt</ID>
+    <ID>NewLineAtEndOfFile:YoutubeApi.kt$ru.radiationx.data.datasource.remote.api.YoutubeApi.kt</ID>
+    <ID>NewLineAtEndOfFile:YoutubeItem.kt$ru.radiationx.data.entity.domain.youtube.YoutubeItem.kt</ID>
+    <ID>NewLineAtEndOfFile:YoutubeMapper.kt$ru.radiationx.data.entity.mapper.YoutubeMapper.kt</ID>
+    <ID>NewLineAtEndOfFile:YoutubeRepository.kt$ru.radiationx.data.repository.YoutubeRepository.kt</ID>
+    <ID>NewLineAtEndOfFile:YoutubeResponse.kt$ru.radiationx.data.entity.response.youtube.YoutubeResponse.kt</ID>
+    <ID>NewLineAtEndOfFile:YoutubeVideosAnalytics.kt$ru.radiationx.data.analytics.features.YoutubeVideosAnalytics.kt</ID>
+    <ID>ReturnCount:AniLibertyAuthInterceptor.kt$AniLibertyAuthInterceptor$override fun intercept(chain: Interceptor.Chain): Response</ID>
+    <ID>ReturnCount:AniLibertyReleaseMapper.kt$private fun AniLibertyEpisode.toLegacyEpisodeOrNull( releaseId: ReleaseId, apiUtils: ApiUtils, ): Episode?</ID>
+    <ID>ReturnCount:AniLibertyReleaseMapper.kt$private fun AniLibertyEpisode.toLegacyRutubeEpisodeOrNull( releaseId: ReleaseId, apiUtils: ApiUtils, ): RutubeEpisode?</ID>
+    <ID>ReturnCount:AniLibertyReleaseMapper.kt$private fun AniLibertyEpisode.toLegacySourceEpisodeOrNull( releaseId: ReleaseId, apiUtils: ApiUtils, ): SourceEpisode?</ID>
+    <ID>ReturnCount:AniLibertyReleaseMapper.kt$private fun AniLibertyEpisodeSkip?.toLegacySkipOrNull(): PlayerSkips.Skip?</ID>
+    <ID>ReturnCount:AniLibertyReleaseMapper.kt$private fun parseIsoToEpochSeconds(raw: String?): Int</ID>
+    <ID>ReturnCount:AuthMapper.kt$private fun String?.parseAniLibertyDateMillisOrNull(): Long?</ID>
+    <ID>ReturnCount:EpisodeMapper.kt$private fun List&lt;Int&gt;.toSkipDomain(): PlayerSkips.Skip?</ID>
+    <ID>ReturnCount:ReleaseRepository.kt$ReleaseRepository$private fun AniLibertyFranchiseDetails.toLegacyFranchiseOrNull(): Franchise?</ID>
+    <ID>ReturnCount:RemoteFileStorage.kt$RemoteFileStorage$private fun RemoteFileDb.calculateName(bucket: RemoteFile.Bucket): String</ID>
+    <ID>ReturnCount:UserViewsMigration.kt$UserViewsMigration$private fun isLocalWatched( local: EpisodeAccess, durationMs: Long?, ): Boolean</ID>
+    <ID>ReturnCount:UserViewsMigration.kt$UserViewsMigration$private fun isSkippableReleaseError(error: Throwable): Boolean</ID>
+    <ID>ReturnCount:UserViewsMigration.kt$UserViewsMigration$private fun shouldUpsertRemote( remote: RemoteTimecode?, mergedPositionMs: Long, mergedWatched: Boolean, ): Boolean</ID>
+    <ID>ReturnCount:UserViewsRepository.kt$UserViewsRepository$private suspend fun getReleaseEpisodesCacheOrNull( releaseId: ReleaseId, ): ReleaseEpisodesCache?</ID>
+    <ID>ReturnCount:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$private fun isLocalWatched( access: EpisodeAccess, durationMs: Long?, ): Boolean</ID>
+    <ID>ReturnCount:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$private fun mergeEpisodeProgress( episodeId: EpisodeId, local: EpisodeAccess?, remoteSeekMs: Long, remoteIsWatched: Boolean, durationMs: Long?, remoteLastAccessMs: Long?, ): EpisodeAccess?</ID>
+    <ID>ReturnCount:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$private fun parseTimestampMs(value: String?): Long?</ID>
+    <ID>ReturnCount:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$private suspend fun getReleaseEpisodesCacheOrNull(releaseId: ReleaseId): ReleaseEpisodesCache?</ID>
+    <ID>ThrowsCount:AniLibertyTupleAdapterFactory.kt$AniLibertyEpisodeTimecodeJsonAdapter$private fun fromTuple(reader: JsonReader): AniLibertyEpisodeTimecode</ID>
+    <ID>ThrowsCount:AniLibertyTupleAdapterFactory.kt$AniLibertyReleaseEpisodeTimecodeJsonAdapter$private fun fromObject(reader: JsonReader): AniLibertyReleaseEpisodeTimecode</ID>
+    <ID>ThrowsCount:AniLibertyTupleAdapterFactory.kt$AniLibertyReleaseEpisodeTimecodeJsonAdapter$private fun fromTuple(reader: JsonReader): AniLibertyReleaseEpisodeTimecode</ID>
+    <ID>ThrowsCount:AniLibertyTupleAdapterFactory.kt$private fun JsonReader.readIntFlexible(fieldName: String): Int</ID>
+    <ID>UnusedPrivateProperty:ConfigurationApi.kt$ConfigurationApi$private val apiConfig: ApiConfig</ID>
+    <ID>UnusedPrivateProperty:ReleaseInteractor.kt$ReleaseInteractor$private val preferencesHolder: PreferencesHolder</ID>
+    <ID>UseCheckOrError:AdsConfigApi.kt$AdsConfigApi$throw IllegalStateException("Not found any valid ads config")</ID>
+    <ID>UseCheckOrError:AniLibertyResponses.kt$throw IllegalStateException("Can't parse AniLiberty response, result is null")</ID>
+    <ID>UseCheckOrError:AuthRepository.kt$AuthRepository$throw IllegalStateException("AniLiberty: empty auth token")</ID>
+    <ID>UseCheckOrError:ConfigurationApi.kt$ConfigurationApi$throw IllegalStateException("Empty config adresses")</ID>
+    <ID>WildcardImport:AnalyticsExtensions.kt$import ru.radiationx.data.analytics.features.model.*</ID>
+    <ID>WildcardImport:ConfiguringInteractor.kt$import javax.net.ssl.*</ID>
+    <ID>WildcardImport:ConfiguringInteractor.kt$import kotlinx.coroutines.*</ID>
+    <ID>WildcardImport:ConfiguringInteractor.kt$import kotlinx.coroutines.flow.*</ID>
+    <ID>WildcardImport:DonationContentItemResponse.kt$import ru.radiationx.data.entity.response.donation.content.*</ID>
+    <ID>WildcardImport:DonationsMapper.kt$import ru.radiationx.data.entity.domain.donation.*</ID>
+    <ID>WildcardImport:DonationsMapper.kt$import ru.radiationx.data.entity.response.donation.content.*</ID>
+    <ID>WildcardImport:SuspendMutableStateFlow.kt$import kotlinx.coroutines.flow.*</ID>
+  </CurrentIssues>
+</SmellBaseline>
