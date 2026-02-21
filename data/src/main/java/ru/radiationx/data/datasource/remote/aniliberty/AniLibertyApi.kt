@@ -28,6 +28,7 @@ import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTim
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyViewTimecode
 import ru.radiationx.data.datasource.remote.fetchResponse
 import ru.radiationx.data.entity.response.PaginatedResponse
+import timber.log.Timber
 import javax.inject.Inject
 import kotlin.collections.distinctBy
 
@@ -600,7 +601,9 @@ class AniLibertyApi @Inject constructor(
     override suspend fun getScheduleWeek(fields: AniLibertyFieldSpec?): AniLibertyScheduleWeekResponse {
         val args = AniLibertyQueryParams.build { applyFields(fields) }
         val json = client.get("${Config.BaseUrl}/anime/schedule/week", args)
-        return json.fetchResponse(moshi)
+        return parseScheduleWeekResponseJson(json, moshi) { error ->
+            Timber.w(error, "AniLiberty schedule/week: unsupported payload, fallback to empty list.")
+        }
     }
 
 // Torrents
@@ -676,4 +679,3 @@ class AniLibertyApi @Inject constructor(
     }
 
 }
-
