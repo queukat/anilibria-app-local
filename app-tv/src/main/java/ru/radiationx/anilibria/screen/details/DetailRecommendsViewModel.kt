@@ -6,16 +6,8 @@ import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
-import ru.radiationx.data.entity.domain.release.GenreItem
-import ru.radiationx.data.entity.domain.release.SeasonItem
-import ru.radiationx.data.entity.domain.release.YearItem
-import ru.radiationx.data.entity.domain.search.SearchForm
 import ru.radiationx.data.interactors.ReleaseInteractor
-import ru.radiationx.data.repository.ReleaseRepository
-import ru.radiationx.data.repository.SearchRepository
+import ru.radiationx.data.interactors.tv.TvContentUseCase
 import javax.inject.Inject
 
 /**
@@ -26,9 +18,7 @@ import javax.inject.Inject
  * 2) Legacy fallback: «похожие» через старый каталог по year/season/genres
  */
 class DetailRecommendsViewModel @Inject constructor(
-    private val aniLibertyApi: AniLibertyApi,
-    private val releaseRepository: ReleaseRepository,
-    private val searchRepository: SearchRepository,
+    private val tvContentUseCase: TvContentUseCase,
     private val releaseInteractor: ReleaseInteractor,
     private val converter: CardsDataConverter,
     private val cardRouter: LibriaCardRouter,
@@ -45,12 +35,8 @@ class DetailRecommendsViewModel @Inject constructor(
      */
     private var v1Mode: Boolean? = null
 
-    /** Кэш формы для legacy поиска, чтобы не дёргать релиз на каждую страницу. */
-    private var legacyFormCache: SearchForm? = null
-
     override fun onRefreshClick() {
         v1Mode = null
-        legacyFormCache = null
         super.onRefreshClick()
     }
 
@@ -87,46 +73,19 @@ class DetailRecommendsViewModel @Inject constructor(
     }
 
     private suspend fun loadV1Recommended(): List<LibriaCard> {
-        val seedId = extra.id.id
-        val releases = runCatching {
-            aniLibertyApi.getRecommendedReleases(
-                limit = RECOMMEND_LIMIT,
-                releaseId = AniLibertyReleaseId(seedId),
-                fields = AniLibertyReleaseFields.Suggestions,
-            )
-        }.getOrNull().orEmpty()
-
-        return releases
+        return tvContentUseCase
+            .loadV1Recommendations(seedReleaseId = extra.id.id, limit = RECOMMEND_LIMIT)
             .asSequence()
-            .mapNotNull { converter.toCardOrNull(it) }
-            .filterNot { card ->
-                (card.type as? LibriaCard.Type.Release)?.releaseId == extra.id
-            }
-            .distinctBy { (it.type as? LibriaCard.Type.Release)?.releaseId?.id }
+            .filterNot { it.id == extra.id }
+            .map { converter.toCard(it) }
             .toList()
     }
 
     private suspend fun loadLegacySimilar(requestPage: Int): List<LibriaCard> {
-        // 1) Берём релиз (один раз), собираем форму (year/season/genres)
-        val form = legacyFormCache ?: withContext(Dispatchers.IO) {
-            releaseRepository.getRelease(extra.id)
-        }.let { currentRelease ->
-            SearchForm(
-                years = currentRelease.year?.let { setOf(YearItem(it, it)) }.orEmpty(),
-                seasons = currentRelease.season?.let { setOf(SeasonItem(it, it)) }.orEmpty(),
-                genres = currentRelease.genres.map { g -> GenreItem(g, g) }.toSet(),
-                sort = SearchForm.Sort.RATING,
-                onlyCompleted = false,
-            )
-        }.also { legacyFormCache = it }
-
-        // 2) Поиск + исключаем сам релиз
-        val searchResult = withContext(Dispatchers.IO) {
-            searchRepository.searchReleases(form, requestPage)
+        val filtered = withContext(Dispatchers.IO) {
+            tvContentUseCase.loadLegacyRecommendations(releaseId = extra.id, requestPage = requestPage)
         }
-        releaseInteractor.updateItemsCache(searchResult.data)
-
-        val filtered = searchResult.data.filterNot { it.id == extra.id }
+        releaseInteractor.updateItemsCache(filtered)
 
         // 3) Подмешиваем немного «случайного» для разнообразия, но без дублей по id
         val randomPick = filtered.shuffled().take(2)

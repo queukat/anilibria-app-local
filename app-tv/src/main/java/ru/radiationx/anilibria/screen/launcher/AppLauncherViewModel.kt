@@ -2,8 +2,6 @@ package ru.radiationx.anilibria.screen.launcher
 
 import androidx.lifecycle.viewModelScope
 import com.github.terrakok.cicerone.Router
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
@@ -65,7 +63,6 @@ class AppLauncherViewModel @Inject constructor(
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     private fun initMain() {
         firstLaunch = false
 
@@ -91,7 +88,7 @@ class AppLauncherViewModel @Inject constructor(
             }
             appReadyState.value = Unit
         }
-        GlobalScope.launch {
+        viewModelScope.launch {
             coRunCatching {
                 authRepository.loadUser()
             }.onFailure {

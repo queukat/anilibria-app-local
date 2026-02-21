@@ -9,13 +9,11 @@ import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
-import ru.radiationx.data.interactors.ReleaseInteractor
-import ru.radiationx.data.repository.FeedRepository
+import ru.radiationx.data.interactors.tv.TvContentUseCase
 import javax.inject.Inject
 
 class MainFeedViewModel @Inject constructor(
-    private val feedRepository: FeedRepository,
-    private val releaseInteractor: ReleaseInteractor,
+    private val tvContentUseCase: TvContentUseCase,
     private val converter: CardsDataConverter,
     private val cardRouter: LibriaCardRouter,
 ) : BaseCardsViewModel() {
@@ -28,11 +26,13 @@ class MainFeedViewModel @Inject constructor(
 
     private var autoRefreshJob: Job? = null
 
+    private val pageLimit = 20
+
     override fun onResume() {
         super.onResume()
         onRefreshClick() // первый refresh
 
-        // 2) Запускаем тихий авто-рефреш раз в минуту, пока экран активен
+        // 2) Запускаем тихий авто-рефреш раз в 10 минут, пока экран активен
         if (autoRefreshJob == null) {
             autoRefreshJob = viewModelScope.launch {
                 while (isActive) {
@@ -49,14 +49,11 @@ class MainFeedViewModel @Inject constructor(
         autoRefreshJob = null
     }
 
-    override suspend fun getLoader(requestPage: Int): List<LibriaCard> = feedRepository
-        .getFeed(requestPage)
-        .also { items ->
-            releaseInteractor.updateItemsCache(
-                items.filter { it.release != null }.map { it.release!! }
-            )
-        }
-        .map { converter.toCard(it) }
+    override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
+        return tvContentUseCase
+            .loadMainFeed(requestPage = requestPage, pageLimit = pageLimit)
+            .map { converter.toCard(it) }
+    }
 
     override fun onLibriaCardClick(card: LibriaCard) {
         super.onLibriaCardClick(card)
