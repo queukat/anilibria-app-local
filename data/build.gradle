@@ -53,5 +53,7 @@ dependencies {
     ksp libs.toothpick.compiler
 
     implementation libs.androidnetworktools
-}
 
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "io.mockk:mockk:1.13.13"
+}
