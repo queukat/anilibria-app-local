@@ -24,7 +24,7 @@ class AuthInterceptorsTest {
     fun aniLibertyAuthInterceptor_addsAuthorizationHeader_forAniLibertyHost() {
         val tokenHolder = FakeAuthTokenHolder("token-123")
         val interceptor = AniLibertyAuthInterceptor(tokenHolder)
-        val chain = FakeChain("https://anilibria.top/api/v1")
+        val chain = FakeChain("https://aniliberty.top/api/v1")
 
         interceptor.intercept(chain)
 
@@ -52,7 +52,7 @@ class AuthInterceptorsTest {
             cookieHolder = cookieHolder,
             authTokenHolder = tokenHolder,
         )
-        val chain = FakeChain("https://api.anilibria.app/v1", responseCode = 401)
+        val chain = FakeChain("https://api.aniliberty.top/v1", responseCode = 401)
 
         interceptor.intercept(chain)
 
