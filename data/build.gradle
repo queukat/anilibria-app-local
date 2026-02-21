@@ -14,6 +14,13 @@ android {
         minSdk app_min_sdk_version
         targetSdk app_target_sdk_version
     }
+
+    sourceSets {
+        test {
+            java.srcDirs += "src/liveTest/java"
+            resources.srcDirs += "src/liveTest/resources"
+        }
+    }
 }
 
 kotlin {
@@ -56,4 +63,32 @@ dependencies {
 
     testImplementation "junit:junit:4.13.2"
     testImplementation "io.mockk:mockk:1.13.13"
+}
+
+tasks.withType(Test).configureEach {
+    if (name != "liveApiTest") {
+        exclude("**/*LiveContractTest.class")
+    }
+}
+
+tasks.register("liveApiTest", Test) {
+    group = "verification"
+    description = "Runs AniLiberty live internet contract tests only."
+    dependsOn("testDebugUnitTest")
+
+    def debugUnitTest = tasks.named("testDebugUnitTest", Test).get()
+    testClassesDirs = debugUnitTest.testClassesDirs
+    classpath = debugUnitTest.classpath
+    include("**/*LiveContractTest.class")
+
+    environment("ANILIBERTY_LIVE_TESTS", System.getenv("ANILIBERTY_LIVE_TESTS") ?: "1")
+    if (System.getenv("ANILIBERTY_BASE_URL") != null) {
+        environment("ANILIBERTY_BASE_URL", System.getenv("ANILIBERTY_BASE_URL"))
+    }
+    shouldRunAfter("testDebugUnitTest")
+
+    testLogging {
+        events("passed", "failed", "skipped")
+        showStandardStreams = true
+    }
 }
