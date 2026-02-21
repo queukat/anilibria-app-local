@@ -90,10 +90,10 @@ class WatchingViewModel @Inject constructor(
             }
 
             // «История» — любая запись, где есть релиз.
-            remoteHistoryAvailable.value = response.data.any { it.release?.id?.value != null }
+            remoteHistoryAvailable.value = response.data.isNotEmpty()
 
             // «Продолжить» — не досмотрено до конца.
-            remoteContinueAvailable.value = response.data.any { it.isWatched != true && it.release?.id?.value != null }
+            remoteContinueAvailable.value = response.data.any { !it.isWatched }
         }
     }
 }

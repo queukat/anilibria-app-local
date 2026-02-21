@@ -6,7 +6,7 @@ import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.data.datasource.holders.EpisodesCheckerHolder
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyUserViewHistoryItem
+import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.repository.HistoryRepository
@@ -83,14 +83,14 @@ class WatchingContinueViewModel @Inject constructor(
     }
 
     private fun mapRemoteContinue(
-        response: PaginatedResponse<AniLibertyUserViewHistoryItem>,
+        response: PaginatedResponse<UserViewHistoryItem>,
     ): List<LibriaCard> {
         val usedReleaseIds = mutableSetOf<Int>()
 
         return response.data
             .asSequence()
             // Continue = не досмотрено до конца
-            .filter { it.isWatched != true }
+            .filter { !it.isWatched }
             .mapNotNull { AniLibertyViewHistoryCardMapper.toContinueCardOrNull(it) }
             .filter { card ->
                 val id = (card.type as? LibriaCard.Type.Release)?.releaseId?.id

@@ -14,6 +14,7 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyUserViewHistory
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTimecodeDeleteBody
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTimecodeUpsertBody
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyViewTimecode
+import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.response.PaginatedResponse
@@ -68,11 +69,15 @@ class UserViewsRepository @Inject constructor(
     suspend fun getViewsHistory(
         page: Int,
         limit: Int,
-    ): PaginatedResponse<AniLibertyUserViewHistoryItem> = withContext(Dispatchers.IO) {
-        aniLibertyApi.getUserViewsHistory(
+    ): PaginatedResponse<UserViewHistoryItem> = withContext(Dispatchers.IO) {
+        val response = aniLibertyApi.getUserViewsHistory(
             page = page,
             limit = limit,
             fields = AniLibertyReleaseFields.Suggestions,
+        )
+        PaginatedResponse(
+            data = response.data.mapNotNull { it.toDomainOrNull() },
+            meta = response.meta,
         )
     }
 
@@ -238,13 +243,13 @@ class UserViewsRepository @Inject constructor(
             }.getOrNull() ?: return@withContext null
 
             val item = response.data.firstOrNull { history ->
-                val sameRelease = history.release?.id?.value == releaseId.id
-                val allowedByWatched = includeWatched || (history.isWatched != true)
+                val sameRelease = history.releaseId.id == releaseId.id
+                val allowedByWatched = includeWatched || !history.isWatched
                 sameRelease && allowedByWatched
             }
 
             if (item != null) {
-                val ordinal = item.episode?.ordinal
+                val ordinal = item.episodeOrdinal
                 if (ordinal != null) {
                     return@withContext EpisodeId(
                         id = normalizeOrdinalDouble(ordinal),
@@ -405,6 +410,28 @@ class UserViewsRepository @Inject constructor(
 
     private fun normalizeOrdinalDouble(value: Double): String =
         BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
+
+    private fun AniLibertyUserViewHistoryItem.toDomainOrNull(): UserViewHistoryItem? {
+        val release = release
+        val releaseIdValue = release?.id?.value ?: releaseId?.value ?: return null
+        val releaseTitleMain = release?.name?.main
+        val releaseTitleEnglish = release?.name?.english
+        val releaseTitleAlternative = release?.name?.alternative
+        val posterPreview = release?.poster?.optimized?.preview ?: release?.poster?.preview
+        val posterThumbnail = release?.poster?.optimized?.thumbnail ?: release?.poster?.thumbnail
+
+        return UserViewHistoryItem(
+            releaseId = ReleaseId(releaseIdValue),
+            titleMain = releaseTitleMain,
+            titleEnglish = releaseTitleEnglish,
+            titleAlternative = releaseTitleAlternative,
+            posterPreview = posterPreview,
+            posterThumbnail = posterThumbnail,
+            episodeOrdinal = episode?.ordinal,
+            timeSeconds = time,
+            isWatched = isWatched == true,
+        )
+    }
 
     private companion object {
         const val TIMECODES_TTL_MS: Long = 60_000L

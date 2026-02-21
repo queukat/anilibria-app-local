@@ -6,7 +6,7 @@ import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.data.datasource.holders.EpisodesCheckerHolder
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyUserViewHistoryItem
+import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.repository.HistoryRepository
 import ru.radiationx.data.repository.UserViewsRepository
@@ -81,7 +81,7 @@ class WatchingHistoryViewModel @Inject constructor(
     }
 
     private fun mapRemoteHistory(
-        response: PaginatedResponse<AniLibertyUserViewHistoryItem>,
+        response: PaginatedResponse<UserViewHistoryItem>,
     ): List<LibriaCard> {
         val usedReleaseIds = mutableSetOf<Int>()
 
