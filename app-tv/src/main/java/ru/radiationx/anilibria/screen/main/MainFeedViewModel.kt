@@ -6,9 +6,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.BaseCardsViewModel
+import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
+import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.data.interactors.tv.TvContentUseCase
 import javax.inject.Inject
 
@@ -27,6 +29,14 @@ class MainFeedViewModel @Inject constructor(
     private var autoRefreshJob: Job? = null
 
     private val pageLimit = 20
+
+    override fun hasMoreCards(newCards: List<LibriaCard>, allCards: List<LibriaCard>): Boolean = false
+
+    override fun getEmptyStateCard(): CardItem = LoadingCard(
+        title = "Самое актуальное пока пусто",
+        description = "Обновите экран позже",
+        isError = false,
+    )
 
     override fun onResume() {
         super.onResume()

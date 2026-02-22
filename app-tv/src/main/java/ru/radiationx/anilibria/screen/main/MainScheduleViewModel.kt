@@ -2,10 +2,12 @@ package ru.radiationx.anilibria.screen.main
 
 import com.github.terrakok.cicerone.Router
 import ru.radiationx.anilibria.common.BaseCardsViewModel
+import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.anilibria.common.LinkCard
+import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.screen.ScheduleScreen
 import ru.radiationx.data.interactors.tv.TvContentUseCase
 import javax.inject.Inject
@@ -22,6 +24,12 @@ class MainScheduleViewModel @Inject constructor(
     override val loadMoreCard: LinkCard = LinkCard("Открыть полное расписание")
 
     override val preventClearOnRefresh: Boolean = true
+
+    override fun getEmptyStateCard(): CardItem = LoadingCard(
+        title = "На сегодня релизов нет",
+        description = "Откройте полное расписание",
+        isError = false,
+    )
 
     override fun onResume() {
         super.onResume()

@@ -130,6 +130,9 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
         )
     }
 
+    /** Плейсхолдер, когда данные пришли пустыми (чтобы не оставлять UI "тихо пустым"). */
+    protected open fun getEmptyStateCard(): CardItem? = null
+
     /** Главный метод для загрузки (первая или следующая страница). */
     private fun loadPage(requestPage: Int) {
         if (requestJob?.isActive == true) return
@@ -152,6 +155,13 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
                 if (allowModify) {
                     currentPage = requestPage
                     currentCards.addAll(newCards)
+                }
+                if (currentCards.isEmpty()) {
+                    val emptyCard = getEmptyStateCard()
+                    if (emptyCard != null) {
+                        cardsData.value = listOf(emptyCard)
+                        return@onSuccess
+                    }
                 }
                 // Если ещё есть страницы — добавим linkCard, иначе нет
                 cardsData.value = if (hasMoreCards(newCards, currentCards)) {

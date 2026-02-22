@@ -83,14 +83,29 @@ class TvContentUseCaseImpl @Inject constructor(
     )
 
     override suspend fun loadMainFeed(requestPage: Int, pageLimit: Int): List<Release> {
-        return aniLibertyApi.getCatalogReleases(
-            AniLibertyCatalogRequest(
-                page = AniLibertyPage(requestPage),
-                limit = AniLibertyLimit(pageLimit),
-                sorting = AniLibertyCatalogSorting.FreshAtDesc,
+        if (requestPage != 1) {
+            return emptyList()
+        }
+
+        val releases = runCatching {
+            aniLibertyApi.getLatestReleases(
+                limit = pageLimit,
                 fields = fieldsForCards,
             )
-        ).data.mapNotNull { it.toLegacyReleaseOrNull(apiUtils, isFavorite = false) }
+        }.getOrElse {
+            aniLibertyApi.getCatalogReleases(
+                AniLibertyCatalogRequest(
+                    page = AniLibertyPage(1),
+                    limit = AniLibertyLimit(pageLimit),
+                    sorting = AniLibertyCatalogSorting.FreshAtDesc,
+                    fields = fieldsForCards,
+                )
+            ).data
+        }
+
+        return releases
+            .mapNotNull { it.toLegacyReleaseOrNull(apiUtils, isFavorite = false) }
+            .distinctBy { it.id }
     }
 
     override suspend fun loadMainSchedule(currentTimeMs: Long): MainSchedulePayload {
