@@ -47,11 +47,7 @@ class DetailDataConverter @Inject constructor() {
         return series?.trim()?.takeIf { it.isNotEmpty() }
             ?: episodes.size.takeIf { it > 0 }?.toString()
             ?: episodesFromType
-            ?: when (statusCode) {
-                Release.STATUS_CODE_COMPLETE -> "Завершен"
-                Release.STATUS_CODE_PROGRESS -> "Онгоинг"
-                else -> "Неизвестно"
-            }
+            ?: "Онгоинг"
     }
 
     private fun extractEpisodesCountFromTypeText(typeText: String): String? {

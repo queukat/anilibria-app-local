@@ -78,16 +78,29 @@ fun AniLibertyRelease.toLegacyReleaseOrNull(
     val yearText = year?.toString()
 
     val latest = latestEpisode?.ordinal?.takeIf { it > 0.0 }
+        ?: episodes
+            .orEmpty()
+            .mapNotNull { it.ordinal?.takeIf { ordinal -> ordinal > 0.0 } }
+            .maxOrNull()
     val total = episodesTotal?.takeIf { it > 0 }
+    val ongoing = isOngoing ?: isInProduction
 
     val seriesText = when {
-        latest != null && total != null -> "${formatEpisodeOrdinal(latest)} из $total"
+        total != null && latest != null && ongoing == true -> "${formatEpisodeOrdinal(latest)} из $total"
+        total != null && ongoing == false -> total.toString()
+        total != null && latest != null -> {
+            if (latest < total.toDouble()) {
+                "${formatEpisodeOrdinal(latest)} из $total"
+            } else {
+                total.toString()
+            }
+        }
         total != null -> total.toString()
         latest != null -> formatEpisodeOrdinal(latest)
         else -> null
     }
 
-    val statusCode = when (isOngoing) {
+    val statusCode = when (ongoing) {
         false -> Release.STATUS_CODE_COMPLETE
         true -> Release.STATUS_CODE_PROGRESS
         null -> Release.STATUS_CODE_NOTHING
