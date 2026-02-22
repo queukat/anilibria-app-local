@@ -13,7 +13,29 @@ class AniLibertyContractSnapshotTest {
     private val moshi: Moshi = AniLibertyMoshi.configure(Moshi.Builder().build())
 
     @Test
-    fun scheduleWeek_arrayRootFixture_parsesWithoutCrash() {
+    fun scheduleWeek_noArgsFixture_parsesFlatArrayOfObjects() {
+        val json = loadResource("aniliberty/schedule_week_no_args.json")
+
+        val parsed = parseScheduleWeekResponseJson(json, moshi)
+
+        assertNotNull(parsed.data)
+        assertFalse(parsed.data!!.isEmpty())
+        assertTrue(parsed.data!!.all { it.release != null || it.nextReleaseEpisodeNumber != null })
+    }
+
+    @Test
+    fun scheduleWeek_withArgsFixture_parsesFlatArrayOfObjects() {
+        val json = loadResource("aniliberty/schedule_week_with_args.json")
+
+        val parsed = parseScheduleWeekResponseJson(json, moshi)
+
+        assertNotNull(parsed.data)
+        assertFalse(parsed.data!!.isEmpty())
+        assertTrue(parsed.data!!.any { it.release?.genres != null || it.release?.latestEpisode != null })
+    }
+
+    @Test
+    fun scheduleWeek_nestedArraysFixture_parsesAndNormalizesToFlatList() {
         val json = loadResource("aniliberty/schedule_week.json")
 
         val parsed = parseScheduleWeekResponseJson(json, moshi)
