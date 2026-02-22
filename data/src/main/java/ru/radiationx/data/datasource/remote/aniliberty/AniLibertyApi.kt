@@ -157,7 +157,7 @@ class AniLibertyApi @Inject constructor(
             applyFields(fields)
         }
         val json = client.get("${Config.BaseUrl}/anime/releases/latest", args)
-        return json.fetchResponse(moshi)
+        return json.fetchListOrNestedList<AniLibertyRelease>(moshi)
     }
 
     override suspend fun getRecommendedReleases(

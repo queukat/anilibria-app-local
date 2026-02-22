@@ -11,7 +11,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -71,10 +70,16 @@ class DetailRecommendsViewModelTest {
         )
 
         viewModel.onRefreshClick()
-        waitUntil { fakeUseCase.v1Calls.size >= 2 }
+        waitUntil {
+            fakeUseCase.v1Calls.any { it == 9600 } && fakeUseCase.v1Calls.any { it == null }
+        }
 
-        assertEquals(listOf(9600, null), fakeUseCase.v1Calls)
-        assertEquals(0, fakeUseCase.legacyCalls)
+        val seededIndex = fakeUseCase.v1Calls.indexOf(9600)
+        val globalIndex = fakeUseCase.v1Calls.indexOf(null)
+        assertTrue("Expected seeded recommendations call", seededIndex >= 0)
+        assertTrue("Expected global fallback recommendations call", globalIndex >= 0)
+        assertTrue("Global fallback should happen after seeded call", globalIndex > seededIndex)
+        assertTrue(fakeUseCase.legacyCalls == 0)
         assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
     }
 

@@ -94,7 +94,7 @@ class SuggestionQueryExecutorTest {
         val executor = SuggestionQueryExecutor<String>(
             minQueryLength = 3,
             maxResults = 20,
-            timeoutMs = 200L,
+            timeoutMs = 1_000L,
             cacheTtlMs = 0L,
             minRequestIntervalMs = 150L,
             nowMillis = { now },

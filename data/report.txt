@@ -513,3 +513,146 @@ Environment notes:
 ## 8) Not included
 - pp-mobile/** was not modified and not built directly by target tasks.
 - No UI robolectric test was added for toolbar affordance due current test infra focus on JVM/data contracts; fix is covered by code-path analysis and regression behavior in MainPagesFragment.
+
+============================================================
+UPDATE: 2026-02-22 (log-driven fixes round)
+============================================================
+Context:
+User reported from runtime logs:
+1) release details request still had `exclude=episodes,members,torrents` (TV does not need torrents)
+2) episodes exist in release payload, but "Обновления в избранном" still shows "Онгоинг"
+3) recommended request with include/exclude returned nested empty arrays payload `[[],[],...]`
+4) "Самое актуальное" still empty
+
+OpenAPI re-check (data/aniliberty-api-v1-docs.json):
+- /anime/releases/{idOrAlias}: supports optional include/exclude
+- /anime/releases/latest: supports optional include/exclude
+- /anime/releases/recommended: supports optional include/exclude + limit + release_id
+- include/exclude serialization: CSV string or array/repeated params are valid
+Conclusion used for this round:
+- include/exclude are optional on these endpoints; TV can call safely without them.
+- for recommended/latest/details paths in TV flows, null fields is contract-valid and avoids payload regressions seen in logs.
+
+Spec -> API -> UI -> Fix mapping:
+A) Contract: include/exclude optional for /anime/releases/recommended
+   API fact: with include/exclude user got `[[],[],...]`
+   UI problem: recommendations row degrades/empties
+   Fix:
+   - data/src/main/java/ru/radiationx/data/interactors/tv/TvContentUseCase.kt
+     loadV1Recommendations() now sends only limit + release_id (fields = null)
+
+B) Contract: include/exclude optional for /anime/releases/{idOrAlias}
+   API fact: response already contains episodes; torrents exclusion param is unnecessary for TV
+   UI/log problem: request still includes torrents exclusion
+   Fix:
+   - data/src/main/java/ru/radiationx/data/interactors/tv/TvContentUseCase.kt
+     loadDetailHeaderRemote(): fields changed to null
+   - data/src/main/java/ru/radiationx/data/repository/FavoriteRepository.kt
+     addFavorite/deleteFavorite fallback getRelease(...): fields changed to null
+
+C) Contract: favorites releases endpoint works without include/exclude; mapper needs counts/latest to build series text
+   API/UI fact: "Обновления в избранном" kept showing "Онгоинг"
+   Fix:
+   - data/src/main/java/ru/radiationx/data/repository/FavoriteRepository.kt
+     getFavorites(): getUserFavoriteReleases(..., fields = null)
+   Result expectation: mapper receives richer release payload; card series text no longer forced to status fallback
+
+D) Contract: latest endpoint valid without include/exclude
+   API/UI fact: "Самое актуальное" still empty in runtime
+   Fix:
+   - data/src/main/java/ru/radiationx/data/interactors/tv/TvContentUseCase.kt
+     loadMainFeed(): getLatestReleases(..., fields = null)
+     and fallback to catalog when latest result is empty (not only on exception)
+
+Tests added/updated in this round:
+1) New: data/src/test/java/ru/radiationx/data/interactors/tv/TvContentUseCaseContractTest.kt
+   - verifies loadMainFeed uses fields=null for latest and fields=null in catalog fallback request
+   - verifies loadV1Recommendations uses fields=null with limit+release_id
+   - verifies loadDetailHeaderRemote requests release with fields=null
+
+2) New: data/src/test/java/ru/radiationx/data/repository/FavoriteRepositoryContractTest.kt
+   - verifies favorites list request uses fields=null
+   - verifies addFavorite legacy fallback requests getRelease with fields=null
+
+3) Updated: data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiRecommendedBehaviorTest.kt
+   - added case for fields=null: only limit/release_id should be sent; include/exclude must be absent
+
+4) Stabilized app-tv tests (flaky in full suite):
+   - app-tv/src/test/java/ru/radiationx/anilibria/screen/details/DetailRecommendsViewModelTest.kt
+     changed strict exact-call assertion to ordered fallback invariant (seeded first, then global)
+   - app-tv/src/test/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionQueryExecutorTest.kt
+     increased timeout in rate-limit case to avoid scheduler jitter false negatives
+
+Commands and results (this round):
+- git status --short -> inspected
+- rg/open spec and code mapping commands -> completed
+- ./gradlew.bat :data:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
+- ./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
+  note: Kotlin daemon access warnings; Gradle fallback compiler used, build still successful
+- ./gradlew.bat :app-tv:lintDebug --console=plain --stacktrace -> SUCCESS
+- ./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace ->
+  initially FAIL (missing debug.keystore)
+  then generated local keystore `.android/debug.keystore` and reran with -Duser.home=<workspace> -> SUCCESS
+- ./gradlew.bat :data:liveApiTest --console=plain --stacktrace -> SUCCESS
+  (all AniLiberty live contract tests passed)
+- ./gradlew.bat :app-tv:assembleRelease --console=plain --stacktrace -> SUCCESS
+
+Files touched in this round:
+- data/src/main/java/ru/radiationx/data/interactors/tv/TvContentUseCase.kt
+- data/src/main/java/ru/radiationx/data/repository/FavoriteRepository.kt
+- data/src/test/java/ru/radiationx/data/interactors/tv/TvContentUseCaseContractTest.kt (new)
+- data/src/test/java/ru/radiationx/data/repository/FavoriteRepositoryContractTest.kt (new)
+- data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiRecommendedBehaviorTest.kt
+- app-tv/src/test/java/ru/radiationx/anilibria/screen/details/DetailRecommendsViewModelTest.kt
+- app-tv/src/test/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionQueryExecutorTest.kt
+
+Local-only artifacts (not for commit):
+- .android/debug.keystore (generated only to satisfy debug signing in this environment)
+- logcat_dump.txt (pre-existing)
+- "tore ." (pre-existing)
+
+============================================================
+UPDATE: 2026-02-22 (latest parsing ClassCastException)
+============================================================
+Context:
+- Runtime crash from user logs on `GET /anime/releases/latest?limit=20`:
+  `ClassCastException: com.squareup.moshi.LinkedHashTreeMap cannot be cast to AniLibertyRelease`
+  in `TvContentUseCaseImpl.loadMainFeed`.
+
+Spec -> API -> UI -> Fix:
+- Contract (OpenAPI): `/anime/releases/latest` returns array of release objects.
+- API fact (logs): payload is valid JSON array of releases with `latest_episode` etc.
+- UI problem: TV main feed crashes while mapping releases.
+- Root cause in code: `AniLibertyApi.getLatestReleases()` parsed list via generic `fetchResponse(moshi)`.
+  This uses raw `List` type token at runtime and yields `List<LinkedHashTreeMap>`.
+- Fix:
+  - `data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt`
+    `getLatestReleases()` switched to typed list parser:
+    `json.fetchListOrNestedList<AniLibertyRelease>(moshi)`.
+
+Tests added:
+- New regression test:
+  - `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiLatestParsingTest.kt`
+  - Verifies `/releases/latest` payload parses into typed `AniLibertyRelease` items
+    (accessing `id` and `latestEpisode.ordinal` would crash before fix).
+
+Commands and results:
+1) `./gradlew.bat :data:testDebugUnitTest --tests ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApiLatestParsingTest`
+   - FAIL (wrapper lock in sandbox home: `C:\Users\CodexSandboxOffline\.gradle\...zip.lck`)
+2) `./gradlew.bat :app-tv:testDebugUnitTest`
+   - FAIL (first run from old environment state; unrelated prior flaky output seen once)
+3) Retried with local env + proper flag escaping:
+   - `ANDROID_USER_HOME=<workspace>/.android-user`
+   - `GRADLE_USER_HOME=<workspace>/.gradle-user`
+   - `./gradlew.bat --% -Duser.home=C:\Users\User\Desktop\anilibria-app-local :data:testDebugUnitTest --tests ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApiLatestParsingTest`
+   - SUCCESS
+4) `./gradlew.bat --% -Duser.home=C:\Users\User\Desktop\anilibria-app-local :data:testDebugUnitTest`
+   - SUCCESS
+5) `./gradlew.bat --% -Duser.home=C:\Users\User\Desktop\anilibria-app-local :app-tv:testDebugUnitTest`
+   - SUCCESS
+6) `./gradlew.bat --% -Duser.home=C:\Users\User\Desktop\anilibria-app-local :app-tv:assembleDebug :app-tv:lintDebug`
+   - SUCCESS
+
+Files touched in this update:
+- data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt
+- data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiLatestParsingTest.kt (new)

@@ -4,7 +4,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 import ru.radiationx.data.datasource.remote.api.FavoriteApi
@@ -42,7 +41,7 @@ class FavoriteRepository @Inject constructor(
             val response = aniLibertyApi.getUserFavoriteReleases(
                 page = page,
                 limit = DEFAULT_LIMIT,
-                fields = AniLibertyReleaseFields.Suggestions,
+                fields = null,
             )
 
             // Map safely (skip items without id)
@@ -84,7 +83,7 @@ class FavoriteRepository @Inject constructor(
             val v1 = runCatching {
                 aniLibertyApi.getRelease(
                     key = AniLibertyReleaseKey.id(releaseId.id),
-                    fields = AniLibertyReleaseFields.DetailsHeader,
+                    fields = null,
                 )
             }.getOrNull()
 
@@ -108,7 +107,7 @@ class FavoriteRepository @Inject constructor(
             val v1 = runCatching {
                 aniLibertyApi.getRelease(
                     key = AniLibertyReleaseKey.id(releaseId.id),
-                    fields = AniLibertyReleaseFields.DetailsHeader,
+                    fields = null,
                 )
             }.getOrNull()
 

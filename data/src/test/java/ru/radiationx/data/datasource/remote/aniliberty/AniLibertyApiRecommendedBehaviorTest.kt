@@ -5,6 +5,7 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.Response
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import ru.radiationx.data.datasource.remote.IClient
 import ru.radiationx.data.datasource.remote.NetworkResponse
@@ -91,6 +92,41 @@ class AniLibertyApiRecommendedBehaviorTest {
 
         assertEquals(1, client.calls.size)
         assertEquals(9839, result.firstOrNull()?.id?.value)
+    }
+
+    @Test
+    fun getRecommendedReleases_withNullFields_sendsOnlyLimitAndReleaseId() = runBlocking {
+        val payload = """
+            [
+              {
+                "id": 9601,
+                "alias": "kusuriya-no-hitorigoto-2nd-season",
+                "name": {
+                  "main": "Монолог фармацевта 2"
+                }
+              }
+            ]
+        """.trimIndent()
+
+        val client = FakeRecommendedClient(
+            withFieldsPayload = "[]",
+            noFieldsPayload = payload,
+        )
+        val api = AniLibertyApi(client = client, moshi = Moshi.Builder().build())
+
+        val result = api.getRecommendedReleases(
+            limit = 20,
+            releaseId = AniLibertyReleaseId(9600),
+            fields = null,
+        )
+
+        assertEquals(1, client.calls.size)
+        val args = client.calls.first()
+        assertEquals("14", args["limit"])
+        assertEquals("9600", args["release_id"])
+        assertFalse(args.containsKey("include"))
+        assertFalse(args.containsKey("exclude"))
+        assertEquals(9601, result.firstOrNull()?.id?.value)
     }
 }
 

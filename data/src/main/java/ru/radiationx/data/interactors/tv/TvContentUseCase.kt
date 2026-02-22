@@ -75,7 +75,7 @@ class TvContentUseCaseImpl @Inject constructor(
     private val apiUtils: ApiUtils,
 ) : TvContentUseCase {
 
-    private val fieldsForCards: AniLibertyReleaseFields = AniLibertyReleaseFields.Suggestions.copy(
+    private val scheduleFieldsForCards: AniLibertyReleaseFields = AniLibertyReleaseFields.Suggestions.copy(
         include = setOf(
             AniLibertyReleaseInclude.GENRES,
             AniLibertyReleaseInclude.LATEST_EPISODE,
@@ -87,18 +87,22 @@ class TvContentUseCaseImpl @Inject constructor(
             return emptyList()
         }
 
-        val releases = runCatching {
+        val latestReleases = runCatching {
             aniLibertyApi.getLatestReleases(
                 limit = pageLimit,
-                fields = fieldsForCards,
+                fields = null,
             )
-        }.getOrElse {
+        }.getOrNull().orEmpty()
+
+        val releases = if (latestReleases.isNotEmpty()) {
+            latestReleases
+        } else {
             aniLibertyApi.getCatalogReleases(
                 AniLibertyCatalogRequest(
                     page = AniLibertyPage(1),
                     limit = AniLibertyLimit(pageLimit),
                     sorting = AniLibertyCatalogSorting.FreshAtDesc,
-                    fields = fieldsForCards,
+                    fields = null,
                 )
             ).data
         }
@@ -121,7 +125,7 @@ class TvContentUseCaseImpl @Inject constructor(
         }
 
         val todayReleases = runCatching {
-            aniLibertyApi.getScheduleNow(fields = fieldsForCards)
+            aniLibertyApi.getScheduleNow(fields = scheduleFieldsForCards)
         }.getOrNull()
             ?.today
             .orEmpty()
@@ -136,7 +140,7 @@ class TvContentUseCaseImpl @Inject constructor(
 
         val mskPublishDay = calendarDayToAniLibertyPublishDay(mskCalendarDay)
         val weekReleases = aniLibertyApi
-            .getScheduleWeek(fields = fieldsForCards)
+            .getScheduleWeek(fields = scheduleFieldsForCards)
             .data
             .orEmpty()
             .asSequence()
@@ -154,7 +158,7 @@ class TvContentUseCaseImpl @Inject constructor(
 
     override suspend fun loadWeekSchedule(): List<WeekSchedulePayload> {
         val releases = aniLibertyApi
-            .getScheduleWeek(fields = fieldsForCards)
+            .getScheduleWeek(fields = scheduleFieldsForCards)
             .data
             .orEmpty()
             .mapNotNull { it.release }
@@ -177,7 +181,7 @@ class TvContentUseCaseImpl @Inject constructor(
         val release = runCatching {
             aniLibertyApi.getRelease(
                 key = AniLibertyReleaseKey.id(releaseId.id),
-                fields = AniLibertyReleaseFields.DetailsHeader,
+                fields = null,
             )
         }.getOrNull() ?: return null
 
@@ -214,7 +218,7 @@ class TvContentUseCaseImpl @Inject constructor(
             aniLibertyApi.getRecommendedReleases(
                 limit = limit,
                 releaseId = seedReleaseId?.let { AniLibertyReleaseId(it) },
-                fields = fieldsForCards,
+                fields = null,
             )
         }.getOrNull().orEmpty()
 
