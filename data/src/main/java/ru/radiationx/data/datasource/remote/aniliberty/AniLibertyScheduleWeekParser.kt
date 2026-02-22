@@ -1,6 +1,7 @@
 package ru.radiationx.data.datasource.remote.aniliberty
 
 import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 
 internal fun parseScheduleWeekResponseJson(
     json: String,
@@ -18,13 +19,30 @@ internal fun parseScheduleWeekResponseJson(
         return objectResponse
     }
 
-    val arrayResponse = runCatching {
-        json.fetchListOrNestedList<AniLibertyReleaseInSchedule>(moshi)
+    val flatArrayType = Types.newParameterizedType(
+        List::class.java,
+        AniLibertyReleaseInSchedule::class.java,
+    )
+    val flatArrayResponse = runCatching {
+        moshi.adapter<List<AniLibertyReleaseInSchedule>>(flatArrayType).fromJson(json)
     }.onFailure {
         parseError = parseError ?: it
     }.getOrNull()
-    if (arrayResponse != null) {
-        return AniLibertyScheduleWeekResponse(data = arrayResponse)
+    if (flatArrayResponse != null) {
+        return AniLibertyScheduleWeekResponse(data = flatArrayResponse)
+    }
+
+    val nestedArrayType = Types.newParameterizedType(
+        List::class.java,
+        flatArrayType,
+    )
+    val nestedArrayResponse = runCatching {
+        moshi.adapter<List<List<AniLibertyReleaseInSchedule>>>(nestedArrayType).fromJson(json)
+    }.onFailure {
+        parseError = parseError ?: it
+    }.getOrNull()
+    if (nestedArrayResponse != null) {
+        return AniLibertyScheduleWeekResponse(data = nestedArrayResponse.flatten())
     }
 
     onUnsupportedPayload?.invoke(parseError)

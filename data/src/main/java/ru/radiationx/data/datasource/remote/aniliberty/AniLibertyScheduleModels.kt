@@ -9,7 +9,8 @@ import com.squareup.moshi.JsonClass
  * GET /anime/schedule/now  -> { today: [...], tomorrow: [...], yesterday: [...] }
  * GET /anime/schedule/week -> currently can be either:
  * 1) { data: [...] }
- * 2) [ [...], [...], ... ]
+ * 2) [ { ... }, { ... }, ... ]
+ * 3) [ [...], [...], ... ]
  *
  * items are models.anime.schedule.v1.releaseInSchedule
  */
