@@ -27,3 +27,14 @@
 # Keep Toothpick generated factories/member injectors resolved at runtime.
 -keep class **__Factory { *; }
 -keep class **__MemberInjector { *; }
+
+# Toothpick checks @Qualifier annotations at runtime for named bindings.
+# Without annotation attributes in release builds, binding setup crashes on startup.
+-keepattributes *Annotation*
+-keep @javax.inject.Qualifier class * { *; }
+
+# Keep names for injectable targets so Toothpick can resolve <ClassName>__Factory by reflection.
+-keepnames class * { @javax.inject.Inject <init>(...); }
+-keepclasseswithmembernames class * { @javax.inject.Inject <init>(...); }
+-keepclasseswithmembernames class * { @javax.inject.Inject <fields>; }
+-keepclasseswithmembernames class * { @javax.inject.Inject <methods>; }
