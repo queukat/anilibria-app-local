@@ -6,6 +6,7 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
@@ -30,6 +31,10 @@ class AniLibertyApiLiveContractTest {
         .retryOnConnectionFailure(false)
         .build()
     private val apiBaseUrl: HttpUrl = resolveApiBaseUrl()
+    private val scheduleWeekFieldsQuery = mapOf(
+        "include" to "release.genres,release.latest_episode",
+        "exclude" to "release.episodes,release.members,release.torrents,release.description,release.notification",
+    )
 
     @Before
     fun requireLiveFlag() {
@@ -40,20 +45,26 @@ class AniLibertyApiLiveContractTest {
     }
 
     @Test
-    fun scheduleWeek_liveContract_rootArrayParsesWithoutCrash() {
-        val json = executeJsonGet(
-            path = "/anime/schedule/week",
-            query = mapOf(
-                "include" to "genres,latest_episode",
-                "exclude" to "episodes,members,torrents,description,notification",
-            ),
-        )
+    fun scheduleWeek_liveContract_compareNoArgsAndIncludeExclude() {
+        val noArgs = fetchScheduleWeek(label = "schedule/week no-args", query = emptyMap())
+        val withArgs = fetchScheduleWeek(label = "schedule/week with include/exclude", query = scheduleWeekFieldsQuery)
 
-        println("schedule/week prefix: ${json.take(2048)}")
-        assertTrue("Expected array root for schedule/week", json.trimStart().startsWith("["))
-
-        val parsed = parseScheduleWeekResponseJson(json, moshi)
-        assertNotNull(parsed.data)
+        if (noArgs.normalizedSize > 0 && withArgs.normalizedSize == 0) {
+            error(
+                "schedule/week regression: no-args returned ${noArgs.normalizedSize}, " +
+                    "include/exclude returned empty. Server contract regression or wrong params.",
+            )
+        }
+        if (withArgs.normalizedSize > 0) {
+            val includesApplied = withArgs.parsedItems.any { item ->
+                val release = item.release
+                !release?.genres.isNullOrEmpty() || release?.latestEpisode != null
+            }
+            assertTrue(
+                "include=release.genres,release.latest_episode should expose at least one included field in non-empty response",
+                includesApplied,
+            )
+        }
     }
 
     @Test
@@ -133,6 +144,36 @@ class AniLibertyApiLiveContractTest {
             return it.body?.string().orEmpty()
         }
     }
+
+    private fun fetchScheduleWeek(label: String, query: Map<String, String>): ScheduleWeekObservation {
+        val json = executeJsonGet(path = "/anime/schedule/week", query = query)
+        val root = when {
+            json.trimStart().startsWith("[") -> "array"
+            json.trimStart().startsWith("{") -> "object"
+            else -> "other"
+        }
+        val parsed = parseScheduleWeekResponseJson(json, moshi)
+        val items = parsed.data.orEmpty()
+        val prefix = json.take(256).replace("\n", " ")
+
+        println("$label root=$root normalizedSize=${items.size} prefix=$prefix")
+        assertTrue("Expected JSON root array/object for schedule/week but was $root", root == "array" || root == "object")
+        assertNotNull(parsed.data)
+        if (root == "object") {
+            assertFalse("Object-root payload should still be normalized to list (can be empty).", parsed.data == null)
+        }
+        return ScheduleWeekObservation(
+            root = root,
+            normalizedSize = items.size,
+            parsedItems = items,
+        )
+    }
+
+    private data class ScheduleWeekObservation(
+        val root: String,
+        val normalizedSize: Int,
+        val parsedItems: List<AniLibertyReleaseInSchedule>,
+    )
 
     private fun executeWithSingleRetry(request: Request): okhttp3.Response {
         var lastError: IOException? = null
