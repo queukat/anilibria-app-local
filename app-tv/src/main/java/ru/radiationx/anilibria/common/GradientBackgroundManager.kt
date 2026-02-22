@@ -114,7 +114,13 @@ class GradientBackgroundManager @Inject constructor(
         colorSelector: (Palette) -> Int? = defaultColorSelector,
         colorModifier: (Int) -> Int = defaultColorModifier,
     ) {
-        val color = urlColorMap[url]
+        val normalizedUrl = url.trim().takeIf { it.isNotEmpty() }
+        if (normalizedUrl == null) {
+            applyDefault()
+            return
+        }
+
+        val color = urlColorMap[normalizedUrl]
         if (colorSelector == defaultColorSelector && color != null) {
             applyColor(color, colorModifier)
             return
@@ -124,7 +130,7 @@ class GradientBackgroundManager @Inject constructor(
         imageApplierJob = activity.lifecycleScope.launch {
             coRunCatching {
                 val bitmap = withContext(Dispatchers.IO) {
-                    activity.loadImageBitmap(url)
+                    activity.loadImageBitmap(normalizedUrl)
                 } ?: return@coRunCatching null
                 withContext(Dispatchers.Default) {
                     bitmap.asSoftware {
@@ -137,7 +143,7 @@ class GradientBackgroundManager @Inject constructor(
                     return@onSuccess
                 }
                 if (colorSelector == defaultColorSelector) {
-                    urlColorMap[url] = colorSelector(palette) ?: defaultColorSelector(palette)
+                    urlColorMap[normalizedUrl] = colorSelector(palette) ?: defaultColorSelector(palette)
                 }
                 applyPalette(palette, colorSelector, colorModifier)
             }.onFailure {

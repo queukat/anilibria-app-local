@@ -18,7 +18,18 @@ class CardsDataConverter @Inject constructor(
         val torrentDate = torrentUpdate.takeIf { it != 0 }?.let { Date(it * 1000L) }
         val seasonText = "${year.orEmpty()} ${season.orEmpty()}"
         val genreText = genres.firstOrNull()?.capitalizeDefault()
-        val seriesText = "Серии: ${series?.trim() ?: "Не доступно"}"
+        val episodesFromType = types
+            .firstOrNull()
+            ?.let(::extractEpisodesCountFromTypeText)
+        val seriesValue = series?.trim()?.takeIf { it.isNotEmpty() }
+            ?: episodes.size.takeIf { it > 0 }?.toString()
+            ?: episodesFromType
+            ?: when (statusCode) {
+                Release.STATUS_CODE_COMPLETE -> "Завершен"
+                Release.STATUS_CODE_PROGRESS -> "Онгоинг"
+                else -> "Неизвестно"
+            }
+        val seriesText = "Серии: $seriesValue"
         val updateText = torrentDate?.let {
             "Обновлен ${it.relativeDate(context).decapitalizeDefault()}"
         }
@@ -46,5 +57,10 @@ class CardsDataConverter @Inject constructor(
             youtube != null -> toCard(youtube!!)
             else -> throw RuntimeException("WataFuq")
         }
+    }
+
+    private fun extractEpisodesCountFromTypeText(typeText: String): String? {
+        val regex = Regex("""\((\d+)\s*эп""", RegexOption.IGNORE_CASE)
+        return regex.find(typeText)?.groupValues?.getOrNull(1)
     }
 }

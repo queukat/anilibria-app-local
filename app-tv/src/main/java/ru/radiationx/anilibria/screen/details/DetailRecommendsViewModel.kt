@@ -73,12 +73,21 @@ class DetailRecommendsViewModel @Inject constructor(
     }
 
     private suspend fun loadV1Recommended(): List<LibriaCard> {
-        return tvContentUseCase
+        val seeded = tvContentUseCase
             .loadV1Recommendations(seedReleaseId = extra.id.id, limit = RECOMMEND_LIMIT)
-            .asSequence()
             .filterNot { it.id == extra.id }
+
+        val releases = if (seeded.isNotEmpty()) {
+            seeded
+        } else {
+            tvContentUseCase
+                .loadV1Recommendations(seedReleaseId = null, limit = RECOMMEND_LIMIT)
+                .filterNot { it.id == extra.id }
+        }
+
+        return releases
+            .distinctBy { it.id }
             .map { converter.toCard(it) }
-            .toList()
     }
 
     private suspend fun loadLegacySimilar(requestPage: Int): List<LibriaCard> {
@@ -95,6 +104,6 @@ class DetailRecommendsViewModel @Inject constructor(
     }
 
     private companion object {
-        const val RECOMMEND_LIMIT = 20
+        const val RECOMMEND_LIMIT = 14
     }
 }

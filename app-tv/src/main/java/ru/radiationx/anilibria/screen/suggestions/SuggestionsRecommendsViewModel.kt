@@ -97,6 +97,6 @@ class SuggestionsRecommendsViewModel @Inject constructor(
     }
 
     private companion object {
-        const val RECOMMEND_LIMIT = 20
+        const val RECOMMEND_LIMIT = 14
     }
 }

@@ -25,7 +25,7 @@ class DetailDataConverter @Inject constructor() {
                 genres.firstOrNull()?.capitalizeDefault()?.trim(),
                 "${year.orEmpty()} ${season.orEmpty()}",
                 types.firstOrNull()?.trim(),
-                "Серии: ${series?.trim() ?: "Не доступно"}"
+                "Серии: ${resolveSeriesText()}"
             ).joinToString(" • "),
             description = description.orEmpty().parseAsHtml().toString().trim()
                 .trim('"')/*.replace('\n', ' ')*/,
@@ -38,6 +38,25 @@ class DetailDataConverter @Inject constructor() {
             hasViewed = accesses.any { it.isViewed },
             hasWebPlayer = moonwalkLink != null
         )
+    }
+
+    private fun Release.resolveSeriesText(): String {
+        val episodesFromType = types
+            .firstOrNull()
+            ?.let(::extractEpisodesCountFromTypeText)
+        return series?.trim()?.takeIf { it.isNotEmpty() }
+            ?: episodes.size.takeIf { it > 0 }?.toString()
+            ?: episodesFromType
+            ?: when (statusCode) {
+                Release.STATUS_CODE_COMPLETE -> "Завершен"
+                Release.STATUS_CODE_PROGRESS -> "Онгоинг"
+                else -> "Неизвестно"
+            }
+    }
+
+    private fun extractEpisodesCountFromTypeText(typeText: String): String? {
+        val regex = Regex("""\((\d+)\s*эп""", RegexOption.IGNORE_CASE)
+        return regex.find(typeText)?.groupValues?.getOrNull(1)
     }
 
     private fun Release.getAnnounce(isFull: Boolean): String {

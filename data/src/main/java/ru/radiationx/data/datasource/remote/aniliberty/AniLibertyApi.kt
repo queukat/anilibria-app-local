@@ -51,6 +51,7 @@ class AniLibertyApi @Inject constructor(
     private object Config {
         const val BaseUrl: String = "https://aniliberty.top/api/v1"
         const val ScheduleRequestTimeoutMs: Long = 12_000L
+        const val RecommendedMaxLimit: Int = 14
     }
 
     private val scheduleFallbackLogged = AtomicBoolean(false)
@@ -147,13 +148,36 @@ class AniLibertyApi @Inject constructor(
         releaseId: AniLibertyReleaseId?,
         fields: AniLibertyFieldSpec?,
     ): List<AniLibertyRelease> {
-        val args = AniLibertyQueryParams.build {
-            putIfPositive("limit", limit)
+        val safeLimit = limit?.coerceIn(1, Config.RecommendedMaxLimit)
+        val baseArgs = AniLibertyQueryParams.build {
+            putIfPositive("limit", safeLimit)
             if (releaseId != null) put("release_id", releaseId.value.toString())
+        }
+        val withFieldsArgs = AniLibertyQueryParams.build {
+            baseArgs.forEach { (key, value) -> put(key, value) }
             applyFields(fields)
         }
-        val json = client.get("${Config.BaseUrl}/anime/releases/recommended", args)
-        return json.fetchResponse(moshi)
+
+        val withFields = client
+            .get("${Config.BaseUrl}/anime/releases/recommended", withFieldsArgs)
+            .fetchListOrNestedList<AniLibertyRelease>(moshi)
+
+        if (fields == null || withFields.isNotEmpty()) {
+            return withFields
+        }
+
+        val fallback = client
+            .get("${Config.BaseUrl}/anime/releases/recommended", baseArgs)
+            .fetchListOrNestedList<AniLibertyRelease>(moshi)
+
+        if (fallback.isNotEmpty()) {
+            Timber.w(
+                "AniLiberty releases/recommended: include/exclude returned empty, fallback without fields returned %d items.",
+                fallback.size,
+            )
+        }
+
+        return fallback
     }
 
     override suspend fun getReleasesList(
