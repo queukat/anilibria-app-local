@@ -28,8 +28,10 @@ import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTim
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyViewTimecode
 import ru.radiationx.data.datasource.remote.fetchResponse
 import ru.radiationx.data.entity.response.PaginatedResponse
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import javax.inject.Inject
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.distinctBy
 
 /**
@@ -48,7 +50,10 @@ class AniLibertyApi @Inject constructor(
 
     private object Config {
         const val BaseUrl: String = "https://aniliberty.top/api/v1"
+        const val ScheduleRequestTimeoutMs: Long = 12_000L
     }
+
+    private val scheduleFallbackLogged = AtomicBoolean(false)
 
     private inline fun <reified T> toJsonList(items: List<T>): String {
         val type = Types.newParameterizedType(List::class.java, T::class.java)
@@ -57,6 +62,33 @@ class AniLibertyApi @Inject constructor(
 
     private inline fun <reified T> toJsonObject(body: T): String =
         moshi.adapter(T::class.java).toJson(body)
+
+    private fun AniLibertyQueryParams.Builder.applyScheduleFields(fields: AniLibertyFieldSpec?) {
+        putIfNotBlank("include", scheduleQueryParam(fields?.includeParam()))
+        putIfNotBlank("exclude", scheduleQueryParam(fields?.excludeParam()))
+    }
+
+    private fun scheduleQueryParam(raw: String?): String? {
+        val value = raw
+            ?.split(",")
+            ?.asSequence()
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.map { if (it.startsWith("release.")) it else "release.$it" }
+            ?.distinct()
+            ?.joinToString(",")
+            .orEmpty()
+        return value.ifBlank { null }
+    }
+
+    private suspend fun requestScheduleWeek(args: Map<String, String>): AniLibertyScheduleWeekResponse? {
+        val json = withTimeoutOrNull(Config.ScheduleRequestTimeoutMs) {
+            client.get("${Config.BaseUrl}/anime/schedule/week", args)
+        } ?: return null
+        return parseScheduleWeekResponseJson(json, moshi) { error ->
+            Timber.w(error, "AniLiberty schedule/week: unsupported payload, fallback to empty list.")
+        }
+    }
 
     // Catalog
 
@@ -599,11 +631,23 @@ class AniLibertyApi @Inject constructor(
     }
 
     override suspend fun getScheduleWeek(fields: AniLibertyFieldSpec?): AniLibertyScheduleWeekResponse {
-        val args = AniLibertyQueryParams.build { applyFields(fields) }
-        val json = client.get("${Config.BaseUrl}/anime/schedule/week", args)
-        return parseScheduleWeekResponseJson(json, moshi) { error ->
-            Timber.w(error, "AniLiberty schedule/week: unsupported payload, fallback to empty list.")
+        val args = AniLibertyQueryParams.build { applyScheduleFields(fields) }
+        val primaryResponse = requestScheduleWeek(args)
+            ?: AniLibertyScheduleWeekResponse(data = emptyList())
+        val primaryItems = primaryResponse.data.orEmpty()
+        if (primaryItems.isNotEmpty() || args.isEmpty()) {
+            return primaryResponse
         }
+
+        val fallbackResponse = requestScheduleWeek(emptyMap())
+            ?: return primaryResponse
+        if (fallbackResponse.data.orEmpty().isNotEmpty()) {
+            if (scheduleFallbackLogged.compareAndSet(false, true)) {
+                Timber.w("AniLiberty schedule/week fallback: include/exclude returned empty, retry without fields.")
+            }
+            return fallbackResponse
+        }
+        return primaryResponse
     }
 
 // Torrents
