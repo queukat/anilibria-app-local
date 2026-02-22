@@ -497,7 +497,7 @@ class AniLibertyApi @Inject constructor(
     override suspend fun getFranchises(fields: AniLibertyFieldSpec?): List<AniLibertyFranchise> {
         val args = AniLibertyQueryParams.build { applyFields(fields) }
         val json = client.get("${Config.BaseUrl}/anime/franchises", args)
-        return json.fetchResponse(moshi)
+        return json.fetchListOrNestedList(moshi)
     }
 
     override suspend fun getFranchise(franchiseId: AniLibertyFranchiseId, fields: AniLibertyFieldSpec?): AniLibertyFranchiseDetails {
@@ -512,13 +512,13 @@ class AniLibertyApi @Inject constructor(
             applyFields(fields)
         }
         val json = client.get("${Config.BaseUrl}/anime/franchises/random", args)
-        return json.fetchResponse(moshi)
+        return json.fetchListOrNestedList(moshi)
     }
 
     override suspend fun getFranchisesByRelease(releaseId: AniLibertyReleaseId, fields: AniLibertyFieldSpec?): AniLibertyFranchisesByRelease {
         val args = AniLibertyQueryParams.build { applyFields(fields) }
         val json = client.get("${Config.BaseUrl}/anime/franchises/release/${releaseId.value}", args)
-        return json.fetchResponse(moshi)
+        return json.fetchListOrNestedList(moshi)
     }
 
     // Teams
