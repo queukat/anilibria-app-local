@@ -91,6 +91,23 @@ class AniLibertyApi @Inject constructor(
         }
     }
 
+    private suspend fun requestScheduleNow(args: Map<String, String>): AniLibertyScheduleNowResponse? {
+        val json = withTimeoutOrNull(Config.ScheduleRequestTimeoutMs) {
+            client.get("${Config.BaseUrl}/anime/schedule/now", args)
+        } ?: return null
+        return runCatching {
+            json.fetchResponse<AniLibertyScheduleNowResponse>(moshi)
+        }.onFailure {
+            Timber.w(it, "AniLiberty schedule/now: unsupported payload, fallback to empty object.")
+        }.getOrNull()
+    }
+
+    private fun AniLibertyScheduleNowResponse.isMeaningfullyEmpty(): Boolean {
+        return today.orEmpty().isEmpty() &&
+            tomorrow.orEmpty().isEmpty() &&
+            yesterday.orEmpty().isEmpty()
+    }
+
     // Catalog
 
     override suspend fun getCatalogReleases(request: AniLibertyCatalogRequest): PaginatedResponse<AniLibertyRelease> {
@@ -649,9 +666,26 @@ class AniLibertyApi @Inject constructor(
 // Schedule
 
     override suspend fun getScheduleNow(fields: AniLibertyFieldSpec?): AniLibertyScheduleNowResponse {
-        val args = AniLibertyQueryParams.build { applyFields(fields) }
-        val json = client.get("${Config.BaseUrl}/anime/schedule/now", args)
-        return json.fetchResponse(moshi)
+        val args = AniLibertyQueryParams.build { applyScheduleFields(fields) }
+        val primaryResponse = requestScheduleNow(args)
+            ?: AniLibertyScheduleNowResponse(
+                today = emptyList(),
+                tomorrow = emptyList(),
+                yesterday = emptyList(),
+            )
+        if (!primaryResponse.isMeaningfullyEmpty() || args.isEmpty()) {
+            return primaryResponse
+        }
+
+        val fallbackResponse = requestScheduleNow(emptyMap())
+            ?: return primaryResponse
+        if (!fallbackResponse.isMeaningfullyEmpty()) {
+            if (scheduleFallbackLogged.compareAndSet(false, true)) {
+                Timber.w("AniLiberty schedule/now fallback: include/exclude returned empty, retry without fields.")
+            }
+            return fallbackResponse
+        }
+        return primaryResponse
     }
 
     override suspend fun getScheduleWeek(fields: AniLibertyFieldSpec?): AniLibertyScheduleWeekResponse {
