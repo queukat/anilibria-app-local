@@ -8,6 +8,7 @@ import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.player.PlayerController
 import ru.radiationx.anilibria.screen.player.PlayerExtra
+import ru.radiationx.anilibria.screen.player.sortedByEpisodeOrdinalAsc
 import ru.radiationx.data.entity.domain.release.Episode
 import ru.radiationx.data.interactors.ReleaseInteractor
 import javax.inject.Inject
@@ -28,7 +29,7 @@ class EndEpisodeViewModel @Inject constructor(
             .observeFull(argExtra.releaseId)
             .onEach {
                 currentEpisodes.clear()
-                currentEpisodes.addAll(it.episodes.reversed())
+                currentEpisodes.addAll(it.episodes.sortedByEpisodeOrdinalAsc())
             }
             .launchIn(viewModelScope)
     }

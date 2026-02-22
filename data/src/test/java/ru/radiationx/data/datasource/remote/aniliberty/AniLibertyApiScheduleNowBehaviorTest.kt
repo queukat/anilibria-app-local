@@ -29,40 +29,23 @@ class AniLibertyApiScheduleNowBehaviorTest {
     )
 
     @Test
-    fun getScheduleNow_usesReleasePrefixedIncludeExcludeAndFallsBackToNoArgsWhenPrimaryIsEmpty() = runBlocking {
+    fun getScheduleNow_usesNoArgsProductionRequest_evenWhenFieldsProvided() = runBlocking {
         val client = FakeScheduleNowClient(
-            withArgsPayload = """{"today":[],"tomorrow":[],"yesterday":[]}""",
             noArgsPayload = """{"today":[{"next_release_episode_number":1}],"tomorrow":[],"yesterday":[]}""",
         )
         val api = AniLibertyApi(client = client, moshi = Moshi.Builder().build())
 
         val response = api.getScheduleNow(fields)
 
-        assertEquals(2, client.calls.size)
+        assertEquals(1, client.calls.size)
         val firstArgs = client.calls.first()
-        val include = firstArgs["include"].orEmpty().split(",").toSet()
-        val exclude = firstArgs["exclude"].orEmpty().split(",").toSet()
-        assertEquals(
-            setOf("release.genres", "release.latest_episode"),
-            include,
-        )
-        assertEquals(
-            setOf(
-                "release.episodes",
-                "release.members",
-                "release.torrents",
-                "release.description",
-                "release.notification",
-            ),
-            exclude,
-        )
-        assertFalse("Fallback response should provide non-empty today list", response.today.orEmpty().isEmpty())
+        assertTrue(firstArgs.isEmpty())
+        assertFalse(response.today.orEmpty().isEmpty())
     }
 
     @Test
-    fun getScheduleNow_doesNotFallbackWhenPrimaryResponseHasItems() = runBlocking {
+    fun getScheduleNow_doesNotRetry_whenNoArgsResponseHasItems() = runBlocking {
         val client = FakeScheduleNowClient(
-            withArgsPayload = """{"today":[{"next_release_episode_number":2}],"tomorrow":[],"yesterday":[]}""",
             noArgsPayload = """{"today":[{"next_release_episode_number":1}],"tomorrow":[],"yesterday":[]}""",
         )
         val api = AniLibertyApi(client = client, moshi = Moshi.Builder().build())
@@ -75,18 +58,13 @@ class AniLibertyApiScheduleNowBehaviorTest {
 }
 
 private class FakeScheduleNowClient(
-    private val withArgsPayload: String,
     private val noArgsPayload: String,
 ) : IClient {
     val calls = mutableListOf<Map<String, String>>()
 
     override suspend fun get(url: String, args: Map<String, String>): String {
         calls += args.toMap()
-        return if (url.endsWith("/anime/schedule/now") && args.isNotEmpty()) {
-            withArgsPayload
-        } else {
-            noArgsPayload
-        }
+        return noArgsPayload
     }
 
     override suspend fun post(url: String, args: Map<String, String>): String = error("Not used")

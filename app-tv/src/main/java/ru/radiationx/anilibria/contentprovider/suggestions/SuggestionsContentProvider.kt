@@ -7,13 +7,17 @@ import android.content.UriMatcher
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.radiationx.anilibria.App
 import ru.radiationx.anilibria.contentprovider.SystemSuggestionEntity
 import ru.radiationx.data.entity.domain.search.SuggestionItem
-import ru.radiationx.data.repository.SearchRepository
+import ru.radiationx.data.interactors.tv.TvSuggestionsUseCase
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import ru.radiationx.quill.Quill
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class SuggestionsContentProvider : ContentProvider() {
 
@@ -43,7 +47,8 @@ class SuggestionsContentProvider : ContentProvider() {
     }
 
     private val uriMatcher by lazy { buildUriMatcher() }
-    private val searchRepository by lazy { Quill.getRootScope().get(SearchRepository::class) }
+    private val suggestionsUseCase by lazy { Quill.getRootScope().get(TvSuggestionsUseCase::class) }
+    private val applicationScope by lazy { Quill.getRootScope().get(ApplicationCoroutineScope::class) }
     private val queryExecutor = SuggestionQueryExecutor<SuggestionItem>(
         minQueryLength = 3,
         maxResults = MAX_SUGGESTIONS,
@@ -94,11 +99,19 @@ class SuggestionsContentProvider : ContentProvider() {
         super.shutdown()
     }
 
-    private fun fetchSuggestions(query: String): List<SuggestionItem> = runBlocking {
-        withTimeout(QUERY_TIMEOUT_MS) {
-            App.appInitialized.await()
-            searchRepository.fastSearch(query).items
+    private fun fetchSuggestions(query: String): List<SuggestionItem> {
+        val latch = CountDownLatch(1)
+        val resultRef = AtomicReference<List<SuggestionItem>>(emptyList())
+        applicationScope.launch {
+            val result = withTimeoutOrNull(QUERY_TIMEOUT_MS) {
+                App.appInitialized.await()
+                suggestionsUseCase.loadSuggestions(query)
+            }.orEmpty()
+            resultRef.set(result)
+            latch.countDown()
         }
+        latch.await(QUERY_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        return resultRef.get()
     }
 
     private fun SuggestionItem.convertToEntity() = SystemSuggestionEntity(

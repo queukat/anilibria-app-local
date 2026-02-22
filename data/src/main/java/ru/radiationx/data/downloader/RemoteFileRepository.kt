@@ -3,9 +3,8 @@ package ru.radiationx.data.downloader
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
@@ -22,15 +21,17 @@ class RemoteFileRepository @Inject constructor(
     private val holder: RemoteFileHolder,
 ) {
 
-    suspend fun loadFile(
+    fun loadFile(
         url: String,
         bucket: RemoteFile.Bucket,
-        progress: MutableStateFlow<Int>,
-    ): DownloadedFile = withContext(Dispatchers.IO) {
-        progress.value = 0
+    ): Flow<RemoteFileLoadEvent> = flow {
+        emit(RemoteFileLoadEvent.Progress(0))
+
         val existedFile = getDownloadedFile(url)
         if (existedFile != null) {
-            return@withContext existedFile
+            emit(RemoteFileLoadEvent.Progress(100))
+            emit(RemoteFileLoadEvent.Completed(existedFile))
+            return@flow
         }
 
         val loadingFileId = holder.get(url)?.id ?: holder.generateId()
@@ -45,7 +46,9 @@ class RemoteFileRepository @Inject constructor(
                 "Response content length < 0 bytes"
             }
             loadingFile.createNewFile()
-            responseBody.copyToWithProgress(loadingFile).collect(progress)
+            responseBody.copyToWithProgress(loadingFile).collect { progress ->
+                emit(RemoteFileLoadEvent.Progress(progress))
+            }
             val saveData = RemoteFileSaveData(
                 id = loadingFileId,
                 url = url,
@@ -54,12 +57,12 @@ class RemoteFileRepository @Inject constructor(
                 contentType = response.header("Content-Type"),
             )
             val remoteFile = holder.put(saveData)
-            DownloadedFile(remoteFile, loadingFile)
+            emit(RemoteFileLoadEvent.Completed(DownloadedFile(remoteFile, loadingFile)))
         } catch (ex: Exception) {
             loadingFile.delete()
             throw ex
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     private fun getCacheDir(): File {
         val file = File(context.cacheDir, "anilibria_remote")
@@ -81,6 +84,11 @@ class RemoteFileRepository @Inject constructor(
             null
         }
     }
+}
+
+sealed interface RemoteFileLoadEvent {
+    data class Progress(val value: Int) : RemoteFileLoadEvent
+    data class Completed(val file: DownloadedFile) : RemoteFileLoadEvent
 }
 
 private fun ResponseBody.copyToWithProgress(destinationFile: File): Flow<Int> {

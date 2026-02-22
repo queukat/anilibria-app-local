@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:Date.kt$3</ID>
+    <ID>MaxLineLength:CombinePropertyImpl.kt$CombinePropertyImpl$"api.CombineProperty '${property.name}' has no value, probably the value is taken from outside the 'collect' method"</ID>
+    <ID>NewLineAtEndOfFile:CombineBuilderScope.kt$ru.radiationx.combineflow.api.CombineBuilderScope.kt</ID>
+    <ID>NewLineAtEndOfFile:CombineBuilderScopeImpl.kt$ru.radiationx.combineflow.internal.CombineBuilderScopeImpl.kt</ID>
+    <ID>NewLineAtEndOfFile:CombineCollector.kt$ru.radiationx.combineflow.internal.CombineCollector.kt</ID>
+    <ID>NewLineAtEndOfFile:CombineProperty.kt$ru.radiationx.combineflow.api.CombineProperty.kt</ID>
+    <ID>NewLineAtEndOfFile:CombinePropertyImpl.kt$ru.radiationx.combineflow.internal.CombinePropertyImpl.kt</ID>
+    <ID>NewLineAtEndOfFile:CoroutineExt.kt$ru.radiationx.shared.ktx.CoroutineExt.kt</ID>
+    <ID>NewLineAtEndOfFile:Event.kt$ru.radiationx.shared.ktx.Event.kt</ID>
+    <ID>NewLineAtEndOfFile:EventExt.kt$ru.radiationx.shared.ktx.EventExt.kt</ID>
+    <ID>NewLineAtEndOfFile:Flow.kt$ru.radiationx.shared.ktx.Flow.kt</ID>
+    <ID>NewLineAtEndOfFile:SerialJob.kt$ru.radiationx.shared.ktx.SerialJob.kt</ID>
+    <ID>NewLineAtEndOfFile:StringExt.kt$ru.radiationx.shared.ktx.StringExt.kt</ID>
+  </CurrentIssues>
+</SmellBaseline>

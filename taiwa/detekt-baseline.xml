@@ -1,0 +1,33 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:TaiwaBottomSheetDialog.kt$TaiwaBottomSheetDialog$0.8f</ID>
+    <ID>NewLineAtEndOfFile:AlertExt.kt$taiwa.alert.AlertExt.kt</ID>
+    <ID>NewLineAtEndOfFile:BaseTaiwaDialog.kt$taiwa.dialogs.BaseTaiwaDialog.kt</ID>
+    <ID>NewLineAtEndOfFile:BaseTaiwaDialogFragment.kt$taiwa.dialogs.BaseTaiwaDialogFragment.kt</ID>
+    <ID>NewLineAtEndOfFile:ButtonsEnvoy.kt$taiwa.internal.view.ButtonsEnvoy.kt</ID>
+    <ID>NewLineAtEndOfFile:ClickListener.kt$taiwa.internal.models.ClickListener.kt</ID>
+    <ID>NewLineAtEndOfFile:DialogExt.kt$taiwa.dialogs.ext.DialogExt.kt</ID>
+    <ID>NewLineAtEndOfFile:DialogType.kt$taiwa.common.DialogType.kt</ID>
+    <ID>NewLineAtEndOfFile:DialogWrapper.kt$taiwa.common.DialogWrapper.kt</ID>
+    <ID>NewLineAtEndOfFile:Dsl.kt$taiwa.dsl.Dsl.kt</ID>
+    <ID>NewLineAtEndOfFile:DslImpl.kt$taiwa.internal.dsl.DslImpl.kt</ID>
+    <ID>NewLineAtEndOfFile:ItemEnvoy.kt$taiwa.internal.view.ItemEnvoy.kt</ID>
+    <ID>NewLineAtEndOfFile:MessageEnvoy.kt$taiwa.internal.view.MessageEnvoy.kt</ID>
+    <ID>NewLineAtEndOfFile:NestedContentController.kt$taiwa.internal.view.NestedContentController.kt</ID>
+    <ID>NewLineAtEndOfFile:NestedTaiwa.kt$taiwa.common.NestedTaiwa.kt</ID>
+    <ID>NewLineAtEndOfFile:Taiwa.kt$taiwa.common.Taiwa.kt</ID>
+    <ID>NewLineAtEndOfFile:Taiwa.kt$taiwa.internal.Taiwa.kt</ID>
+    <ID>NewLineAtEndOfFile:TaiwaBottomSheetDialogFragment.kt$taiwa.dialogs.TaiwaBottomSheetDialogFragment.kt</ID>
+    <ID>NewLineAtEndOfFile:TaiwaDialog.kt$taiwa.dialogs.TaiwaDialog.kt</ID>
+    <ID>NewLineAtEndOfFile:TaiwaDialogFragment.kt$taiwa.dialogs.TaiwaDialogFragment.kt</ID>
+    <ID>NewLineAtEndOfFile:TaiwaModels.kt$taiwa.TaiwaModels.kt</ID>
+    <ID>NewLineAtEndOfFile:TaiwaState.kt$taiwa.internal.models.TaiwaState.kt</ID>
+    <ID>NewLineAtEndOfFile:TaiwaView.kt$taiwa.internal.view.TaiwaView.kt</ID>
+    <ID>NewLineAtEndOfFile:TaiwaViewExt.kt$taiwa.internal.view.TaiwaViewExt.kt</ID>
+    <ID>NewLineAtEndOfFile:ToolbarEnvoy.kt$taiwa.internal.view.ToolbarEnvoy.kt</ID>
+    <ID>NewLineAtEndOfFile:ViewTransition.kt$taiwa.common.ViewTransition.kt</ID>
+    <ID>UnusedParameter:DialogExt.kt$noinline onViewDestroyed: (VB) -&gt; Unit = {}</ID>
+  </CurrentIssues>
+</SmellBaseline>

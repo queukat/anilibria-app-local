@@ -40,7 +40,17 @@ tasks.register('clean', Delete) {
     delete rootProject.layout.buildDirectory
 }
 
-def detektTargets = [":app-tv", ":data", ":shared-app", ":quill-di"]
+def detektTargets = [
+        ":app-tv",
+        ":data",
+        ":shared-app",
+        ":quill-di",
+        ":shared-android-ktx",
+        ":shared-ktx",
+        ":envoy",
+        ":taiwa",
+        ":searchbar",
+]
 
 configure(detektTargets.collect { project(it) }) {
     apply plugin: "io.gitlab.arturbosch.detekt"

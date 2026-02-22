@@ -64,24 +64,6 @@ class AniLibertyApi @Inject constructor(
     private inline fun <reified T> toJsonObject(body: T): String =
         moshi.adapter(T::class.java).toJson(body)
 
-    private fun AniLibertyQueryParams.Builder.applyScheduleFields(fields: AniLibertyFieldSpec?) {
-        putIfNotBlank("include", scheduleQueryParam(fields?.includeParam()))
-        putIfNotBlank("exclude", scheduleQueryParam(fields?.excludeParam()))
-    }
-
-    private fun scheduleQueryParam(raw: String?): String? {
-        val value = raw
-            ?.split(",")
-            ?.asSequence()
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?.map { if (it.startsWith("release.")) it else "release.$it" }
-            ?.distinct()
-            ?.joinToString(",")
-            .orEmpty()
-        return value.ifBlank { null }
-    }
-
     private suspend fun requestScheduleWeek(args: Map<String, String>): AniLibertyScheduleWeekResponse? {
         val json = withTimeoutOrNull(Config.ScheduleRequestTimeoutMs) {
             client.get("${Config.BaseUrl}/anime/schedule/week", args)
@@ -666,44 +648,30 @@ class AniLibertyApi @Inject constructor(
 // Schedule
 
     override suspend fun getScheduleNow(fields: AniLibertyFieldSpec?): AniLibertyScheduleNowResponse {
-        val args = AniLibertyQueryParams.build { applyScheduleFields(fields) }
-        val primaryResponse = requestScheduleNow(args)
+        val primaryResponse = requestScheduleNow(emptyMap())
             ?: AniLibertyScheduleNowResponse(
                 today = emptyList(),
                 tomorrow = emptyList(),
                 yesterday = emptyList(),
             )
-        if (!primaryResponse.isMeaningfullyEmpty() || args.isEmpty()) {
-            return primaryResponse
-        }
-
-        val fallbackResponse = requestScheduleNow(emptyMap())
-            ?: return primaryResponse
-        if (!fallbackResponse.isMeaningfullyEmpty()) {
+        if (fields != null && primaryResponse.isMeaningfullyEmpty()) {
+            // OpenAPI allows include/exclude for schedule endpoints, but production payload
+            // with params is unstable for week/now in real traffic. We intentionally
+            // keep a no-args production request to avoid empty schedules.
             if (scheduleFallbackLogged.compareAndSet(false, true)) {
-                Timber.w("AniLiberty schedule/now fallback: include/exclude returned empty, retry without fields.")
+                Timber.w("AniLiberty schedule/now: include/exclude disabled in production request due unstable payload.")
             }
-            return fallbackResponse
         }
         return primaryResponse
     }
 
     override suspend fun getScheduleWeek(fields: AniLibertyFieldSpec?): AniLibertyScheduleWeekResponse {
-        val args = AniLibertyQueryParams.build { applyScheduleFields(fields) }
-        val primaryResponse = requestScheduleWeek(args)
+        val primaryResponse = requestScheduleWeek(emptyMap())
             ?: AniLibertyScheduleWeekResponse(data = emptyList())
-        val primaryItems = primaryResponse.data.orEmpty()
-        if (primaryItems.isNotEmpty() || args.isEmpty()) {
-            return primaryResponse
-        }
-
-        val fallbackResponse = requestScheduleWeek(emptyMap())
-            ?: return primaryResponse
-        if (fallbackResponse.data.orEmpty().isNotEmpty()) {
+        if (fields != null && primaryResponse.data.orEmpty().isEmpty()) {
             if (scheduleFallbackLogged.compareAndSet(false, true)) {
-                Timber.w("AniLiberty schedule/week fallback: include/exclude returned empty, retry without fields.")
+                Timber.w("AniLiberty schedule/week: include/exclude disabled in production request due unstable payload.")
             }
-            return fallbackResponse
         }
         return primaryResponse
     }

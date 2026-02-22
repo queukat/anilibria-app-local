@@ -115,6 +115,11 @@ class PlayerFragment : BasePlayerFragment() {
         subscribeTo(viewModel.qualityState.filterNotNull()) {
             playerGlue?.setQuality(it)
         }
+
+        // Seek-команда при том же URL, когда меняется только позиция продолжения.
+        subscribeTo(viewModel.seekState.filterNotNull()) { seek ->
+            playerGlue?.seekTo(seek)
+        }
     }
 
     override fun onPause() {

@@ -20,16 +20,13 @@ import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.repository.AuthRepository
-import ru.radiationx.data.repository.HistoryRepository
 import ru.radiationx.data.repository.UserViewsRepository
-import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
 import javax.inject.Inject
 
 class PlayerViewModel @Inject constructor(
     private val argExtra: PlayerExtra,
     private val releaseInteractor: ReleaseInteractor,
-    private val historyRepository: HistoryRepository,
     private val userViewsRepository: UserViewsRepository,
     private val authRepository: AuthRepository,
     private val preferencesHolder: PreferencesHolder,
@@ -100,7 +97,7 @@ class PlayerViewModel @Inject constructor(
             playerController.data.value = releases
 
             currentRelease = releases.firstOrNull { it.id == argExtra.releaseId } ?: releases.firstOrNull()
-            currentEpisodes = releases.flatMap { it.episodes.reversed() }
+            currentEpisodes = releases.flatMap { it.episodes }.sortedByEpisodeOrdinalAsc()
 
             val initialEpisodeId = argExtra.episodeId
                 ?: runCatching {
@@ -240,7 +237,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun saveEpisode(position: Long) {
-        val release = getCurrentRelease() ?: return
+        getCurrentRelease() ?: return
         val episode = currentEpisode ?: return
 
         // фиксируем значения ДО launch, чтобы переключение эпизода не ломало расчёт
@@ -262,12 +259,6 @@ class PlayerViewModel @Inject constructor(
                 }
             }
 
-            // local "history"
-            coRunCatching {
-                historyRepository.putRelease(release)
-            }.onFailure {
-                Timber.e(it)
-            }
         }
     }
 

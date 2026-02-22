@@ -6,6 +6,9 @@ import javax.inject.Qualifier
 annotation class DataPreferences
 
 @Qualifier
+annotation class SecureDataPreferences
+
+@Qualifier
 annotation class ApiClient
 
 @Qualifier

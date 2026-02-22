@@ -2,19 +2,21 @@ package ru.radiationx.data.datasource.remote.address
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import ru.radiationx.data.datasource.remote.Api
 import ru.radiationx.data.datasource.storage.ApiConfigStorage
 import ru.radiationx.data.entity.mapper.toDomain
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import javax.inject.Inject
 
 class ApiConfig @Inject constructor(
     private val configChanger: ApiConfigChanger,
     private val apiConfigStorage: ApiConfigStorage,
+    private val applicationScope: ApplicationCoroutineScope,
 ) {
 
     private val addresses = mutableListOf<ApiAddress>()
-    private var activeAddressTag: String = ""
+    private var activeAddressTag: String = Api.DEFAULT_ADDRESS.tag
     private val possibleIps = mutableListOf<String>()
     private val proxyPings = mutableMapOf<String, Float>()
 
@@ -22,11 +24,10 @@ class ApiConfig @Inject constructor(
     var needConfig = true
 
     init {
-        // todo TR-274 make api config async
-        runBlocking {
+        setConfig(ApiConfigData(listOf(Api.DEFAULT_ADDRESS)))
+        applicationScope.launch {
             activeAddressTag = apiConfigStorage.getActive() ?: Api.DEFAULT_ADDRESS.tag
-            val initAddresses =
-                apiConfigStorage.get()?.toDomain() ?: ApiConfigData(listOf(Api.DEFAULT_ADDRESS))
+            val initAddresses = apiConfigStorage.get()?.toDomain() ?: ApiConfigData(listOf(Api.DEFAULT_ADDRESS))
             setConfig(initAddresses)
         }
     }
@@ -60,10 +61,9 @@ class ApiConfig @Inject constructor(
 
         possibleIps.clear()
         val ips = addresses
-            .map { address ->
+            .flatMap { address ->
                 address.ips + address.proxies.map { it.ip }
             }
-            .reduce { acc, list -> acc.plus(list) }
             .toSet()
             .toList()
         possibleIps.addAll(ips)

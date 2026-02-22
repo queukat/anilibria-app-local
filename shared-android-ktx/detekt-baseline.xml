@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:Bitmap.kt$0.5f</ID>
+    <ID>NewLineAtEndOfFile:AlertDialog.kt$ru.radiationx.shared.ktx.android.AlertDialog.kt</ID>
+    <ID>NewLineAtEndOfFile:Bitmap.kt$ru.radiationx.shared.ktx.android.Bitmap.kt</ID>
+    <ID>NewLineAtEndOfFile:Date.kt$ru.radiationx.shared.ktx.android.Date.kt</ID>
+    <ID>NewLineAtEndOfFile:Fragment.kt$ru.radiationx.shared.ktx.android.Fragment.kt</ID>
+    <ID>NewLineAtEndOfFile:PendingIntent.kt$ru.radiationx.shared.ktx.android.PendingIntent.kt</ID>
+    <ID>NewLineAtEndOfFile:String.kt$ru.radiationx.shared.ktx.android.String.kt</ID>
+    <ID>NewLineAtEndOfFile:WebViewClient.kt$ru.radiationx.shared.ktx.android.WebViewClient.kt</ID>
+    <ID>NewLineAtEndOfFile:WebViewClientCompat.kt$ru.radiationx.shared.ktx.android.WebViewClientCompat.kt</ID>
+    <ID>WildcardImport:Context.kt$import androidx.annotation.*</ID>
+  </CurrentIssues>
+</SmellBaseline>

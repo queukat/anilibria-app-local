@@ -1,658 +1,171 @@
-# AniLiberty schedule/week include/exclude fix report
-
-Date: 2026-02-22 04:27:17 +04:00
-Branch: `fix/aniliberty-week-include-exclude`
-Base: `develop`
-
-## 0) Setup
-- `git checkout develop` -> SUCCESS.
-- `git pull` -> FAIL in this env (`SEC_E_NO_CREDENTIALS`), continued locally.
-- `git checkout -b fix/aniliberty-week-include-exclude` -> SUCCESS.
-
-## 1) Reproduction before changes (facts)
-Performed live probe with two requests:
-1. `GET https://aniliberty.top/api/v1/anime/schedule/week`
-   - status: `200`
-   - content-type: `application/json`
-   - root: `array`
-   - approx size: `36`
-   - prefix: `[{"release":{"id":8452,...` (array of objects)
-2. `GET https://aniliberty.top/api/v1/anime/schedule/week?include=genres,latest_episode&exclude=episodes,members,torrents,description,notification`
-   - status: `200`
-   - content-type: `application/json`
-   - root: `array`
-   - approx size: `36`
-   - prefix: `[[],[],[],...,[]]` (nested empty arrays)
-
-Extra probe for candidate query encodings:
-- `include=release.genres,release.latest_episode&exclude=release.episodes,release.members,release.torrents,release.description,release.notification`
-  - status `200`, non-empty array of objects (works).
-- repeated query form (`include=a&include=b`) in this environment returned empty nested arrays.
-
-## 2) OpenAPI findings (`data/aniliberty-api-v1-docs.json`)
-Source used: local spec file `data/aniliberty-api-v1-docs.json`.
-
-For path `/anime/schedule/week`:
-- include param ref:
-  - `#/components/parameters/commons.v1.utils.includeAndExclude.parameters.include`
-- exclude param ref:
-  - `#/components/parameters/commons.v1.utils.includeAndExclude.parameters.exclude`
-- include/exclude definition:
-  - `oneOf`: `string` (CSV example) OR `array<string>`
-  - examples in spec use CSV (`id,type.genres` etc.)
-- 200 response schema ref:
-  - `#/components/schemas/responses.v1.anime.schedule.week`
-  - schema is object-root: `{ data: array<releaseInSchedule> }`
-
-Observed mismatch vs live server: server frequently returns array-root (flat objects or nested arrays), not object-root.
-
-## 3) What changed
-
-### A) Query formatting fix per OpenAPI + server behavior
-File:
-- `data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt`
-
-Changes:
-- For `getScheduleWeek(...)`, query fields are now adapted to schedule payload nesting:
-  - include items are sent as `release.<field>`
-  - exclude items are sent as `release.<field>`
-- Serialization format remains CSV (valid per OpenAPI and verified working on server).
-
-Example now sent:
-- include: `release.genres,release.latest_episode`
-- exclude: `release.episodes,release.members,release.torrents,release.description,release.notification`
-
-### B) Response shape support + normalization
-Files:
-- `data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyScheduleWeekParser.kt`
-- `data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyScheduleModels.kt`
-
-Parser now explicitly supports and normalizes to `AniLibertyScheduleWeekResponse(data = List<AniLibertyReleaseInSchedule>)`:
-- object-root: `{ data: [...] }`
-- flat array-root: `[{...}, {...}]`
-- nested arrays-root: `[[...], [...]]` (flattened)
-- unknown/invalid payload: safe empty + optional warning callback (no crash)
-
-### C) Bounded fallback in production client
-File:
-- `data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt`
-
-Behavior:
-1. First request: schedule/week with include/exclude (corrected format)
-2. If normalized result is empty -> one fallback request without include/exclude
-3. If fallback has data, use fallback result
-
-Safety:
-- no infinite retries (at most 2 attempts)
-- each request wrapped with bounded timeout (`12_000ms`)
-- warning log is one-time (guarded by `AtomicBoolean`, no log spam)
-
-## 4) Added/updated tests
-
-### Offline snapshot tests
-Files:
-- `data/src/test/resources/aniliberty/schedule_week_no_args.json`
-- `data/src/test/resources/aniliberty/schedule_week_with_args.json`
-- `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyContractSnapshotTest.kt`
-
-Coverage:
-- parses `schedule_week_no_args.json` (flat array of objects)
-- parses `schedule_week_with_args.json` (flat array with included fields)
-- keeps nested-array regression case (`schedule_week.json` existing fixture)
-- keeps object-root and unexpected-payload compatibility checks
-
-### Unit behavior test for fallback + query mapping
-File:
-- `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleWeekBehaviorTest.kt`
-
-Checks:
-- transformed include/exclude contain `release.*` names
-- fallback is triggered when with-args payload is empty and no-args payload is non-empty
-- fallback is not triggered when first response is already non-empty
-
-### Live contract tests
-File:
-- `data/src/liveTest/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiLiveContractTest.kt`
-
-Strengthened schedule/week contract test:
-- requests both:
-  - `/anime/schedule/week` (no args)
-  - `/anime/schedule/week` with corrected include/exclude
-- logs for both: root type + normalized size + prefix
-- fails if no-args is non-empty but with-args is empty
-- if with-args is non-empty, verifies include effect (`genres` or `latest_episode` present)
-
-## 5) Commands and results
-
-### Core checks requested
-- `./gradlew.bat :data:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS
-- `./gradlew.bat :data:liveApiTest --console=plain --stacktrace` ->
-  - first run FAIL (wrapper lock at `C:\Users\CodexSandboxOffline\.gradle\wrapper\...zip.lck`)
-  - rerun with local env vars -> SUCCESS
-    - used:
-      - `GRADLE_USER_HOME=$PWD/.gradle-user`
-      - `ANDROID_USER_HOME=$PWD/.android-user`
-- `./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace` -> SUCCESS
-- `./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS
-- `./gradlew.bat :app-tv:lintDebug --console=plain --stacktrace` -> SUCCESS
-- `./gradlew.bat :app-tv:assembleRelease --console=plain --stacktrace` -> SUCCESS
-
-Live test report evidence:
-- `data/build/test-results/liveApiTest/TEST-ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApiLiveContractTest.xml`
-  - tests=4 failures=0 errors=0
-  - contains diagnostics:
-    - `schedule/week no-args root=array normalizedSize=36 ...`
-    - `schedule/week with include/exclude root=array normalizedSize=36 ...`
-
-Snapshot test report evidence:
-- `data/build/test-results/testDebugUnitTest/TEST-ru.radiationx.data.datasource.remote.aniliberty.AniLibertyContractSnapshotTest.xml`
-  - tests=7 failures=0 errors=0
-
-## 6) Commits
-1. `7fbac400` Fix AniLiberty schedule/week query params per OpenAPI
-2. `37a53137` Support schedule/week response shapes (flat array / nested arrays / object-root)
-3. `7d4b7449` Add snapshot fixtures and tests for schedule/week variants
-4. `183b7776` Strengthen live contract tests for include/exclude + fallback
-
-## 7) Changed files
-- `data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt`
-- `data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyScheduleModels.kt`
-- `data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyScheduleWeekParser.kt`
-- `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyContractSnapshotTest.kt`
-- `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleWeekBehaviorTest.kt`
-- `data/src/liveTest/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiLiveContractTest.kt`
-- `data/src/test/resources/aniliberty/schedule_week_no_args.json`
-- `data/src/test/resources/aniliberty/schedule_week_with_args.json`
-
-## 8) app-mobile safety check
-- `git diff --name-only develop..HEAD | rg "^app-mobile/"` -> no matches.
-
-## 9) Hotfix after runtime log (franchises/release ClassCastException)
-Observed runtime error from TV logs:
-- `ClassCastException: com.squareup.moshi.LinkedHashTreeMap cannot be cast to AniLibertyFranchiseDetails`
-- stack point: `ReleaseRepository.loadV1FullReleaseOrNull(ReleaseRepository.kt:323)`
-- endpoint: `GET /api/v1/anime/franchises/release/{id}`
-
-Root cause:
-- `AniLibertyApi.getFranchisesByRelease` (and sibling list methods in franchises block) parsed list payloads via `fetchResponse(moshi)`.
-- For collection responses this produced raw maps (`LinkedHashTreeMap`) due erased generic parsing path.
-
-Fix:
-- `data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt`
-  - `getFranchises(...)` switched to `fetchListOrNestedList(moshi)`
-  - `getRandomFranchises(...)` switched to `fetchListOrNestedList(moshi)`
-  - `getFranchisesByRelease(...)` switched to `fetchListOrNestedList(moshi)`
-
-Regression tests added:
-- `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiFranchisesParsingTest.kt`
-  - verifies `/franchises/release` array is parsed into typed `AniLibertyFranchiseDetails`
-  - verifies `/franchises` array returns typed models (not raw map-based casts)
-
-Validation:
-- `./gradlew.bat :data:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS
-- `./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace` -> SUCCESS
-
-Hotfix commit:
-- `2a71a116` Fix AniLiberty franchises list parsing to avoid LinkedHashTreeMap casts
-- Applied on current branch `develop`.
-
-## 10) Hotfix: image background crash on blank URL (2026-02-22 04:46:44 +04:00)
-
-Issue:
-- Runtime crash in TV when applying gradient background image:
-  - java.lang.IllegalArgumentException: Image url is null or blank`n  - stack: CoilLibriaImageLoaderImpl.loadImageBitmap <- GradientBackgroundManager.applyImage`n
-Root cause:
-- pp-tv passed blank image URL to GradientBackgroundManager.applyImage(url: String).
-- Manager directly called loadImageBitmap(url), while image loader intentionally throws on null/blank URL.
-
-Fix:
-- Updated pp-tv/src/main/java/ru/radiationx/anilibria/common/GradientBackgroundManager.kt:
-  - normalize URL (	rim + not empty) before loading;
-  - for blank URL: early return with pplyDefault() (safe fallback, no exception);
-  - use normalized URL for cache map and image load.
-
-Why this is correct:
-- Keeps strict validation in shared image loader.
-- Moves resilience to caller that owns screen-background behavior.
-- Prevents crash for missing poster/image while preserving default visual behavior.
-
-Validation:
-- ./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
-
-Files changed in this hotfix:
-- pp-tv/src/main/java/ru/radiationx/anilibria/common/GradientBackgroundManager.kt`n
-Safety:
-- pp-mobile/** not changed.
-
-- [2026-02-22 04:49:04 +04:00] Extra verification: ./gradlew.bat :app-tv:lintDebug --console=plain --stacktrace -> SUCCESS.
-
-## 11) Bugfix: "Похожие тайтлы" row is empty (2026-02-22 04:57:59 +04:00)
-
-Issue:
-- On detail screen, row Похожие тайтлы can remain empty even when related content exists.
-
-Observed likely cause:
-- GET /api/v1/anime/releases/recommended with include/exclude may return empty payload for some release IDs.
-- Existing flow in DetailRecommendsViewModel then switched to legacy search fallback, which can also return empty for narrow filters.
-
-Code fixes:
-1) API fallback for ecommended:
-- File: data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt
-- Change: getRecommendedReleases(...)
-  - first request: with fields (include/exclude)
-  - if result empty and fields were used: second bounded fallback request without fields
-  - logs one warning when fallback returns data.
-
-2) UI-level fallback in details recommendations:
-- File: pp-tv/src/main/java/ru/radiationx/anilibria/screen/details/DetailRecommendsViewModel.kt
-- Change: loadV1Recommended()
-  - first attempt: seeded recommendations (elease_id=<current>)
-  - if empty: fallback to global recommendations (elease_id=null)
-  - filter current release, deduplicate by id.
-
-3) Tests:
-- File: data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiRecommendedBehaviorTest.kt
-  - verifies fallback to no-fields request when with-fields response is empty;
-  - verifies no fallback when first response already has data.
-- File: pp-tv/src/test/java/ru/radiationx/anilibria/screen/details/DetailRecommendsViewModelTest.kt
-  - verifies DetailRecommendsViewModel falls back from seeded to global recommendations and emits cards.
-
-Validation commands:
-- ./gradlew.bat :data:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace -> SUCCESS
-
-Intermediate failure handled:
-- First run of :app-tv:testDebugUnitTest failed due compile issues in new test (	oCard(any()) overload inference and updated LibriaCardRouter ctor).
-- Test was fixed (ny<Release>() + mocked SystemUtils), rerun succeeded.
-
-Changed files in this step:
-- data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt
-- pp-tv/src/main/java/ru/radiationx/anilibria/screen/details/DetailRecommendsViewModel.kt
-- data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiRecommendedBehaviorTest.kt
-- pp-tv/src/test/java/ru/radiationx/anilibria/screen/details/DetailRecommendsViewModelTest.kt
-
-Safety:
-- pp-mobile/** unchanged.
-
-## 12) Hotfix from runtime logs: recommended 422(limit>14) + better series fallback (2026-02-22 05:04:19 +04:00)
-
-New runtime finding:
-- Endpoint GET /api/v1/anime/releases/recommended returned 422 with payload:
-  - {"errors":{"limit":["Поле limit не может быть больше 14."]}}
-- Request used limit=20, which breaks v1 recommendations on TV rows (Похожие тайтлы, Рекомендации).
-
-Fix A — clamp recommended limit in API client:
-- File: data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt
-- Added Config.RecommendedMaxLimit = 14.
-- In getRecommendedReleases(...) now:
-  - safeLimit = limit?.coerceIn(1, 14)
-  - request sends clamped limit.
-- Existing fallback logic (with fields -> without fields if empty) remains active.
-
-Fix B — improve "Серии" display fallback:
-- Files:
-  - pp-tv/src/main/java/ru/radiationx/anilibria/common/CardsDataConverter.kt
-  - pp-tv/src/main/java/ru/radiationx/anilibria/common/DetailDataConverter.kt
-- Instead of hard "Не доступно", now resolves series text as:
-  1) series if present,
-  2) pisodes.size if episodes loaded,
-  3) status-based fallback (Завершен / Онгоинг / Неизвестно).
-
-Tests updated:
-- data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiRecommendedBehaviorTest.kt
-  - asserts clamped limit=14 for requested limit=20.
-
-Validation:
-- ./gradlew.bat :data:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace -> SUCCESS
-
-Safety:
-- pp-mobile/** unchanged.
-
-## 13) Follow-up: show episode count instead of only "Онгоинг" when possible (2026-02-22 05:21:50 +04:00)
-
-User observation:
-- In card rows, Серии often displayed as Онгоинг, even when some quantity exists.
-
-Applied improvements:
-1) Extract episodes count from 	ype text as additional fallback
-- Files:
-  - pp-tv/src/main/java/ru/radiationx/anilibria/common/CardsDataConverter.kt
-  - pp-tv/src/main/java/ru/radiationx/anilibria/common/DetailDataConverter.kt
-- Added regex fallback for strings like ТВ (24 эп.), 24 мин.:
-  - parse 24 and show Серии: 24
-- New fallback order:
-  1. series
-  2. pisodes.size
-  3. extracted count from 	ype
-  4. status fallback (Завершен / Онгоинг / Неизвестно)
-
-2) Align TV recommendation limits with backend validation
-- Backend returns 422 if limit > 14 for /anime/releases/recommended.
-- Files:
-  - data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt (already clamped to max 14)
-  - pp-tv/src/main/java/ru/radiationx/anilibria/screen/details/DetailRecommendsViewModel.kt (RECOMMEND_LIMIT = 14)
-  - pp-tv/src/main/java/ru/radiationx/anilibria/screen/suggestions/SuggestionsRecommendsViewModel.kt (RECOMMEND_LIMIT = 14)
-
-3) Test stability
-- File: pp-tv/src/test/java/ru/radiationx/anilibria/screen/details/DetailRecommendsViewModelTest.kt
-- Increased wait window in helper to reduce flaky timing failures on loaded Gradle daemon.
-
-Checks:
-- ./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace -> SUCCESS
-
-Note on one transient failure:
-- One earlier run of :app-tv:testDebugUnitTest failed in DetailRecommendsViewModelTest due timing sensitivity; fixed by extending wait timeout; rerun succeeded.
-
-Safety:
-- pp-mobile/** unchanged.
-
----
-# TV contract+bugfix run
-
-Date: 2026-02-22 14:14:26 +04:00
-Branch: ix/tv-aniliberty-ui-and-contracts
-Base: develop
-
-## 0) Setup
-- git checkout develop -> FAIL (.git/index.lock existed), continued from current develop state.
-- git pull -> FAIL (SEC_E_NO_CREDENTIALS), continued locally.
-- git checkout -b fix/tv-aniliberty-ui-and-contracts -> SUCCESS.
-
-## 1) OpenAPI findings (data/aniliberty-api-v1-docs.json)
-Spec-first checkpoints:
-- Main feed candidate endpoint: GET /anime/releases/latest (summary: "Последние релизы").
-- Schedule endpoints:
-  - GET /anime/schedule/now -> schema esponses.v1.anime.schedule.now with fields 	oday, 	omorrow, yesterday.
-  - GET /anime/schedule/week -> schema esponses.v1.anime.schedule.week with data[].
-- Details endpoint: GET /anime/releases/{idOrAlias} -> schema esponses.api.v1.anime.releases.release.
-- Series/ongoing related fields in release model:
-  - pisodes_total
-  - latest_episode.ordinal
-  - is_ongoing
-  - is_in_production
-- Schedule item model models.anime.schedule.v1.releaseInSchedule:
-  - elease
-  - published_release_episode
-  - 
-ext_release_episode_number
-  - ull_season_is_released
-- Query params include/xclude are declared for schedule endpoints via
-  commons.v1.utils.includeAndExclude.parameters.*.
-- Serialization contract in spec:
-  - CSV string or repeated parameters are supported.
-  - nested fields through dot notation are supported.
-
-## 2) Spec -> Code mapping for TV symptoms
-1. Самое актуальное
-- UI: MainFeedViewModel
-- UseCase: TvContentUseCase.loadMainFeed
-- API: now primary GET /anime/releases/latest (fallback GET /anime/catalog/releases)
-- Mapper fields used: 
-ame, id, genres, latest_episode, pisodes_total
-
-2. Серии: ... in details
-- UI formatter: DetailDataConverter.resolveSeriesText()
-- Domain source: Release.series
-- Mapper: AniLibertyReleaseMapper.toLegacyReleaseOrNull()
-- API source: GET /anime/releases/{idOrAlias}
-
-3. Ожидается сегодня
-- UI: MainScheduleViewModel
-- UseCase: TvContentUseCase.loadMainSchedule
-- API chain:
-  - primary GET /anime/schedule/now (	oday)
-  - fallback GET /anime/schedule/week
-
-4. Search icon disappears on Я смотрю
-- UI host: MainPagesFragment (toolbar/search affordance)
-- Root cause: search click listener was not re-bound in setTitleView(...) after title view recreation.
-
-## 3) Schedule/week(now) query strategy (spec-aligned)
-Implemented strategy B (+ fallback):
-- for schedule endpoints, include/exclude are sent as release-nested fields (elease.*).
-- schedule/now aligned with same strategy as schedule/week.
-- bounded fallback:
-  - request with params
-  - if semantically empty payload -> retry without params.
-
-Live contract confirmation (:data:liveApiTest):
-- schedule/week no-args normalized size: 36
-- schedule/week with include/exclude normalized size: 36
-- include fields are present in payload (elease.genres / elease.latest_episode).
-
-## 4) Bug fixes (1-5)
-1) Empty Самое актуальное
-- Switched main feed source to /anime/releases/latest in TvContentUseCase.
-- Added fallback to catalog only if latest fails.
-- Disabled load-more for this row to avoid duplicate paging from non-paginated endpoint.
-- Added empty-state placeholder (no silent empty list).
-
-2) Серии: Онгоинг on details
-- Updated mapper rules using spec fields:
-  - ongoing + total + latest -> <latest> из <total>
-  - finished + total -> <total>
-  - total unknown + latest -> <latest>
-  - latest fallback from pisodes[].ordinal when latest_episode is absent.
-- Detail formatter fallback now uses Онгоинг only as last resort.
-
-3) Empty Ожидается сегодня
-- schedule/now now uses schedule-aware include/exclude serialization and fallback without params when payload is semantically empty.
-- MainSchedule row now has explicit empty-state placeholder instead of silent empty.
-
-4) Search icon disappears on Я смотрю
-- Persisted and re-applied search click listener in MainPagesFragment.setTitleView(...).
-- Ensures search affordance stays visible after title view recreation / destination switches.
-
-5) schedule/week include/exclude
-- Kept contract-aligned nested query format (elease.*) and fallback strategy.
-- Added tests for both week and 
-ow behaviors.
-
-## 5) Tests added/updated
-Snapshot/offline:
-- Added fixtures:
-  - data/src/test/resources/aniliberty/schedule_now.json
-  - data/src/test/resources/aniliberty/release_details_id1001.json
-- Updated AniLibertyContractSnapshotTest:
-  - parse schedule/now
-  - parse details fixture and map to legacy series.
-
-Behavior/unit:
-- Added AniLibertyApiScheduleNowBehaviorTest:
-  - verifies elease.* param serialization
-  - verifies fallback without params when primary is empty.
-- Expanded AniLibertyReleaseMapperTest to 5 series-format cases (ongoing/finished/unknown/fallback).
-
-Live (real internet, separate task :data:liveApiTest):
-- Expanded AniLibertyApiLiveContractTest coverage for unauth endpoints used by TV:
-  - /anime/schedule/week
-  - /anime/schedule/now
-  - /anime/releases/latest
-  - /anime/releases/{id}
-  - /anime/catalog/releases
-  - /anime/releases/recommended
-  - /app/search/releases
-  - /app/status
-  - /anime/genres
-- Enforced request budget <= 10 (current budget=10), timeout connect/read 5s/10s, retry max 1.
-
-## 6) Commands and results
-Build/tests required by task:
-- ./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :app-tv:lintDebug --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :data:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :data:liveApiTest --console=plain --stacktrace -> SUCCESS (run with local GRADLE_USER_HOME + ANDROID_USER_HOME env overrides)
-- ./gradlew.bat :app-tv:assembleRelease --console=plain --stacktrace -> SUCCESS (with same env overrides)
-
-Environment notes:
-- Direct Invoke-RestMethod/curl had SEC_E_NO_CREDENTIALS; live checks were executed via Gradle live tests.
-- First live task attempts failed due sandbox home paths; resolved by local env overrides.
-
-## 7) Changed files
-- pp-tv/src/main/java/ru/radiationx/anilibria/common/BaseCardsViewModel.kt
-- pp-tv/src/main/java/ru/radiationx/anilibria/common/DetailDataConverter.kt
-- pp-tv/src/main/java/ru/radiationx/anilibria/screen/main/MainFeedViewModel.kt
-- pp-tv/src/main/java/ru/radiationx/anilibria/screen/main/MainScheduleViewModel.kt
-- pp-tv/src/main/java/ru/radiationx/anilibria/screen/mainpages/MainPagesFragment.kt
-- data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt
-- data/src/main/java/ru/radiationx/data/entity/mapper/AniLibertyReleaseMapper.kt
-- data/src/main/java/ru/radiationx/data/interactors/tv/TvContentUseCase.kt
-- data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyContractSnapshotTest.kt
-- data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleNowBehaviorTest.kt (new)
-- data/src/test/java/ru/radiationx/data/entity/mapper/AniLibertyReleaseMapperTest.kt
-- data/src/liveTest/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiLiveContractTest.kt
-- data/src/test/resources/aniliberty/schedule_now.json (new)
-- data/src/test/resources/aniliberty/release_details_id1001.json (new)
-
-## 8) Not included
-- pp-mobile/** was not modified and not built directly by target tasks.
-- No UI robolectric test was added for toolbar affordance due current test infra focus on JVM/data contracts; fix is covered by code-path analysis and regression behavior in MainPagesFragment.
-
-============================================================
-UPDATE: 2026-02-22 (log-driven fixes round)
-============================================================
-Context:
-User reported from runtime logs:
-1) release details request still had `exclude=episodes,members,torrents` (TV does not need torrents)
-2) episodes exist in release payload, but "Обновления в избранном" still shows "Онгоинг"
-3) recommended request with include/exclude returned nested empty arrays payload `[[],[],...]`
-4) "Самое актуальное" still empty
-
-OpenAPI re-check (data/aniliberty-api-v1-docs.json):
-- /anime/releases/{idOrAlias}: supports optional include/exclude
-- /anime/releases/latest: supports optional include/exclude
-- /anime/releases/recommended: supports optional include/exclude + limit + release_id
-- include/exclude serialization: CSV string or array/repeated params are valid
-Conclusion used for this round:
-- include/exclude are optional on these endpoints; TV can call safely without them.
-- for recommended/latest/details paths in TV flows, null fields is contract-valid and avoids payload regressions seen in logs.
-
-Spec -> API -> UI -> Fix mapping:
-A) Contract: include/exclude optional for /anime/releases/recommended
-   API fact: with include/exclude user got `[[],[],...]`
-   UI problem: recommendations row degrades/empties
-   Fix:
-   - data/src/main/java/ru/radiationx/data/interactors/tv/TvContentUseCase.kt
-     loadV1Recommendations() now sends only limit + release_id (fields = null)
-
-B) Contract: include/exclude optional for /anime/releases/{idOrAlias}
-   API fact: response already contains episodes; torrents exclusion param is unnecessary for TV
-   UI/log problem: request still includes torrents exclusion
-   Fix:
-   - data/src/main/java/ru/radiationx/data/interactors/tv/TvContentUseCase.kt
-     loadDetailHeaderRemote(): fields changed to null
-   - data/src/main/java/ru/radiationx/data/repository/FavoriteRepository.kt
-     addFavorite/deleteFavorite fallback getRelease(...): fields changed to null
-
-C) Contract: favorites releases endpoint works without include/exclude; mapper needs counts/latest to build series text
-   API/UI fact: "Обновления в избранном" kept showing "Онгоинг"
-   Fix:
-   - data/src/main/java/ru/radiationx/data/repository/FavoriteRepository.kt
-     getFavorites(): getUserFavoriteReleases(..., fields = null)
-   Result expectation: mapper receives richer release payload; card series text no longer forced to status fallback
-
-D) Contract: latest endpoint valid without include/exclude
-   API/UI fact: "Самое актуальное" still empty in runtime
-   Fix:
-   - data/src/main/java/ru/radiationx/data/interactors/tv/TvContentUseCase.kt
-     loadMainFeed(): getLatestReleases(..., fields = null)
-     and fallback to catalog when latest result is empty (not only on exception)
-
-Tests added/updated in this round:
-1) New: data/src/test/java/ru/radiationx/data/interactors/tv/TvContentUseCaseContractTest.kt
-   - verifies loadMainFeed uses fields=null for latest and fields=null in catalog fallback request
-   - verifies loadV1Recommendations uses fields=null with limit+release_id
-   - verifies loadDetailHeaderRemote requests release with fields=null
-
-2) New: data/src/test/java/ru/radiationx/data/repository/FavoriteRepositoryContractTest.kt
-   - verifies favorites list request uses fields=null
-   - verifies addFavorite legacy fallback requests getRelease with fields=null
-
-3) Updated: data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiRecommendedBehaviorTest.kt
-   - added case for fields=null: only limit/release_id should be sent; include/exclude must be absent
-
-4) Stabilized app-tv tests (flaky in full suite):
-   - app-tv/src/test/java/ru/radiationx/anilibria/screen/details/DetailRecommendsViewModelTest.kt
-     changed strict exact-call assertion to ordered fallback invariant (seeded first, then global)
-   - app-tv/src/test/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionQueryExecutorTest.kt
-     increased timeout in rate-limit case to avoid scheduler jitter false negatives
-
-Commands and results (this round):
-- git status --short -> inspected
-- rg/open spec and code mapping commands -> completed
-- ./gradlew.bat :data:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace -> SUCCESS
-  note: Kotlin daemon access warnings; Gradle fallback compiler used, build still successful
-- ./gradlew.bat :app-tv:lintDebug --console=plain --stacktrace -> SUCCESS
-- ./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace ->
-  initially FAIL (missing debug.keystore)
-  then generated local keystore `.android/debug.keystore` and reran with -Duser.home=<workspace> -> SUCCESS
-- ./gradlew.bat :data:liveApiTest --console=plain --stacktrace -> SUCCESS
-  (all AniLiberty live contract tests passed)
-- ./gradlew.bat :app-tv:assembleRelease --console=plain --stacktrace -> SUCCESS
-
-Files touched in this round:
-- data/src/main/java/ru/radiationx/data/interactors/tv/TvContentUseCase.kt
-- data/src/main/java/ru/radiationx/data/repository/FavoriteRepository.kt
-- data/src/test/java/ru/radiationx/data/interactors/tv/TvContentUseCaseContractTest.kt (new)
-- data/src/test/java/ru/radiationx/data/repository/FavoriteRepositoryContractTest.kt (new)
-- data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiRecommendedBehaviorTest.kt
-- app-tv/src/test/java/ru/radiationx/anilibria/screen/details/DetailRecommendsViewModelTest.kt
-- app-tv/src/test/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionQueryExecutorTest.kt
-
-Local-only artifacts (not for commit):
-- .android/debug.keystore (generated only to satisfy debug signing in this environment)
-- logcat_dump.txt (pre-existing)
-- "tore ." (pre-existing)
-
-============================================================
-UPDATE: 2026-02-22 (latest parsing ClassCastException)
-============================================================
-Context:
-- Runtime crash from user logs on `GET /anime/releases/latest?limit=20`:
-  `ClassCastException: com.squareup.moshi.LinkedHashTreeMap cannot be cast to AniLibertyRelease`
-  in `TvContentUseCaseImpl.loadMainFeed`.
-
-Spec -> API -> UI -> Fix:
-- Contract (OpenAPI): `/anime/releases/latest` returns array of release objects.
-- API fact (logs): payload is valid JSON array of releases with `latest_episode` etc.
-- UI problem: TV main feed crashes while mapping releases.
-- Root cause in code: `AniLibertyApi.getLatestReleases()` parsed list via generic `fetchResponse(moshi)`.
-  This uses raw `List` type token at runtime and yields `List<LinkedHashTreeMap>`.
-- Fix:
+Дата: 2026-02-22
+Ветка: fix/tv-close-high-medium
+Целевой модуль: :app-tv
+Ограничение соблюдено: app-mobile/** не менялся (Gradle при конфигурации печатает warning по app-mobile, но задачи запускались только для :app-tv/:data/root detekt).
+
+Accepted risk
+- Not addressed (explicitly accepted): release signing secrets в `gradle.properties:26-29` сохранены без удаления/переноса по прямому требованию.
+
+Spec findings (OpenAPI: data/aniliberty-api-v1-docs.json)
+- `/anime/schedule/week` поддерживает `include`/`exclude` как query-параметры: `data/aniliberty-api-v1-docs.json:2903-2917`.
+- `include`/`exclude` описаны как `string` (CSV) ИЛИ `array` (множественные параметры): `data/aniliberty-api-v1-docs.json:6269-6315`.
+- Модель schedule week: `responses.v1.anime.schedule.week.data[] -> models.anime.schedule.v1.releaseInSchedule` с `published_release_episode` и `next_release_episode_number`: `data/aniliberty-api-v1-docs.json:5413-5443`.
+- Где брать счетчики/признаки релиза: `models.anime.releases.v1.release` содержит `episodes_total` и `is_ongoing`: `data/aniliberty-api-v1-docs.json:5209-5233`.
+- Где брать latest episode: `responses.api.v1.anime.releases.latest` содержит `latest_episode`: `data/aniliberty-api-v1-docs.json:4828-4830`.
+- API-разделение истории:
+  - просмотренные карточки/история просмотров: `/accounts/users/me/views/history`: `data/aniliberty-api-v1-docs.json:1445-1474`.
+  - таймкоды/прогресс просмотра: `/accounts/users/me/views/timecodes`: `data/aniliberty-api-v1-docs.json:1492-1522`.
+
+Current code path (до фиксов -> после)
+- Episodes list:
+  - было: разрозненная сортировка в VM player flow.
+  - стало: единая сортировка `sortedByEpisodeOrdinalAsc()` в `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/EpisodeOrder.kt`, используется в `PlayerViewModel`, `PlayerEpisodesViewModel`, `EndEpisodeViewModel`, `EndSeasonViewModel`.
+- Continue watching:
+  - источник: watch progress через `EpisodesCheckerHolder` + `ReleaseInteractor` в `WatchingContinueViewModel`.
+- View history (opened cards):
+  - источник: `UserViewsRepository.getViewsHistory` + fallback на `HistoryRepository` в `WatchingHistoryViewModel`.
+- Schedule/week:
+  - production путь в `AniLibertyApi.getScheduleWeek/getScheduleNow` теперь делает no-args запрос (`emptyMap()`), include/exclude отключены в production-path с явным логом.
+
+UX behavior: до/после
+- Episodes order:
+  - До: список мог показываться в обратном порядке.
+  - После: гарантирован ASC (1 -> N) через `EpisodeOrder.kt`.
+  - Тест: `app-tv/src/test/java/ru/radiationx/anilibria/screen/player/EpisodeOrderTest.kt`.
+- Continue watching vs View history:
+  - До: смешение источников, риск удаления из истории карточек при очистке watch progress.
+  - После:
+    - Continue берется из watch progress (`WatchingContinueViewModel`, `EpisodesCheckerHolder`).
+    - History берется из opened cards history (`WatchingHistoryViewModel`, `HistoryRepository`/`UserViewsRepository`).
+    - Очистка watch progress удаляет из Continue, но не удаляет из History.
+  - Тест: `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt`.
+- Schedule/week params:
+  - До: include/exclude path давал нестабильное поведение.
+  - После: production использует no-args; live-контракт контролирует регрессию “no-args non-empty, with params empty”.
+  - Тесты:
+    - snapshot/offline: `AniLibertyApiScheduleWeekBehaviorTest`, `AniLibertyApiScheduleNowBehaviorTest`.
+    - live: `data/src/liveTest/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiLiveContractTest.kt`.
+
+High/Medium closure
+| Priority | Item | Status | Артефакты | Тесты | Проверка |
+|---|---|---|---|---|---|
+| High | Убрать runBlocking из UnauthorizedInterceptor/AniLibertyAuthInterceptor/AppCookieJar | Done | `data/.../UnauthorizedInterceptor.kt`, `data/.../AniLibertyAuthInterceptor.kt`, `data/.../AppCookieJar.kt` | `AuthInterceptorsTest`, `AppCookieJarTest` | `:data:testDebugUnitTest` SUCCESS |
+| High | Убрать runBlocking из ApiConfig init | Done | `data/.../ApiConfig.kt` (async init через `ApplicationCoroutineScope`) | `ApiConfigTest` | `:data:testDebugUnitTest` SUCCESS |
+| High | Убрать reduce() на пустых коллекциях | Done | `data/.../ApiConfig.kt`, `data/.../ConfiguringInteractor.kt` | `ApiConfigTest` | `:data:testDebugUnitTest` SUCCESS |
+| High | UI зависит напрямую от data (Main/DetailHeader/Update/SuggestionsProvider) | Done | новые usecase: `TvSessionUseCase`, `TvUpdateUseCase`, `TvSuggestionsUseCase`, `TvDetailHeaderUseCase`; интеграция в `MainViewModel`, `DetailHeaderViewModel`, `UpdateViewModel`, `SuggestionsContentProvider`; DI в `DataModule.kt` | `MainTvViewModelsTest`, `TvContentUseCaseContractTest` | `:app-tv:testDebugUnitTest` SUCCESS |
+| High | Data API принимает UI-type MutableStateFlow (RemoteFileRepository.loadFile) | Done | `data/.../RemoteFileRepository.kt` -> `Flow<RemoteFileLoadEvent>`; `app-tv/.../UpdateViewModel.kt` адаптирован | `RemoteFileRepositoryTest` | `:data:testDebugUnitTest` SUCCESS |
+| High | seekState эмитится, но не наблюдается | Done | `app-tv/.../PlayerFragment.kt` подписка на `seekState.filterNotNull()` и `playerGlue.seekTo` | косвенно через `MainTvViewModelsTest` + ручной кодовый аудит | `:app-tv:testDebugUnitTest` SUCCESS |
+| High | Plaintext SharedPreferences для токенов/куки | Done | `AuthTokenStorage.kt`, `CookiesStorage.kt`, `SensitivePreferenceMigrator.kt`, `DataModule.kt`, `Qualifiers.kt` | `SensitivePreferenceMigratorTest` | `:data:testDebugUnitTest` SUCCESS |
+| High | EventFlow MutableStateFlow<Event?> -> SharedFlow | Done | `shared-ktx/.../EventFlow.kt` | `shared-ktx/.../EventFlowTest.kt` | `:shared-ktx:test` SUCCESS |
+| High | subscribeTo без lifecycle gating | Done | `shared-android-ktx/.../LiveData.kt` (`repeatOnLifecycle(STARTED)`) | компиляция + unit suite | `:app-tv:testDebugUnitTest` SUCCESS |
+| High | SuggestionsContentProvider: убрать runBlocking в query path | Done | `app-tv/.../SuggestionsContentProvider.kt` (bounded wait через `CountDownLatch` + timeout + background scope) | `SuggestionQueryExecutorTest` | `:app-tv:testDebugUnitTest` SUCCESS |
+| High | detekt FAIL на :data (4 issue) | Done | фиксы в `AniLibertyApi.kt`/парсинг schedule week + остальной код | detekt suite | `detekt` SUCCESS |
+| Medium | Расширить detekt scope (`shared-android-ktx`, `shared-ktx`, `envoy`, `taiwa`, `searchbar`) | Done | root `build.gradle` (`detektTargets`) + baselines: `shared-android-ktx/detekt-baseline.xml`, `shared-ktx/detekt-baseline.xml`, `envoy/detekt-baseline.xml`, `taiwa/detekt-baseline.xml`, `searchbar/detekt-baseline.xml` | detekt suite | `detekt` SUCCESS |
+| Medium | allowBackup=true в app-tv -> release-only disable | Done | `app-tv/src/release/AndroidManifest.xml` (`allowBackup=false`, manifest merge override), релизный merge исправлен | assemble release | `:app-tv:assembleRelease` SUCCESS |
+| Medium | alpha dependency toolsCore | Done | runtime dependency удалена из `app-tv/build.gradle`; alias остался только в catalog `gradle/libs.versions.toml` и не подключается в :app-tv | dependency compile/runtime | `:app-tv:assembleDebug` SUCCESS |
+| Medium | Lint debt: не увеличить warning и ввести policy/baseline | Partial | `app-tv/build.gradle` (`lint.baseline`), `app-tv/lint-baseline.xml`; high-impact NewApi в затронутом provider закрыт | lint suite | `:app-tv:lintDebug` SUCCESS (0 errors, 0 warnings; 85 filtered by baseline) |
+| Medium | baseline policy “не растет” | Partial | policy зафиксирован процессно: `./gradlew detekt` + `detektBaseline` только осознанно; явной CI-проверки diff baseline в коде не добавлено | n/a | documented in this report |
+
+Snapshot/Offline tests (выполнено)
+- `app-tv/src/test/java/ru/radiationx/anilibria/screen/player/EpisodeOrderTest.kt`.
+- `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt`.
+- `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleNowBehaviorTest.kt`.
+- `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleWeekBehaviorTest.kt`.
+- `data/src/test/java/ru/radiationx/data/downloader/RemoteFileRepositoryTest.kt`.
+- `data/src/test/java/ru/radiationx/data/datasource/remote/address/ApiConfigTest.kt`.
+- `data/src/test/java/ru/radiationx/data/system/AppCookieJarTest.kt`.
+- `data/src/test/java/ru/radiationx/data/datasource/storage/SensitivePreferenceMigratorTest.kt`.
+- `shared-ktx/src/test/java/ru/radiationx/shared/ktx/EventFlowTest.kt`.
+
+Live API validation results
+- Task: `./gradlew.bat :data:liveApiTest --console=plain --stacktrace` -> SUCCESS.
+- Report: `data/build/test-results/liveApiTest/TEST-ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApiLiveContractTest.xml`.
+- Suite: 8 tests, 0 failures, 0 errors.
+- Ключевая проверка schedule/week:
+  - `schedule/week no-args ... normalizedSize=36`
+  - `schedule/week with include/exclude ... normalizedSize=36`
+  - FAIL-условие (`no-args > 0 && with-params == 0`) не сработало.
+- Ограничения live теста соблюдены в коде: budget <= 10 запросов, timeout 5/10s, retry max 1 (`AniLibertyApiLiveContractTest.kt`).
+
+Команды и результаты
+- `git branch --show-current` -> `fix/tv-close-high-medium`.
+- `./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace` -> SUCCESS.
+- `./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace` -> FAIL (падал `WatchingRowsSeparationTest`, condition timeout).
+- Исправление: `WatchingRowsSeparationTest.kt` (ожидание завершенной загрузки, без `LoadingCard`).
+- Повтор `./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS.
+- `./gradlew.bat :app-tv:lintDebug --console=plain --stacktrace` -> SUCCESS.
+- `./gradlew.bat :data:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS.
+- `./gradlew.bat detekt --console=plain --stacktrace` -> SUCCESS.
+- `./gradlew.bat :data:liveApiTest --console=plain --stacktrace` -> SUCCESS.
+- `./gradlew.bat :app-tv:assembleRelease --console=plain --stacktrace` -> FAIL (manifest merge conflict по `allowBackup`).
+- Исправление: `app-tv/src/release/AndroidManifest.xml` (`tools:replace` для `allowBackup/fullBackupContent`).
+- Повтор `./gradlew.bat :app-tv:assembleRelease --console=plain --stacktrace` -> SUCCESS.
+
+Environment/runtime notes (неблокирующие)
+- Во всех Gradle запусках есть warning по metrics init для `C:\Users\CodexSandboxOffline\.android` из configure project `:app-mobile`.
+- Периодически Kotlin daemon недоступен (`AccessDeniedException ... kotlin-daemon-client-tsmarker...`), Gradle использует fallback compile; задачи завершаются SUCCESS.
+
+Список измененных файлов (основные)
+- app-tv:
+  - `app-tv/build.gradle`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/EpisodeOrder.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/PlayerViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/PlayerFragment.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/episodes/PlayerEpisodesViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/end_episode/EndEpisodeViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/end_season/EndSeasonViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingHistoryViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/main/MainViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/details/DetailHeaderViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/update/UpdateViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionsContentProvider.kt`
+  - `app-tv/src/release/AndroidManifest.xml`
+  - `app-tv/src/test/java/ru/radiationx/anilibria/screen/player/EpisodeOrderTest.kt`
+  - `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt`
+  - `app-tv/lint-baseline.xml`
+- data:
   - `data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt`
-    `getLatestReleases()` switched to typed list parser:
-    `json.fetchListOrNestedList<AniLibertyRelease>(moshi)`.
+  - `data/src/main/java/ru/radiationx/data/datasource/remote/address/ApiConfig.kt`
+  - `data/src/main/java/ru/radiationx/data/interactors/ConfiguringInteractor.kt`
+  - `data/src/main/java/ru/radiationx/data/datasource/remote/interceptors/AniLibertyAuthInterceptor.kt`
+  - `data/src/main/java/ru/radiationx/data/datasource/remote/interceptors/UnauthorizedInterceptor.kt`
+  - `data/src/main/java/ru/radiationx/data/system/AppCookieJar.kt`
+  - `data/src/main/java/ru/radiationx/data/downloader/RemoteFileRepository.kt`
+  - `data/src/main/java/ru/radiationx/data/datasource/storage/AuthTokenStorage.kt`
+  - `data/src/main/java/ru/radiationx/data/datasource/storage/CookiesStorage.kt`
+  - `data/src/main/java/ru/radiationx/data/datasource/storage/SensitivePreferenceMigrator.kt`
+  - `data/src/main/java/ru/radiationx/data/Qualifiers.kt`
+  - `data/src/main/java/ru/radiationx/data/di/DataModule.kt`
+  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvSessionUseCase.kt`
+  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvUpdateUseCase.kt`
+  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvSuggestionsUseCase.kt`
+  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvDetailHeaderUseCase.kt`
+  - `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleNowBehaviorTest.kt`
+  - `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleWeekBehaviorTest.kt`
+  - `data/src/liveTest/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiLiveContractTest.kt`
+  - `data/src/test/java/ru/radiationx/data/datasource/remote/address/ApiConfigTest.kt`
+  - `data/src/test/java/ru/radiationx/data/datasource/storage/SensitivePreferenceMigratorTest.kt`
+  - `data/src/test/java/ru/radiationx/data/downloader/RemoteFileRepositoryTest.kt`
+  - `data/src/test/java/ru/radiationx/data/system/AppCookieJarTest.kt`
+  - `data/build.gradle`
+  - `data/detekt-baseline.xml`
+- shared/build:
+  - `shared-ktx/src/main/java/ru/radiationx/shared/ktx/EventFlow.kt`
+  - `shared-ktx/src/test/java/ru/radiationx/shared/ktx/EventFlowTest.kt`
+  - `shared-ktx/build.gradle`
+  - `shared-android-ktx/src/main/java/ru/radiationx/shared/ktx/android/LiveData.kt`
+  - `build.gradle` (root detekt targets)
+  - `shared-android-ktx/detekt-baseline.xml`
+  - `shared-ktx/detekt-baseline.xml`
+  - `envoy/detekt-baseline.xml`
+  - `taiwa/detekt-baseline.xml`
+  - `searchbar/detekt-baseline.xml`
+- прочее:
+  - `gradle/libs.versions.toml`
+  - `gradle.properties` (secrets intentionally kept per accepted risk)
 
-Tests added:
-- New regression test:
-  - `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiLatestParsingTest.kt`
-  - Verifies `/releases/latest` payload parses into typed `AniLibertyRelease` items
-    (accessing `id` and `latestEpisode.ordinal` would crash before fix).
-
-Commands and results:
-1) `./gradlew.bat :data:testDebugUnitTest --tests ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApiLatestParsingTest`
-   - FAIL (wrapper lock in sandbox home: `C:\Users\CodexSandboxOffline\.gradle\...zip.lck`)
-2) `./gradlew.bat :app-tv:testDebugUnitTest`
-   - FAIL (first run from old environment state; unrelated prior flaky output seen once)
-3) Retried with local env + proper flag escaping:
-   - `ANDROID_USER_HOME=<workspace>/.android-user`
-   - `GRADLE_USER_HOME=<workspace>/.gradle-user`
-   - `./gradlew.bat --% -Duser.home=C:\Users\User\Desktop\anilibria-app-local :data:testDebugUnitTest --tests ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApiLatestParsingTest`
-   - SUCCESS
-4) `./gradlew.bat --% -Duser.home=C:\Users\User\Desktop\anilibria-app-local :data:testDebugUnitTest`
-   - SUCCESS
-5) `./gradlew.bat --% -Duser.home=C:\Users\User\Desktop\anilibria-app-local :app-tv:testDebugUnitTest`
-   - SUCCESS
-6) `./gradlew.bat --% -Duser.home=C:\Users\User\Desktop\anilibria-app-local :app-tv:assembleDebug :app-tv:lintDebug`
-   - SUCCESS
-
-Files touched in this update:
-- data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt
-- data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiLatestParsingTest.kt (new)
+Not included (реально не делалось)
+- Профилирование на устройстве (startup/frame-time/memory/network profiler).
+- Instrumentation/UI tests на девайсе.
+- Любые изменения в `app-mobile/**`.
+- Удаление/перенос release signing secrets (explicitly accepted risk).

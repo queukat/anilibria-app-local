@@ -29,40 +29,23 @@ class AniLibertyApiScheduleWeekBehaviorTest {
     )
 
     @Test
-    fun getScheduleWeek_usesReleasePrefixedIncludeExcludeAndFallsBackToNoArgs() = runBlocking {
+    fun getScheduleWeek_usesNoArgsProductionRequest_evenWhenFieldsProvided() = runBlocking {
         val client = FakeScheduleClient(
-            withArgsPayload = "[[],[]]",
             noArgsPayload = """[{"next_release_episode_number":1}]""",
         )
         val api = AniLibertyApi(client = client, moshi = Moshi.Builder().build())
 
         val response = api.getScheduleWeek(fields)
 
-        assertEquals(2, client.calls.size)
+        assertEquals(1, client.calls.size)
         val firstArgs = client.calls.first()
-        val include = firstArgs["include"].orEmpty().split(",").toSet()
-        val exclude = firstArgs["exclude"].orEmpty().split(",").toSet()
-        assertEquals(
-            setOf("release.genres", "release.latest_episode"),
-            include,
-        )
-        assertEquals(
-            setOf(
-                "release.episodes",
-                "release.members",
-                "release.torrents",
-                "release.description",
-                "release.notification",
-            ),
-            exclude,
-        )
-        assertTrue("Fallback response should provide non-empty normalized list", response.data.orEmpty().isNotEmpty())
+        assertTrue(firstArgs.isEmpty())
+        assertFalse(response.data.orEmpty().isEmpty())
     }
 
     @Test
-    fun getScheduleWeek_doesNotFallbackWhenPrimaryResponseIsNotEmpty() = runBlocking {
+    fun getScheduleWeek_doesNotRetry_whenNoArgsResponseIsNotEmpty() = runBlocking {
         val client = FakeScheduleClient(
-            withArgsPayload = """[{"next_release_episode_number":2}]""",
             noArgsPayload = """[{"next_release_episode_number":1}]""",
         )
         val api = AniLibertyApi(client = client, moshi = Moshi.Builder().build())
@@ -75,18 +58,13 @@ class AniLibertyApiScheduleWeekBehaviorTest {
 }
 
 private class FakeScheduleClient(
-    private val withArgsPayload: String,
     private val noArgsPayload: String,
 ) : IClient {
     val calls = mutableListOf<Map<String, String>>()
 
     override suspend fun get(url: String, args: Map<String, String>): String {
         calls += args.toMap()
-        return if (url.endsWith("/anime/schedule/week") && args.isNotEmpty()) {
-            withArgsPayload
-        } else {
-            noArgsPayload
-        }
+        return noArgsPayload
     }
 
     override suspend fun post(url: String, args: Map<String, String>): String = error("Not used")

@@ -2,6 +2,14 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>ForbiddenImport:AniLibertyApiFranchisesParsingTest.kt$import kotlinx.coroutines.runBlocking</ID>
+    <ID>ForbiddenImport:AniLibertyApiLatestParsingTest.kt$import kotlinx.coroutines.runBlocking</ID>
+    <ID>ForbiddenImport:AniLibertyApiRecommendedBehaviorTest.kt$import kotlinx.coroutines.runBlocking</ID>
+    <ID>ForbiddenImport:AniLibertyApiScheduleNowBehaviorTest.kt$import kotlinx.coroutines.runBlocking</ID>
+    <ID>ForbiddenImport:AniLibertyApiScheduleWeekBehaviorTest.kt$import kotlinx.coroutines.runBlocking</ID>
+    <ID>ForbiddenImport:FavoriteRepositoryContractTest.kt$import kotlinx.coroutines.runBlocking</ID>
+    <ID>ForbiddenImport:RemoteFileRepositoryTest.kt$import kotlinx.coroutines.runBlocking</ID>
+    <ID>ForbiddenImport:TvContentUseCaseContractTest.kt$import kotlinx.coroutines.runBlocking</ID>
     <ID>LoopWithTooManyJumpStatements:UserViewsMigration.kt$UserViewsMigration$for</ID>
     <ID>LoopWithTooManyJumpStatements:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$while</ID>
     <ID>MagicNumber:AnalyticsExtensions.kt$1000f</ID>
@@ -40,6 +48,7 @@
     <ID>MagicNumber:PreferencesStorage.kt$PreferencesStorage$1.75f</ID>
     <ID>MagicNumber:QualityInfo.kt$QualityInfo$3</ID>
     <ID>MagicNumber:RemoteFileRepository.kt$100</ID>
+    <ID>MagicNumber:RemoteFileRepository.kt$RemoteFileRepository$100</ID>
     <ID>MagicNumber:ScheduleRepository.kt$ScheduleRepository$1000L</ID>
     <ID>MagicNumber:TvContentUseCase.kt$TvContentUseCaseImpl$3</ID>
     <ID>MagicNumber:TvContentUseCase.kt$TvContentUseCaseImpl$4</ID>
@@ -60,6 +69,9 @@
     <ID>MagicNumber:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$1000.0</ID>
     <ID>MagicNumber:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$16</ID>
     <ID>MagicNumber:UserViewsSyncInteractor.kt$UserViewsSyncInteractor$3</ID>
+    <ID>MaxLineLength:AniLibertyApi.kt$AniLibertyApi$"AniLiberty releases/recommended: include/exclude returned empty, fallback without fields returned %d items."</ID>
+    <ID>MaxLineLength:AniLibertyApi.kt$AniLibertyApi$Timber.w("AniLiberty schedule/now: include/exclude disabled in production request due unstable payload.")</ID>
+    <ID>MaxLineLength:AniLibertyApi.kt$AniLibertyApi$Timber.w("AniLiberty schedule/week: include/exclude disabled in production request due unstable payload.")</ID>
     <ID>MaxLineLength:AniLibertyApi.kt$AniLibertyApi$override suspend</ID>
     <ID>MaxLineLength:AniLibertyApi.kt$AniLibertyApi$suspend</ID>
     <ID>MaxLineLength:AniLibertyClient.kt$AniLibertyAccountsClient$suspend</ID>
@@ -69,8 +81,10 @@
     <ID>MaxLineLength:AniLibertyClient.kt$AniLibertyAccountsClient$suspend fun getUserFavoriteReleasesFiltered(request: AniLibertyFavoritesFilterRequest): PaginatedResponse&lt;AniLibertyRelease&gt;</ID>
     <ID>MaxLineLength:AniLibertyClient.kt$AniLibertyAccountsClient$suspend fun getUserFavoritesReferenceSorting(): List&lt;ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReferenceValueDescription&gt;</ID>
     <ID>MaxLineLength:AniLibertyClient.kt$AniLibertyAccountsClient$suspend fun getUserFavoritesReferenceTypes(): List&lt;ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReferenceValueDescription&gt;</ID>
+    <ID>MaxLineLength:AniLibertyContractSnapshotTest.kt$AniLibertyContractSnapshotTest$assertTrue(parsed.data!!.isEmpty() || parsed.data!!.all { it.release != null || it.nextReleaseEpisodeNumber != null })</ID>
     <ID>MaxLineLength:AniLibertyTupleAdapterFactory.kt$AniLibertyReleaseEpisodeTimecodeJsonAdapter$else -&gt; throw JsonDataException("AniLibertyReleaseEpisodeTimecode: expected array or object, was ${reader.peek()}")</ID>
     <ID>MaxLineLength:AniLibertyTupleAdapterFactory.kt$AniLibertyReleaseEpisodeTimecodeJsonAdapter$val safeEpisodeId = episodeId ?: throw JsonDataException("AniLibertyReleaseEpisodeTimecode: missing release_episode_id")</ID>
+    <ID>MaxLineLength:AuthInterceptorsTest.kt$AuthInterceptorsTest$waitUntil { tokenHolder.deleteCalls == 1 &amp;&amp; userHolder.deleteCalls == 1 &amp;&amp; cookieHolder.removeAuthCookieCalls == 1 }</ID>
     <ID>MaxLineLength:Client.kt$Client.Companion$"mobileApp Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.170 Safari/537.36 OPR/53.0.2907.68"</ID>
     <ID>MaxLineLength:ConfiguringInteractor.kt$ConfiguringInteractor$status = "Доступнные прокси: ${proxies.size}; будет использован ${bestProxy.first.tag} адреса ${addressByProxy.tag}"</ID>
     <ID>MaxLineLength:PagesParser.kt$PagesParser$"(&lt;div[^&gt;]*?class=\"[^\"]*?news-body[^\"]*?\"[^&gt;]*?&gt;[\\s\\S]*?&lt;\\/div&gt;)[^&lt;]*?&lt;div[^&gt;]*?(?:id=\"vk_comments|class=\"[^\"]*?side[^\"]*?\")"</ID>
@@ -102,21 +116,18 @@
     <ID>NewLineAtEndOfFile:AnalyticsTransport.kt$ru.radiationx.data.analytics.features.model.AnalyticsTransport.kt</ID>
     <ID>NewLineAtEndOfFile:AnalyticsVideoScale.kt$ru.radiationx.data.analytics.features.model.AnalyticsVideoScale.kt</ID>
     <ID>NewLineAtEndOfFile:ApiAddress.kt$ru.radiationx.data.datasource.remote.address.ApiAddress.kt</ID>
-    <ID>NewLineAtEndOfFile:ApiConfig.kt$ru.radiationx.data.datasource.remote.address.ApiConfig.kt</ID>
     <ID>NewLineAtEndOfFile:ApiConfigAddressResponse.kt$ru.radiationx.data.entity.response.config.ApiConfigAddressResponse.kt</ID>
     <ID>NewLineAtEndOfFile:ApiConfigChanger.kt$ru.radiationx.data.datasource.remote.address.ApiConfigChanger.kt</ID>
     <ID>NewLineAtEndOfFile:ApiConfigProxyResponse.kt$ru.radiationx.data.entity.response.config.ApiConfigProxyResponse.kt</ID>
     <ID>NewLineAtEndOfFile:ApiConfigStorage.kt$ru.radiationx.data.datasource.storage.ApiConfigStorage.kt</ID>
     <ID>NewLineAtEndOfFile:ApiNetworkClient.kt$ru.radiationx.data.di.providers.ApiNetworkClient.kt</ID>
     <ID>NewLineAtEndOfFile:ApiProxy.kt$ru.radiationx.data.datasource.remote.address.ApiProxy.kt</ID>
-    <ID>NewLineAtEndOfFile:AppCookieJar.kt$ru.radiationx.data.system.AppCookieJar.kt</ID>
     <ID>NewLineAtEndOfFile:AuthDeviceAnalytics.kt$ru.radiationx.data.analytics.features.AuthDeviceAnalytics.kt</ID>
     <ID>NewLineAtEndOfFile:AuthHolder.kt$ru.radiationx.data.datasource.holders.AuthHolder.kt</ID>
     <ID>NewLineAtEndOfFile:AuthMainAnalytics.kt$ru.radiationx.data.analytics.features.AuthMainAnalytics.kt</ID>
     <ID>NewLineAtEndOfFile:AuthSocialAnalytics.kt$ru.radiationx.data.analytics.features.AuthSocialAnalytics.kt</ID>
     <ID>NewLineAtEndOfFile:AuthState.kt$ru.radiationx.data.entity.common.AuthState.kt</ID>
     <ID>NewLineAtEndOfFile:AuthStorage.kt$ru.radiationx.data.datasource.storage.AuthStorage.kt</ID>
-    <ID>NewLineAtEndOfFile:AuthTokenStorage.kt$ru.radiationx.data.datasource.storage.AuthTokenStorage.kt</ID>
     <ID>NewLineAtEndOfFile:AuthVkAnalytics.kt$ru.radiationx.data.analytics.features.AuthVkAnalytics.kt</ID>
     <ID>NewLineAtEndOfFile:BlockedInfo.kt$ru.radiationx.data.entity.domain.release.BlockedInfo.kt</ID>
     <ID>NewLineAtEndOfFile:BlockedInfoResponse.kt$ru.radiationx.data.entity.response.release.BlockedInfoResponse.kt</ID>
@@ -131,10 +142,8 @@
     <ID>NewLineAtEndOfFile:ConfigurationApi.kt$ru.radiationx.data.datasource.remote.api.ConfigurationApi.kt</ID>
     <ID>NewLineAtEndOfFile:ConfigurationRepository.kt$ru.radiationx.data.repository.ConfigurationRepository.kt</ID>
     <ID>NewLineAtEndOfFile:ConfiguringAnalytics.kt$ru.radiationx.data.analytics.features.ConfiguringAnalytics.kt</ID>
-    <ID>NewLineAtEndOfFile:ConfiguringInteractor.kt$ru.radiationx.data.interactors.ConfiguringInteractor.kt</ID>
     <ID>NewLineAtEndOfFile:Constants.kt$ru.radiationx.data.entity.domain.other.Constants.kt</ID>
     <ID>NewLineAtEndOfFile:CookieHolder.kt$ru.radiationx.data.datasource.holders.CookieHolder.kt</ID>
-    <ID>NewLineAtEndOfFile:CookiesStorage.kt$ru.radiationx.data.datasource.storage.CookiesStorage.kt</ID>
     <ID>NewLineAtEndOfFile:DonationApi.kt$ru.radiationx.data.datasource.remote.api.DonationApi.kt</ID>
     <ID>NewLineAtEndOfFile:DonationCardAnalytics.kt$ru.radiationx.data.analytics.features.DonationCardAnalytics.kt</ID>
     <ID>NewLineAtEndOfFile:DonationCardsResponse.kt$ru.radiationx.data.entity.response.donation.DonationCardsResponse.kt</ID>
@@ -235,7 +244,6 @@
     <ID>NewLineAtEndOfFile:ProfileAttribute.kt$ru.radiationx.data.analytics.profile.ProfileAttribute.kt</ID>
     <ID>NewLineAtEndOfFile:ProfileConstants.kt$ru.radiationx.data.analytics.profile.ProfileConstants.kt</ID>
     <ID>NewLineAtEndOfFile:ProfileItem.kt$ru.radiationx.data.entity.domain.other.ProfileItem.kt</ID>
-    <ID>NewLineAtEndOfFile:Qualifiers.kt$ru.radiationx.data.Qualifiers.kt</ID>
     <ID>NewLineAtEndOfFile:QualityInfo.kt$ru.radiationx.data.entity.domain.release.QualityInfo.kt</ID>
     <ID>NewLineAtEndOfFile:RandomRelease.kt$ru.radiationx.data.entity.domain.release.RandomRelease.kt</ID>
     <ID>NewLineAtEndOfFile:RandomReleaseResponse.kt$ru.radiationx.data.entity.response.release.RandomReleaseResponse.kt</ID>
@@ -252,7 +260,6 @@
     <ID>NewLineAtEndOfFile:ReleaseUpdateMiddleware.kt$ru.radiationx.data.interactors.ReleaseUpdateMiddleware.kt</ID>
     <ID>NewLineAtEndOfFile:ReleaseUpdateStorage.kt$ru.radiationx.data.datasource.storage.ReleaseUpdateStorage.kt</ID>
     <ID>NewLineAtEndOfFile:RemoteFileHolder.kt$ru.radiationx.data.downloader.RemoteFileHolder.kt</ID>
-    <ID>NewLineAtEndOfFile:RemoteFileRepository.kt$ru.radiationx.data.downloader.RemoteFileRepository.kt</ID>
     <ID>NewLineAtEndOfFile:RemoteFileSaveData.kt$ru.radiationx.data.downloader.RemoteFileSaveData.kt</ID>
     <ID>NewLineAtEndOfFile:RemoteFileStorage.kt$ru.radiationx.data.downloader.RemoteFileStorage.kt</ID>
     <ID>NewLineAtEndOfFile:RutubeEpisode.kt$ru.radiationx.data.entity.domain.release.RutubeEpisode.kt</ID>
@@ -324,6 +331,7 @@
     <ID>ReturnCount:AniLibertyReleaseMapper.kt$private fun AniLibertyEpisode.toLegacySourceEpisodeOrNull( releaseId: ReleaseId, apiUtils: ApiUtils, ): SourceEpisode?</ID>
     <ID>ReturnCount:AniLibertyReleaseMapper.kt$private fun AniLibertyEpisodeSkip?.toLegacySkipOrNull(): PlayerSkips.Skip?</ID>
     <ID>ReturnCount:AniLibertyReleaseMapper.kt$private fun parseIsoToEpochSeconds(raw: String?): Int</ID>
+    <ID>ReturnCount:AniLibertyScheduleWeekParser.kt$internal fun parseScheduleWeekResponseJson( json: String, moshi: Moshi, onUnsupportedPayload: ((Throwable?) -&gt; Unit)? = null, ): AniLibertyScheduleWeekResponse</ID>
     <ID>ReturnCount:AuthMapper.kt$private fun String?.parseAniLibertyDateMillisOrNull(): Long?</ID>
     <ID>ReturnCount:EpisodeMapper.kt$private fun List&lt;Int&gt;.toSkipDomain(): PlayerSkips.Skip?</ID>
     <ID>ReturnCount:ReleaseRepository.kt$ReleaseRepository$private fun AniLibertyFranchiseDetails.toLegacyFranchiseOrNull(): Franchise?</ID>

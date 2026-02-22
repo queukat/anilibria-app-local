@@ -1,20 +1,22 @@
 package ru.radiationx.shared.ktx
 
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.MutableSharedFlow
 
 class EventFlow<T> : Flow<T> {
 
-    private val flow = MutableStateFlow<Event<T>?>(null)
+    private val flow = MutableSharedFlow<T>(
+        replay = 0,
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
 
     fun observe(): Flow<T> = flow
-        .filterNotNull()
-        .mapEvent()
 
     fun set(value: T) {
-        flow.value = Event(value)
+        flow.tryEmit(value)
     }
 
     fun emit(value: T) {

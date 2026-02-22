@@ -5,7 +5,6 @@ import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
-import ru.radiationx.data.datasource.holders.EpisodesCheckerHolder
 import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.repository.HistoryRepository
@@ -15,7 +14,6 @@ import javax.inject.Inject
 class WatchingHistoryViewModel @Inject constructor(
     private val converter: CardsDataConverter,
     private val historyRepository: HistoryRepository,
-    private val episodesCheckerHolder: EpisodesCheckerHolder,
     private val userViewsRepository: UserViewsRepository,
     private val cardRouter: LibriaCardRouter,
 ) : BaseCardsViewModel() {
@@ -96,18 +94,7 @@ class WatchingHistoryViewModel @Inject constructor(
     }
 
     private suspend fun loadLocalHistory(): List<LibriaCard> {
-        val releaseIds = episodesCheckerHolder
-            .getEpisodes()
-            .sortedByDescending { it.lastAccessRaw }
-            .map { it.id.releaseId }
-            .distinct()
-
-        if (releaseIds.isEmpty()) return emptyList()
-
-        val releases = historyRepository
-            .getReleases()
-            .items
-            .filter { releaseIds.contains(it.id) }
+        val releases = historyRepository.getReleases().items
 
         return releases.map { converter.toCard(it) }
     }

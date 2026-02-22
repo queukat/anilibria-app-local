@@ -2,7 +2,9 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>ForbiddenImport:DetailRecommendsViewModelTest.kt$import kotlinx.coroutines.runBlocking</ID>
     <ID>ForbiddenImport:MainTvViewModelsTest.kt$import kotlinx.coroutines.runBlocking</ID>
+    <ID>ForbiddenImport:WatchingRowsSeparationTest.kt$import kotlinx.coroutines.runBlocking</ID>
     <ID>LoopWithTooManyJumpStatements:WatchingFavoritesViewModel.kt$WatchingFavoritesViewModel$while</ID>
     <ID>MagicNumber:AniLibertyViewHistoryCardMapper.kt$AniLibertyViewHistoryCardMapper$60</ID>
     <ID>MagicNumber:BaseCardsViewModel.kt$BaseCardsViewModel$10</ID>
@@ -64,18 +66,14 @@
     <ID>NewLineAtEndOfFile:ConfiguringViewModel.kt$ru.radiationx.anilibria.screen.config.ConfiguringViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:CustomListRowPresenter.kt$ru.radiationx.anilibria.ui.presenter.cust.CustomListRowPresenter.kt</ID>
     <ID>NewLineAtEndOfFile:CustomListRowViewHolder.kt$ru.radiationx.anilibria.ui.presenter.cust.CustomListRowViewHolder.kt</ID>
-    <ID>NewLineAtEndOfFile:DetailDataConverter.kt$ru.radiationx.anilibria.common.DetailDataConverter.kt</ID>
     <ID>NewLineAtEndOfFile:DetailOtherGuidedFragment.kt$ru.radiationx.anilibria.screen.details.other.DetailOtherGuidedFragment.kt</ID>
     <ID>NewLineAtEndOfFile:DialogExampleFragment.kt$ru.radiationx.anilibria.screen.DialogExampleFragment.kt</ID>
     <ID>NewLineAtEndOfFile:EndEpisodeGuidedFragment.kt$ru.radiationx.anilibria.screen.player.end_episode.EndEpisodeGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:EndEpisodeViewModel.kt$ru.radiationx.anilibria.screen.player.end_episode.EndEpisodeViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:EndSeasonGuidedFragment.kt$ru.radiationx.anilibria.screen.player.end_season.EndSeasonGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:EndSeasonViewModel.kt$ru.radiationx.anilibria.screen.player.end_season.EndSeasonViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:EpisodesAction.kt$ru.radiationx.anilibria.screen.player.EpisodesAction.kt</ID>
     <ID>NewLineAtEndOfFile:ExternalProgressManager.kt$ru.radiationx.anilibria.ui.widget.manager.ExternalProgressManager.kt</ID>
     <ID>NewLineAtEndOfFile:ExternalTextManager.kt$ru.radiationx.anilibria.ui.widget.manager.ExternalTextManager.kt</ID>
     <ID>NewLineAtEndOfFile:ExternalViewManager.kt$ru.radiationx.anilibria.ui.widget.manager.ExternalViewManager.kt</ID>
-    <ID>NewLineAtEndOfFile:GradientBackgroundManager.kt$ru.radiationx.anilibria.common.GradientBackgroundManager.kt</ID>
     <ID>NewLineAtEndOfFile:GradientBackgroundManager.kt$ru.radiationx.anilibria.extension.GradientBackgroundManager.kt</ID>
     <ID>NewLineAtEndOfFile:GridFragment.kt$ru.radiationx.anilibria.common.fragment.GridFragment.kt</ID>
     <ID>NewLineAtEndOfFile:GuidedAppScreen.kt$ru.radiationx.anilibria.common.fragment.GuidedAppScreen.kt</ID>
@@ -96,10 +94,8 @@
     <ID>NewLineAtEndOfFile:LoadingCard.kt$ru.radiationx.anilibria.common.LoadingCard.kt</ID>
     <ID>NewLineAtEndOfFile:LoadingCardPresenter.kt$ru.radiationx.anilibria.ui.presenter.LoadingCardPresenter.kt</ID>
     <ID>NewLineAtEndOfFile:MainFragment.kt$ru.radiationx.anilibria.screen.main.MainFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:MainPagesFragment.kt$ru.radiationx.anilibria.screen.mainpages.MainPagesFragment.kt</ID>
     <ID>NewLineAtEndOfFile:MainPagesFragmentFactory.kt$ru.radiationx.anilibria.screen.mainpages.MainPagesFragmentFactory.kt</ID>
     <ID>NewLineAtEndOfFile:MainPagesViewModel.kt$ru.radiationx.anilibria.screen.mainpages.MainPagesViewModel.kt</ID>
-    <ID>NewLineAtEndOfFile:MainViewModel.kt$ru.radiationx.anilibria.screen.main.MainViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:MainYouTubeViewModel.kt$ru.radiationx.anilibria.screen.main.MainYouTubeViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:MotionLayoutListener.kt$ru.radiationx.anilibria.common.MotionLayoutListener.kt</ID>
     <ID>NewLineAtEndOfFile:NavigationModule.kt$ru.radiationx.anilibria.di.NavigationModule.kt</ID>
@@ -142,7 +138,6 @@
     <ID>NewLineAtEndOfFile:UpdateModule.kt$ru.radiationx.anilibria.di.UpdateModule.kt</ID>
     <ID>NewLineAtEndOfFile:UpdateSourceGuidedFragment.kt$ru.radiationx.anilibria.screen.update.source.UpdateSourceGuidedFragment.kt</ID>
     <ID>NewLineAtEndOfFile:UpdateSourceViewModel.kt$ru.radiationx.anilibria.screen.update.source.UpdateSourceViewModel.kt</ID>
-    <ID>NewLineAtEndOfFile:UpdateViewModel.kt$ru.radiationx.anilibria.screen.update.UpdateViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:Video.kt$ru.radiationx.anilibria.screen.player.Video.kt</ID>
     <ID>NewLineAtEndOfFile:WatchingFragment.kt$ru.radiationx.anilibria.screen.watching.WatchingFragment.kt</ID>
     <ID>NewLineAtEndOfFile:YouTubeViewModel.kt$ru.radiationx.anilibria.screen.youtube.YouTubeViewModel.kt</ID>

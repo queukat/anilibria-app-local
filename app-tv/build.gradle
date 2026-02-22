@@ -29,6 +29,7 @@ android {
     namespace "ru.radiationx.anilibria"
 
     compileSdk app_compile_sdk_version
+    def androidUserHome = System.getenv("ANDROID_USER_HOME") ?: "${System.getProperty("user.home")}/.android"
 
     def releaseStoreFile = resolveSigningProperty(project, "RELEASE_STORE_FILE")
     def releaseStorePassword = resolveSigningProperty(project, "RELEASE_STORE_PASSWORD")
@@ -53,7 +54,7 @@ android {
 
     signingConfigs {
         debug {
-            storeFile file("${System.getProperty("user.home")}/.android/debug.keystore")
+            storeFile file("${androidUserHome}/debug.keystore")
             storePassword "android"
             keyAlias "androiddebugkey"
             keyPassword "android"
@@ -89,6 +90,10 @@ android {
             outputFileName = "${appName}_v${versionName}.apk"
         }
     }
+
+    lint {
+        baseline = file("lint-baseline.xml")
+    }
 }
 
 kotlin {
@@ -117,7 +122,6 @@ dependencies {
     implementation libs.androidx.constraintlayout
 
     implementation libs.cicerone
-    implementation libs.androidx.tools.core
 
     compileOnly libs.toothpick
     ksp libs.toothpick.compiler

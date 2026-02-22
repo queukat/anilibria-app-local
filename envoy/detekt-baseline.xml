@@ -1,0 +1,20 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>NewLineAtEndOfFile:AsyncEnvoyAdapter.kt$envoy.recycler.AsyncEnvoyAdapter.kt</ID>
+    <ID>NewLineAtEndOfFile:DiffItem.kt$envoy.DiffItem.kt</ID>
+    <ID>NewLineAtEndOfFile:Dsl.kt$envoy.dsl.Dsl.kt</ID>
+    <ID>NewLineAtEndOfFile:DslEnvoyPresenter.kt$envoy.dsl.impl.DslEnvoyPresenter.kt</ID>
+    <ID>NewLineAtEndOfFile:DslEnvoyPresenterScope.kt$envoy.dsl.impl.DslEnvoyPresenterScope.kt</ID>
+    <ID>NewLineAtEndOfFile:DslViewBindingEnvoy.kt$envoy.dsl.impl.DslViewBindingEnvoy.kt</ID>
+    <ID>NewLineAtEndOfFile:DslViewEnvoy.kt$envoy.dsl.impl.DslViewEnvoy.kt</ID>
+    <ID>NewLineAtEndOfFile:Envoy.kt$envoy.Envoy.kt</ID>
+    <ID>NewLineAtEndOfFile:EnvoyAdapter.kt$envoy.recycler.EnvoyAdapter.kt</ID>
+    <ID>NewLineAtEndOfFile:EnvoyExt.kt$envoy.ext.EnvoyExt.kt</ID>
+    <ID>NewLineAtEndOfFile:EnvoyManager.kt$envoy.EnvoyManager.kt</ID>
+    <ID>NewLineAtEndOfFile:EnvoyPresenter.kt$envoy.EnvoyPresenter.kt</ID>
+    <ID>NewLineAtEndOfFile:ViewBindingEnvoy.kt$envoy.ViewBindingEnvoy.kt</ID>
+    <ID>NewLineAtEndOfFile:ViewEnvoy.kt$envoy.ViewEnvoy.kt</ID>
+  </CurrentIssues>
+</SmellBaseline>

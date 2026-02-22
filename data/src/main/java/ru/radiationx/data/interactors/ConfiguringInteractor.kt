@@ -176,8 +176,7 @@ class ConfiguringInteractor @Inject constructor(
     private fun checkProxies() {
         updateState(State.CHECK_PROXIES)
         val timeCounter = TimeCounter()
-        val proxies =
-            apiConfig.getAddresses().map { it.proxies }.reduce { acc, list -> acc.plus(list) }
+        val proxies = apiConfig.getAddresses().flatMap { it.proxies }
 
 
         scope.launch {

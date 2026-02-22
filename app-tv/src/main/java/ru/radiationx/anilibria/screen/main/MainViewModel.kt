@@ -6,11 +6,11 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ru.radiationx.anilibria.common.BaseRowsViewModel
 import ru.radiationx.data.entity.common.AuthState
-import ru.radiationx.data.repository.AuthRepository
+import ru.radiationx.data.interactors.tv.TvSessionUseCase
 import javax.inject.Inject
 
 class MainViewModel @Inject constructor(
-    authRepository: AuthRepository,
+    tvSessionUseCase: TvSessionUseCase,
 ) : BaseRowsViewModel() {
 
     companion object {
@@ -27,7 +27,7 @@ class MainViewModel @Inject constructor(
         mutableSetOf(FEED_ROW_ID, SCHEDULE_ROW_ID, YOUTUBE_ROW_ID)
 
     init {
-        authRepository
+        tvSessionUseCase
             .observeAuthState()
             .distinctUntilChanged()
             .onEach {

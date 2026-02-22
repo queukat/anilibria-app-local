@@ -6,12 +6,15 @@ package ru.radiationx.data.di
 import android.content.Context
 import android.content.SharedPreferences
 import android.preference.PreferenceManager
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
 import okhttp3.ConnectionSpec
 import ru.radiationx.data.ApiClient
 import ru.radiationx.data.DataPreferences
 import ru.radiationx.data.MainClient
+import ru.radiationx.data.SecureDataPreferences
 import ru.radiationx.data.R
 import ru.radiationx.data.SimpleClient
 import ru.radiationx.data.ads.AdsConfigApi
@@ -122,6 +125,14 @@ import ru.radiationx.data.interactors.UserViewsSyncInteractor
 import ru.radiationx.data.interactors.ReleaseUpdateMiddleware
 import ru.radiationx.data.interactors.tv.TvContentUseCase
 import ru.radiationx.data.interactors.tv.TvContentUseCaseImpl
+import ru.radiationx.data.interactors.tv.TvDetailHeaderUseCase
+import ru.radiationx.data.interactors.tv.TvDetailHeaderUseCaseImpl
+import ru.radiationx.data.interactors.tv.TvSessionUseCase
+import ru.radiationx.data.interactors.tv.TvSessionUseCaseImpl
+import ru.radiationx.data.interactors.tv.TvSuggestionsUseCase
+import ru.radiationx.data.interactors.tv.TvSuggestionsUseCaseImpl
+import ru.radiationx.data.interactors.tv.TvUpdateUseCase
+import ru.radiationx.data.interactors.tv.TvUpdateUseCaseImpl
 import ru.radiationx.data.migration.MigrationDataSource
 import ru.radiationx.data.migration.MigrationDataSourceImpl
 import ru.radiationx.data.migration.MigrationExecutor
@@ -150,6 +161,7 @@ import ru.radiationx.data.system.AppCookieJar
 import ru.radiationx.quill.QuillModule
 import javax.inject.Inject
 import javax.inject.Provider
+import timber.log.Timber
 
 class DataModule(context: Context) : QuillModule() {
 
@@ -182,6 +194,7 @@ class DataModule(context: Context) : QuillModule() {
 
         singleProvider<SharedPreferences, PreferencesProvider>()
         singleProvider<SharedPreferences, DataPreferencesProvider>(DataPreferences::class)
+        singleProvider<SharedPreferences, SecureDataPreferencesProvider>(SecureDataPreferences::class)
 
         singleImpl<MigrationDataSource, MigrationDataSourceImpl>()
 
@@ -275,6 +288,10 @@ class DataModule(context: Context) : QuillModule() {
         single<UserViewsRepository>()
         single<UserViewsSyncInteractor>()
         singleImpl<TvContentUseCase, TvContentUseCaseImpl>()
+        singleImpl<TvSessionUseCase, TvSessionUseCaseImpl>()
+        singleImpl<TvUpdateUseCase, TvUpdateUseCaseImpl>()
+        singleImpl<TvSuggestionsUseCase, TvSuggestionsUseCaseImpl>()
+        singleImpl<TvDetailHeaderUseCase, TvDetailHeaderUseCaseImpl>()
 
         single<AnalyticsInstallerProfileDataSource>()
         single<AnalyticsMainProfileDataSource>()
@@ -340,6 +357,29 @@ class DataModule(context: Context) : QuillModule() {
                 "data_storage",
                 Context.MODE_PRIVATE
             ) ?: preferencesProvider.get()
+        }
+    }
+
+    internal class SecureDataPreferencesProvider @Inject constructor(
+        private val context: Context,
+        @DataPreferences private val fallbackPreferences: SharedPreferences,
+    ) : Provider<SharedPreferences> {
+
+        override fun get(): SharedPreferences {
+            return runCatching {
+                val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+
+                EncryptedSharedPreferences.create(
+                    "data_storage_secure",
+                    masterKeyAlias,
+                    context,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+                )
+            }.getOrElse { error ->
+                Timber.w(error, "Falling back to plaintext prefs because encrypted prefs init failed.")
+                fallbackPreferences
+            }
         }
     }
 }

@@ -1,10 +1,14 @@
 package ru.radiationx.data.datasource.remote.interceptors
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
 import okhttp3.Interceptor
 import okhttp3.Response
 import ru.radiationx.data.datasource.holders.AuthTokenHolder
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import javax.inject.Inject
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Adds `Authorization: Bearer <token>` for AniLiberty API requests.
@@ -13,12 +17,26 @@ import javax.inject.Inject
  */
 class AniLibertyAuthInterceptor @Inject constructor(
     private val tokenHolder: AuthTokenHolder,
+    private val applicationScope: ApplicationCoroutineScope,
 ) : Interceptor {
 
     companion object {
         private const val HEADER_AUTHORIZATION = "Authorization"
         private const val BEARER_PREFIX = "Bearer "
         private const val HOST = "aniliberty.top"
+    }
+
+    private val tokenSnapshot = AtomicReference<String?>(null)
+
+    init {
+        applicationScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            tokenSnapshot.set(tokenHolder.getToken())
+        }
+        applicationScope.launch {
+            tokenHolder.observeToken().collectLatest { token ->
+                tokenSnapshot.set(token)
+            }
+        }
     }
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -35,7 +53,7 @@ class AniLibertyAuthInterceptor @Inject constructor(
             return chain.proceed(request)
         }
 
-        val token = runBlocking { tokenHolder.getToken() }
+        val token = tokenSnapshot.get()
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
             ?: return chain.proceed(request)

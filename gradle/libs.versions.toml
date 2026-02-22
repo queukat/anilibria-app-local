@@ -36,6 +36,7 @@ moshi = "1.15.2"
 okhttp = "4.12.0"
 androidx-palette = "1.0.0"
 androidx-preference = "1.2.1"
+androidx-security-crypto = "1.1.0-alpha06"
 androidx-recyclerview = "1.4.0"
 androidx-swiperefreshlayout = "1.1.0"
 timber = "5.0.1"
@@ -105,6 +106,7 @@ moshi-adapters = { module = "com.squareup.moshi:moshi-adapters", version.ref = "
 moshi-compiler = { module = "com.squareup.moshi:moshi-kotlin-codegen", version.ref = "moshi" }
 androidx-palette = { module = "androidx.palette:palette-ktx", version.ref = "androidx-palette" }
 androidx-preference = { module = "androidx.preference:preference-ktx", version.ref = "androidx-preference" }
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "androidx-security-crypto" }
 androidx-recyclerview = { module = "androidx.recyclerview:recyclerview", version.ref = "androidx-recyclerview" }
 androidx-swiperefreshlayout = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "androidx-swiperefreshlayout" }
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }

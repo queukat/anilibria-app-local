@@ -16,6 +16,7 @@ import ru.radiationx.data.datasource.holders.AuthTokenHolder
 import ru.radiationx.data.datasource.holders.CookieHolder
 import ru.radiationx.data.datasource.holders.UserHolder
 import ru.radiationx.data.entity.domain.other.ProfileItem
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import java.util.concurrent.TimeUnit
 
 class AuthInterceptorsTest {
@@ -23,7 +24,7 @@ class AuthInterceptorsTest {
     @Test
     fun aniLibertyAuthInterceptor_addsAuthorizationHeader_forAniLibertyHost() {
         val tokenHolder = FakeAuthTokenHolder("token-123")
-        val interceptor = AniLibertyAuthInterceptor(tokenHolder)
+        val interceptor = AniLibertyAuthInterceptor(tokenHolder, ApplicationCoroutineScope())
         val chain = FakeChain("https://aniliberty.top/api/v1")
 
         interceptor.intercept(chain)
@@ -34,7 +35,7 @@ class AuthInterceptorsTest {
     @Test
     fun aniLibertyAuthInterceptor_doesNotTouchNonAniLibertyHost() {
         val tokenHolder = FakeAuthTokenHolder("token-123")
-        val interceptor = AniLibertyAuthInterceptor(tokenHolder)
+        val interceptor = AniLibertyAuthInterceptor(tokenHolder, ApplicationCoroutineScope())
         val chain = FakeChain("https://example.org/api")
 
         interceptor.intercept(chain)
@@ -51,10 +52,12 @@ class AuthInterceptorsTest {
             userHolder = userHolder,
             cookieHolder = cookieHolder,
             authTokenHolder = tokenHolder,
+            applicationScope = ApplicationCoroutineScope(),
         )
         val chain = FakeChain("https://api.aniliberty.top/v1", responseCode = 401)
 
         interceptor.intercept(chain)
+        waitUntil { tokenHolder.deleteCalls == 1 && userHolder.deleteCalls == 1 && cookieHolder.removeAuthCookieCalls == 1 }
 
         assertEquals(1, cookieHolder.removeAuthCookieCalls)
         assertEquals(1, tokenHolder.deleteCalls)
@@ -70,15 +73,24 @@ class AuthInterceptorsTest {
             userHolder = userHolder,
             cookieHolder = cookieHolder,
             authTokenHolder = tokenHolder,
+            applicationScope = ApplicationCoroutineScope(),
         )
         val chain = FakeChain("https://legacy.example.org/api", responseCode = 401)
 
         interceptor.intercept(chain)
+        waitUntil { cookieHolder.removeAuthCookieCalls == 1 }
 
         assertEquals(1, cookieHolder.removeAuthCookieCalls)
         assertEquals(0, tokenHolder.deleteCalls)
         assertEquals(0, userHolder.deleteCalls)
         assertTrue(tokenHolder.currentToken == "token-123")
+    }
+
+    private fun waitUntil(predicate: () -> Boolean) {
+        repeat(50) {
+            if (predicate()) return
+            Thread.sleep(10)
+        }
     }
 }
 

@@ -14,6 +14,7 @@ import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.PlayerScreen
 import ru.radiationx.anilibria.screen.player.PlayerController
 import ru.radiationx.anilibria.screen.player.PlayerExtra
+import ru.radiationx.anilibria.screen.player.sortedByEpisodeOrdinalAsc
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.EpisodeId
@@ -95,7 +96,7 @@ class PlayerEpisodesViewModel @Inject constructor(
         var id = 0L
         return map { release ->
             val groupId = id++
-            val actions = release.episodes.asReversed().map { episode ->
+            val actions = release.episodes.sortedByEpisodeOrdinalAsc().map { episode ->
                 val access = accesses[episode.id]
                 val description = if (access != null && access.isViewed && access.seek > 0) {
                     "Остановлена на ${Date(access.seek).asTimeSecString()}"

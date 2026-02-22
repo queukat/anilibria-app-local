@@ -1,0 +1,14 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>NewLineAtEndOfFile:ChangeElevation.kt$searchbar.internal.animations.ChangeElevation.kt</ID>
+    <ID>NewLineAtEndOfFile:ChangeOutlineRadius.kt$searchbar.internal.animations.ChangeOutlineRadius.kt</ID>
+    <ID>NewLineAtEndOfFile:MarginsType.kt$searchbar.internal.MarginsType.kt</ID>
+    <ID>NewLineAtEndOfFile:NavigationIcon.kt$searchbar.NavigationIcon.kt</ID>
+    <ID>NewLineAtEndOfFile:SearchView.kt$searchbar.widget.SearchView.kt</ID>
+    <ID>NewLineAtEndOfFile:SuperTransition.kt$searchbar.internal.animations.SuperTransition.kt</ID>
+    <ID>ReturnCount:ChangeElevation.kt$ChangeElevation$override fun createAnimator( sceneRoot: ViewGroup, startValues: TransitionValues?, endValues: TransitionValues?, ): Animator?</ID>
+    <ID>ReturnCount:ChangeOutlineRadius.kt$ChangeOutlineRadius$override fun createAnimator( sceneRoot: ViewGroup, startValues: TransitionValues?, endValues: TransitionValues?, ): Animator?</ID>
+  </CurrentIssues>
+</SmellBaseline>

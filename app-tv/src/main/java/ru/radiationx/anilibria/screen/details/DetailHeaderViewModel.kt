@@ -22,24 +22,19 @@ import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.PlayerEpisodesGuidedScreen
 import ru.radiationx.anilibria.screen.PlayerScreen
 import ru.radiationx.anilibria.screen.details.description.DetailDescriptionGuidedFragment
-import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.interactors.tv.DetailHeaderRemoteData
 import ru.radiationx.data.interactors.tv.TvContentUseCase
-import ru.radiationx.data.repository.AuthRepository
-import ru.radiationx.data.repository.FavoriteRepository
-import ru.radiationx.data.repository.UserViewsRepository
+import ru.radiationx.data.interactors.tv.TvDetailHeaderUseCase
 import timber.log.Timber
 import javax.inject.Inject
 
 class DetailHeaderViewModel @Inject constructor(
     argExtra: DetailExtra,
     private val releaseInteractor: ReleaseInteractor,
-    private val favoriteRepository: FavoriteRepository,
-    private val authRepository: AuthRepository,
-    private val userViewsRepository: UserViewsRepository,
+    private val tvDetailHeaderUseCase: TvDetailHeaderUseCase,
     private val converter: DetailDataConverter,
     private val router: Router,
     private val guidedRouter: GuidedRouter,
@@ -145,7 +140,7 @@ class DetailHeaderViewModel @Inject constructor(
 
         // Best-effort loading of "is in my favorites" via token (AniLiberty).
         favoriteStateJob = viewModelScope.launch {
-            if (authRepository.getAuthState() != AuthState.AUTH) return@launch
+            if (!tvDetailHeaderUseCase.isAuthorized()) return@launch
 
             val isFavorite: Boolean? = runCatching {
                 tvContentUseCase.loadDetailFavoriteState(releaseId)
@@ -174,9 +169,9 @@ class DetailHeaderViewModel @Inject constructor(
             }
 
             // 2) remote progress (AniLiberty) — fallback ("continue on another device")
-            if (authRepository.getAuthState() == AuthState.AUTH) {
+            if (tvDetailHeaderUseCase.isAuthorized()) {
                 val remoteEpisodeId =
-                    runCatching { userViewsRepository.findLatestNotWatchedEpisodeIdForRelease(releaseId) }
+                    runCatching { tvDetailHeaderUseCase.findLatestNotWatchedEpisodeIdForRelease(releaseId) }
                         .getOrNull()
                 if (remoteEpisodeId != null) {
                     router.navigateTo(PlayerScreen(releaseId, remoteEpisodeId))
@@ -207,8 +202,8 @@ class DetailHeaderViewModel @Inject constructor(
 
             // 2) remote seed (AniLiberty) fallback
             val seedEpisodeId = localEpisodeId ?: run {
-                if (authRepository.getAuthState() == AuthState.AUTH) {
-                    runCatching { userViewsRepository.findLatestEpisodeIdForRelease(releaseId) }.getOrNull()
+                if (tvDetailHeaderUseCase.isAuthorized()) {
+                    runCatching { tvDetailHeaderUseCase.findLatestEpisodeIdForRelease(releaseId) }.getOrNull()
                 } else {
                     null
                 }
@@ -223,7 +218,7 @@ class DetailHeaderViewModel @Inject constructor(
 
         favoriteJob?.cancel()
         favoriteJob = viewModelScope.launch {
-            if (authRepository.getAuthState() != AuthState.AUTH) {
+            if (!tvDetailHeaderUseCase.isAuthorized()) {
                 guidedRouter.open(AuthGuidedScreen())
                 return@launch
             }
@@ -237,9 +232,9 @@ class DetailHeaderViewModel @Inject constructor(
 
                 // 1) server mutate (token-first repository)
                 if (wasFavorite) {
-                    favoriteRepository.deleteFavorite(releaseId)
+                    tvDetailHeaderUseCase.deleteFavorite(releaseId)
                 } else {
-                    favoriteRepository.addFavorite(releaseId)
+                    tvDetailHeaderUseCase.addFavorite(releaseId)
                 }
 
                 // Важно: обновляем override-состояние, чтобы combine не "откатил" текст кнопки.

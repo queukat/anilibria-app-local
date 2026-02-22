@@ -6,19 +6,26 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import ru.radiationx.data.DataPreferences
+import ru.radiationx.data.SecureDataPreferences
 import ru.radiationx.data.datasource.SuspendMutableStateFlow
 import ru.radiationx.data.datasource.holders.CookieHolder
 import ru.radiationx.data.datasource.holders.CookieHolder.Companion.cookieNames
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 /**
  * Created by radiationx on 30.12.17.
  */
 class CookiesStorage @Inject constructor(
-    private val sharedPreferences: SharedPreferences,
+    @DataPreferences private val plaintextPreferences: SharedPreferences,
+    @SecureDataPreferences private val encryptedPreferences: SharedPreferences,
 ) : CookieHolder {
 
+    private val migrationDone = AtomicBoolean(false)
+
     private val cookiesState = SuspendMutableStateFlow {
+        migrateIfNeeded()
         loadCookies()
     }
 
@@ -31,8 +38,9 @@ class CookiesStorage @Inject constructor(
     }
 
     override suspend fun putCookie(url: String, cookie: Cookie) {
+        migrateIfNeeded()
         withContext(Dispatchers.IO) {
-            sharedPreferences
+            encryptedPreferences
                 .edit()
                 .putString("cookie_${cookie.name}", convertCookie(url, cookie))
                 .apply()
@@ -41,8 +49,9 @@ class CookiesStorage @Inject constructor(
     }
 
     override suspend fun removeCookie(name: String) {
+        migrateIfNeeded()
         withContext(Dispatchers.IO) {
-            sharedPreferences
+            encryptedPreferences
                 .edit()
                 .remove("cookie_$name")
                 .apply()
@@ -59,15 +68,42 @@ class CookiesStorage @Inject constructor(
     }
 
     private suspend fun loadCookies(): Map<String, Cookie> {
+        migrateIfNeeded()
         return withContext(Dispatchers.IO) {
             val result = mutableMapOf<String, Cookie>()
             cookieNames.forEach { s ->
-                sharedPreferences
+                encryptedPreferences
                     .getString("cookie_$s", null)
                     ?.let { parseCookie(it) }
                     ?.let { cookie -> result[s] = cookie }
             }
             result
+        }
+    }
+
+    private fun migrateIfNeeded() {
+        if (!migrationDone.compareAndSet(false, true)) {
+            return
+        }
+        val cookieKeys = cookieNames.map { "cookie_$it" }
+        SensitivePreferenceMigrator.migrateKeys(
+            keys = cookieKeys,
+            source = preferencesStore(plaintextPreferences),
+            target = preferencesStore(encryptedPreferences),
+        )
+    }
+
+    private fun preferencesStore(sharedPreferences: SharedPreferences): StringKeyValueStore {
+        return object : StringKeyValueStore {
+            override fun getString(key: String): String? = sharedPreferences.getString(key, null)
+
+            override fun putString(key: String, value: String) {
+                sharedPreferences.edit().putString(key, value).apply()
+            }
+
+            override fun remove(key: String) {
+                sharedPreferences.edit().remove(key).apply()
+            }
         }
     }
 
