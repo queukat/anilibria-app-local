@@ -31,6 +31,7 @@ class MainPagesFragment : BrowseSupportFragment() {
 
     private val viewModel by viewModel<MainPagesViewModel>()
 
+    private var mOnSearchClickedListener: View.OnClickListener? = null
     private var mOnAlertClickedListener: View.OnClickListener? = null
     private var mOnOtherClickedListener: View.OnClickListener? = null
 
@@ -44,9 +45,9 @@ class MainPagesFragment : BrowseSupportFragment() {
     private fun setupUi() {
         headersState = HEADERS_ENABLED
         isHeadersTransitionOnBackEnabled = true
-        setOnSearchClickedListener {
+        setSearchClickListener(View.OnClickListener {
             viewModel.onSearchClick()
-        }
+        })
 
         setAlertClickListener {
             viewModel.onAppUpdateClick()
@@ -155,11 +156,17 @@ class MainPagesFragment : BrowseSupportFragment() {
     override fun setTitleView(titleView: View?) {
         super.setTitleView(titleView)
 
+        setOnSearchClickedListener(mOnSearchClickedListener)
         (titleViewAdapter as? BrowseTitleView.Adapter?)?.setOnAlertClickedListener(mOnAlertClickedListener)
         (titleViewAdapter as? BrowseTitleView.Adapter?)?.setOnOtherClickedListener(mOnOtherClickedListener)
 
         // важно: переустановить текст на новом titleView
         (titleViewAdapter as? BrowseTitleView.Adapter?)?.setOther("Каталог")
+    }
+
+    private fun setSearchClickListener(listener: View.OnClickListener?) {
+        mOnSearchClickedListener = listener
+        setOnSearchClickedListener(listener)
     }
 
 
