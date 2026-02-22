@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class AniLibertyApiLiveContractTest {
 
     companion object {
-        private val REQUEST_BUDGET = AtomicInteger(8)
+        private val REQUEST_BUDGET = AtomicInteger(10)
     }
 
     private val moshi: Moshi = AniLibertyMoshi.configure(Moshi.Builder().build())
@@ -86,16 +86,15 @@ class AniLibertyApiLiveContractTest {
         val latest = moshi.adapter<List<AniLibertyRelease>>(listType).fromJson(latestJson).orEmpty()
 
         assertNotNull(latest)
-        if (latest.isNotEmpty()) {
-            val firstId = latest.first().id?.value
-            assertNotNull(firstId)
-            assertTrue(!latest.first().name?.main.isNullOrBlank() || !latest.first().name?.english.isNullOrBlank())
+        assertTrue("latest endpoint should usually return at least one release", latest.isNotEmpty())
+        val firstId = latest.first().id?.value
+        assertNotNull(firstId)
+        assertTrue(!latest.first().name?.main.isNullOrBlank() || !latest.first().name?.english.isNullOrBlank())
 
-            val detailsJson = executeJsonGet(path = "/anime/releases/$firstId")
-            val details = moshi.adapter(AniLibertyRelease::class.java).fromJson(detailsJson)
-            assertNotNull(details)
-            assertNotNull(details?.id)
-        }
+        val detailsJson = executeJsonGet(path = "/anime/releases/$firstId")
+        val details = moshi.adapter(AniLibertyRelease::class.java).fromJson(detailsJson)
+        assertNotNull(details)
+        assertNotNull(details?.id)
     }
 
     @Test
@@ -116,6 +115,48 @@ class AniLibertyApiLiveContractTest {
 
         assertNotNull(parsed)
         assertNotNull(parsed?.data)
+    }
+
+    @Test
+    fun appStatus_liveContract_parsesStatus() {
+        val json = executeJsonGet(path = "/app/status")
+        val parsed = moshi.adapter(AniLibertyAppStatus::class.java).fromJson(json)
+
+        assertNotNull(parsed)
+        assertTrue(parsed?.isAlive != null)
+    }
+
+    @Test
+    fun recommended_liveContract_parsesReleaseList() {
+        val json = executeJsonGet(
+            path = "/anime/releases/recommended",
+            query = mapOf("limit" to "3"),
+        )
+        val listType = Types.newParameterizedType(List::class.java, AniLibertyRelease::class.java)
+        val parsed = moshi.adapter<List<AniLibertyRelease>>(listType).fromJson(json).orEmpty()
+
+        assertNotNull(parsed)
+    }
+
+    @Test
+    fun appSearchReleases_liveContract_parsesSearchResponse() {
+        val json = executeJsonGet(
+            path = "/app/search/releases",
+            query = mapOf("query" to "naruto"),
+        )
+        val listType = Types.newParameterizedType(List::class.java, AniLibertyRelease::class.java)
+        val parsed = moshi.adapter<List<AniLibertyRelease>>(listType).fromJson(json).orEmpty()
+
+        assertNotNull(parsed)
+    }
+
+    @Test
+    fun genres_liveContract_parsesGenresList() {
+        val json = executeJsonGet(path = "/anime/genres")
+        val listType = Types.newParameterizedType(List::class.java, AniLibertyGenre::class.java)
+        val parsed = moshi.adapter<List<AniLibertyGenre>>(listType).fromJson(json).orEmpty()
+
+        assertNotNull(parsed)
     }
 
     private fun executeJsonGet(path: String, query: Map<String, String> = emptyMap()): String {

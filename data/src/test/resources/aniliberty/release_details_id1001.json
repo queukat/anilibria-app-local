@@ -1,0 +1,40 @@
+{
+  "id": 1001,
+  "alias": "demo-release",
+  "name": {
+    "main": "Демо релиз",
+    "english": "Demo Release",
+    "alternative": null
+  },
+  "poster": {
+    "preview": "/storage/demo/preview.jpg",
+    "optimized": {
+      "preview": "/storage/demo/optimized_preview.webp",
+      "thumbnail": "/storage/demo/optimized_thumbnail.webp"
+    }
+  },
+  "is_ongoing": true,
+  "is_in_production": true,
+  "episodes_total": 12,
+  "latest_episode": {
+    "id": "ep-3",
+    "ordinal": 3
+  },
+  "episodes": [
+    {
+      "id": "ep-1",
+      "ordinal": 1,
+      "hls_720": "https://example.com/ep-1.m3u8"
+    },
+    {
+      "id": "ep-2",
+      "ordinal": 2,
+      "hls_720": "https://example.com/ep-2.m3u8"
+    },
+    {
+      "id": "ep-3",
+      "ordinal": 3,
+      "hls_720": "https://example.com/ep-3.m3u8"
+    }
+  ]
+}

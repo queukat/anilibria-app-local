@@ -2,11 +2,15 @@ package ru.radiationx.data.datasource.remote.aniliberty
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import io.mockk.every
+import io.mockk.mockk
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import ru.radiationx.data.entity.mapper.toLegacyReleaseOrNull
 import ru.radiationx.data.datasource.remote.aniliberty.moshi.AniLibertyMoshi
+import ru.radiationx.data.system.ApiUtils
 
 class AniLibertyContractSnapshotTest {
 
@@ -95,6 +99,37 @@ class AniLibertyContractSnapshotTest {
         val first = parsed.first()
         assertNotNull(first.id)
         assertTrue(!first.name?.main.isNullOrBlank() || !first.name?.english.isNullOrBlank())
+    }
+
+    @Test
+    fun scheduleNow_fixture_parsesTodayTomorrowYesterdayObject() {
+        val json = loadResource("aniliberty/schedule_now.json")
+
+        val parsed = moshi.adapter(AniLibertyScheduleNowResponse::class.java).fromJson(json)
+
+        assertNotNull(parsed)
+        assertNotNull(parsed?.today)
+        assertNotNull(parsed?.tomorrow)
+        assertNotNull(parsed?.yesterday)
+        assertTrue(parsed!!.today!!.isNotEmpty())
+    }
+
+    @Test
+    fun releaseDetails_fixture_parsesAndMapsToLegacySeries() {
+        val json = loadResource("aniliberty/release_details_id1001.json")
+
+        val parsed = moshi.adapter(AniLibertyRelease::class.java).fromJson(json)
+
+        assertNotNull(parsed)
+        assertNotNull(parsed?.id)
+        assertNotNull(parsed?.episodesTotal)
+        assertNotNull(parsed?.latestEpisode)
+
+        val apiUtils = mockk<ApiUtils>()
+        every { apiUtils.escapeHtml(any()) } answers { firstArg<String?>() }
+        val mapped = parsed!!.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        assertNotNull(mapped)
+        assertTrue(!mapped!!.series.isNullOrBlank())
     }
 
     private fun loadResource(path: String): String {

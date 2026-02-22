@@ -1,0 +1,30 @@
+{
+  "today": [
+    {
+      "release": {
+        "id": 1001,
+        "alias": "demo-release",
+        "name": {
+          "main": "Демо релиз",
+          "english": "Demo Release",
+          "alternative": null
+        },
+        "is_ongoing": true,
+        "is_in_production": true,
+        "episodes_total": 12,
+        "publish_day": {
+          "value": 1,
+          "description": "Понедельник"
+        }
+      },
+      "full_season_is_released": false,
+      "published_release_episode": {
+        "id": "ep-3",
+        "ordinal": 3
+      },
+      "next_release_episode_number": 4
+    }
+  ],
+  "tomorrow": [],
+  "yesterday": []
+}
