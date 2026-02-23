@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
+import ru.radiationx.anilibria.screen.auth.mapAuthErrorMessage
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.data.entity.domain.auth.OtpInfo
 import ru.radiationx.data.entity.domain.auth.OtpNotAcceptedException
@@ -85,7 +86,7 @@ class AuthOtpViewModel @Inject constructor(
             is OtpNotAcceptedException -> ButtonState.COMPLETE
             else -> ButtonState.REPEAT
         }
-        updateState(buttonState, false, error.message.orEmpty())
+        updateState(buttonState, false, mapAuthErrorMessage(error))
     }
 
     private fun startTimer(otpInfo: OtpInfo) {

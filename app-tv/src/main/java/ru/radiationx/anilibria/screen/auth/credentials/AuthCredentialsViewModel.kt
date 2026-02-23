@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
+import ru.radiationx.anilibria.screen.auth.mapAuthErrorMessage
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.shared.ktx.coRunCatching
@@ -33,7 +34,7 @@ class AuthCredentialsViewModel @Inject constructor(
                 _error.value = ""
             }.onFailure {
                 Timber.e(it)
-                _error.value = it.message.toString()
+                _error.value = mapAuthErrorMessage(it)
             }
             _progressState.value = false
         }

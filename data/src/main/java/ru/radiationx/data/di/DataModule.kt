@@ -9,9 +9,9 @@ import android.preference.PreferenceManager
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import com.squareup.moshi.Moshi
-import kotlinx.coroutines.Dispatchers
 import okhttp3.ConnectionSpec
 import ru.radiationx.data.ApiClient
+import ru.radiationx.data.CriticalSecureDataPreferences
 import ru.radiationx.data.DataPreferences
 import ru.radiationx.data.MainClient
 import ru.radiationx.data.SecureDataPreferences
@@ -50,6 +50,12 @@ import ru.radiationx.data.analytics.features.YoutubeAnalytics
 import ru.radiationx.data.analytics.features.YoutubeVideosAnalytics
 import ru.radiationx.data.analytics.profile.AnalyticsInstallerProfileDataSource
 import ru.radiationx.data.analytics.profile.AnalyticsMainProfileDataSource
+import ru.radiationx.data.contracts.tv.TvPlayerFacade
+import ru.radiationx.data.contracts.tv.TvProfileFacade
+import ru.radiationx.data.contracts.tv.TvWatchingFacade
+import ru.radiationx.data.contracts.tv.impl.TvPlayerFacadeImpl
+import ru.radiationx.data.contracts.tv.impl.TvProfileFacadeImpl
+import ru.radiationx.data.contracts.tv.impl.TvWatchingFacadeImpl
 import ru.radiationx.data.datasource.holders.AuthHolder
 import ru.radiationx.data.datasource.holders.AuthTokenHolder
 import ru.radiationx.data.datasource.holders.CookieHolder
@@ -168,8 +174,47 @@ import timber.log.Timber
 class DataModule(context: Context) : QuillModule() {
 
     init {
+        installStorageModule()
+        installNetworkModule(context)
+        installRepositoriesModule()
+        installTvUseCasesModule()
+        installAnalyticsModule()
+    }
 
+    private fun installStorageModule() {
+        singleProvider<SharedPreferences, PreferencesProvider>()
+        singleProvider<SharedPreferences, DataPreferencesProvider>(DataPreferences::class)
+        singleProvider<SharedPreferences, SecureDataPreferencesProvider>(SecureDataPreferences::class)
+        singleProvider<SharedPreferences, CriticalSecureDataPreferencesProvider>(CriticalSecureDataPreferences::class)
+        single<CriticalSecureStorageStatus>()
 
+        singleImpl<MigrationDataSource, MigrationDataSourceImpl>()
+
+        single<PreferencesStorage>()
+        singleImpl<PreferencesHolder, PreferencesStorage>()
+        singleImpl<EpisodesCheckerHolder, EpisodesCheckerStorage>()
+        singleImpl<HistoryHolder, HistoryStorage>()
+        singleImpl<ReleaseUpdateHolder, ReleaseUpdateStorage>()
+        singleImpl<GenresHolder, GenresStorage>()
+        singleImpl<YearsHolder, YearsStorage>()
+        singleImpl<SocialAuthHolder, SocialAuthStorage>()
+        singleImpl<MenuHolder, MenuStorage>()
+        singleImpl<DownloadsHolder, DownloadsStorage>()
+        singleImpl<DonationHolder, DonationStorage>()
+        singleImpl<TeamsHolder, TeamsStorage>()
+        singleImpl<RemoteFileHolder, RemoteFileStorage>()
+
+        singleImpl<CookieHolder, CookiesStorage>()
+        singleImpl<UserHolder, UserStorage>()
+        singleImpl<AuthHolder, AuthStorage>()
+        singleImpl<AuthTokenHolder, AuthTokenStorage>()
+        singleImpl<UserViewsSyncHolder, UserViewsSyncStorage>()
+
+        single<ApiConfigStorage>()
+        single<AdsConfigStorage>()
+    }
+
+    private fun installNetworkModule(context: Context) {
         instance<SslCompat> {
             val rawCertResources = listOf(
                 R.raw.gsr4,
@@ -193,44 +238,13 @@ class DataModule(context: Context) : QuillModule() {
                 .build()
         }
 
-
-        singleProvider<SharedPreferences, PreferencesProvider>()
-        singleProvider<SharedPreferences, DataPreferencesProvider>(DataPreferences::class)
-        singleProvider<SharedPreferences, SecureDataPreferencesProvider>(SecureDataPreferences::class)
-
-        singleImpl<MigrationDataSource, MigrationDataSourceImpl>()
-
-        single<PreferencesStorage>()
-
-        singleImpl<PreferencesHolder, PreferencesStorage>()
-        singleImpl<EpisodesCheckerHolder, EpisodesCheckerStorage>()
-        singleImpl<HistoryHolder, HistoryStorage>()
-        singleImpl<ReleaseUpdateHolder, ReleaseUpdateStorage>()
-        singleImpl<GenresHolder, GenresStorage>()
-        singleImpl<YearsHolder, YearsStorage>()
-        singleImpl<SocialAuthHolder, SocialAuthStorage>()
-        singleImpl<MenuHolder, MenuStorage>()
-        singleImpl<DownloadsHolder, DownloadsStorage>()
-        singleImpl<DonationHolder, DonationStorage>()
-        singleImpl<TeamsHolder, TeamsStorage>()
-        singleImpl<RemoteFileHolder, RemoteFileStorage>()
-
-        singleImpl<CookieHolder, CookiesStorage>()
-        singleImpl<UserHolder, UserStorage>()
-        singleImpl<AuthHolder, AuthStorage>()
-        singleImpl<AuthTokenHolder, AuthTokenStorage>()
-        singleImpl<UserViewsSyncHolder, UserViewsSyncStorage>()
-
         single<ApiConfigChanger>()
-
         single<AniLibertyApi>()
 
         single<AppCookieJar>()
         single<AniLibertyAuthInterceptor>()
         single<UnauthorizedInterceptor>()
         single<ApiConfig>()
-        single<ApiConfigStorage>()
-
 
         single<PlayerOkHttpProvider>()
         single<SimpleOkHttpProvider>()
@@ -263,7 +277,10 @@ class DataModule(context: Context) : QuillModule() {
         single<MenuApi>()
         single<DonationApi>()
         single<TeamsApi>()
+        single<AdsConfigApi>()
+    }
 
+    private fun installRepositoriesModule() {
         single<AuthRepository>()
         single<ReleaseRepository>()
         single<ConfigurationRepository>()
@@ -279,23 +296,33 @@ class DataModule(context: Context) : QuillModule() {
         single<DonationRepository>()
         single<TeamsRepository>()
         single<RemoteFileRepository>()
+        single<AdsConfigRepository>()
 
         single<ReleaseUpdateMiddleware>()
-
         single<ReleaseInteractor>()
         single<ApplicationCoroutineScope>()
-
         single<HistoryRuntimeCache>()
-
         single<UserViewsRepository>()
         single<UserViewsSyncInteractor>()
+
+        single<PlayerDataSourceProvider>()
+        single<PlayerCacheDataSourceProvider>()
+        singleImpl<MigrationExecutor, MigrationExecutorImpl>()
+    }
+
+    private fun installTvUseCasesModule() {
         singleImpl<TvContentUseCase, TvContentUseCaseImpl>()
         singleImpl<TvSessionUseCase, TvSessionUseCaseImpl>()
         singleImpl<TvSearchUseCase, TvSearchUseCaseImpl>()
         singleImpl<TvUpdateUseCase, TvUpdateUseCaseImpl>()
         singleImpl<TvSuggestionsUseCase, TvSuggestionsUseCaseImpl>()
         singleImpl<TvDetailHeaderUseCase, TvDetailHeaderUseCaseImpl>()
+        singleImpl<TvPlayerFacade, TvPlayerFacadeImpl>()
+        singleImpl<TvWatchingFacade, TvWatchingFacadeImpl>()
+        singleImpl<TvProfileFacade, TvProfileFacadeImpl>()
+    }
 
+    private fun installAnalyticsModule() {
         single<AnalyticsInstallerProfileDataSource>()
         single<AnalyticsMainProfileDataSource>()
 
@@ -327,18 +354,6 @@ class DataModule(context: Context) : QuillModule() {
         single<YoutubeAnalytics>()
         single<YoutubeVideosAnalytics>()
         single<ConfiguringAnalytics>()
-
-        single<AdsConfigApi>()
-        single<AdsConfigStorage>()
-        single<AdsConfigRepository>()
-
-// стало
-        single<PlayerDataSourceProvider>()
-        single<PlayerCacheDataSourceProvider>()
-
-        singleImpl<MigrationExecutor, MigrationExecutorImpl>()
-
-
     }
 
     internal class PreferencesProvider @Inject constructor(
@@ -381,6 +396,31 @@ class DataModule(context: Context) : QuillModule() {
                 )
             }.getOrElse { error ->
                 Timber.w(error, "Falling back to plaintext prefs because encrypted prefs init failed.")
+                fallbackPreferences
+            }
+        }
+    }
+
+    internal class CriticalSecureDataPreferencesProvider @Inject constructor(
+        private val context: Context,
+        @DataPreferences private val fallbackPreferences: SharedPreferences,
+        private val criticalSecureStorageStatus: CriticalSecureStorageStatus,
+    ) : Provider<SharedPreferences> {
+
+        override fun get(): SharedPreferences {
+            return runCatching {
+                val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+
+                EncryptedSharedPreferences.create(
+                    "data_storage_secure",
+                    masterKeyAlias,
+                    context,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+                )
+            }.getOrElse { error ->
+                criticalSecureStorageStatus.markUnavailable(error)
+                Timber.e(error, "Critical secure prefs init failed: token storage switched to fail-closed mode.")
                 fallbackPreferences
             }
         }

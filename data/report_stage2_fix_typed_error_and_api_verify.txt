@@ -1,0 +1,118 @@
+Stage 2 fix report: typed secure storage error + Aniliberty v1 verification
+Branch: fix/tv-critical-storage-typed-error-and-aniliberty-v1-verify
+Date: 2026-02-23
+
+1) Changed files
+
+Part 1 (typed secure storage error + UX handling):
+- data/src/main/java/ru/radiationx/data/entity/domain/auth/CriticalSecureStorageException.kt (new)
+- data/src/main/java/ru/radiationx/data/di/CriticalSecureStorageStatus.kt (new)
+- data/src/main/java/ru/radiationx/data/di/DataModule.kt
+- data/src/main/java/ru/radiationx/data/datasource/storage/AuthTokenStorage.kt
+- app-tv/src/main/java/ru/radiationx/anilibria/screen/auth/AuthErrorMessageMapper.kt (new)
+- app-tv/src/main/java/ru/radiationx/anilibria/screen/auth/credentials/AuthCredentialsViewModel.kt
+- app-tv/src/main/java/ru/radiationx/anilibria/screen/auth/otp/AuthOtpViewModel.kt
+- data/src/test/java/ru/radiationx/data/datasource/storage/AuthTokenStorageTest.kt (new)
+- app-tv/src/test/java/ru/radiationx/anilibria/screen/auth/credentials/AuthCredentialsViewModelTest.kt (new)
+
+Part 2 (Aniliberty API v1 verification):
+- data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyV1DocsSchemaParsingTest.kt (new)
+
+2) Part 1 (before/after)
+
+A-B-C. Replaced fail-closed IllegalStateException with typed domain error
+Before:
+- AuthTokenStorage.saveToken() in fail-closed path raised IllegalStateException with text message.
+
+After:
+- Added typed domain hierarchy:
+  - CriticalSecureStorageException (sealed RuntimeException)
+  - CriticalSecureStorageUnavailableException(cause)
+- AuthTokenStorage.saveToken() now throws CriticalSecureStorageUnavailableException in unavailable secure storage mode.
+- Original crypto init failure cause is propagated through CriticalSecureStorageStatus -> exception.cause.
+
+C. Fail-closed behavior / plaintext safety
+Before:
+- unavailable secure storage path relied on generic exception type.
+
+After:
+- saveToken(): never writes plaintext in unavailable mode, clears plaintext key, then throws typed exception.
+- getToken(): returns null when secure storage unavailable (no side-effects in read path).
+- migration plaintext->encrypted:
+  - if encrypted is available: migrate key to encrypted and clear plaintext.
+  - if encrypted is unavailable: plaintext key is cleared and not used for reads.
+
+D. app-tv UX safety (no uncaught crash)
+Before:
+- auth VMs mapped failure to generic error.message.
+
+After:
+- Added explicit typed error mapping in app-tv:
+  - mapAuthErrorMessage(CriticalSecureStorageUnavailableException) -> user-friendly RU message.
+- AuthCredentialsViewModel and AuthOtpViewModel now use typed mapper.
+- Typed secure storage failure no longer depends on raw exception text and is handled as known UX case.
+
+E. Tests
+- data/AuthTokenStorageTest:
+  - verifies unavailable path throws CriticalSecureStorageUnavailableException.
+  - verifies plaintext token is not used in unavailable mode.
+  - verifies unavailable cause propagation into typed exception.
+- app-tv/AuthCredentialsViewModelTest:
+  - verifies VM handles typed secure storage exception without crashing.
+  - verifies expected user message is emitted and guided chain is not finished.
+
+3) Part 2 verification (docs -> data -> app-tv)
+
+F. Docs analysis (data/aniliberty-api-v1-docs.json)
+- Format: OpenAPI 3.0.0.
+- Servers include /api/v1 and https://aniliberty.top/api/v1.
+- Paths: 70.
+- Schemas: 128.
+
+G. Data implementation checks
+- API base URL usage: AniLibertyApi.Config.BaseUrl = https://aniliberty.top/api/v1.
+- Path coverage check:
+  - docs paths count = 70.
+  - code path extraction around Config.BaseUrl matched full set after normalization of path placeholders (e.g. {idOrAlias} vs Kotlin interpolation key.asPathSegment()).
+  - no functional endpoint mismatch detected.
+- DTO/Moshi checks:
+  - AniLibertyAuthTokenResponse supports docs shape { token } and backward-compatible optional fields.
+  - AniLibertyOtpGetResponse aligns with otp + remaining_time shape.
+  - AniLibertyTupleAdapterFactory handles tuple/object timecode variants expected by docs schemas with oneOf array item shapes.
+
+H. app-tv integration checks
+- app-tv has no direct imports of remote AniLiberty datasource package classes.
+- app-tv usage remains through repository/use-case/facade layers; no direct coupling to old remote DTO endpoints found.
+
+I. Cheap schema validation tests
+- Added parsing tests based on docs example/minimal valid payloads:
+  - auth token response parse.
+  - otp get response parse.
+  - views timecodes tuple parse.
+
+Mismatches found and fixes:
+- No breaking docs/code mismatch found for validated scope.
+- In test assertion for timecode Double precision, used delta-based assert to avoid strict floating-point mismatch.
+
+4) Commands and results
+
+Executed:
+1. ./gradlew.bat :data:testDebugUnitTest --tests "ru.radiationx.data.datasource.storage.AuthTokenStorageTest" :app-tv:testDebugUnitTest --tests "ru.radiationx.anilibria.screen.auth.credentials.AuthCredentialsViewModelTest" --console=plain --stacktrace
+- Result: BUILD SUCCESSFUL.
+
+2. ./gradlew.bat :app-tv:lintDebug :app-tv:testDebugUnitTest :data:test :app-tv:detekt :data:detekt --console=plain --stacktrace
+- Result: FAILED (app-tv:testDebugUnitTest) on existing unstable tests:
+  - SuggestionQueryExecutorTest.execute_keepsPreviousCache_whenRefreshFails (timeout assertion)
+  - on rerun: WatchingRowsSeparationTest.clearWatchProgress_removesRemoteContinueItem
+- lint/detekt tasks completed without new baseline regeneration.
+
+3. (diagnostic attempt) with local GRADLE_USER_HOME for isolated test
+- Result: environment failure due Android plugin access to C:\Users\CodexSandboxOffline\.android (AccessDenied/Path not found in sandboxed environment).
+- This run was diagnostic only and not used as validation baseline.
+
+5) Risks / остатки
+
+- :app-tv:testDebugUnitTest has existing flaky/unstable tests in this environment; full verification command is not deterministically green.
+- Typed exception currently includes only Unavailable subtype. If future requirements need corruption/migration-specific UX branches, extend sealed hierarchy with Corrupted/MigrationFailed.
+- AuthRepository still has unrelated IllegalStateException throws for empty AniLiberty token (domain-auth response validation). They were not part of this secure storage fail-closed replacement scope.
+- No lint/detekt baseline files were recreated.

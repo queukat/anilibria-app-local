@@ -3,16 +3,19 @@ package ru.radiationx.data.datasource.storage
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import kotlinx.coroutines.flow.Flow
+import ru.radiationx.data.CriticalSecureDataPreferences
 import ru.radiationx.data.DataPreferences
-import ru.radiationx.data.SecureDataPreferences
 import ru.radiationx.data.datasource.SuspendMutableStateFlow
 import ru.radiationx.data.datasource.holders.AuthTokenHolder
+import ru.radiationx.data.di.CriticalSecureStorageStatus
+import ru.radiationx.data.entity.domain.auth.CriticalSecureStorageUnavailableException
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 class AuthTokenStorage @Inject constructor(
     @DataPreferences private val plaintextPreferences: SharedPreferences,
-    @SecureDataPreferences private val encryptedPreferences: SharedPreferences,
+    @CriticalSecureDataPreferences private val encryptedPreferences: SharedPreferences,
+    private val criticalSecureStorageStatus: CriticalSecureStorageStatus,
 ) : AuthTokenHolder {
 
     companion object {
@@ -23,7 +26,7 @@ class AuthTokenStorage @Inject constructor(
 
     private val tokenRelay = SuspendMutableStateFlow {
         migrateIfNeeded()
-        encryptedPreferences.getString(KEY_AUTH_TOKEN, null)
+        readEncryptedToken()
     }
 
     override fun observeToken(): Flow<String?> = tokenRelay
@@ -32,6 +35,7 @@ class AuthTokenStorage @Inject constructor(
 
     override suspend fun saveToken(token: String) {
         migrateIfNeeded()
+        ensureSecureStorageWritable()
         encryptedPreferences.edit {
             putString(KEY_AUTH_TOKEN, token)
         }
@@ -43,6 +47,9 @@ class AuthTokenStorage @Inject constructor(
         encryptedPreferences.edit {
             remove(KEY_AUTH_TOKEN)
         }
+        plaintextPreferences.edit {
+            remove(KEY_AUTH_TOKEN)
+        }
         tokenRelay.setValue(null)
     }
 
@@ -50,11 +57,38 @@ class AuthTokenStorage @Inject constructor(
         if (!migrationDone.compareAndSet(false, true)) {
             return
         }
+        if (!criticalSecureStorageStatus.isAvailable()) {
+            clearPlaintextToken()
+            return
+        }
         SensitivePreferenceMigrator.migrateKeys(
             keys = listOf(KEY_AUTH_TOKEN),
             source = preferencesStore(plaintextPreferences),
             target = preferencesStore(encryptedPreferences),
         )
+    }
+
+    private fun ensureSecureStorageWritable() {
+        if (criticalSecureStorageStatus.isAvailable()) {
+            return
+        }
+        clearPlaintextToken()
+        throw CriticalSecureStorageUnavailableException(
+            cause = criticalSecureStorageStatus.getUnavailableCause(),
+        )
+    }
+
+    private fun readEncryptedToken(): String? {
+        if (!criticalSecureStorageStatus.isAvailable()) {
+            return null
+        }
+        return encryptedPreferences.getString(KEY_AUTH_TOKEN, null)
+    }
+
+    private fun clearPlaintextToken() {
+        plaintextPreferences.edit {
+            remove(KEY_AUTH_TOKEN)
+        }
     }
 
     private fun preferencesStore(sharedPreferences: SharedPreferences): StringKeyValueStore {
