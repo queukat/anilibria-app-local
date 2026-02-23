@@ -14,6 +14,7 @@ import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.system.ApplicationCoroutineScope
 import ru.radiationx.data.system.AndroidTestMode
 import ru.radiationx.quill.Quill
+import ru.radiationx.shared_app.imageloader.LibriaImageLoader
 import timber.log.Timber
 
 class App : Application() {
@@ -65,6 +66,8 @@ class App : Application() {
             AppModule(this),
             DataModule(this)
         )
+        // Warm up image loader singleton during app init, not on first card binding.
+        Quill.getRootScope().get(LibriaImageLoader::class)
         if (AndroidTestMode.enabled) {
             Quill.getRootScope().get(ApiConfig::class).needConfig = false
         }

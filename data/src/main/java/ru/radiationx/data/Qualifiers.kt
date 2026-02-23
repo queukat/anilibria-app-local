@@ -9,6 +9,9 @@ annotation class DataPreferences
 annotation class SecureDataPreferences
 
 @Qualifier
+annotation class CriticalSecureDataPreferences
+
+@Qualifier
 annotation class ApiClient
 
 @Qualifier

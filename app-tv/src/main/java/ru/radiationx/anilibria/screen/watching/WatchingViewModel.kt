@@ -5,22 +5,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.BaseRowsViewModel
-import ru.radiationx.data.datasource.holders.EpisodesCheckerHolder
 import ru.radiationx.data.entity.common.AuthState
-import ru.radiationx.data.repository.AuthRepository
-import ru.radiationx.data.repository.HistoryRepository
-import ru.radiationx.data.repository.UserViewsRepository
+import ru.radiationx.data.contracts.tv.TvWatchingFacade
 import javax.inject.Inject
 
 class WatchingViewModel @Inject constructor(
-    private val authRepository: AuthRepository,
-    private val historyRepository: HistoryRepository,
-    private val episodesCheckerHolder: EpisodesCheckerHolder,
-    private val userViewsRepository: UserViewsRepository,
+    private val tvWatchingFacade: TvWatchingFacade,
 ) : BaseRowsViewModel() {
 
     companion object {
@@ -49,7 +42,7 @@ class WatchingViewModel @Inject constructor(
 
     init {
         // При авторизации пробуем понять, есть ли remote-история/продолжение, чтобы не скрывать строки.
-        authRepository
+        tvWatchingFacade
             .observeAuthState()
             .distinctUntilChanged()
             .onEach { state ->
@@ -63,8 +56,8 @@ class WatchingViewModel @Inject constructor(
             .launchIn(viewModelScope)
 
         combine(
-            episodesCheckerHolder.observeEpisodes().map { it.isNotEmpty() },
-            historyRepository.observeReleases().map { it.items.isNotEmpty() },
+            tvWatchingFacade.observeLocalContinueAvailable(),
+            tvWatchingFacade.observeLocalHistoryAvailable(),
             remoteContinueAvailable,
             remoteHistoryAvailable,
         ) { hasLocalContinue, hasLocalHistory, hasRemoteContinue, hasRemoteHistory ->
@@ -76,24 +69,9 @@ class WatchingViewModel @Inject constructor(
 
     private fun probeRemoteAvailability() {
         viewModelScope.launch {
-            val response = runCatching {
-                userViewsRepository.getViewsHistory(
-                    page = 1,
-                    limit = REMOTE_PROBE_LIMIT,
-                )
-            }.getOrNull()
-
-            if (response == null) {
-                remoteHistoryAvailable.value = false
-                remoteContinueAvailable.value = false
-                return@launch
-            }
-
-            // «История» — любая запись, где есть релиз.
-            remoteHistoryAvailable.value = response.data.isNotEmpty()
-
-            // «Продолжить» — не досмотрено до конца.
-            remoteContinueAvailable.value = response.data.any { !it.isWatched }
+            val availability = tvWatchingFacade.probeRemoteAvailability(limit = REMOTE_PROBE_LIMIT)
+            remoteHistoryAvailable.value = availability.hasHistory
+            remoteContinueAvailable.value = availability.hasContinue
         }
     }
 }

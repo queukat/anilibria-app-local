@@ -11,9 +11,6 @@ import coil.load
 import coil.request.ErrorResult
 import coil.request.ImageRequest
 import coil.request.SuccessResult
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import ru.radiationx.data.di.providers.ApiClientWrapper
 import ru.radiationx.shared_app.R
@@ -27,30 +24,35 @@ class CoilLibriaImageLoaderImpl @Inject constructor(
     private val apiClientWrapper: ApiClientWrapper,
 ) : LibriaImageLoader {
 
-    private var _okHttpClient: OkHttpClient? = null
+    private val loaderLock = Any()
 
-    private var _imageLoader: ImageLoader? = null
+    private var loaderState: LoaderState? = null
 
-    private val loaderMutex = Mutex()
+    init {
+        // Best-effort warmup to avoid doing first heavy init inside UI draw path.
+        ensureImageLoader()
+    }
 
-    private fun getImageLoader(): ImageLoader {
-        val result = runBlocking {
-            loaderMutex.withLock {
-                val actualOkHttpClient = apiClientWrapper.get()
-                val okHttpClient = _okHttpClient
-                val imageLoader = _imageLoader
-                if (imageLoader == null || okHttpClient != actualOkHttpClient) {
-                    _imageLoader?.shutdown()
-                    val newImageLoader = createImageLoader(actualOkHttpClient)
-                    _okHttpClient = actualOkHttpClient
-                    _imageLoader = newImageLoader
-                    newImageLoader
-                } else {
-                    imageLoader
-                }
+    fun warmup() {
+        ensureImageLoader()
+    }
+
+    private fun ensureImageLoader(): ImageLoader {
+        val actualOkHttpClient = apiClientWrapper.get()
+        synchronized(loaderLock) {
+            val currentState = loaderState
+            if (currentState != null && currentState.okHttpClient == actualOkHttpClient) {
+                return currentState.imageLoader
             }
+
+            currentState?.imageLoader?.shutdown()
+            val newImageLoader = createImageLoader(actualOkHttpClient)
+            loaderState = LoaderState(
+                okHttpClient = actualOkHttpClient,
+                imageLoader = newImageLoader,
+            )
+            return newImageLoader
         }
-        return result
     }
 
     private fun createImageLoader(okHttpClient: OkHttpClient): ImageLoader {
@@ -80,7 +82,7 @@ class CoilLibriaImageLoaderImpl @Inject constructor(
             return
         }
 
-        imageView.load(normalizedUrl, getImageLoader()) {
+        imageView.load(normalizedUrl, ensureImageLoader()) {
             diskCacheKey(normalizedUrl.toCacheKey())
             memoryCacheKey(normalizedUrl.toCacheKey())
             listener(
@@ -115,7 +117,7 @@ class CoilLibriaImageLoaderImpl @Inject constructor(
             .data(safeUrl)
             .build()
 
-        val result = getImageLoader().execute(request)
+        val result = ensureImageLoader().execute(request)
         return (result.drawable as BitmapDrawable).bitmap
     }
 
@@ -126,4 +128,9 @@ class CoilLibriaImageLoaderImpl @Inject constructor(
         set(value) {
             setTag(R.id.tag_image_loader_success_url, value)
         }
+
+    private data class LoaderState(
+        val okHttpClient: OkHttpClient,
+        val imageLoader: ImageLoader,
+    )
 }

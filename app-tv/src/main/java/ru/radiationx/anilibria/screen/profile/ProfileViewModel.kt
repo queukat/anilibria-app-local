@@ -10,14 +10,14 @@ import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.AuthGuidedScreen
 import ru.radiationx.anilibria.screen.LifecycleViewModel
+import ru.radiationx.data.contracts.tv.TvProfileFacade
 import ru.radiationx.data.entity.domain.other.ProfileItem
-import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
 import javax.inject.Inject
 
 class ProfileViewModel @Inject constructor(
-    private val authRepository: AuthRepository,
+    private val tvProfileFacade: TvProfileFacade,
     private val guidedRouter: GuidedRouter
 ) : LifecycleViewModel() {
 
@@ -25,7 +25,7 @@ class ProfileViewModel @Inject constructor(
     val profileData: StateFlow<ProfileItem?> = _profileData.asStateFlow()
 
     init {
-        authRepository
+        tvProfileFacade
             .observeUser()
             .onEach { _profileData.value = it }
             .launchIn(viewModelScope)
@@ -38,7 +38,7 @@ class ProfileViewModel @Inject constructor(
     fun onSignOutClick() {
         viewModelScope.launch {
             coRunCatching {
-                authRepository.signOut()
+                tvProfileFacade.signOut()
             }.onFailure {
                 Timber.e(it)
             }

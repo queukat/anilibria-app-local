@@ -1,256 +1,169 @@
-Дата: 2026-02-22
-Ветка: fix/tv-close-high-medium
-Целевой модуль: :app-tv
-Ограничение соблюдено: app-mobile/** не менялся. При сборках/тестах Gradle продолжал конфигурировать app-mobile как часть multi-module проекта.
+1. Executive summary
+- Репозиторий — multi-module Android-проект с двумя app-модулями (`:app-mobile`, `:app-tv`) и набором общих/data/DI/UI библиотек; глубоко анализирован только стек вне `app-mobile` (см. раздел 7).
+- Критический риск безопасности: в `gradle.properties` закоммичены release-пароли/alias для TV keystore (`gradle.properties:26-29`), при этом README утверждает обратное (`README.md:16`).
+- Архитектура для TV фактически двухслойная: UI (`app-tv`) часто ходит напрямую в `data` (repositories/holders/interactors), границы domain-слоя непоследовательны (`app-tv/src/main/java/...ViewModel.kt`, примеры в разделе 4).
+- DI построен на кастомном Quill (Toothpick); есть явный техдолг по передаче `FragmentActivity` в DI (`app-tv/src/main/java/ru/radiationx/anilibria/di/ActivityModule.kt:11-19`).
+- Асинхронщина в целом на Flow/корутинах, но есть блокирующие точки в production-пути: `CountDownLatch.await` в ContentProvider (`SuggestionsContentProvider.kt:103-113`) и `runBlocking` в image loader (`CoilLibriaImageLoaderImpl.kt:37`).
+- Lint/detekt покрытие неполное и с высоким baseline-долгом: detekt отключает большинство rule set’ов (`config/detekt/detekt.yml:4-26`), baseline в `data`/`app-tv` крупный (`data/detekt-baseline.xml`, `app-tv/detekt-baseline.xml`), `media-mobile` и `app-mobile` не в `detektTargets` (`build.gradle:43-52`).
+- Для secure storage используется `androidx.security:security-crypto` alpha + deprecated API (`gradle/libs.versions.toml:39`, `DataModule.kt:2,373-380`) с fallback на plaintext prefs (`DataModule.kt:383-384`).
+- UI стек TV — Leanback + Fragments + ViewBinding (без Compose в анализируемых модулях по build/deps); навигация через Cicerone + custom `GuidedRouter` (`NavigationModule.kt:9-16`, `Screens.kt:40-205`).
+- Тесты есть в `app-tv` и `data`, но остальные модули почти без unit coverage; smoke-тесты TV чувствительны к UI-текстам/таймингам (`AppTvSmokeTest.kt:72-88,115-128`).
+- В сборке нет явных циклических project-deps (по `build.gradle` модулей), но есть «бог-слой» `:data` + «бог-модуль» DI (`DataModule.kt:168-339`).
 
-Accepted risk
-- Not addressed (explicitly accepted): release signing secrets в `gradle.properties:26-29` сохранены без удаления/переноса по прямому требованию.
+2. Карта модулей
+| Module | Назначение | Прямые project-зависимости | Ключевые внешние deps | Наблюдения/проблемы |
+|---|---|---|---|---|
+| `:app-tv` | Android TV приложение (entrypoint, UI, навигация) | `:data`, `:shared-android-ktx`, `:shared-app`, `:quill-di` (`app-tv/build.gradle:126-129`) | Leanback, Cicerone, Media3 (`app-tv/build.gradle:132-146`) | Сильная связка с data-слоем; lifecycle/async долги в ряде экранов |
+| `:data` | Сеть, storage, repositories, use-cases, analytics | `:shared-android-ktx`, `:quill-di` (`data/build.gradle:31-32`) | OkHttp, Moshi, Security Crypto, Media3 (`data/build.gradle:34-63`) | Очень крупный DI-модуль, fallback secure->plaintext, mixed old/new API |
+| `:shared-app` | Общие app-сервисы (analytics, image loader, loaders) | `:data`, `:shared-android-ktx`, `:quill-di` (`shared-app/build.gradle:25-27`) | Coil, Cicerone, AppMetrica (`shared-app/build.gradle:29,34,36`) | Cross-layer зависимость на `data` (в т.ч. `ApiClientWrapper`) |
+| `:shared-android-ktx` | Android extensions/utilities | `:shared-ktx` (`shared-android-ktx/build.gradle:22`) | AndroidX lifecycle/fragment/core (`shared-android-ktx/build.gradle:26-32`) | Есть хорошие lifecycle-safe helpers (`LiveData.kt:17-37`) |
+| `:shared-ktx` | JVM KTX утилиты | — | Coroutines (`shared-ktx/build.gradle:10`) | `EventFlow` c DROP_OLDEST без replay (`EventFlow.kt:10-14`) |
+| `:quill-di` | DI-обертка над Toothpick + ViewModel factories | — | Toothpick runtime, javax.inject (`quill-di/build.gradle:31,34`) | Важный infrastructural модуль; scope management через ViewModel |
+| `:media-mobile` | Media UI library | `:shared-android-ktx` (`media-mobile/build.gradle:26`) | Media3, Material (`media-mobile/build.gradle:33-35`) | Не включен в detektTargets (`build.gradle:43-52`) |
+| `:taiwa` | UI dialogs/nested UI toolkit | `:envoy` (`taiwa/build.gradle:27`) | Material, Flexbox (`taiwa/build.gradle:33-34`) | Использует `observeForever`, но снимает observer (`BaseTaiwaDialogFragment.kt:33,38`) |
+| `:envoy` | UI utility library | — | AppCompat/RecyclerView (`envoy/build.gradle`) | Покрытие тестами отсутствует |
+| `:searchbar` | UI searchbar library | — | Material/RecyclerView (`searchbar/build.gradle`) | Покрытие тестами отсутствует |
+| `:app-mobile` | Mobile app module | (структурно) зависит от `:data`, `:shared-*`, `:quill-di`, `:media-mobile`, `:taiwa`, `:envoy`, `:searchbar` (`app-mobile/build.gradle:88-107`) | — | Глубокий анализ исключен по требованию |
 
-Spec findings (OpenAPI: data/aniliberty-api-v1-docs.json)
-- `/anime/schedule/week` поддерживает `include`/`exclude` как query-параметры: `data/aniliberty-api-v1-docs.json:2903-2917`.
-- `include`/`exclude` описаны как `string` (CSV) ИЛИ `array` (множественные параметры): `data/aniliberty-api-v1-docs.json:6269-6315`.
-- Модель schedule week: `responses.v1.anime.schedule.week.data[] -> models.anime.schedule.v1.releaseInSchedule` с `published_release_episode` и `next_release_episode_number`: `data/aniliberty-api-v1-docs.json:5413-5443`.
-- Где брать счетчики/признаки релиза: `models.anime.releases.v1.release` содержит `episodes_total` и `is_ongoing`: `data/aniliberty-api-v1-docs.json:5209-5233`.
-- Где брать latest episode: `responses.api.v1.anime.releases.latest` содержит `latest_episode`: `data/aniliberty-api-v1-docs.json:4828-4830`.
-- API-разделение истории:
-  - просмотренные карточки/история просмотров: `/accounts/users/me/views/history`: `data/aniliberty-api-v1-docs.json:1445-1474`.
-  - таймкоды/прогресс просмотра: `/accounts/users/me/views/timecodes`: `data/aniliberty-api-v1-docs.json:1492-1522`.
+Дополнительно по структуре:
+- Модули подключены в `settings.gradle:18-22`.
+- Типы модулей: `app-tv/app-mobile` — application (`app-tv/build.gradle:5`, `app-mobile/build.gradle:5`), остальные Android library (`*-build.gradle:2`), `shared-ktx` — JVM (`shared-ktx/build.gradle:2`).
 
-Current code path (до фиксов -> после)
-- Episodes list:
-  - было: разрозненная сортировка в VM player flow.
-  - стало: единая сортировка `sortedByEpisodeOrdinalAsc()` в `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/EpisodeOrder.kt`, используется в `PlayerViewModel`, `PlayerEpisodesViewModel`, `EndEpisodeViewModel`, `EndSeasonViewModel`.
-- Continue watching:
-  - источник: watch progress через `EpisodesCheckerHolder` + `ReleaseInteractor` в `WatchingContinueViewModel`.
-- View history (opened cards):
-  - источник: дофиксировано: только `HistoryRepository` (opened cards), с реакцией на `observeReleases` для автообновления.
-- Schedule/week:
-  - production путь в `AniLibertyApi.getScheduleWeek/getScheduleNow` теперь делает no-args запрос (`emptyMap()`), include/exclude отключены в production-path с явным логом.
+3. Текущая архитектура (по факту)
+Схема (упрощенно):
+`app-tv (Fragment/ViewModel)` -> `data (repositories + interactors.tv + holders)` -> `remote/storage`.
+Параллельно: `app-tv` -> `shared-app` (image/analytics/helpers), а `shared-app` сам зависит от `data`.
 
-UX behavior: до/после
-- Episodes order:
-  - До: список мог показываться в обратном порядке.
-  - После: гарантирован ASC (1 -> N) через `EpisodeOrder.kt`.
-  - Тест: `app-tv/src/test/java/ru/radiationx/anilibria/screen/player/EpisodeOrderTest.kt`.
-- Continue watching vs View history:
-  - До: смешение источников, риск удаления из истории карточек при очистке watch progress.
-  - После:
-    - Continue берется из watch progress (`WatchingContinueViewModel`, `EpisodesCheckerHolder`).
-    - History берется из opened cards history (`WatchingHistoryViewModel`, `HistoryRepository`) и обновляется при изменении `observeReleases`.
-    - Очистка watch progress удаляет из Continue, но не удаляет из History.
-    - После clear прогресса список `Продолжить` теперь перезагружается автоматически благодаря подписке `episodesCheckerHolder.observeEpisodes()` в `WatchingContinueViewModel` (без ручного обновления экрана).
-  - Тест: `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt`.
-- Player sync:
-  - До: `upsertEpisodeTimecode` вызывался на каждой пользовательской навигации в меню/переходах.
-  - После: в `PlayerViewModel` remote-sync прогресса вынесен в `syncEpisodeProgressToRemote` и вызывается только на паузе/выходе, завершении и переходе к следующему эпизоду; в меню-переходах выполняется только локальный прогресс.
-  - Примечание: это снижает частоту сетевых запросов синхронизации без потери локального продолжения просмотра.
-- Дополнительно (текущий follow-up):
-  - `WatchingContinueViewModel` теперь отслеживает `episodesCheckerHolder.observeEpisodes()` и ведет фильтр скрытых ID после `resetAccessHistory`.
-  - После очистки watch-progress карточка "Продолжить просмотр" удаляется даже если `/accounts/users/me/views/history` возвращает stale remote-запись (кейс: открыть → посмотреть → очистить → выйти).
-- Дополнительно для кейса «открыли из continue в history»:
-  - Тест `openedCardFromContinueAppearsInHistory` в `WatchingRowsSeparationTest` подтверждает: запись в историю просмотра через `HistoryRepository` (`observeReleases`/`getReleases`) делает карточку видимой в `История просмотров`.
-- Schedule/week params:
-  - До: include/exclude path давал нестабильное поведение.
-  - После: production использует no-args; live-контракт контролирует регрессию “no-args non-empty, with params empty”.
-  - Тесты:
-    - snapshot/offline: `AniLibertyApiScheduleWeekBehaviorTest`, `AniLibertyApiScheduleNowBehaviorTest`.
-    - live: `data/src/liveTest/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiLiveContractTest.kt`.
+Ключевые артефакты:
+- Entry points:
+  - `Application`: `app-tv/src/main/java/ru/radiationx/anilibria/App.kt:19`
+  - `MainActivity`: `app-tv/src/main/java/ru/radiationx/anilibria/screen/launcher/MainActivity.kt:22`
+  - Manifest wiring: `app-tv/src/main/AndroidManifest.xml:20,30,60`
+- Навигация:
+  - Cicerone + guided router: `app-tv/src/main/java/ru/radiationx/anilibria/di/NavigationModule.kt:9-16`
+  - Custom navigator: `app-tv/src/main/java/ru/radiationx/anilibria/common/fragment/GuidedStepNavigator.kt:18`
+  - Registry экранов: `app-tv/src/main/java/ru/radiationx/anilibria/screen/Screens.kt:40-205`
+- DI:
+  - Root scope Toothpick: `quill-di/src/main/java/ru/radiationx/quill/Quill.kt:11-12`
+  - Scope lifecycle через ViewModel: `quill-di/src/main/java/ru/radiationx/quill/QuillScopeViewModel.kt:7-13`
+  - Модули app-tv: `MainActivity.kt:35-41`
+- Data composition:
+  - Крупный wiring: `data/src/main/java/ru/radiationx/data/di/DataModule.kt:168-339`
 
-High/Medium closure
-| Priority | Item | Status | Артефакты | Тесты | Проверка |
-|---|---|---|---|---|---|
-| High | Убрать runBlocking из UnauthorizedInterceptor/AniLibertyAuthInterceptor/AppCookieJar | Done | `data/.../UnauthorizedInterceptor.kt`, `data/.../AniLibertyAuthInterceptor.kt`, `data/.../AppCookieJar.kt` | `AuthInterceptorsTest`, `AppCookieJarTest` | `:data:testDebugUnitTest` SUCCESS |
-| High | Убрать runBlocking из ApiConfig init | Done | `data/.../ApiConfig.kt` (async init через `ApplicationCoroutineScope`) | `ApiConfigTest` | `:data:testDebugUnitTest` SUCCESS |
-| High | Убрать reduce() на пустых коллекциях | Done | `data/.../ApiConfig.kt`, `data/.../ConfiguringInteractor.kt` | `ApiConfigTest` | `:data:testDebugUnitTest` SUCCESS |
-| High | UI зависит напрямую от data (Main/DetailHeader/Update/SuggestionsProvider) | Done | новые usecase: `TvSessionUseCase`, `TvUpdateUseCase`, `TvSuggestionsUseCase`, `TvDetailHeaderUseCase`; интеграция в `MainViewModel`, `DetailHeaderViewModel`, `UpdateViewModel`, `SuggestionsContentProvider`; DI в `DataModule.kt` | `MainTvViewModelsTest`, `TvContentUseCaseContractTest` | `:app-tv:testDebugUnitTest` SUCCESS |
-| High | Data API принимает UI-type MutableStateFlow (RemoteFileRepository.loadFile) | Done | `data/.../RemoteFileRepository.kt` -> `Flow<RemoteFileLoadEvent>`; `app-tv/.../UpdateViewModel.kt` адаптирован | `RemoteFileRepositoryTest` | `:data:testDebugUnitTest` SUCCESS |
-| High | seekState эмитится, но не наблюдается | Done | `app-tv/.../PlayerFragment.kt` подписка на `seekState.filterNotNull()` и `playerGlue.seekTo` | косвенно через `MainTvViewModelsTest` + ручной кодовый аудит | `:app-tv:testDebugUnitTest` SUCCESS |
-| High | Plaintext SharedPreferences для токенов/куки | Done | `AuthTokenStorage.kt`, `CookiesStorage.kt`, `SensitivePreferenceMigrator.kt`, `DataModule.kt`, `Qualifiers.kt` | `SensitivePreferenceMigratorTest` | `:data:testDebugUnitTest` SUCCESS |
-| High | EventFlow MutableStateFlow<Event?> -> SharedFlow | Done | `shared-ktx/.../EventFlow.kt` | `shared-ktx/.../EventFlowTest.kt` | `:shared-ktx:test` SUCCESS |
-| High | subscribeTo без lifecycle gating | Done | `shared-android-ktx/.../LiveData.kt` (`repeatOnLifecycle(STARTED)`) | компиляция + unit suite | `:app-tv:testDebugUnitTest` SUCCESS |
-| High | SuggestionsContentProvider: убрать runBlocking в query path | Done | `app-tv/.../SuggestionsContentProvider.kt` (bounded wait через `CountDownLatch` + timeout + background scope) | `SuggestionQueryExecutorTest` | `:app-tv:testDebugUnitTest` SUCCESS |
-| High | detekt FAIL на :data (4 issue) | Done | фиксы в `AniLibertyApi.kt`/парсинг schedule week + остальной код | detekt suite | `detekt` SUCCESS |
-| Medium | Расширить detekt scope (`shared-android-ktx`, `shared-ktx`, `envoy`, `taiwa`, `searchbar`) | Done | root `build.gradle` (`detektTargets`) + baselines: `shared-android-ktx/detekt-baseline.xml`, `shared-ktx/detekt-baseline.xml`, `envoy/detekt-baseline.xml`, `taiwa/detekt-baseline.xml`, `searchbar/detekt-baseline.xml` | detekt suite | `detekt` SUCCESS |
-| Medium | allowBackup=true в app-tv -> release-only disable | Done | `app-tv/src/release/AndroidManifest.xml` (`allowBackup=false`, manifest merge override), релизный merge исправлен | assemble release | `:app-tv:assembleRelease` SUCCESS |
-| Medium | alpha dependency toolsCore | Done | runtime dependency удалена из `app-tv/build.gradle`; alias остался только в catalog `gradle/libs.versions.toml` и не подключается в :app-tv | dependency compile/runtime | `:app-tv:assembleDebug` SUCCESS |
-| Medium | Lint debt: не увеличить warning и ввести policy/baseline | Partial | `app-tv/build.gradle` (`lint.baseline`), `app-tv/lint-baseline.xml`; high-impact NewApi в затронутом provider закрыт | lint suite | `:app-tv:lintDebug` SUCCESS (0 errors, 0 warnings; 85 filtered by baseline) |
-| Medium | baseline policy “не растет” | Partial | policy зафиксирован процессно: `./gradlew detekt` + `detektBaseline` только осознанно; явной CI-проверки diff baseline в коде не добавлено | n/a | documented in this report |
+Нарушения/ослабления границ слоев:
+- UI напрямую импортирует `data.repository.*` во множестве ViewModel (`app-tv/src/main/java/.../screen/*ViewModel.kt`, например `ProfileViewModel.kt:12`, `PlayerViewModel.kt:25-26`, `WatchingFavoritesViewModel.kt:24-25`).
+- UI местами тянет `data.datasource.holders.*` (`PlayerViewModel.kt:17`, `PlayerQualityViewModel.kt:10`, `WatchingViewModel.kt:12`).
+- `shared-app` зависит от `data` и использует data-провайдер в image-loader (`shared-app/build.gradle:25`, `CoilLibriaImageLoaderImpl.kt:18,27`).
 
-Snapshot/Offline tests (выполнено)
-- `app-tv/src/test/java/ru/radiationx/anilibria/screen/player/EpisodeOrderTest.kt`.
-- `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt`.
-- `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt` (`openedCardFromContinueAppearsInHistory`).
-- `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt` (`clearWatchProgress_removesRemoteContinueItem`) на кейс stale remote continue после локальной очистки прогресса.
-- `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleNowBehaviorTest.kt`.
-- `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleWeekBehaviorTest.kt`.
-- `data/src/test/java/ru/radiationx/data/downloader/RemoteFileRepositoryTest.kt`.
-- `data/src/test/java/ru/radiationx/data/datasource/remote/address/ApiConfigTest.kt`.
-- `data/src/test/java/ru/radiationx/data/system/AppCookieJarTest.kt`.
-- `data/src/test/java/ru/radiationx/data/datasource/storage/SensitivePreferenceMigratorTest.kt`.
-- `shared-ktx/src/test/java/ru/radiationx/shared/ktx/EventFlowTest.kt`.
+4. Список проблем
+| Severity | Симптом/риск | Где | Рекомендация | Сложность |
+|---|---|---|---|---|
+| Blocker | Секреты release signing в репозитории (пароли/alias), риск компрометации подписи | `gradle.properties:26-29`; противоречие `README.md:16` | Немедленно удалить секреты из VCS, перевыпустить keystore/пароли, перейти на ENV/CI secrets, добавить pre-commit/secret scan | S |
+| High | Secure prefs имеют fail-open на plaintext при ошибке инициализации шифрования; токены могут сохраняться нешифрованно | `DataModule.kt:368-384`, лог fallback `DataModule.kt:383`; токен storage: `AuthTokenStorage.kt:13-24,33-38` | Перейти на fail-closed для критичных ключей (auth token), разнести не-критичные/критичные хранилища, добавить явный health-check и telemetry алерты | M |
+| High | Блокирующий `CountDownLatch.await` в `ContentProvider.query` (до 900ms), риск фризов/таймаутов поиска | `SuggestionsContentProvider.kt:103-113`; timeout `:44`; provider exported `AndroidManifest.xml:60-63` | Сделать cache-first возврат без блокировки, сетевое обновление асинхронно; ограничить синхронный путь локальными данными | M |
+| High | Блокирующий `runBlocking` в image loader на UI-пути -> jank/ANR under load | `CoilLibriaImageLoaderImpl.kt:37`, вызов из `showImage` `:83` | Сделать lazy/suspend init без `runBlocking` (atomic snapshot + non-blocking fast path), держать `ImageLoader` immutable и обновлять в background | M |
+| High | Lint baseline устарел: содержит `CompletableFuture`-issues для файла, где сейчас другой код; подавление устаревших проблем и шум | `app-tv/lint-baseline.xml:27-54`; текущий код `SuggestionsContentProvider.kt:103-113`; lint baseline подключен `app-tv/build.gradle:96` | Пересоздать baseline после чистки, разрулить `NewApi`/другие актуальные issue и сократить baseline в PR-гейте | S |
+| Medium | Несогласованное lifecycle-коллектирование Flow в UI (`launchIn(lifecycleScope)` / `lifecycleScope.launch { collect }` без `repeatOnLifecycle`) | `ProfileFragment.kt:63`; `WatchingFavoritesGridFragment.kt:145-146`; при этом есть safe helper `shared-android-ktx/.../LiveData.kt:17-37` | Стандартизовать через `subscribeTo(...)`/`launchInStarted(...)` для UI-состояния и событий | S |
+| Medium | Публичные `MutableStateFlow/MutableSharedFlow` во ViewModel (внешний mutation surface) | Примеры: `WatchingFavoritesViewModel.kt:45-53`, `SearchViewModel.kt:27`, `DetailHeaderViewModel.kt:47-48`, `ProfileViewModel.kt:22`, `BaseCardsViewModel.kt:16,19` | Перевести на `private val _state` + публичный `StateFlow/SharedFlow` (`asStateFlow/asSharedFlow`) | M |
+| Medium | DI хранит `FragmentActivity`/activity-context в scope; есть TODO о долге | `ActivityModule.kt:11-19` | Ограничить DI app-context + передавать activity-зависимости в UI слой параметрами/weak refs; разделить scoped services | M |
+| Medium | Сильная связанность UI с data-слоем (repositories/holders напрямую), усложняет эволюцию и тестирование границ | Импорты в TV ViewModel: `ProfileViewModel.kt:12`, `WatchingViewModel.kt:12,14-16`, `PlayerViewModel.kt:17,24-26`, `MainPagesViewModel.kt:11` и др. | Ввести стабильный contract-слой (`feature use-cases`/facade interfaces) между `app-tv` и `data` | L |
+| Medium | `DataModule` перегружен (единый модуль с большим числом биндингов), повышает риски регрессий и сложность замены зависимостей | `DataModule.kt:168-339` | Разбить на sub-modules: `network`, `storage`, `repositories`, `analytics`, `tv-usecases`; подключать композиционно | L |
+| Medium | Статический quality gate ослаблен: detekt rule sets массово отключены, baseline большой; часть модулей вне detektTargets | `config/detekt/detekt.yml:4-26`; baselines (`data/detekt-baseline.xml`, `app-tv/detekt-baseline.xml`); targets `build.gradle:43-52` | Поэтапно включать `potential-bugs/coroutines/naming`, снижать baseline, добавить `:media-mobile` в targets | M |
+| Medium | Непоследовательные сетевые таймауты: `Api/Main` используют `appendTimeouts`, `Simple/Player` — нет | `ApiOkHttpProvider.kt:38`, `MainOkHttpProvider.kt:27`, отсутствует в `SimpleOkHttpProvider.kt:23-25`, `PlayerOkHttpProvider.kt:21-23`; timeout policy `OkHttpConfig.kt:16-20` | Выровнять timeout policy по клиентам (осознанно исключать только при документированной причине) | S |
+| Low | `org.gradle.configuration-cache=false` — потеря скорости сборок/CI | `gradle.properties:18` | Подготовить миграцию к config-cache (проверка task compatibility, включение поэтапно) | M |
+| Low | Smoke-тесты завязаны на текст и polling-цикл, риск флейков на медленных девайсах/локали | `AppTvSmokeTest.kt:72-88,115-128` | Перейти на более стабильные селекторы/ids + idling strategy, уменьшить dependence от text literals | M |
 
-Live API validation results
-- Task: `./gradlew.bat :data:liveApiTest --console=plain --stacktrace` -> SUCCESS.
-- Report: `data/build/test-results/liveApiTest/TEST-ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApiLiveContractTest.xml`.
-- Suite: 8 tests, 0 failures, 0 errors.
-- Ключевая проверка schedule/week:
-  - `schedule/week no-args ... normalizedSize=36`
-  - `schedule/week with include/exclude ... normalizedSize=36`
-  - FAIL-условие (`no-args > 0 && with-params == 0`) не сработало.
-- Ограничения live теста соблюдены в коде: budget <= 10 запросов, timeout 5/10s, retry max 1 (`AniLibertyApiLiveContractTest.kt`).
+5. Предложения по улучшениям
+Quick wins (1-3 дня)
+1) Убрать секреты из репозитория и ротация
+- Файлы: `gradle.properties:26-29`, `README.md:16`
+- Эффект: снимает критический security-риск
+- Риски: потребует обновить CI/local release-инструкции
 
-Команды и результаты
-- `git branch --show-current` -> `fix/tv-close-high-medium`.
-- Для обязательных gradle команд использовался локальный профиль окружения:
-  - `JAVA_TOOL_OPTIONS=-Duser.home=<repo_root>`
-  - `GRADLE_USER_HOME=<repo_root>\\.gradle-user`
-  - `USERPROFILE=<repo_root>`, `HOME=<repo_root>`
-- `./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace` -> SUCCESS.
-- `./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS.
-- `./gradlew.bat :app-tv:testDebugUnitTest --tests "ru.radiationx.anilibria.screen.watching.WatchingRowsSeparationTest" --console=plain --stacktrace` -> SUCCESS.
-- `./gradlew.bat :app-tv:testDebugUnitTest --tests "ru.radiationx.anilibria.screen.watching.WatchingRowsSeparationTest" --console=plain --stacktrace` -> SUCCESS (после фикса именованных параметров/ожидания в тесте).
-- `./gradlew.bat :app-tv:lintDebug --console=plain --stacktrace` -> SUCCESS.
-- `./gradlew.bat :data:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS.
-- `./gradlew.bat detekt --console=plain --stacktrace` -> SUCCESS.
-- `./gradlew.bat :data:liveApiTest --console=plain --stacktrace` -> SUCCESS.
-- `./gradlew.bat :app-tv:assembleRelease --console=plain --stacktrace` -> SUCCESS.
+2) Нормализовать lifecycle-сбор Flow в UI
+- Файлы: `app-tv/src/main/java/ru/radiationx/anilibria/screen/profile/ProfileFragment.kt:63`, `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingFavoritesGridFragment.kt:145-146`, helper `shared-android-ktx/.../LiveData.kt:17-37`
+- Эффект: меньше фоновой работы и edge-case багов жизненного цикла
+- Риски: минимальные, поведенческие изменения в timing событий
 
-Environment/runtime notes (неблокирующие)
-- В первом запуске в песочнице команды падали до этапа плагина из‑за недоступности `C:\Users\CodexSandboxOffline\.android` (metrics/keystore).
-- С локальным профилем `JAVA_TOOL_OPTIONS/GRADLE_USER_HOME` все обязательные команды проходят.
+3) Очистить lint/detekt baseline и зафиксировать гейт
+- Файлы: `app-tv/lint-baseline.xml`, `build.gradle:43-84`, `config/detekt/detekt.yml`
+- Эффект: реальный сигнал качества вместо подавления
+- Риски: краткосрочно вырастет число задач на фиксы
 
-Список измененных файлов (основные)
-- app-tv:
-  - `app-tv/build.gradle`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/EpisodeOrder.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/PlayerViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/PlayerFragment.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/episodes/PlayerEpisodesViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/end_episode/EndEpisodeViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/end_season/EndSeasonViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingContinueViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingHistoryViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/main/MainViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/details/DetailHeaderViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/update/UpdateViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionsContentProvider.kt`
-  - `app-tv/src/release/AndroidManifest.xml`
-  - `app-tv/src/test/java/ru/radiationx/anilibria/screen/player/EpisodeOrderTest.kt`
-  - `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt`
-  - `app-tv/lint-baseline.xml`
-- data:
-  - `data/src/main/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApi.kt`
-  - `data/src/main/java/ru/radiationx/data/datasource/remote/address/ApiConfig.kt`
-  - `data/src/main/java/ru/radiationx/data/interactors/ConfiguringInteractor.kt`
-  - `data/src/main/java/ru/radiationx/data/datasource/remote/interceptors/AniLibertyAuthInterceptor.kt`
-  - `data/src/main/java/ru/radiationx/data/datasource/remote/interceptors/UnauthorizedInterceptor.kt`
-  - `data/src/main/java/ru/radiationx/data/system/AppCookieJar.kt`
-  - `data/src/main/java/ru/radiationx/data/downloader/RemoteFileRepository.kt`
-  - `data/src/main/java/ru/radiationx/data/datasource/storage/AuthTokenStorage.kt`
-  - `data/src/main/java/ru/radiationx/data/datasource/storage/CookiesStorage.kt`
-  - `data/src/main/java/ru/radiationx/data/datasource/storage/SensitivePreferenceMigrator.kt`
-  - `data/src/main/java/ru/radiationx/data/Qualifiers.kt`
-  - `data/src/main/java/ru/radiationx/data/di/DataModule.kt`
-  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvSessionUseCase.kt`
-  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvUpdateUseCase.kt`
-  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvSuggestionsUseCase.kt`
-  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvDetailHeaderUseCase.kt`
-  - `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleNowBehaviorTest.kt`
-  - `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleWeekBehaviorTest.kt`
-  - `data/src/liveTest/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiLiveContractTest.kt`
-  - `data/src/test/java/ru/radiationx/data/datasource/remote/address/ApiConfigTest.kt`
-  - `data/src/test/java/ru/radiationx/data/datasource/storage/SensitivePreferenceMigratorTest.kt`
-  - `data/src/test/java/ru/radiationx/data/downloader/RemoteFileRepositoryTest.kt`
-  - `data/src/test/java/ru/radiationx/data/system/AppCookieJarTest.kt`
-  - `data/build.gradle`
-  - `data/detekt-baseline.xml`
-- shared/build:
-  - `shared-ktx/src/main/java/ru/radiationx/shared/ktx/EventFlow.kt`
-  - `shared-ktx/src/test/java/ru/radiationx/shared/ktx/EventFlowTest.kt`
-  - `shared-ktx/build.gradle`
-  - `shared-android-ktx/src/main/java/ru/radiationx/shared/ktx/android/LiveData.kt`
-  - `build.gradle` (root detekt targets)
-  - `shared-android-ktx/detekt-baseline.xml`
-  - `shared-ktx/detekt-baseline.xml`
-  - `envoy/detekt-baseline.xml`
-  - `taiwa/detekt-baseline.xml`
-  - `searchbar/detekt-baseline.xml`
-- прочее:
-  - `gradle/libs.versions.toml`
-  - `gradle.properties` (secrets intentionally kept per accepted risk)
+4) Выровнять timeout policy для всех OkHttp providers
+- Файлы: `data/.../ApiOkHttpProvider.kt:38`, `MainOkHttpProvider.kt:27`, `SimpleOkHttpProvider.kt:23-25`, `PlayerOkHttpProvider.kt:21-23`
+- Эффект: предсказуемое поведение сети
+- Риски: возможны изменения latency profile для отдельных запросов
 
-Not included (реально не делалось)
-- Профилирование на устройстве (startup/frame-time/memory/network profiler).
-- Instrumentation/UI tests на девайсе.
-- Любые изменения в `app-mobile/**`.
-- Удаление/перенос release signing secrets (explicitly accepted risk).
+Medium (1-2 недели)
+1) Убрать `runBlocking`/blocking synchronization из горячих путей
+- Файлы: `shared-app/.../CoilLibriaImageLoaderImpl.kt:37`, `app-tv/.../SuggestionsContentProvider.kt:103-113`
+- Эффект: снижение риска jank/ANR, лучше UX поиска/картинок
+- Риски: потребуется аккуратная переработка cache/инициализации
 
-================================================================================
-Цикл: 2026-02-23
-Ветка: test/tv-androidtests-and-state-cleanup
-Ограничения:
-- `app-mobile/**` не менялся.
-- secrets в `gradle.properties:26-29` не изменялись (accepted risk сохранен).
+2) Разделить `DataModule` на доменные подмодули DI
+- Файл: `data/src/main/java/ru/radiationx/data/di/DataModule.kt:168-339`
+- Эффект: проще тестировать и менять зависимости, меньше side-effects
+- Риски: миграция wiring может затронуть большую часть data слоя
 
-AndroidTest smoke suite (:app-tv)
-- Конфигурация:
-  - `app-tv/build.gradle`: добавлены androidTest зависимости (`androidx.test:core-ktx`, `runner`, `ext:junit`, `uiautomator`), задан `testInstrumentationRunner`.
-  - `testOptions.managedDevices`: добавлен `pixel2Api33` (`:app-tv:pixel2Api33DebugAndroidTest`).
-  - `app-tv/src/androidTest/java/ru/radiationx/anilibria/test/TvInstrumentationRunner.kt`: выставляет `System.setProperty("anilibria.android_test_mode", "true")`.
-  - `data/src/main/java/ru/radiationx/data/system/AndroidTestMode.kt`: общий флаг test mode.
-  - `app-tv/src/main/java/ru/radiationx/anilibria/App.kt`: в test mode отключена AppMetrica, `ApiConfig.needConfig=false`.
-  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvContentUseCase.kt`: в test mode выдаются `TvContentSmokeFixtures` вместо реального API.
-- Тесты (3 smoke):
-  - `appLaunchesAndMainScreenRenders`
-  - `openCardFromMainListShowsDetailsScreen`
-  - `watchingScreenKeepsSearchIconVisible`
-  Файл: `app-tv/src/androidTest/java/ru/radiationx/anilibria/smoke/AppTvSmokeTest.kt`.
-- Запуск:
-  - Device: `./gradlew.bat :app-tv:connectedDebugAndroidTest --console=plain --stacktrace`.
-  - Managed device: `./gradlew.bat :app-tv:pixel2Api33DebugAndroidTest --console=plain --stacktrace`.
-- Результаты в текущем окружении:
-  - `connectedDebugAndroidTest`: FAIL (`No connected devices!`).
-  - `pixel2Api33DebugAndroidTest`: FAIL (`pixel2Api33Setup` timeout `default_boot` + `Java heap space`).
+3) Укрепить secure storage (fail-closed для критичных данных)
+- Файлы: `DataModule.kt:368-384`, `AuthTokenStorage.kt:13-24,33-38`
+- Эффект: исключение plaintext хранения токенов при сбоях crypto
+- Риски: нужно продумать recovery UX при недоступности encrypted store
 
-Event/state cleanup
-- Команды вынесены в `SharedFlow`:
-  - `AppLauncherViewModel`: `AppLauncherCommand.AppReady` через `MutableSharedFlow(replay=0)`.
-  - `PlayerViewModel`: `PlayerCommand` (`Play`, `Pause`, `Seek`, `NextEpisodeSelected`) через `MutableSharedFlow(replay=0, extraBufferCapacity=16)`.
-- nullable-state hacks убраны в приоритетных местах:
-  - `BaseSearchValuesViewModel.selectedIndex`: `StateFlow<Int>` (sentinel `-1`).
-  - `SearchSortViewModel.selectedIndex`: non-null.
-  - `SearchCompletedViewModel.selectedIndex`: non-null.
-  - `PlayerQualityViewModel.selectedData`: non-null (`-1L` sentinel).
-  - `PlayerEpisodesViewModel.selectedActionId`: non-null (`-1L` sentinel).
-- UI/коллекторы обновлены под команды/state:
-  - `MainActivity` слушает `viewModel.commands`.
-  - `PlayerFragment` слушает `viewModel.commands`.
-- Unit tests:
-  - `app-tv/src/test/java/ru/radiationx/anilibria/screen/launcher/AppLauncherViewModelCommandsTest.kt`
-    - команда приходит ровно 1 раз;
-    - при поздней подписке replay отсутствует.
-  - `app-tv/src/test/java/ru/radiationx/anilibria/screen/search/SearchUseCaseBoundaryTest.kt`
-    - non-null state проверен для sort/completed.
+4) Расширить тестовое покрытие библиотечных модулей
+- Модули без unit tests: `shared-app`, `shared-android-ktx`, `quill-di`, `media-mobile`, `taiwa`, `envoy`, `searchbar`
+- Эффект: снижение регрессий в shared-коде
+- Риски: трудозатраты на инфраструктуру и test doubles
 
-Usecase boundary extensions (small batch)
-- Добавлен usecase:
-  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvSearchUseCase.kt`
-  - регистрация в `data/src/main/java/ru/radiationx/data/di/DataModule.kt`
-- UI переключен на usecase вместо прямых data-repository зависимостей:
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/SearchViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/year/SearchYearViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/season/SearchSeasonViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/genre/SearchGenreViewModel.kt`
-  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/suggestions/SuggestionsResultViewModel.kt` (через `TvSuggestionsUseCase`).
+Large refactor (3-8 недель)
+1) Ввести явные feature contracts между `app-tv` и `data`
+- Текущие точки связности: `app-tv` ViewModel прямые импорты repositories/holders (`ProfileViewModel.kt:12`, `PlayerViewModel.kt:17,24-26`, `WatchingViewModel.kt:12,14-16` и др.)
+- Эффект: устойчивые границы, проще замена backend/storage, лучше модульные тесты
+- Риски: масштабная миграция DI и API между слоями
 
-Команды и результаты (обязательные проверки)
-- `./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace` -> SUCCESS.
-- `./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS.
-  - Примечание: Kotlin daemon в окружении периодически недоступен (`AccessDeniedException` в `%LOCALAPPDATA%/kotlin/daemon`), Gradle fallback без daemon отрабатывает успешно.
-- `./gradlew.bat :app-tv:lintDebug --console=plain --stacktrace` -> SUCCESS.
-  - По пути исправлено: debug manifest (`MissingLeanbackLauncher`/`ImpliedTouchscreenHardware` для debug-варианта).
-- `./gradlew.bat detekt --console=plain --stacktrace` -> SUCCESS.
-  - По пути исправлено: detekt `ReturnCount/MagicNumber` в `TvContentUseCase`.
-- Android tests:
-  - `./gradlew.bat :app-tv:connectedDebugAndroidTest --console=plain --stacktrace` -> FAIL (`No connected devices`).
-  - `./gradlew.bat :app-tv:pixel2Api33DebugAndroidTest --console=plain --stacktrace` -> FAIL (`pixel2Api33Setup` timeout + OOM).
+2) Рефактор навигации TV (сократить монолит screen registry + guided special-cases)
+- Файлы: `Screens.kt:40-205`, `GuidedStepNavigator.kt:18-136`, `NavigationModule.kt:9-16`
+- Эффект: лучше поддерживаемость и предсказуемость навигации
+- Риски: риск регрессий в backstack поведении
+
+3) Упорядочить состояние ViewModel по единому UDF-паттерну
+- Файлы: большинство `app-tv/.../*ViewModel.kt`, базовые `BaseCardsViewModel.kt:16,19`, `BaseRowsViewModel.kt:8`
+- Эффект: прозрачная модель state/event, меньше accidental mutation
+- Риски: много файлов, потребуются инкрементальные PR
+
+6. Flow/StateFlow migration candidates
+(Только кандидаты, где это дает конкретную пользу)
+
+1) Encapsulation state в TV ViewModel
+- Где:
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingFavoritesViewModel.kt:45-53`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/SearchViewModel.kt:27`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/common/BaseCardsViewModel.kt:16,19`
+- Почему: публичные `MutableStateFlow/MutableSharedFlow` допускают внешний mutation и ломают single source of truth.
+- Как: `private val _state = MutableStateFlow(...)`, наружу `val state: StateFlow<...> = _state.asStateFlow()`; аналогично для событий через `_events.asSharedFlow()`.
+
+2) Lifecycle-safe collection для UI collectors
+- Где:
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/profile/ProfileFragment.kt:63`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingFavoritesGridFragment.kt:145-146`
+- Почему: текущие коллекции живут в `lifecycleScope`, но не ограничены `STARTED`, что ведет к лишней работе/пропускам в edge-cases.
+- Как: заменить на `subscribeTo(...)` из `shared-android-ktx/.../LiveData.kt:17-37` или `flowWithLifecycle(..., STARTED)`.
+
+3) `ApiConfig.needConfig` -> `StateFlow<Boolean>`
+- Где:
+  - `data/src/main/java/ru/radiationx/data/datasource/remote/address/ApiConfig.kt:23-24,35-38`
+  - потребитель: `app-tv/src/main/java/ru/radiationx/anilibria/screen/launcher/AppLauncherViewModel.kt:54-67`
+- Почему: сейчас смесь mutable var + `MutableSharedFlow(replay=0)` усложняет инициализацию и может приводить к missed emissions.
+- Как: заменить на `MutableStateFlow<Boolean>` + единый источник истины (`needConfigState`), убрать дублирующий mutable var.
+
+4) Упростить событийные каналы, где сейчас custom `EventFlow`
+- Где: `shared-ktx/src/main/java/ru/radiationx/shared/ktx/EventFlow.kt:10-14`
+- Почему: `DROP_OLDEST` + `extraBufferCapacity` могут молча терять важные события; семантика не всегда очевидна потребителям.
+- Как: по сценариям выбрать `SharedFlow` (для broadcast) или `Channel` (для single-consumer events), документировать guarantees.
+
+7. Not included (because ...)
+- Не запускались Gradle-задачи/сборки/тесты/линт/detekt/ktlint/spotless (ограничение задачи).
+- Не выполнялось runtime-профилирование, измерение производительности и анализ ANR/heap на устройстве.
+- Не выполнялись изменения кода/конфигов проекта (кроме создания отчетного файла `data/report.txt`).
+- `app-mobile` не анализировался глубоко по коду и поведению (только структурное присутствие и зависимости на уровне `build.gradle`/`settings.gradle`).

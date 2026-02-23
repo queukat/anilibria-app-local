@@ -1,0 +1,121 @@
+Stage 2 Report (TV): perf hardening + secure storage hardening + DI decomposition + contracts/facade
+
+1) Список изменённых файлов
+- app-tv/src/main/java/ru/radiationx/anilibria/App.kt
+- app-tv/src/main/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionQueryExecutor.kt
+- app-tv/src/main/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionsContentProvider.kt
+- app-tv/src/main/java/ru/radiationx/anilibria/screen/player/PlayerViewModel.kt
+- app-tv/src/main/java/ru/radiationx/anilibria/screen/profile/ProfileViewModel.kt
+- app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingViewModel.kt
+- app-tv/src/test/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionQueryExecutorTest.kt
+- shared-app/src/main/java/ru/radiationx/shared_app/imageloader/impls/CoilLibriaImageLoaderImpl.kt
+- data/src/main/java/ru/radiationx/data/Qualifiers.kt
+- data/src/main/java/ru/radiationx/data/di/CriticalSecureStorageStatus.kt
+- data/src/main/java/ru/radiationx/data/datasource/storage/AuthTokenStorage.kt
+- data/src/main/java/ru/radiationx/data/di/DataModule.kt
+- data/src/main/java/ru/radiationx/data/contracts/tv/TvPlayerFacade.kt
+- data/src/main/java/ru/radiationx/data/contracts/tv/TvProfileFacade.kt
+- data/src/main/java/ru/radiationx/data/contracts/tv/TvWatchingFacade.kt
+- data/src/main/java/ru/radiationx/data/contracts/tv/impl/TvPlayerFacadeImpl.kt
+- data/src/main/java/ru/radiationx/data/contracts/tv/impl/TvProfileFacadeImpl.kt
+- data/src/main/java/ru/radiationx/data/contracts/tv/impl/TvWatchingFacadeImpl.kt
+- data/src/test/java/ru/radiationx/data/datasource/storage/AuthTokenStorageTest.kt
+- data/src/test/java/ru/radiationx/data/contracts/tv/impl/TvPlayerFacadeImplTest.kt
+- data/src/test/java/ru/radiationx/data/contracts/tv/impl/TvWatchingFacadeImplTest.kt
+- data/report_stage2.txt
+
+2) Что сделано по A–E
+
+A) SuggestionsContentProvider.query: убран блокирующий await в sync-path
+- Было:
+  - `SuggestionsContentProvider.query()` вызывал `SuggestionQueryExecutor.execute()` с fetch, внутри которого был `CountDownLatch.await(...)` и ожидание `App.appInitialized.await()`/network.
+  - `SuggestionQueryExecutor` блокировал вызывающий поток через `future.get(timeout)`.
+- Стало:
+  - `SuggestionQueryExecutor` переписан в cache-first, non-blocking для caller:
+    - `execute()` всегда возвращает сразу (cache или empty).
+    - refresh вынесен в async (`ScheduledExecutorService` + `workerExecutor`).
+    - добавлены debounce/throttle через `minRequestIntervalMs` и отмену предыдущего запланированного запроса.
+    - защита от гонок через request sequence + проверка lastAppliedRequestByQuery.
+    - timeout перенесён в async-fetch (`future.get(timeout)` в worker), без блокировки `query()`.
+  - `SuggestionsContentProvider.fetchSuggestions()` больше не использует latch/await в sync-path query; ожидание инициализации/сети остаётся только в async refresh.
+  - Добавлены/обновлены unit-тесты на non-blocking и async-cache контракт.
+
+B) CoilLibriaImageLoaderImpl: убран runBlocking из горячего пути
+- Было:
+  - `getImageLoader()` использовал `runBlocking + Mutex.withLock`, вызывался из `showImage`.
+- Стало:
+  - `runBlocking` и coroutine mutex удалены.
+  - Используется обычная синхронизация (`synchronized`) и `LoaderState`.
+  - Инициализация ImageLoader делается через `ensureImageLoader()` без coroutine blocking.
+  - Добавлен best-effort warmup в `init` имплементации.
+  - В `App.initDependencies()` добавлен eager resolve `LibriaImageLoader` для раннего прогрева singleton в Application, до горячего UI-path.
+
+C) Secure storage token: fail-closed + recovery UX + migration
+- Было:
+  - `SecureDataPreferencesProvider` fallback-ился в plaintext prefs.
+  - `AuthTokenStorage` писал токен в `@SecureDataPreferences`, что в fallback-сценарии могло стать plaintext.
+- Стало:
+  - Введён split critical/non-critical:
+    - новый qualifier `@CriticalSecureDataPreferences`.
+    - новый `CriticalSecureStorageStatus`.
+    - новый provider `CriticalSecureDataPreferencesProvider`.
+  - Для критичного токена (`AuthTokenStorage`) используется `@CriticalSecureDataPreferences`.
+  - Если encrypted init не удался, статус помечается unavailable, и token storage работает fail-closed:
+    - `saveToken()` бросает `IllegalStateException` с recovery-сообщением для UX (сообщение попадает в уже существующий auth error flow UI).
+    - plaintext key очищается.
+    - `getToken()` возвращает null в fail-closed режиме.
+  - Миграция legacy plaintext -> encrypted сохраняется при доступном encrypted storage и очищает plaintext ключ после миграции.
+  - Добавлены unit-тесты на миграцию и fail-closed поведение.
+
+D) DataModule decomposition
+- Было:
+  - монолитный `DataModule.init` с длинным плоским списком bind-ов.
+- Стало:
+  - декомпозиция на подмодули внутри `DataModule` (без переименования публичных типов):
+    - `installStorageModule()`
+    - `installNetworkModule(context)`
+    - `installRepositoriesModule()`
+    - `installTvUseCasesModule()`
+    - `installAnalyticsModule()`
+  - Поведение DI сохранено, churn минимальный.
+
+E) Facade/contracts между app-tv и data (минимальный slice на 3 VM)
+- Введены contracts:
+  - `TvPlayerFacade`
+  - `TvWatchingFacade`
+  - `TvProfileFacade`
+- Введены реализации в data:
+  - `TvPlayerFacadeImpl`
+  - `TvWatchingFacadeImpl`
+  - `TvProfileFacadeImpl`
+- DI binding на интерфейсы добавлен в `DataModule`.
+- На интерфейсы переведены 3 VM:
+  - `PlayerViewModel`
+  - `WatchingViewModel`
+  - `ProfileViewModel`
+- Добавлены unit-тесты facade:
+  - `TvPlayerFacadeImplTest`
+  - `TvWatchingFacadeImplTest`
+
+3) Как проверялось (команды + результат)
+- Команда:
+  - `./gradlew.bat :app-tv:testDebugUnitTest --tests "ru.radiationx.anilibria.contentprovider.suggestions.SuggestionQueryExecutorTest" :data:testDebugUnitTest --tests "ru.radiationx.data.datasource.storage.AuthTokenStorageTest" --console=plain --stacktrace`
+  - Результат: SUCCESS.
+- Команда (обязательный suite):
+  - `./gradlew.bat :app-tv:lintDebug :app-tv:detekt :data:detekt :app-tv:testDebugUnitTest :data:test --console=plain --stacktrace`
+  - Промежуточно:
+    - 1-й запуск: detekt `ReturnCount` в `SuggestionQueryExecutor.refresh` -> исправлено.
+    - 2-й запуск: transient fail в `WatchingRowsSeparationTest` (таймаут wait) -> перепроверено целевым тестом, затем полный suite перезапущен.
+  - Финальный запуск: SUCCESS.
+
+4) Риски / обратная совместимость
+- `SuggestionQueryExecutor` теперь strict cache-first async: при cold-start без cache пользователь может увидеть пустой результат до завершения первого async refresh (ожидаемое поведение для non-blocking query).
+- Для token storage в fail-closed режиме авторизация не сохраняется (по требованиям безопасности). UX восстановления зависит от понятности сообщения на auth-экране.
+- `WatchingRowsSeparationTest` показал один transient таймаут в одном полном прогоне; повторный прогон зелёный.
+- DI decomposition сделана без смены публичных типов, но изменилась структурная организация `DataModule`.
+
+5) Что осталось на “large refactor”
+- Вынести подмодули DI в отдельные файлы/классы (сейчас логически разнесено методами внутри `DataModule`, что минимизирует churn).
+- Расширить facade/contracts за пределы 3 VM (main/details/search и т.д.) для более полного разрыва app-tv -> data.
+- Добавить instrumentation/benchmark для Suggestions provider latency (реальный TV GlobalSearch path).
+- Усилить UX для fail-closed secure storage (явные сценарии восстановления/диалог/локализация сообщений).

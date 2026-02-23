@@ -17,6 +17,7 @@ import ru.radiationx.anilibria.screen.PlayerEndSeasonGuidedScreen
 import ru.radiationx.anilibria.screen.PlayerEpisodesGuidedScreen
 import ru.radiationx.anilibria.screen.PlayerQualityGuidedScreen
 import ru.radiationx.anilibria.screen.PlayerSpeedGuidedScreen
+import ru.radiationx.data.contracts.tv.TvPlayerFacade
 import ru.radiationx.data.datasource.holders.PreferencesHolder
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.common.PlayerQuality
@@ -24,10 +25,6 @@ import ru.radiationx.data.entity.domain.release.Episode
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
-import ru.radiationx.data.interactors.ReleaseInteractor
-import ru.radiationx.data.repository.AuthRepository
-import ru.radiationx.data.repository.UserViewsRepository
-import timber.log.Timber
 import javax.inject.Inject
 
 sealed interface PlayerCommand {
@@ -39,9 +36,7 @@ sealed interface PlayerCommand {
 
 class PlayerViewModel @Inject constructor(
     private val argExtra: PlayerExtra,
-    private val releaseInteractor: ReleaseInteractor,
-    private val userViewsRepository: UserViewsRepository,
-    private val authRepository: AuthRepository,
+    private val tvPlayerFacade: TvPlayerFacade,
     private val preferencesHolder: PreferencesHolder,
     private val guidedRouter: GuidedRouter,
     private val playerController: PlayerController,
@@ -79,7 +74,7 @@ class PlayerViewModel @Inject constructor(
         playerController.reset()
 
         // Auth: включаем удалённую синхронизацию прогресса только если AUTH.
-        authRepository.observeAuthState()
+        tvPlayerFacade.observeAuthState()
             .onEach { canSyncRemoteViews = it == AuthState.AUTH }
             .launchIn(viewModelScope)
 
@@ -110,7 +105,7 @@ class PlayerViewModel @Inject constructor(
 
         // Load initial release(s)
         viewModelScope.launch {
-            val releases = releaseInteractor.loadWithFranchises(argExtra.releaseId)
+            val releases = tvPlayerFacade.loadWithFranchises(argExtra.releaseId)
             currentReleases = releases
             playerController.data.value = releases
 
@@ -119,16 +114,12 @@ class PlayerViewModel @Inject constructor(
 
             val initialEpisodeId = argExtra.episodeId
                 ?: runCatching {
-                    // local continue (legacy)
-                    releaseInteractor
-                        .getAccesses(argExtra.releaseId)
-                        .maxByOrNull { it.lastAccessRaw }
-                        ?.id
+                    tvPlayerFacade.getLocalContinueEpisodeId(argExtra.releaseId)
                 }.getOrNull()
                 ?: run {
                     // remote continue (AniLiberty) — best effort
-                    if (authRepository.getAuthState() == AuthState.AUTH) {
-                        runCatching { userViewsRepository.findLatestEpisodeIdForRelease(argExtra.releaseId) }.getOrNull()
+                    if (tvPlayerFacade.getAuthState() == AuthState.AUTH) {
+                        runCatching { tvPlayerFacade.getRemoteContinueEpisodeId(argExtra.releaseId) }.getOrNull()
                     } else {
                         null
                     }
@@ -193,8 +184,8 @@ class PlayerViewModel @Inject constructor(
 
         viewModelScope.launch {
             // If already completed, open end screens
-            val access = releaseInteractor.getAccess(episode.id)
-            currentComplete = access != null && access.seek >= duration
+            val accessSeek = tvPlayerFacade.getLocalEpisodeSeek(episode.id)
+            currentComplete = accessSeek >= duration
 
             if (currentComplete) {
                 getCurrentRelease()?.also { release ->
@@ -276,7 +267,7 @@ class PlayerViewModel @Inject constructor(
 
         viewModelScope.launch {
             // local progress (legacy) — always
-            releaseInteractor.setAccessSeek(snapshot.episodeId, snapshot.position)
+            tvPlayerFacade.saveLocalEpisodeSeek(snapshot.episodeId, snapshot.position)
 
             // remote progress (AniLiberty) — best effort
             syncEpisodeProgressToRemote(snapshot, syncRemote)
@@ -288,7 +279,7 @@ class PlayerViewModel @Inject constructor(
 
         val remotePosition = if (snapshot.isWatched) 0L else snapshot.position
         runCatching {
-            userViewsRepository.upsertEpisodeTimecode(
+            tvPlayerFacade.saveRemoteEpisodeProgress(
                 episodeId = snapshot.episodeId,
                 positionMs = remotePosition,
                 isWatched = snapshot.isWatched,
@@ -330,11 +321,11 @@ class PlayerViewModel @Inject constructor(
             val newUrl = episode.qualityInfo.getSafeUrlFor(quality)
 
             // local (legacy): always available
-            val localSeek = releaseInteractor.getAccess(episode.id)?.seek ?: 0L
+            val localSeek = tvPlayerFacade.getLocalEpisodeSeek(episode.id)
 
             // remote (AniLiberty): enables "continue on another device"
             val remoteSeek = if (canSyncRemoteViews) {
-                runCatching { userViewsRepository.getEpisodeTimecode(episode.id)?.positionMs ?: 0L }.getOrDefault(0L)
+                runCatching { tvPlayerFacade.getRemoteEpisodeSeek(episode.id) }.getOrDefault(0L)
             } else {
                 0L
             }
