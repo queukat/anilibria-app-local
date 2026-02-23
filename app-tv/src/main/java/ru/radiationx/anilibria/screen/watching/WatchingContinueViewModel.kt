@@ -1,16 +1,23 @@
 package ru.radiationx.anilibria.screen.watching
 
+import androidx.lifecycle.viewModelScope
 import ru.radiationx.anilibria.common.AniLibertyViewHistoryCardMapper
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.data.datasource.holders.EpisodesCheckerHolder
+import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.repository.HistoryRepository
 import ru.radiationx.data.repository.UserViewsRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 
 class WatchingContinueViewModel @Inject constructor(
@@ -26,6 +33,22 @@ class WatchingContinueViewModel @Inject constructor(
 
     private var remoteMode: Boolean = true
     private var remoteHasMore: Boolean = true
+    private val localProgressReleaseIds = MutableStateFlow<Set<Int>>(emptySet())
+
+    init {
+        episodesCheckerHolder.observeEpisodes()
+            .map(::toLocalProgressReleaseIds)
+            .distinctUntilChanged()
+            .onEach { releaseIds ->
+                val hadLocalProgress = localProgressReleaseIds.value.isNotEmpty()
+                localProgressReleaseIds.value = releaseIds
+                if (hadLocalProgress && releaseIds.isEmpty()) {
+                    cardsData.value = emptyList()
+                }
+                onRefreshClick()
+            }
+            .launchIn(viewModelScope)
+    }
 
     override fun onRefreshClick() {
         // если был фолбек на local — при refresh попробуем remote снова
@@ -86,6 +109,7 @@ class WatchingContinueViewModel @Inject constructor(
         response: PaginatedResponse<UserViewHistoryItem>,
     ): List<LibriaCard> {
         val usedReleaseIds = mutableSetOf<Int>()
+        val localReleaseIds = localProgressReleaseIds.value
 
         return response.data
             .asSequence()
@@ -94,9 +118,19 @@ class WatchingContinueViewModel @Inject constructor(
             .mapNotNull { AniLibertyViewHistoryCardMapper.toContinueCardOrNull(it) }
             .filter { card ->
                 val id = (card.type as? LibriaCard.Type.Release)?.releaseId?.id
-                id != null && usedReleaseIds.add(id)
+                id != null &&
+                    usedReleaseIds.add(id) &&
+                    localReleaseIds.contains(id)
             }
             .toList()
+    }
+
+    private fun toLocalProgressReleaseIds(
+        episodes: List<EpisodeAccess>,
+    ): Set<Int> {
+        return episodes.asSequence()
+            .map { it.id.releaseId.id }
+            .toSet()
     }
 
     private suspend fun loadLocalContinue(): List<LibriaCard> {

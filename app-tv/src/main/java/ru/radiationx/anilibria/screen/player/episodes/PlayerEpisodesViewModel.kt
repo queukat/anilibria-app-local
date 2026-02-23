@@ -98,11 +98,7 @@ class PlayerEpisodesViewModel @Inject constructor(
             val groupId = id++
             val actions = release.episodes.sortedByEpisodeOrdinalAsc().map { episode ->
                 val access = accesses[episode.id]
-                val description = if (access != null && access.isViewed && access.seek > 0) {
-                    "Остановлена на ${Date(access.seek).asTimeSecString()}"
-                } else {
-                    null
-                }
+                val description = access?.let(::formatEpisodeAccessDescription)
                 Action(
                     id = id++,
                     episodeId = episode.id,
@@ -130,4 +126,12 @@ class PlayerEpisodesViewModel @Inject constructor(
         val title: String,
         val description: String?,
     )
+}
+
+internal fun formatEpisodeAccessDescription(access: EpisodeAccess): String? {
+    return when {
+        !access.isViewed -> null
+        access.seek > 0L -> "Остановлена на ${Date(access.seek).asTimeSecString()}"
+        else -> "Просмотрено"
+    }
 }

@@ -124,7 +124,7 @@ class PlayerFragment : BasePlayerFragment() {
 
     override fun onPause() {
         super.onPause()
-        viewModel.onPauseClick(getPosition())
+        viewModel.onPauseClick(getPosition(), syncRemote = false)
     }
 
     /**
@@ -134,29 +134,23 @@ class PlayerFragment : BasePlayerFragment() {
         viewModel.onComplete(getPosition())
     }
 
+    override fun onStop() {
+        super.onStop()
+        viewModel.onExit(getPosition())
+
+        // Узнаём, на каком releaseId (сезоне) мы закончили.
+        // Если он отличается от исходного — возвращаем пользователя в текущий сезон.
+        val newReleaseId = viewModel.getCurrentReleaseId() ?: return
+        if (newReleaseId != argumentsReleaseId) {
+            router.replaceScreen(DetailsScreen(newReleaseId))
+        }
+    }
+
     /**
      * Событие «плеер готов воспроизводить» (получили реальную длительность и т.д.)
      */
     override fun onPreparePlaying() {
         viewModel.onPrepare(getDuration())
-    }
-
-    /**
-     * Если хотим при **выходе** из плеера (свайп назад или системная «назад») проверять,
-     * не ушли ли мы на другой сезон (releaseId), — делаем это в onStop().
-     *
-     * Можно делать и в onDestroyView(), однако onStop() надёжнее с точки зрения
-     * «экран уже точно закрываем».
-     */
-    override fun onStop() {
-        super.onStop()
-        // Узнаём, на каком releaseId (сезоне) мы закончили
-        val newReleaseId = viewModel.getCurrentReleaseId() ?: return
-
-        // Если он отличается от исходного (аргумента), значит был переход на другой сезон
-        if (newReleaseId != argumentsReleaseId) {
-            router.replaceScreen(DetailsScreen(newReleaseId))
-        }
     }
 
     private fun getPosition(): Long = player?.currentPosition ?: 0

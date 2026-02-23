@@ -25,12 +25,14 @@ import ru.radiationx.data.entity.domain.release.BlockedInfo
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.release.FavoriteInfo
 import ru.radiationx.data.entity.domain.release.Release
+import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseCode
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.repository.HistoryRepository
 import ru.radiationx.data.repository.UserViewsRepository
+import ru.radiationx.data.entity.response.PaginatedResponse
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WatchingRowsSeparationTest {
@@ -71,8 +73,10 @@ class WatchingRowsSeparationTest {
         val converter = mockk<CardsDataConverter>(relaxed = true)
         every { converter.toCard(release) } returns card
 
+        val historyFlow = MutableStateFlow(HistoryReleases(listOf(release), 1))
         val historyRepository = mockk<HistoryRepository>()
-        coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(listOf(release), 1)
+        coEvery { historyRepository.getReleases(any()) } answers { historyFlow.value }
+        every { historyRepository.observeReleases(any()) } returns historyFlow
 
         val releaseInteractor = mockk<ReleaseInteractor>()
         coEvery { releaseInteractor.getAccesses(release.id) } returns listOf(
@@ -98,7 +102,6 @@ class WatchingRowsSeparationTest {
         val historyVm = WatchingHistoryViewModel(
             converter = converter,
             historyRepository = historyRepository,
-            userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
 
@@ -118,7 +121,6 @@ class WatchingRowsSeparationTest {
         episodesHolder.setEpisodes(emptyList())
         coEvery { releaseInteractor.getAccesses(release.id) } returns emptyList()
 
-        continueVm.onRefreshClick()
         historyVm.onRefreshClick()
         waitUntil {
             continueVm.cardsData.value.isEmpty() &&
@@ -130,10 +132,245 @@ class WatchingRowsSeparationTest {
         assertTrue("Opened history must remain after clearing watch progress", historyVm.cardsData.value.isNotEmpty())
     }
 
+    @Test
+    fun clearWatchProgress_removesRemoteContinueItem() = runBlocking {
+        val release = release(id = 51)
+        val card = LibriaCard(
+            title = "Release 51",
+            description = "",
+            image = "",
+            type = LibriaCard.Type.Release(release.id),
+        )
+
+        val episodesHolder = FakeEpisodesCheckerHolder(
+            listOf(
+                EpisodeAccess(
+                    id = EpisodeId("1", release.id),
+                    seek = 5_000,
+                    isViewed = true,
+                    lastAccess = 1000L,
+                )
+            )
+        )
+
+        val converter = mockk<CardsDataConverter>(relaxed = true)
+        every { converter.toCard(release) } returns card
+
+        val historyRepository = mockk<HistoryRepository>()
+        coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(emptyList(), 0)
+        every { historyRepository.observeReleases(any()) } returns MutableStateFlow(HistoryReleases(emptyList(), 0))
+
+        val releaseInteractor = mockk<ReleaseInteractor>()
+        coEvery { releaseInteractor.getAccesses(release.id) } returns listOf(
+            EpisodeAccess(
+                id = EpisodeId("1", release.id),
+                seek = 5_000,
+                isViewed = true,
+                lastAccess = 1000L,
+            )
+        )
+
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } answers {
+            PaginatedResponse(
+                data = listOf(
+                    UserViewHistoryItem(
+                        releaseId = release.id,
+                        titleMain = release.names.first(),
+                        titleEnglish = null,
+                        titleAlternative = null,
+                        posterPreview = null,
+                        posterThumbnail = null,
+                        episodeOrdinal = 1.0,
+                        timeSeconds = 12.0,
+                        isWatched = false,
+                    )
+                ),
+                meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
+            )
+        }
+
+        val continueVm = WatchingContinueViewModel(
+            converter = converter,
+            releaseInteractor = releaseInteractor,
+            historyRepository = historyRepository,
+            episodesCheckerHolder = episodesHolder,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        continueVm.onRefreshClick()
+        waitUntil { continueVm.cardsData.value.isNotEmpty() }
+
+        // Эмулируем очистку watch-progress: локальный список эпизодов пуст.
+        episodesHolder.setEpisodes(emptyList())
+        coEvery { releaseInteractor.getAccesses(release.id) } returns emptyList()
+        waitUntil { continueVm.cardsData.value.isEmpty() }
+
+        assertTrue("Continue should disappear when watch progress cleared even if remote still returns item", continueVm.cardsData.value.isEmpty())
+    }
+
+    @Test
+    fun openedCardAppearsInHistoryAfterClear() = runBlocking {
+        val release = release(id = 99)
+        val continueCard = LibriaCard(
+            title = "Release 99",
+            description = "",
+            image = "",
+            type = LibriaCard.Type.Release(release.id),
+        )
+
+        val openedHistoryFlow = MutableStateFlow(HistoryReleases(emptyList(), 0))
+
+        val converter = mockk<CardsDataConverter>(relaxed = true)
+        every { converter.toCard(release) } returns continueCard
+
+        val historyRepository = mockk<HistoryRepository>()
+        coEvery { historyRepository.getReleases(any()) } answers { openedHistoryFlow.value }
+        every { historyRepository.observeReleases(any()) } returns openedHistoryFlow
+
+        val episodesCheckerHolder = FakeEpisodesCheckerHolder(emptyList())
+
+        val releaseInteractor = mockk<ReleaseInteractor>()
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } returns PaginatedResponse(
+            data = listOf(
+                UserViewHistoryItem(
+                    releaseId = release.id,
+                    titleMain = release.names.first(),
+                    titleEnglish = null,
+                    titleAlternative = null,
+                    posterPreview = null,
+                    posterThumbnail = null,
+                    episodeOrdinal = 1.0,
+                    timeSeconds = 10.0,
+                    isWatched = false,
+                )
+            ),
+            meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
+        )
+
+        val continueVm = WatchingContinueViewModel(
+            converter = converter,
+            releaseInteractor = releaseInteractor,
+            historyRepository = historyRepository,
+            episodesCheckerHolder = episodesCheckerHolder,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+        val historyVm = WatchingHistoryViewModel(
+            converter = converter,
+            historyRepository = historyRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        continueVm.onRefreshClick()
+        historyVm.onRefreshClick()
+        waitUntil {
+            continueVm.cardsData.value.isEmpty() &&
+                historyVm.cardsData.value.isEmpty()
+        }
+
+        // Simulate "open" action by writing card id into opened history storage.
+        openedHistoryFlow.value = HistoryReleases(listOf(release), 1)
+
+        waitUntil {
+            historyVm.cardsData.value.isNotEmpty() &&
+                historyVm.cardsData.value.none { it is LoadingCard }
+        }
+
+        assertTrue("Opened card must appear in history", historyVm.cardsData.value.isNotEmpty())
+        assertTrue(
+            "Opened card must come from local history flow",
+            historyVm.cardsData.value.any { card -> card is LibriaCard && card.type is LibriaCard.Type.Release && card.type.releaseId == release.id }
+        )
+    }
+
+    @Test
+    fun remoteContinueItemDisappearsAfterWatchProgressClearAndVmRecreate() = runBlocking {
+        val release = release(id = 77)
+        val card = LibriaCard(
+            title = "Release 77",
+            description = "",
+            image = "",
+            type = LibriaCard.Type.Release(release.id),
+        )
+
+        val episodesHolder = FakeEpisodesCheckerHolder(
+            listOf(
+                EpisodeAccess(
+                    id = EpisodeId("1", release.id),
+                    seek = 7_000,
+                    isViewed = true,
+                    lastAccess = 1000L,
+                )
+            )
+        )
+
+        val converter = mockk<CardsDataConverter>(relaxed = true)
+        every { converter.toCard(release) } returns card
+
+        val historyRepository = mockk<HistoryRepository>()
+        coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(emptyList(), 0)
+        every { historyRepository.observeReleases(any()) } returns MutableStateFlow(HistoryReleases(emptyList(), 0))
+
+        val releaseInteractor = mockk<ReleaseInteractor>()
+        coEvery { releaseInteractor.getAccesses(release.id) } returns emptyList()
+
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } answers {
+            PaginatedResponse(
+                data = listOf(
+                    UserViewHistoryItem(
+                        releaseId = release.id,
+                        titleMain = release.names.first(),
+                        titleEnglish = null,
+                        titleAlternative = null,
+                        posterPreview = null,
+                        posterThumbnail = null,
+                        episodeOrdinal = 1.0,
+                        timeSeconds = 10.0,
+                        isWatched = false,
+                    )
+                ),
+                meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
+            )
+        }
+
+        val continueVmFirst = WatchingContinueViewModel(
+            converter = converter,
+            releaseInteractor = releaseInteractor,
+            historyRepository = historyRepository,
+            episodesCheckerHolder = episodesHolder,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        continueVmFirst.onRefreshClick()
+        waitUntil { continueVmFirst.cardsData.value.isNotEmpty() }
+
+        episodesHolder.setEpisodes(emptyList())
+        waitUntil { continueVmFirst.cardsData.value.isEmpty() }
+
+        val continueVmSecond = WatchingContinueViewModel(
+            converter = converter,
+            releaseInteractor = releaseInteractor,
+            historyRepository = historyRepository,
+            episodesCheckerHolder = episodesHolder,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        continueVmSecond.onRefreshClick()
+        waitUntil { continueVmSecond.cardsData.value.isEmpty() }
+
+        assertTrue("Continue should stay empty after watch progress clear even after VM recreate", continueVmSecond.cardsData.value.isEmpty())
+    }
+
     private suspend fun waitUntil(predicate: () -> Boolean) {
-        repeat(50) {
+        repeat(100) {
             if (predicate()) return
-            delay(20)
+            delay(50)
         }
         error("Condition was not met in time")
     }

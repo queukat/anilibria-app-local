@@ -17,6 +17,7 @@ import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.common.PlayerQuality
 import ru.radiationx.data.entity.domain.release.Episode
 import ru.radiationx.data.entity.domain.release.Release
+import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.repository.AuthRepository
@@ -156,8 +157,16 @@ class PlayerViewModel @Inject constructor(
         playAction.value = false
     }
 
-    fun onPauseClick(position: Long) {
-        saveEpisode(position)
+    fun onPauseClick(
+        position: Long,
+        syncRemote: Boolean,
+    ) {
+        saveEpisodePosition(position, syncRemote = syncRemote)
+        playAction.value = false
+    }
+
+    fun onExit(position: Long) {
+        saveEpisodePosition(position, syncRemote = true)
         playAction.value = false
     }
 
@@ -182,7 +191,7 @@ class PlayerViewModel @Inject constructor(
 
     fun onComplete(position: Long) {
         currentComplete = true
-        saveEpisode(position)
+        saveEpisodePosition(position)
         playAction.value = false
 
         // Автоплей следующей серии (если включено и серия существует)
@@ -201,19 +210,19 @@ class PlayerViewModel @Inject constructor(
 
 
     fun onNextClick(position: Long) {
-        saveEpisode(position)
+        saveEpisodePosition(position)
         val next = getNextEpisode() ?: return
         playEpisode(next)
     }
 
     fun onPrevClick(position: Long) {
-        saveEpisode(position)
+        saveEpisodePosition(position, syncRemote = false)
         val prev = getPrevEpisode() ?: return
         playEpisode(prev)
     }
 
     fun onQualityClick(position: Long) {
-        saveEpisode(position)
+        saveEpisodePosition(position, syncRemote = false)
         guidedRouter.open(PlayerQualityGuidedScreen(getCurrentReleaseId() ?: return, currentEpisode?.id))
     }
 
@@ -222,7 +231,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun onEpisodesClick(position: Long) {
-        saveEpisode(position)
+        saveEpisodePosition(position, syncRemote = false)
         guidedRouter.open(PlayerEpisodesGuidedScreen(getCurrentReleaseId() ?: return, currentEpisode?.id))
     }
 
@@ -236,29 +245,36 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun saveEpisode(position: Long) {
+    private fun saveEpisodePosition(position: Long, syncRemote: Boolean = true) {
         getCurrentRelease() ?: return
         val episode = currentEpisode ?: return
 
         // фиксируем значения ДО launch, чтобы переключение эпизода не ломало расчёт
-        val isWatched = currentComplete || (currentDuration > 0 && position >= currentDuration)
-        val remotePosition = if (isWatched) 0L else position
+        val snapshot = EpisodeProgressSnapshot(
+            episodeId = episode.id,
+            position = position,
+            isWatched = currentComplete || (currentDuration > 0 && position >= currentDuration),
+        )
 
         viewModelScope.launch {
             // local progress (legacy) — always
-            releaseInteractor.setAccessSeek(episode.id, position)
+            releaseInteractor.setAccessSeek(snapshot.episodeId, snapshot.position)
 
             // remote progress (AniLiberty) — best effort
-            if (canSyncRemoteViews) {
-                runCatching {
-                    userViewsRepository.upsertEpisodeTimecode(
-                        episodeId = episode.id,
-                        positionMs = remotePosition,
-                        isWatched = isWatched,
-                    )
-                }
-            }
+            syncEpisodeProgressToRemote(snapshot, syncRemote)
+        }
+    }
 
+    private suspend fun syncEpisodeProgressToRemote(snapshot: EpisodeProgressSnapshot, syncRemote: Boolean) {
+        if (!syncRemote || !canSyncRemoteViews) return
+
+        val remotePosition = if (snapshot.isWatched) 0L else snapshot.position
+        runCatching {
+            userViewsRepository.upsertEpisodeTimecode(
+                episodeId = snapshot.episodeId,
+                positionMs = remotePosition,
+                isWatched = snapshot.isWatched,
+            )
         }
     }
 
@@ -327,4 +343,10 @@ class PlayerViewModel @Inject constructor(
     fun getCurrentReleaseId(): ReleaseId? {
         return currentEpisode?.id?.releaseId ?: argExtra.releaseId
     }
+
+    private data class EpisodeProgressSnapshot(
+        val episodeId: EpisodeId,
+        val position: Long,
+        val isWatched: Boolean,
+    )
 }
