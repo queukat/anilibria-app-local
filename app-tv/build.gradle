@@ -44,6 +44,7 @@ android {
         targetSdk app_target_sdk_version
         versionCode tv_version_code
         versionName tv_version_name
+        testInstrumentationRunner "ru.radiationx.anilibria.test.TvInstrumentationRunner"
         buildConfigField "String", 'BUILD_DATE', '"' + getDateTime() + '"'
     }
 
@@ -94,6 +95,18 @@ android {
     lint {
         baseline = file("lint-baseline.xml")
     }
+
+    testOptions {
+        managedDevices {
+            devices {
+                pixel2Api33(com.android.build.api.dsl.ManagedVirtualDevice) {
+                    device = "Pixel 2"
+                    apiLevel = 33
+                    systemImageSource = "google_apis"
+                }
+            }
+        }
+    }
 }
 
 kotlin {
@@ -138,4 +151,9 @@ dependencies {
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1"
     testImplementation "io.mockk:mockk:1.13.13"
+
+    androidTestImplementation "androidx.test:core-ktx:1.6.1"
+    androidTestImplementation "androidx.test:runner:1.6.2"
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
+    androidTestImplementation "androidx.test.uiautomator:uiautomator:2.3.0"
 }

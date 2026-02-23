@@ -10,7 +10,9 @@ import ru.mintrocket.lib.mintpermissions.ext.initMintPermissions
 import ru.mintrocket.lib.mintpermissions.flows.ext.initMintPermissionsFlow
 import ru.radiationx.anilibria.di.AppModule
 import ru.radiationx.data.di.DataModule
+import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.system.ApplicationCoroutineScope
+import ru.radiationx.data.system.AndroidTestMode
 import ru.radiationx.quill.Quill
 import timber.log.Timber
 
@@ -29,7 +31,9 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        initYandexAppMetrica()
+        if (!AndroidTestMode.enabled) {
+            initYandexAppMetrica()
+        }
 
         if (isMainProcess()) {
             initInMainProcess()
@@ -61,6 +65,9 @@ class App : Application() {
             AppModule(this),
             DataModule(this)
         )
+        if (AndroidTestMode.enabled) {
+            Quill.getRootScope().get(ApiConfig::class).needConfig = false
+        }
     }
 
     /**
