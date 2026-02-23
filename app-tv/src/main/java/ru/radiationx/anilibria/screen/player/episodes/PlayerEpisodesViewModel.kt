@@ -32,7 +32,7 @@ class PlayerEpisodesViewModel @Inject constructor(
 ) : LifecycleViewModel() {
 
     val episodesData = MutableStateFlow<List<Group>>(emptyList())
-    val selectedAction = MutableStateFlow<Action?>(null)
+    val selectedActionId = MutableStateFlow(-1L)
 
     init {
         val releasesFlow = if (playerController.isPlayerActive) {
@@ -78,7 +78,7 @@ class PlayerEpisodesViewModel @Inject constructor(
                 .associateBy { it.id }
             val groups = releases.toGroups(accesses)
             episodesData.value = groups
-            selectedAction.value = groups.findAction { it.episodeId == argExtra.episodeId }
+            selectedActionId.value = groups.findAction { it.episodeId == argExtra.episodeId }?.id ?: -1L
         }
     }
 

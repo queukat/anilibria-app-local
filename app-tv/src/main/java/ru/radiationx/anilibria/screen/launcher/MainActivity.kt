@@ -45,8 +45,10 @@ class MainActivity : FragmentActivity() {
         setContentView(R.layout.activity_fragments)
 
         lifecycle.addObserver(viewModel)
-        subscribeTo(viewModel.appReadyState) {
-            handleIntent(intent)
+        subscribeTo(viewModel.commands) { command ->
+            if (command is AppLauncherViewModel.AppLauncherCommand.AppReady) {
+                handleIntent(intent)
+            }
         }
 
         if (savedInstanceState == null) {

@@ -27,7 +27,7 @@ class PlayerQualityViewModel @Inject constructor(
     }
 
     val availableData = MutableStateFlow<List<Long>>(emptyList())
-    val selectedData = MutableStateFlow<Long?>(null)
+    val selectedData = MutableStateFlow(-1L)
 
     init {
         combine(

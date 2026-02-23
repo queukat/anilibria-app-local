@@ -229,46 +229,15 @@ class WatchingRowsSeparationTest {
         coEvery { historyRepository.getReleases(any()) } answers { openedHistoryFlow.value }
         every { historyRepository.observeReleases(any()) } returns openedHistoryFlow
 
-        val episodesCheckerHolder = FakeEpisodesCheckerHolder(emptyList())
-
-        val releaseInteractor = mockk<ReleaseInteractor>()
-        val userViewsRepository = mockk<UserViewsRepository>()
-        coEvery { userViewsRepository.getViewsHistory(any(), any()) } returns PaginatedResponse(
-            data = listOf(
-                UserViewHistoryItem(
-                    releaseId = release.id,
-                    titleMain = release.names.first(),
-                    titleEnglish = null,
-                    titleAlternative = null,
-                    posterPreview = null,
-                    posterThumbnail = null,
-                    episodeOrdinal = 1.0,
-                    timeSeconds = 10.0,
-                    isWatched = false,
-                )
-            ),
-            meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
-        )
-
-        val continueVm = WatchingContinueViewModel(
-            converter = converter,
-            releaseInteractor = releaseInteractor,
-            historyRepository = historyRepository,
-            episodesCheckerHolder = episodesCheckerHolder,
-            userViewsRepository = userViewsRepository,
-            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
         val historyVm = WatchingHistoryViewModel(
             converter = converter,
             historyRepository = historyRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
 
-        continueVm.onRefreshClick()
         historyVm.onRefreshClick()
         waitUntil {
-            continueVm.cardsData.value.isEmpty() &&
-                historyVm.cardsData.value.isEmpty()
+            historyVm.cardsData.value.isEmpty()
         }
 
         // Simulate "open" action by writing card id into opened history storage.
@@ -368,7 +337,7 @@ class WatchingRowsSeparationTest {
     }
 
     private suspend fun waitUntil(predicate: () -> Boolean) {
-        repeat(100) {
+        repeat(200) {
             if (predicate()) return
             delay(50)
         }

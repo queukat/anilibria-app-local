@@ -1,7 +1,9 @@
 package ru.radiationx.anilibria.screen.player
 
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -25,6 +27,13 @@ import ru.radiationx.data.repository.UserViewsRepository
 import timber.log.Timber
 import javax.inject.Inject
 
+sealed interface PlayerCommand {
+    data object Play : PlayerCommand
+    data object Pause : PlayerCommand
+    data class Seek(val positionMs: Long) : PlayerCommand
+    data class NextEpisodeSelected(val episodeId: EpisodeId) : PlayerCommand
+}
+
 class PlayerViewModel @Inject constructor(
     private val argExtra: PlayerExtra,
     private val releaseInteractor: ReleaseInteractor,
@@ -36,11 +45,13 @@ class PlayerViewModel @Inject constructor(
 ) : LifecycleViewModel() {
 
     val videoData = MutableStateFlow<Video?>(null)
-    val seekState = MutableStateFlow<Long?>(null)
-
-    val qualityState = MutableStateFlow<PlayerQuality?>(null)
-    val speedState = MutableStateFlow<Float?>(null)
-    val playAction = MutableStateFlow<Boolean?>(null)
+    val qualityState = MutableStateFlow(preferencesHolder.playerQuality.value)
+    val speedState = MutableStateFlow(preferencesHolder.playSpeed.value)
+    private val _commands = MutableSharedFlow<PlayerCommand>(
+        replay = 0,
+        extraBufferCapacity = 16,
+    )
+    val commands = _commands.asSharedFlow()
 
     private var currentReleases: List<Release> = emptyList()
     private var currentEpisodes: List<Episode> = emptyList()
@@ -149,12 +160,12 @@ class PlayerViewModel @Inject constructor(
 
     override fun onResume() {
         super.onResume()
-        playAction.value = true
+        emitCommand(PlayerCommand.Play)
     }
 
     override fun onPause() {
         super.onPause()
-        playAction.value = false
+        emitCommand(PlayerCommand.Pause)
     }
 
     fun onPauseClick(
@@ -162,12 +173,12 @@ class PlayerViewModel @Inject constructor(
         syncRemote: Boolean,
     ) {
         saveEpisodePosition(position, syncRemote = syncRemote)
-        playAction.value = false
+        emitCommand(PlayerCommand.Pause)
     }
 
     fun onExit(position: Long) {
         saveEpisodePosition(position, syncRemote = true)
-        playAction.value = false
+        emitCommand(PlayerCommand.Pause)
     }
 
     fun onPrepare(duration: Long) {
@@ -184,7 +195,7 @@ class PlayerViewModel @Inject constructor(
                     openEndGuidedScreen(release, episode)
                 }
             } else {
-                playAction.value = true
+                emitCommand(PlayerCommand.Play)
             }
         }
     }
@@ -192,7 +203,7 @@ class PlayerViewModel @Inject constructor(
     fun onComplete(position: Long) {
         currentComplete = true
         saveEpisodePosition(position)
-        playAction.value = false
+        emitCommand(PlayerCommand.Pause)
 
         // Автоплей следующей серии (если включено и серия существует)
         val next = getNextEpisode()
@@ -213,6 +224,7 @@ class PlayerViewModel @Inject constructor(
         saveEpisodePosition(position)
         val next = getNextEpisode() ?: return
         playEpisode(next)
+        emitCommand(PlayerCommand.NextEpisodeSelected(next.id))
     }
 
     fun onPrevClick(position: Long) {
@@ -334,8 +346,8 @@ class PlayerViewModel @Inject constructor(
             if (force || videoData.value?.url != newVideo.url) {
                 videoData.value = newVideo
             } else if (videoData.value?.seek != newVideo.seek) {
-                // url тот же, но seek изменился — отправим «одноразовый» сигнал.
-                seekState.value = newVideo.seek
+                // url тот же, но seek изменился — отправим одноразовую команду.
+                emitCommand(PlayerCommand.Seek(newVideo.seek))
             }
         }
     }
@@ -349,4 +361,8 @@ class PlayerViewModel @Inject constructor(
         val position: Long,
         val isWatched: Boolean,
     )
+
+    private fun emitCommand(command: PlayerCommand) {
+        _commands.tryEmit(command)
+    }
 }

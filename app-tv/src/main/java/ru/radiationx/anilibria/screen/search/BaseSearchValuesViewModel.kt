@@ -10,7 +10,7 @@ abstract class BaseSearchValuesViewModel(
     val progressState = MutableStateFlow(false)
     val valuesData = MutableStateFlow<List<String>>(emptyList())
     val checkedIndicesData = MutableStateFlow<List<Pair<Int, Boolean>>>(emptyList())
-    val selectedIndex = MutableStateFlow<Int?>(null)
+    val selectedIndex = MutableStateFlow(-1)
 
     protected val currentValues = mutableListOf<String>()
     protected val checkedValues = mutableSetOf<String>()
@@ -44,7 +44,10 @@ abstract class BaseSearchValuesViewModel(
         }
         val firstCheckedValue = currentValues.firstOrNull { checkedValues.contains(it) }
         firstCheckedValue?.also {
-            selectedIndex.value = currentValues.indexOf(it)
+            val selectedIndex = currentValues.indexOf(it)
+            if (selectedIndex >= 0) {
+                this.selectedIndex.value = selectedIndex
+            }
         }
     }
 

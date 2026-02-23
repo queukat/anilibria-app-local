@@ -19,7 +19,7 @@ class SearchSortViewModel @Inject constructor(
     )
 
     val titlesData = MutableStateFlow<List<String>>(emptyList())
-    val selectedIndex = MutableStateFlow<Int?>(null)
+    val selectedIndex = MutableStateFlow(-1)
 
     init {
         titlesData.value = titles

@@ -2,7 +2,8 @@ package ru.radiationx.anilibria.screen.launcher
 
 import androidx.lifecycle.viewModelScope
 import com.github.terrakok.cicerone.Router
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -17,6 +18,7 @@ import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.UserViewsSyncInteractor
 import ru.radiationx.data.repository.AuthRepository
+import ru.radiationx.data.system.AndroidTestMode
 import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
 import javax.inject.Inject
@@ -28,9 +30,17 @@ class AppLauncherViewModel @Inject constructor(
     private val userViewsSyncInteractor: UserViewsSyncInteractor,
 ) : LifecycleViewModel() {
 
+    sealed interface AppLauncherCommand {
+        data object AppReady : AppLauncherCommand
+    }
+
     private var firstLaunch = true
 
-    val appReadyState = MutableStateFlow<Unit?>(null)
+    private val _commands = MutableSharedFlow<AppLauncherCommand>(
+        replay = 0,
+        extraBufferCapacity = 1,
+    )
+    val commands = _commands.asSharedFlow()
 
     fun openRelease(id: ReleaseId) {
         router.navigateTo(DetailsScreen(id))
@@ -83,10 +93,10 @@ class AppLauncherViewModel @Inject constructor(
 
         viewModelScope.launch {
             router.newRootScreen(MainPagesScreen())
-            if (authRepository.getAuthState() == AuthState.NO_AUTH) {
+            if (!AndroidTestMode.enabled && authRepository.getAuthState() == AuthState.NO_AUTH) {
                 router.navigateTo(AuthGuidedScreen())
             }
-            appReadyState.value = Unit
+            _commands.tryEmit(AppLauncherCommand.AppReady)
         }
         viewModelScope.launch {
             coRunCatching {

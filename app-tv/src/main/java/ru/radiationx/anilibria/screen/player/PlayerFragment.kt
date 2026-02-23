@@ -96,29 +96,33 @@ class PlayerFragment : BasePlayerFragment() {
             skipsPart?.setSkips(it.skips)
         }
 
-        // Подписываемся на сигнал Play/Pause
-        subscribeTo(viewModel.playAction.filterNotNull()) { isPlay ->
-            if (isPlay) {
-                playerGlue?.play()
-            } else {
-                playerGlue?.pause()
+        subscribeTo(viewModel.commands) { command ->
+            when (command) {
+                PlayerCommand.Play -> {
+                    playerGlue?.play()
+                }
+
+                PlayerCommand.Pause -> {
+                    playerGlue?.pause()
+                }
+
+                is PlayerCommand.Seek -> {
+                    playerGlue?.seekTo(command.positionMs)
+                }
+
+                is PlayerCommand.NextEpisodeSelected -> Unit
             }
         }
 
         // Скорость воспроизведения
-        subscribeTo(viewModel.speedState.filterNotNull()) { speedValue ->
+        subscribeTo(viewModel.speedState) { speedValue ->
             player?.playbackParameters =
                 androidx.media3.common.PlaybackParameters(speedValue)
         }
 
         // Качество (меняем иконку в управлении)
-        subscribeTo(viewModel.qualityState.filterNotNull()) {
+        subscribeTo(viewModel.qualityState) {
             playerGlue?.setQuality(it)
-        }
-
-        // Seek-команда при том же URL, когда меняется только позиция продолжения.
-        subscribeTo(viewModel.seekState.filterNotNull()) { seek ->
-            playerGlue?.seekTo(seek)
         }
     }
 

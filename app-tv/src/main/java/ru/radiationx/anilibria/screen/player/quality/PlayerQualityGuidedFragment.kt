@@ -3,7 +3,6 @@ package ru.radiationx.anilibria.screen.player.quality
 import android.os.Bundle
 import android.view.View
 import androidx.leanback.widget.GuidedAction
-import kotlinx.coroutines.flow.filterNotNull
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.player.BasePlayerGuidedFragment
 import ru.radiationx.quill.viewModel
@@ -49,8 +48,10 @@ class PlayerQualityGuidedFragment : BasePlayerGuidedFragment() {
             actions = it.mapNotNull { id -> getActionById(id) }
         }
 
-        subscribeTo(viewModel.selectedData.filterNotNull()) {
-            selectedActionPosition = findActionPositionById(it)
+        subscribeTo(viewModel.selectedData) { selectedId ->
+            if (selectedId >= 0L) {
+                selectedActionPosition = findActionPositionById(selectedId)
+            }
         }
     }
 
