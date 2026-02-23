@@ -151,3 +151,4 @@ fabric.properties
 /.gradle-user/
 /.android-user/
 /app-tv/anilibria_tv_release.jks
+.android
