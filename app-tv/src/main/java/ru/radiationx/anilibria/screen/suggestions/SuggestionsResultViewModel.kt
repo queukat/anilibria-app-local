@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.onEach
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
-import ru.radiationx.data.entity.domain.search.Suggestions
-import ru.radiationx.data.repository.SearchRepository
+import ru.radiationx.data.entity.domain.search.SuggestionItem
+import ru.radiationx.data.interactors.tv.TvSuggestionsUseCase
 import ru.radiationx.shared_app.controllers.loadersearch.SearchLoader
 import ru.radiationx.shared_app.controllers.loadersearch.SearchQuery
 import ru.radiationx.shared_app.controllers.loadersingle.mapData
@@ -18,13 +18,13 @@ import javax.inject.Inject
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SuggestionsResultViewModel @Inject constructor(
-    private val searchRepository: SearchRepository,
+    private val tvSuggestionsUseCase: TvSuggestionsUseCase,
     private val cardRouter: LibriaCardRouter,
     private val suggestionsController: SuggestionsController,
 ) : LifecycleViewModel() {
 
-    private val searchLoader = SearchLoader<Query, Suggestions>(viewModelScope) {
-        searchRepository.fastSearch(it.query)
+    private val searchLoader = SearchLoader<Query, List<SuggestionItem>>(viewModelScope) {
+        tvSuggestionsUseCase.loadSuggestions(it.query)
     }
 
     val progressState = MutableStateFlow(false)
@@ -33,9 +33,13 @@ class SuggestionsResultViewModel @Inject constructor(
     init {
         searchLoader
             .observeState()
-            .mapData {
-                val query = Query(it.query)
-                SuggestionsController.SearchResult(it.items, query.query, !query.isEmpty())
+            .mapData { items ->
+                val currentQuery = searchLoader.getQuery()?.query.orEmpty()
+                SuggestionsController.SearchResult(
+                    items = items,
+                    query = currentQuery,
+                    validQuery = currentQuery.length >= 3,
+                )
             }
             .onEach {
                 progressState.value = it.loading

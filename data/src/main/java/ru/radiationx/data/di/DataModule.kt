@@ -129,6 +129,8 @@ import ru.radiationx.data.interactors.tv.TvDetailHeaderUseCase
 import ru.radiationx.data.interactors.tv.TvDetailHeaderUseCaseImpl
 import ru.radiationx.data.interactors.tv.TvSessionUseCase
 import ru.radiationx.data.interactors.tv.TvSessionUseCaseImpl
+import ru.radiationx.data.interactors.tv.TvSearchUseCase
+import ru.radiationx.data.interactors.tv.TvSearchUseCaseImpl
 import ru.radiationx.data.interactors.tv.TvSuggestionsUseCase
 import ru.radiationx.data.interactors.tv.TvSuggestionsUseCaseImpl
 import ru.radiationx.data.interactors.tv.TvUpdateUseCase
@@ -289,6 +291,7 @@ class DataModule(context: Context) : QuillModule() {
         single<UserViewsSyncInteractor>()
         singleImpl<TvContentUseCase, TvContentUseCaseImpl>()
         singleImpl<TvSessionUseCase, TvSessionUseCaseImpl>()
+        singleImpl<TvSearchUseCase, TvSearchUseCaseImpl>()
         singleImpl<TvUpdateUseCase, TvUpdateUseCaseImpl>()
         singleImpl<TvSuggestionsUseCase, TvSuggestionsUseCaseImpl>()
         singleImpl<TvDetailHeaderUseCase, TvDetailHeaderUseCaseImpl>()

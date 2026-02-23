@@ -9,14 +9,14 @@ import ru.radiationx.anilibria.screen.search.BaseSearchValuesViewModel
 import ru.radiationx.anilibria.screen.search.SearchController
 import ru.radiationx.anilibria.screen.search.SearchValuesExtra
 import ru.radiationx.data.entity.domain.release.GenreItem
-import ru.radiationx.data.repository.SearchRepository
+import ru.radiationx.data.interactors.tv.TvSearchUseCase
 import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
 import javax.inject.Inject
 
 class SearchGenreViewModel @Inject constructor(
     argExtra: SearchValuesExtra,
-    private val searchRepository: SearchRepository,
+    private val tvSearchUseCase: TvSearchUseCase,
     private val searchController: SearchController,
     private val guidedRouter: GuidedRouter,
 ) : BaseSearchValuesViewModel(argExtra) {
@@ -24,7 +24,7 @@ class SearchGenreViewModel @Inject constructor(
     private val currentGenres = mutableListOf<GenreItem>()
 
     init {
-        searchRepository
+        tvSearchUseCase
             .observeGenres()
             .onEach { genres ->
                 currentGenres.clear()
@@ -41,7 +41,7 @@ class SearchGenreViewModel @Inject constructor(
         viewModelScope.launch {
             progressState.value = true
             coRunCatching {
-                searchRepository.getGenres()
+                tvSearchUseCase.loadGenres()
             }.onFailure {
                 Timber.e(it)
             }

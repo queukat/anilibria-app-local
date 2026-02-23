@@ -9,14 +9,14 @@ import ru.radiationx.anilibria.screen.search.BaseSearchValuesViewModel
 import ru.radiationx.anilibria.screen.search.SearchController
 import ru.radiationx.anilibria.screen.search.SearchValuesExtra
 import ru.radiationx.data.entity.domain.release.YearItem
-import ru.radiationx.data.repository.SearchRepository
+import ru.radiationx.data.interactors.tv.TvSearchUseCase
 import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
 import javax.inject.Inject
 
 class SearchYearViewModel @Inject constructor(
     argExtra: SearchValuesExtra,
-    private val searchRepository: SearchRepository,
+    private val tvSearchUseCase: TvSearchUseCase,
     private val searchController: SearchController,
     private val guidedRouter: GuidedRouter,
 ) : BaseSearchValuesViewModel(argExtra) {
@@ -24,7 +24,7 @@ class SearchYearViewModel @Inject constructor(
     private val currentYears = mutableListOf<YearItem>()
 
     init {
-        searchRepository
+        tvSearchUseCase
             .observeYears()
             .onEach { years ->
                 currentYears.clear()
@@ -42,7 +42,7 @@ class SearchYearViewModel @Inject constructor(
         viewModelScope.launch {
             progressState.value = true
             coRunCatching {
-                searchRepository.getYears()
+                tvSearchUseCase.loadYears()
             }.onFailure {
                 Timber.e(it)
             }

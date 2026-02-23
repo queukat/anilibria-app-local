@@ -1,7 +1,7 @@
 Дата: 2026-02-22
 Ветка: fix/tv-close-high-medium
 Целевой модуль: :app-tv
-Ограничение соблюдено: app-mobile/** не менялся (Gradle при конфигурации печатает warning по app-mobile, но задачи запускались только для :app-tv/:data/root detekt).
+Ограничение соблюдено: app-mobile/** не менялся. При сборках/тестах Gradle продолжал конфигурировать app-mobile как часть multi-module проекта.
 
 Accepted risk
 - Not addressed (explicitly accepted): release signing secrets в `gradle.properties:26-29` сохранены без удаления/переноса по прямому требованию.
@@ -23,7 +23,7 @@ Current code path (до фиксов -> после)
 - Continue watching:
   - источник: watch progress через `EpisodesCheckerHolder` + `ReleaseInteractor` в `WatchingContinueViewModel`.
 - View history (opened cards):
-  - источник: `UserViewsRepository.getViewsHistory` + fallback на `HistoryRepository` в `WatchingHistoryViewModel`.
+  - источник: дофиксировано: только `HistoryRepository` (opened cards), с реакцией на `observeReleases` для автообновления.
 - Schedule/week:
   - production путь в `AniLibertyApi.getScheduleWeek/getScheduleNow` теперь делает no-args запрос (`emptyMap()`), include/exclude отключены в production-path с явным логом.
 
@@ -36,9 +36,19 @@ UX behavior: до/после
   - До: смешение источников, риск удаления из истории карточек при очистке watch progress.
   - После:
     - Continue берется из watch progress (`WatchingContinueViewModel`, `EpisodesCheckerHolder`).
-    - History берется из opened cards history (`WatchingHistoryViewModel`, `HistoryRepository`/`UserViewsRepository`).
+    - History берется из opened cards history (`WatchingHistoryViewModel`, `HistoryRepository`) и обновляется при изменении `observeReleases`.
     - Очистка watch progress удаляет из Continue, но не удаляет из History.
+    - После clear прогресса список `Продолжить` теперь перезагружается автоматически благодаря подписке `episodesCheckerHolder.observeEpisodes()` в `WatchingContinueViewModel` (без ручного обновления экрана).
   - Тест: `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt`.
+- Player sync:
+  - До: `upsertEpisodeTimecode` вызывался на каждой пользовательской навигации в меню/переходах.
+  - После: в `PlayerViewModel` remote-sync прогресса вынесен в `syncEpisodeProgressToRemote` и вызывается только на паузе/выходе, завершении и переходе к следующему эпизоду; в меню-переходах выполняется только локальный прогресс.
+  - Примечание: это снижает частоту сетевых запросов синхронизации без потери локального продолжения просмотра.
+- Дополнительно (текущий follow-up):
+  - `WatchingContinueViewModel` теперь отслеживает `episodesCheckerHolder.observeEpisodes()` и ведет фильтр скрытых ID после `resetAccessHistory`.
+  - После очистки watch-progress карточка "Продолжить просмотр" удаляется даже если `/accounts/users/me/views/history` возвращает stale remote-запись (кейс: открыть → посмотреть → очистить → выйти).
+- Дополнительно для кейса «открыли из continue в history»:
+  - Тест `openedCardFromContinueAppearsInHistory` в `WatchingRowsSeparationTest` подтверждает: запись в историю просмотра через `HistoryRepository` (`observeReleases`/`getReleases`) делает карточку видимой в `История просмотров`.
 - Schedule/week params:
   - До: include/exclude path давал нестабильное поведение.
   - После: production использует no-args; live-контракт контролирует регрессию “no-args non-empty, with params empty”.
@@ -69,6 +79,8 @@ High/Medium closure
 Snapshot/Offline tests (выполнено)
 - `app-tv/src/test/java/ru/radiationx/anilibria/screen/player/EpisodeOrderTest.kt`.
 - `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt`.
+- `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt` (`openedCardFromContinueAppearsInHistory`).
+- `app-tv/src/test/java/ru/radiationx/anilibria/screen/watching/WatchingRowsSeparationTest.kt` (`clearWatchProgress_removesRemoteContinueItem`) на кейс stale remote continue после локальной очистки прогресса.
 - `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleNowBehaviorTest.kt`.
 - `data/src/test/java/ru/radiationx/data/datasource/remote/aniliberty/AniLibertyApiScheduleWeekBehaviorTest.kt`.
 - `data/src/test/java/ru/radiationx/data/downloader/RemoteFileRepositoryTest.kt`.
@@ -89,21 +101,23 @@ Live API validation results
 
 Команды и результаты
 - `git branch --show-current` -> `fix/tv-close-high-medium`.
+- Для обязательных gradle команд использовался локальный профиль окружения:
+  - `JAVA_TOOL_OPTIONS=-Duser.home=<repo_root>`
+  - `GRADLE_USER_HOME=<repo_root>\\.gradle-user`
+  - `USERPROFILE=<repo_root>`, `HOME=<repo_root>`
 - `./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace` -> SUCCESS.
-- `./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace` -> FAIL (падал `WatchingRowsSeparationTest`, condition timeout).
-- Исправление: `WatchingRowsSeparationTest.kt` (ожидание завершенной загрузки, без `LoadingCard`).
-- Повтор `./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS.
+- `./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS.
+- `./gradlew.bat :app-tv:testDebugUnitTest --tests "ru.radiationx.anilibria.screen.watching.WatchingRowsSeparationTest" --console=plain --stacktrace` -> SUCCESS.
+- `./gradlew.bat :app-tv:testDebugUnitTest --tests "ru.radiationx.anilibria.screen.watching.WatchingRowsSeparationTest" --console=plain --stacktrace` -> SUCCESS (после фикса именованных параметров/ожидания в тесте).
 - `./gradlew.bat :app-tv:lintDebug --console=plain --stacktrace` -> SUCCESS.
 - `./gradlew.bat :data:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS.
 - `./gradlew.bat detekt --console=plain --stacktrace` -> SUCCESS.
 - `./gradlew.bat :data:liveApiTest --console=plain --stacktrace` -> SUCCESS.
-- `./gradlew.bat :app-tv:assembleRelease --console=plain --stacktrace` -> FAIL (manifest merge conflict по `allowBackup`).
-- Исправление: `app-tv/src/release/AndroidManifest.xml` (`tools:replace` для `allowBackup/fullBackupContent`).
-- Повтор `./gradlew.bat :app-tv:assembleRelease --console=plain --stacktrace` -> SUCCESS.
+- `./gradlew.bat :app-tv:assembleRelease --console=plain --stacktrace` -> SUCCESS.
 
 Environment/runtime notes (неблокирующие)
-- Во всех Gradle запусках есть warning по metrics init для `C:\Users\CodexSandboxOffline\.android` из configure project `:app-mobile`.
-- Периодически Kotlin daemon недоступен (`AccessDeniedException ... kotlin-daemon-client-tsmarker...`), Gradle использует fallback compile; задачи завершаются SUCCESS.
+- В первом запуске в песочнице команды падали до этапа плагина из‑за недоступности `C:\Users\CodexSandboxOffline\.android` (metrics/keystore).
+- С локальным профилем `JAVA_TOOL_OPTIONS/GRADLE_USER_HOME` все обязательные команды проходят.
 
 Список измененных файлов (основные)
 - app-tv:
@@ -114,6 +128,7 @@ Environment/runtime notes (неблокирующие)
   - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/episodes/PlayerEpisodesViewModel.kt`
   - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/end_episode/EndEpisodeViewModel.kt`
   - `app-tv/src/main/java/ru/radiationx/anilibria/screen/player/end_season/EndSeasonViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingContinueViewModel.kt`
   - `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingHistoryViewModel.kt`
   - `app-tv/src/main/java/ru/radiationx/anilibria/screen/main/MainViewModel.kt`
   - `app-tv/src/main/java/ru/radiationx/anilibria/screen/details/DetailHeaderViewModel.kt`
@@ -169,3 +184,73 @@ Not included (реально не делалось)
 - Instrumentation/UI tests на девайсе.
 - Любые изменения в `app-mobile/**`.
 - Удаление/перенос release signing secrets (explicitly accepted risk).
+
+================================================================================
+Цикл: 2026-02-23
+Ветка: test/tv-androidtests-and-state-cleanup
+Ограничения:
+- `app-mobile/**` не менялся.
+- secrets в `gradle.properties:26-29` не изменялись (accepted risk сохранен).
+
+AndroidTest smoke suite (:app-tv)
+- Конфигурация:
+  - `app-tv/build.gradle`: добавлены androidTest зависимости (`androidx.test:core-ktx`, `runner`, `ext:junit`, `uiautomator`), задан `testInstrumentationRunner`.
+  - `testOptions.managedDevices`: добавлен `pixel2Api33` (`:app-tv:pixel2Api33DebugAndroidTest`).
+  - `app-tv/src/androidTest/java/ru/radiationx/anilibria/test/TvInstrumentationRunner.kt`: выставляет `System.setProperty("anilibria.android_test_mode", "true")`.
+  - `data/src/main/java/ru/radiationx/data/system/AndroidTestMode.kt`: общий флаг test mode.
+  - `app-tv/src/main/java/ru/radiationx/anilibria/App.kt`: в test mode отключена AppMetrica, `ApiConfig.needConfig=false`.
+  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvContentUseCase.kt`: в test mode выдаются `TvContentSmokeFixtures` вместо реального API.
+- Тесты (3 smoke):
+  - `appLaunchesAndMainScreenRenders`
+  - `openCardFromMainListShowsDetailsScreen`
+  - `watchingScreenKeepsSearchIconVisible`
+  Файл: `app-tv/src/androidTest/java/ru/radiationx/anilibria/smoke/AppTvSmokeTest.kt`.
+- Запуск:
+  - Device: `./gradlew.bat :app-tv:connectedDebugAndroidTest --console=plain --stacktrace`.
+  - Managed device: `./gradlew.bat :app-tv:pixel2Api33DebugAndroidTest --console=plain --stacktrace`.
+- Результаты в текущем окружении:
+  - `connectedDebugAndroidTest`: FAIL (`No connected devices!`).
+  - `pixel2Api33DebugAndroidTest`: FAIL (`pixel2Api33Setup` timeout `default_boot` + `Java heap space`).
+
+Event/state cleanup
+- Команды вынесены в `SharedFlow`:
+  - `AppLauncherViewModel`: `AppLauncherCommand.AppReady` через `MutableSharedFlow(replay=0)`.
+  - `PlayerViewModel`: `PlayerCommand` (`Play`, `Pause`, `Seek`, `NextEpisodeSelected`) через `MutableSharedFlow(replay=0, extraBufferCapacity=16)`.
+- nullable-state hacks убраны в приоритетных местах:
+  - `BaseSearchValuesViewModel.selectedIndex`: `StateFlow<Int>` (sentinel `-1`).
+  - `SearchSortViewModel.selectedIndex`: non-null.
+  - `SearchCompletedViewModel.selectedIndex`: non-null.
+  - `PlayerQualityViewModel.selectedData`: non-null (`-1L` sentinel).
+  - `PlayerEpisodesViewModel.selectedActionId`: non-null (`-1L` sentinel).
+- UI/коллекторы обновлены под команды/state:
+  - `MainActivity` слушает `viewModel.commands`.
+  - `PlayerFragment` слушает `viewModel.commands`.
+- Unit tests:
+  - `app-tv/src/test/java/ru/radiationx/anilibria/screen/launcher/AppLauncherViewModelCommandsTest.kt`
+    - команда приходит ровно 1 раз;
+    - при поздней подписке replay отсутствует.
+  - `app-tv/src/test/java/ru/radiationx/anilibria/screen/search/SearchUseCaseBoundaryTest.kt`
+    - non-null state проверен для sort/completed.
+
+Usecase boundary extensions (small batch)
+- Добавлен usecase:
+  - `data/src/main/java/ru/radiationx/data/interactors/tv/TvSearchUseCase.kt`
+  - регистрация в `data/src/main/java/ru/radiationx/data/di/DataModule.kt`
+- UI переключен на usecase вместо прямых data-repository зависимостей:
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/SearchViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/year/SearchYearViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/season/SearchSeasonViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/genre/SearchGenreViewModel.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/suggestions/SuggestionsResultViewModel.kt` (через `TvSuggestionsUseCase`).
+
+Команды и результаты (обязательные проверки)
+- `./gradlew.bat :app-tv:assembleDebug --console=plain --stacktrace` -> SUCCESS.
+- `./gradlew.bat :app-tv:testDebugUnitTest --console=plain --stacktrace` -> SUCCESS.
+  - Примечание: Kotlin daemon в окружении периодически недоступен (`AccessDeniedException` в `%LOCALAPPDATA%/kotlin/daemon`), Gradle fallback без daemon отрабатывает успешно.
+- `./gradlew.bat :app-tv:lintDebug --console=plain --stacktrace` -> SUCCESS.
+  - По пути исправлено: debug manifest (`MissingLeanbackLauncher`/`ImpliedTouchscreenHardware` для debug-варианта).
+- `./gradlew.bat detekt --console=plain --stacktrace` -> SUCCESS.
+  - По пути исправлено: detekt `ReturnCount/MagicNumber` в `TvContentUseCase`.
+- Android tests:
+  - `./gradlew.bat :app-tv:connectedDebugAndroidTest --console=plain --stacktrace` -> FAIL (`No connected devices`).
+  - `./gradlew.bat :app-tv:pixel2Api33DebugAndroidTest --console=plain --stacktrace` -> FAIL (`pixel2Api33Setup` timeout + OOM).
