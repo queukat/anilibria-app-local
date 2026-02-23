@@ -2,6 +2,8 @@ package ru.radiationx.anilibria.screen.update.source
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -20,13 +22,14 @@ class UpdateSourceViewModel @Inject constructor(
     private val updateController: UpdateController,
 ) : LifecycleViewModel() {
 
-    val sourcesData = MutableStateFlow<List<UpdateData.UpdateLink>>(emptyList())
+    private val _sourcesData = MutableStateFlow<List<UpdateData.UpdateLink>>(emptyList())
+    val sourcesData: StateFlow<List<UpdateData.UpdateLink>> = _sourcesData.asStateFlow()
 
     init {
         checkerRepository
             .observeUpdate()
             .onEach {
-                sourcesData.value = it.links
+                _sourcesData.value = it.links
             }
             .launchIn(viewModelScope)
     }
@@ -34,7 +37,7 @@ class UpdateSourceViewModel @Inject constructor(
     fun onLinkClick(index: Int) {
         viewModelScope.launch {
             guidedRouter.close()
-            val link = sourcesData.value.getOrNull(index) ?: return@launch
+            val link = _sourcesData.value.getOrNull(index) ?: return@launch
             when (link.type) {
                 UpdateData.LinkType.FILE -> updateController.downloadAction.emit(link)
                 UpdateData.LinkType.SITE -> systemUtils.externalLink(link.url)

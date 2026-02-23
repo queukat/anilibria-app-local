@@ -234,7 +234,6 @@
     <ID>NewLineAtEndOfFile:PlayerAnalytics.kt$ru.radiationx.data.analytics.features.PlayerAnalytics.kt</ID>
     <ID>NewLineAtEndOfFile:PlayerCacheDataSourceProvider.kt$ru.radiationx.data.player.PlayerCacheDataSourceProvider.kt</ID>
     <ID>NewLineAtEndOfFile:PlayerDataSourceProvider.kt$ru.radiationx.data.player.PlayerDataSourceProvider.kt</ID>
-    <ID>NewLineAtEndOfFile:PlayerOkHttpProvider.kt$ru.radiationx.data.di.providers.PlayerOkHttpProvider.kt</ID>
     <ID>NewLineAtEndOfFile:PlayerQuality.kt$ru.radiationx.data.entity.common.PlayerQuality.kt</ID>
     <ID>NewLineAtEndOfFile:PlayerSkips.kt$ru.radiationx.data.entity.domain.release.PlayerSkips.kt</ID>
     <ID>NewLineAtEndOfFile:PlayerSkipsResponse.kt$ru.radiationx.data.entity.response.release.PlayerSkipsResponse.kt</ID>
@@ -275,7 +274,6 @@
     <ID>NewLineAtEndOfFile:SharedBuildConfig.kt$ru.radiationx.data.SharedBuildConfig.kt</ID>
     <ID>NewLineAtEndOfFile:SimpleClientWrapper.kt$ru.radiationx.data.di.providers.SimpleClientWrapper.kt</ID>
     <ID>NewLineAtEndOfFile:SimpleNetworkClient.kt$ru.radiationx.data.di.providers.SimpleNetworkClient.kt</ID>
-    <ID>NewLineAtEndOfFile:SimpleOkHttpProvider.kt$ru.radiationx.data.di.providers.SimpleOkHttpProvider.kt</ID>
     <ID>NewLineAtEndOfFile:SocialAuth.kt$ru.radiationx.data.entity.domain.auth.SocialAuth.kt</ID>
     <ID>NewLineAtEndOfFile:SocialAuthException.kt$ru.radiationx.data.entity.domain.auth.SocialAuthException.kt</ID>
     <ID>NewLineAtEndOfFile:SocialAuthHolder.kt$ru.radiationx.data.datasource.holders.SocialAuthHolder.kt</ID>

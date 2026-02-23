@@ -3,6 +3,8 @@ package ru.radiationx.anilibria.screen.search
 import androidx.lifecycle.viewModelScope
 import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ru.radiationx.anilibria.common.BaseCardsViewModel
@@ -24,7 +26,8 @@ class SearchViewModel @Inject constructor(
 
     private var searchForm = SearchForm()
 
-    val progressState = MutableStateFlow(false)
+    private val _progressState = MutableStateFlow(false)
+    val progressState: StateFlow<Boolean> = _progressState.asStateFlow()
 
     override val loadOnCreate: Boolean = false
 
@@ -40,7 +43,7 @@ class SearchViewModel @Inject constructor(
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
         val needProgress = requestPage == firstPage
         if (needProgress) {
-            progressState.value = true
+            _progressState.value = true
         }
         return try {
             tvSearchUseCase
@@ -48,7 +51,7 @@ class SearchViewModel @Inject constructor(
                 .map { converter.toCard(it) }
         } finally {
             if (needProgress) {
-                progressState.value = false
+                _progressState.value = false
             }
         }
     }

@@ -8,6 +8,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -42,15 +46,22 @@ class WatchingFavoritesViewModel @Inject constructor(
 
     val defaultTitle: String = "Избранное"
 
-    val cardsData = MutableStateFlow<List<CardItem>>(listOf(LoadingCard()))
+    private val _cardsData = MutableStateFlow<List<CardItem>>(listOf(LoadingCard()))
+    val cardsData: StateFlow<List<CardItem>> = _cardsData.asStateFlow()
 
-    val dialogRequests = MutableSharedFlow<DialogRequest>(extraBufferCapacity = 1)
+    private val _dialogRequests = MutableSharedFlow<DialogRequest>(extraBufferCapacity = 1)
+    val dialogRequests: SharedFlow<DialogRequest> = _dialogRequests.asSharedFlow()
 
-    val yearLabel = MutableStateFlow("Год: любой")
-    val seasonLabel = MutableStateFlow("Сезон: любой")
-    val genreLabel = MutableStateFlow("Жанр: любой")
-    val sortLabel = MutableStateFlow("По дате выхода")
-    val onlyCompletedLabel = MutableStateFlow("Все")
+    private val _yearLabel = MutableStateFlow("Год: любой")
+    val yearLabel: StateFlow<String> = _yearLabel.asStateFlow()
+    private val _seasonLabel = MutableStateFlow("Сезон: любой")
+    val seasonLabel: StateFlow<String> = _seasonLabel.asStateFlow()
+    private val _genreLabel = MutableStateFlow("Жанр: любой")
+    val genreLabel: StateFlow<String> = _genreLabel.asStateFlow()
+    private val _sortLabel = MutableStateFlow("По дате выхода")
+    val sortLabel: StateFlow<String> = _sortLabel.asStateFlow()
+    private val _onlyCompletedLabel = MutableStateFlow("Все")
+    val onlyCompletedLabel: StateFlow<String> = _onlyCompletedLabel.asStateFlow()
 
     private var currentSort: SortMode = SortMode.BY_DATE
     private var onlyCompletedFilter: Boolean = false
@@ -150,7 +161,7 @@ class WatchingFavoritesViewModel @Inject constructor(
             addAll(availableYears)
         }
         if (options.size <= 1) return
-        dialogRequests.tryEmit(
+        _dialogRequests.tryEmit(
             DialogRequest.ChooseYear(options, selectedIndex = selectedIndex(options, yearFilter))
         )
     }
@@ -161,7 +172,7 @@ class WatchingFavoritesViewModel @Inject constructor(
             addAll(availableSeasons)
         }
         if (options.size <= 1) return
-        dialogRequests.tryEmit(
+        _dialogRequests.tryEmit(
             DialogRequest.ChooseSeason(options, selectedIndex = selectedIndex(options, seasonFilter))
         )
     }
@@ -172,7 +183,7 @@ class WatchingFavoritesViewModel @Inject constructor(
             addAll(availableGenres)
         }
         if (options.size <= 1) return
-        dialogRequests.tryEmit(
+        _dialogRequests.tryEmit(
             DialogRequest.ChooseGenre(options, selectedIndex = selectedIndex(options, genreFilter))
         )
     }
@@ -209,7 +220,7 @@ class WatchingFavoritesViewModel @Inject constructor(
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             if (showLoading) {
-                cardsData.value = listOf(LoadingCard(title = "Загрузка…"))
+                _cardsData.value = listOf(LoadingCard(title = "Загрузка…"))
             }
 
             try {
@@ -235,7 +246,7 @@ class WatchingFavoritesViewModel @Inject constructor(
                     showNeedAuth()
                 } else {
                     if (showLoading) {
-                        cardsData.value = listOf(
+                        _cardsData.value = listOf(
                             LoadingCard(
                                 title = "Ошибка загрузки",
                                 description = e.message ?: "",
@@ -251,7 +262,7 @@ class WatchingFavoritesViewModel @Inject constructor(
     }
 
     private fun showNeedAuth() {
-        cardsData.value = listOf(
+        _cardsData.value = listOf(
             LoadingCard(
                 title = "Нужно войти",
                 description = "Избранное доступно после авторизации",
@@ -293,7 +304,7 @@ class WatchingFavoritesViewModel @Inject constructor(
         rebuildJob = viewModelScope.launch {
             val src = releasesCache
             if (src.isEmpty()) {
-                cardsData.value = emptyList()
+                _cardsData.value = emptyList()
                 return@launch
             }
 
@@ -325,7 +336,7 @@ class WatchingFavoritesViewModel @Inject constructor(
                 }
             }
 
-            cardsData.value = sorted.map { converter.toCard(it) }
+            _cardsData.value = sorted.map { converter.toCard(it) }
                 .ifEmpty { listOf(LinkCard("Ничего не найдено")) }
         }
     }
@@ -360,15 +371,15 @@ class WatchingFavoritesViewModel @Inject constructor(
     }
 
     private fun updateLabels() {
-        yearLabel.value = yearFilter?.let { "Год: $it" } ?: "Год: любой"
-        seasonLabel.value = seasonFilter?.let { "Сезон: $it" } ?: "Сезон: любой"
-        genreLabel.value = genreFilter?.let { "Жанр: $it" } ?: "Жанр: любой"
+        _yearLabel.value = yearFilter?.let { "Год: $it" } ?: "Год: любой"
+        _seasonLabel.value = seasonFilter?.let { "Сезон: $it" } ?: "Сезон: любой"
+        _genreLabel.value = genreFilter?.let { "Жанр: $it" } ?: "Жанр: любой"
 
-        sortLabel.value = when (currentSort) {
+        _sortLabel.value = when (currentSort) {
             SortMode.BY_DATE -> "По дате выхода"
             SortMode.BY_TITLE -> "По названию"
         }
-        onlyCompletedLabel.value = if (onlyCompletedFilter) "Только завершённые" else "Все"
+        _onlyCompletedLabel.value = if (onlyCompletedFilter) "Только завершённые" else "Все"
     }
 
     private fun selectedIndex(options: List<String>, value: String?): Int {

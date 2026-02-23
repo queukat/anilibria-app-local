@@ -3,6 +3,8 @@ package ru.radiationx.anilibria.screen.schedule
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
@@ -19,7 +21,8 @@ class ScheduleViewModel @Inject constructor(
     private val cardRouter: LibriaCardRouter,
 ) : LifecycleViewModel() {
 
-    val scheduleRows = MutableStateFlow<List<Pair<String, List<LibriaCard>>>>(emptyList())
+    private val _scheduleRows = MutableStateFlow<List<Pair<String, List<LibriaCard>>>>(emptyList())
+    val scheduleRows: StateFlow<List<Pair<String, List<LibriaCard>>>> = _scheduleRows.asStateFlow()
 
     override fun onColdCreate() {
         super.onColdCreate()
@@ -53,7 +56,7 @@ class ScheduleViewModel @Inject constructor(
                     .orEmpty()
                     .map { dataConverter.toCard(it) }
 
-                scheduleRows.value = if (unknownCards.isNotEmpty()) {
+                _scheduleRows.value = if (unknownCards.isNotEmpty()) {
                     rows + ("Другое" to unknownCards)
                 } else {
                     rows

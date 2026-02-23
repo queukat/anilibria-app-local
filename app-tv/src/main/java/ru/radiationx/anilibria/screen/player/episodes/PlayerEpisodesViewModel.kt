@@ -3,6 +3,8 @@ package ru.radiationx.anilibria.screen.player.episodes
 import androidx.lifecycle.viewModelScope
 import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
@@ -31,8 +33,10 @@ class PlayerEpisodesViewModel @Inject constructor(
     private val router: Router,
 ) : LifecycleViewModel() {
 
-    val episodesData = MutableStateFlow<List<Group>>(emptyList())
-    val selectedActionId = MutableStateFlow(-1L)
+    private val _episodesData = MutableStateFlow<List<Group>>(emptyList())
+    val episodesData: StateFlow<List<Group>> = _episodesData.asStateFlow()
+    private val _selectedActionId = MutableStateFlow(-1L)
+    val selectedActionId: StateFlow<Long> = _selectedActionId.asStateFlow()
 
     init {
         val releasesFlow = if (playerController.isPlayerActive) {
@@ -57,7 +61,7 @@ class PlayerEpisodesViewModel @Inject constructor(
     }
 
     fun applyEpisode(actionId: Long) {
-        val action = episodesData.value.findAction { it.id == actionId } ?: return
+        val action = _episodesData.value.findAction { it.id == actionId } ?: return
         val episodeId = action.episodeId
 
         guidedRouter.close()
@@ -77,8 +81,8 @@ class PlayerEpisodesViewModel @Inject constructor(
                 .flatMap { releaseInteractor.getAccesses(it.id) }
                 .associateBy { it.id }
             val groups = releases.toGroups(accesses)
-            episodesData.value = groups
-            selectedActionId.value = groups.findAction { it.episodeId == argExtra.episodeId }?.id ?: -1L
+            _episodesData.value = groups
+            _selectedActionId.value = groups.findAction { it.episodeId == argExtra.episodeId }?.id ?: -1L
         }
     }
 

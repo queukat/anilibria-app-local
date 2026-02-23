@@ -8,6 +8,7 @@ import ru.radiationx.data.analytics.features.SslCompatAnalytics
 import ru.radiationx.data.sslcompat.SslCompat
 import ru.radiationx.data.sslcompat.appendSslCompat
 import ru.radiationx.data.system.appendSslCompatAnalytics
+import ru.radiationx.data.system.appendTimeouts
 import javax.inject.Inject
 import javax.inject.Provider
 
@@ -21,6 +22,7 @@ class PlayerOkHttpProvider @Inject constructor(
     override fun get(): OkHttpClient = OkHttpClient.Builder()
         .appendSslCompatAnalytics(sslCompat, sslCompatAnalytics)
         .appendSslCompat(sslCompat)
+        .appendTimeouts()
         .apply {
             if (sharedBuildConfig.debug) {
                 addNetworkInterceptor(ChuckerInterceptor.Builder(context).build())

@@ -2,6 +2,8 @@ package ru.radiationx.anilibria.screen.player.speed
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -15,7 +17,8 @@ class PlayerSpeedViewModel @Inject constructor(
     private val guidedRouter: GuidedRouter,
 ) : LifecycleViewModel() {
 
-    val speedState = MutableStateFlow(SpeedState())
+    private val _speedState = MutableStateFlow(SpeedState())
+    val speedState: StateFlow<SpeedState> = _speedState.asStateFlow()
 
     init {
         combine(
@@ -27,14 +30,14 @@ class PlayerSpeedViewModel @Inject constructor(
                 selectedIndex = speeds.indexOf(speed)
             )
         }.onEach {
-            speedState.value = it
+            _speedState.value = it
         }.launchIn(viewModelScope)
 
     }
 
     fun applySpeed(index: Int) {
         guidedRouter.close()
-        preferencesHolder.playSpeed.value = speedState.value.speeds[index]
+        preferencesHolder.playSpeed.value = _speedState.value.speeds[index]
     }
 
     data class SpeedState(

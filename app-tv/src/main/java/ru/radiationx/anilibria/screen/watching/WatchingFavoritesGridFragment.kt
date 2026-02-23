@@ -13,8 +13,6 @@ import androidx.leanback.app.GuidedStepSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.OnItemViewClickedListener
 import androidx.leanback.widget.VerticalGridPresenter
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.CardDiffCallback
 import ru.radiationx.anilibria.common.LibriaCard
@@ -142,33 +140,31 @@ class WatchingFavoritesGridFragment :
         }
 
         // Диалоги выбора фильтров
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.dialogRequests.collect { req ->
-                when (req) {
-                    is WatchingFavoritesViewModel.DialogRequest.ChooseYear -> {
-                        showChoiceDialog(
-                            requestKey = REQ_YEAR,
-                            title = "Год",
-                            options = req.options,
-                            selectedIndex = req.selectedIndex
-                        )
-                    }
-                    is WatchingFavoritesViewModel.DialogRequest.ChooseSeason -> {
-                        showChoiceDialog(
-                            requestKey = REQ_SEASON,
-                            title = "Сезон",
-                            options = req.options,
-                            selectedIndex = req.selectedIndex
-                        )
-                    }
-                    is WatchingFavoritesViewModel.DialogRequest.ChooseGenre -> {
-                        showChoiceDialog(
-                            requestKey = REQ_GENRE,
-                            title = "Жанр",
-                            options = req.options,
-                            selectedIndex = req.selectedIndex
-                        )
-                    }
+        subscribeTo(viewModel.dialogRequests) { req ->
+            when (req) {
+                is WatchingFavoritesViewModel.DialogRequest.ChooseYear -> {
+                    showChoiceDialog(
+                        requestKey = REQ_YEAR,
+                        title = "Год",
+                        options = req.options,
+                        selectedIndex = req.selectedIndex
+                    )
+                }
+                is WatchingFavoritesViewModel.DialogRequest.ChooseSeason -> {
+                    showChoiceDialog(
+                        requestKey = REQ_SEASON,
+                        title = "Сезон",
+                        options = req.options,
+                        selectedIndex = req.selectedIndex
+                    )
+                }
+                is WatchingFavoritesViewModel.DialogRequest.ChooseGenre -> {
+                    showChoiceDialog(
+                        requestKey = REQ_GENRE,
+                        title = "Жанр",
+                        options = req.options,
+                        selectedIndex = req.selectedIndex
+                    )
                 }
             }
         }

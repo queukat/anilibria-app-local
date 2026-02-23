@@ -1,0 +1,54 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:DoubleTapSeeker.kt$DoubleTapSeeker$10L</ID>
+    <ID>MagicNumber:DoubleTapSeeker.kt$DoubleTapSeeker$3</ID>
+    <ID>MagicNumber:DoubleTapSeeker.kt$DoubleTapSeeker$500L</ID>
+    <ID>MagicNumber:LockController.kt$LockController$2000</ID>
+    <ID>MagicNumber:MediaButtonsController.kt$MediaButtonsController$0.5f</ID>
+    <ID>MagicNumber:OutputController.kt$OutputController$0.95f</ID>
+    <ID>MagicNumber:OutputController.kt$OutputController$1.05f</ID>
+    <ID>MagicNumber:OutputController.kt$OutputController.ScaleState$1.5</ID>
+    <ID>MagicNumber:PlayerFlow.kt$PlayerFlow$500</ID>
+    <ID>MagicNumber:PlayerView.kt$PlayerView$300</ID>
+    <ID>MagicNumber:ScrollSeeker.kt$ScrollSeeker$100</ID>
+    <ID>MagicNumber:ScrollSeeker.kt$ScrollSeeker$25</ID>
+    <ID>MagicNumber:SkipsController.kt$SkipsController$1000</ID>
+    <ID>MagicNumber:TimeFormatter.kt$TimeFormatter$10</ID>
+    <ID>MagicNumber:TimelineController.kt$TimelineController$100</ID>
+    <ID>MagicNumber:TransitionHelper.kt$TransitionHelper$200</ID>
+    <ID>MaxLineLength:UiVisbilityController.kt$UiVisbilityController$(internalState.scrollSeeker || internalState.doubleTapSeeker || internalState.longTapSeeker) &amp;&amp; !internalState.liveScale</ID>
+    <ID>NewLineAtEndOfFile:AspectRatioFrameLayout.kt$ru.radiationx.media.mobile.views.AspectRatioFrameLayout.kt</ID>
+    <ID>NewLineAtEndOfFile:DoubleTapSeeker.kt$ru.radiationx.media.mobile.controllers.gesture.DoubleTapSeeker.kt</ID>
+    <ID>NewLineAtEndOfFile:ErrorController.kt$ru.radiationx.media.mobile.controllers.ErrorController.kt</ID>
+    <ID>NewLineAtEndOfFile:GestureListener.kt$ru.radiationx.media.mobile.controllers.gesture.GestureListener.kt</ID>
+    <ID>NewLineAtEndOfFile:LockController.kt$ru.radiationx.media.mobile.controllers.LockController.kt</ID>
+    <ID>NewLineAtEndOfFile:LongTapSeeker.kt$ru.radiationx.media.mobile.controllers.gesture.LongTapSeeker.kt</ID>
+    <ID>NewLineAtEndOfFile:MediaActionsController.kt$ru.radiationx.media.mobile.controllers.MediaActionsController.kt</ID>
+    <ID>NewLineAtEndOfFile:MediaButtonsController.kt$ru.radiationx.media.mobile.controllers.MediaButtonsController.kt</ID>
+    <ID>NewLineAtEndOfFile:OutputController.kt$ru.radiationx.media.mobile.controllers.OutputController.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayButtonState.kt$ru.radiationx.media.mobile.models.PlayButtonState.kt</ID>
+    <ID>NewLineAtEndOfFile:PlaybackState.kt$ru.radiationx.media.mobile.models.PlaybackState.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerAttachListener.kt$ru.radiationx.media.mobile.holder.PlayerAttachListener.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerCommandsState.kt$ru.radiationx.media.mobile.models.PlayerCommandsState.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerProxy.kt$ru.radiationx.media.mobile.PlayerProxy.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerState.kt$ru.radiationx.media.mobile.models.PlayerState.kt</ID>
+    <ID>NewLineAtEndOfFile:PlayerView.kt$ru.radiationx.media.mobile.PlayerView.kt</ID>
+    <ID>NewLineAtEndOfFile:PlaylistState.kt$ru.radiationx.media.mobile.models.PlaylistState.kt</ID>
+    <ID>NewLineAtEndOfFile:RootPlayerHolder.kt$ru.radiationx.media.mobile.holder.RootPlayerHolder.kt</ID>
+    <ID>NewLineAtEndOfFile:ScrollSeeker.kt$ru.radiationx.media.mobile.controllers.gesture.ScrollSeeker.kt</ID>
+    <ID>NewLineAtEndOfFile:SeekerState.kt$ru.radiationx.media.mobile.controllers.gesture.SeekerState.kt</ID>
+    <ID>NewLineAtEndOfFile:SkipsController.kt$ru.radiationx.media.mobile.controllers.SkipsController.kt</ID>
+    <ID>NewLineAtEndOfFile:SpeedController.kt$ru.radiationx.media.mobile.controllers.SpeedController.kt</ID>
+    <ID>NewLineAtEndOfFile:TimeFormatter.kt$ru.radiationx.media.mobile.utils.TimeFormatter.kt</ID>
+    <ID>NewLineAtEndOfFile:TimelineController.kt$ru.radiationx.media.mobile.controllers.TimelineController.kt</ID>
+    <ID>NewLineAtEndOfFile:TimelineSkip.kt$ru.radiationx.media.mobile.models.TimelineSkip.kt</ID>
+    <ID>NewLineAtEndOfFile:TimelineState.kt$ru.radiationx.media.mobile.models.TimelineState.kt</ID>
+    <ID>NewLineAtEndOfFile:TransitionHelper.kt$ru.radiationx.media.mobile.holder.TransitionHelper.kt</ID>
+    <ID>ReturnCount:GestureListener.kt$GestureListener$override fun onScroll( e1: MotionEvent?, e2: MotionEvent, distanceX: Float, distanceY: Float, ): Boolean</ID>
+    <ID>UnusedPrivateProperty:LockController.kt$LockController$private val playerFlow: PlayerFlow</ID>
+    <ID>UnusedPrivateProperty:MediaActionsController.kt$MediaActionsController$private val coroutineScope: CoroutineScope</ID>
+    <ID>UnusedPrivateProperty:MediaActionsController.kt$MediaActionsController$private val playerFlow: PlayerFlow</ID>
+  </CurrentIssues>
+</SmellBaseline>

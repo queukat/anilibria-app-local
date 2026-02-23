@@ -3,6 +3,8 @@ package ru.radiationx.anilibria.screen.mainpages
 import androidx.lifecycle.viewModelScope
 import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.SearchScreen
@@ -18,14 +20,15 @@ class MainPagesViewModel @Inject constructor(
     private val router: Router,
 ) : LifecycleViewModel() {
 
-    val hasUpdatesData = MutableStateFlow(false)
+    private val _hasUpdatesData = MutableStateFlow(false)
+    val hasUpdatesData: StateFlow<Boolean> = _hasUpdatesData.asStateFlow()
 
     init {
         viewModelScope.launch {
             coRunCatching {
                 checkerRepository.checkUpdate(true)
             }.onSuccess {
-                hasUpdatesData.value = it.hasUpdate
+                _hasUpdatesData.value = it.hasUpdate
             }.onFailure {
                 Timber.e(it)
             }

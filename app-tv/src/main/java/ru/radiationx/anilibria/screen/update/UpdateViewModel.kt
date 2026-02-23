@@ -4,6 +4,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -28,22 +30,26 @@ class UpdateViewModel @Inject constructor(
 
     private var downloadJob: Job? = null
 
-    val updateData = MutableStateFlow<UpdateData?>(null)
-    val progressState = MutableStateFlow(false)
-    val downloadProgressShowState = MutableStateFlow(false)
-    val downloadProgressData = MutableStateFlow(0)
+    private val _updateData = MutableStateFlow<UpdateData?>(null)
+    val updateData: StateFlow<UpdateData?> = _updateData.asStateFlow()
+    private val _progressState = MutableStateFlow(false)
+    val progressState: StateFlow<Boolean> = _progressState.asStateFlow()
+    private val _downloadProgressShowState = MutableStateFlow(false)
+    val downloadProgressShowState: StateFlow<Boolean> = _downloadProgressShowState.asStateFlow()
+    private val _downloadProgressData = MutableStateFlow(0)
+    val downloadProgressData: StateFlow<Int> = _downloadProgressData.asStateFlow()
 
     init {
         viewModelScope.launch {
-            progressState.value = true
+            _progressState.value = true
             coRunCatching {
                 tvUpdateUseCase.checkUpdate(false)
             }.onSuccess { update ->
-                updateData.value = update
+                _updateData.value = update
             }.onFailure {
                 Timber.e(it)
             }
-            progressState.value = false
+            _progressState.value = false
         }
         updateController
             .downloadAction
@@ -54,7 +60,7 @@ class UpdateViewModel @Inject constructor(
     }
 
     fun onActionClick() {
-        if (downloadProgressShowState.value) {
+        if (_downloadProgressShowState.value) {
             cancelDownloadClick()
         } else {
             downloadClick()
@@ -62,7 +68,7 @@ class UpdateViewModel @Inject constructor(
     }
 
     private fun downloadClick() {
-        val data = updateData.value ?: return
+        val data = _updateData.value ?: return
         if (data.links.size > 1) {
             guidedRouter.open(UpdateSourceScreen())
         } else {
@@ -74,7 +80,7 @@ class UpdateViewModel @Inject constructor(
     private fun cancelDownloadClick() {
         downloadJob?.cancel()
         downloadJob = null
-        downloadProgressShowState.value = false
+        _downloadProgressShowState.value = false
     }
 
     private fun startDownload(url: String) {
@@ -82,12 +88,12 @@ class UpdateViewModel @Inject constructor(
             return
         }
         downloadJob = viewModelScope.launch {
-            downloadProgressShowState.value = true
+            _downloadProgressShowState.value = true
             coRunCatching {
                 tvUpdateUseCase.downloadUpdate(url).collect { event ->
                     when (event) {
                         is RemoteFileLoadEvent.Progress -> {
-                            downloadProgressData.value = event.value
+                            _downloadProgressData.value = event.value
                         }
 
                         is RemoteFileLoadEvent.Completed -> {
@@ -100,7 +106,7 @@ class UpdateViewModel @Inject constructor(
             }.onFailure {
                 Timber.e(it)
             }
-            downloadProgressShowState.value = false
+            _downloadProgressShowState.value = false
         }
     }
 

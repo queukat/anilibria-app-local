@@ -2,9 +2,13 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>ForbiddenImport:AppLauncherViewModelCommandsTest.kt$import kotlinx.coroutines.runBlocking</ID>
     <ID>ForbiddenImport:DetailRecommendsViewModelTest.kt$import kotlinx.coroutines.runBlocking</ID>
     <ID>ForbiddenImport:MainTvViewModelsTest.kt$import kotlinx.coroutines.runBlocking</ID>
+    <ID>ForbiddenImport:SearchUseCaseBoundaryTest.kt$import kotlinx.coroutines.runBlocking</ID>
     <ID>ForbiddenImport:WatchingRowsSeparationTest.kt$import kotlinx.coroutines.runBlocking</ID>
+    <ID>ImplicitDefaultLocale:AniLibertyViewHistoryCardMapper.kt$AniLibertyViewHistoryCardMapper$String.format("%d:%02d", minutes, seconds)</ID>
+    <ID>ImplicitDefaultLocale:AniLibertyViewHistoryCardMapper.kt$AniLibertyViewHistoryCardMapper$String.format("%d:%02d:%02d", hours, minutes, seconds)</ID>
     <ID>LoopWithTooManyJumpStatements:WatchingFavoritesViewModel.kt$WatchingFavoritesViewModel$while</ID>
     <ID>MagicNumber:AniLibertyViewHistoryCardMapper.kt$AniLibertyViewHistoryCardMapper$60</ID>
     <ID>MagicNumber:BaseCardsViewModel.kt$BaseCardsViewModel$10</ID>
@@ -43,17 +47,17 @@
     <ID>MaxLineLength:GuidedStepFragmentHelper.kt$GuidedStepFragmentHelper$if (inGuidedStep) GuidedStepSupportFragment.UI_STYLE_REPLACE else GuidedStepSupportFragment.UI_STYLE_ENTRANCE</ID>
     <ID>MaxLineLength:PlayerViewModel.kt$PlayerViewModel$runCatching { userViewsRepository.findLatestEpisodeIdForRelease(argExtra.releaseId) }.getOrNull()</ID>
     <ID>MaxLineLength:ReleaseDetailsPresenter.kt$LibriaReleaseViewHolder$binding.root.resources.displayMetrics.heightPixels - 1</ID>
+    <ID>MaxLineLength:WatchingRowsSeparationTest.kt$WatchingRowsSeparationTest$assertTrue("Continue should disappear when watch progress cleared even if remote still returns item", continueVm.cardsData.value.isEmpty())</ID>
+    <ID>MaxLineLength:WatchingRowsSeparationTest.kt$WatchingRowsSeparationTest$assertTrue("Continue should stay empty after watch progress clear even after VM recreate", continueVmSecond.cardsData.value.isEmpty())</ID>
+    <ID>MaxLineLength:WatchingRowsSeparationTest.kt$WatchingRowsSeparationTest$historyVm.cardsData.value.any { card -&gt; card is LibriaCard &amp;&amp; card.type is LibriaCard.Type.Release &amp;&amp; card.type.releaseId == release.id }</ID>
     <ID>NewLineAtEndOfFile:ActivityModule.kt$ru.radiationx.anilibria.di.ActivityModule.kt</ID>
     <ID>NewLineAtEndOfFile:AppBuildConfig.kt$ru.radiationx.anilibria.AppBuildConfig.kt</ID>
     <ID>NewLineAtEndOfFile:AppMigrationExecutor.kt$ru.radiationx.anilibria.AppMigrationExecutor.kt</ID>
     <ID>NewLineAtEndOfFile:AuthCredentialsGuidedFragment.kt$ru.radiationx.anilibria.screen.auth.credentials.AuthCredentialsGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:AuthCredentialsViewModel.kt$ru.radiationx.anilibria.screen.auth.credentials.AuthCredentialsViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:AuthGuidedFragment.kt$ru.radiationx.anilibria.screen.auth.main.AuthGuidedFragment.kt</ID>
     <ID>NewLineAtEndOfFile:AuthOtpGuidedFragment.kt$ru.radiationx.anilibria.screen.auth.otp.AuthOtpGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:AuthOtpViewModel.kt$ru.radiationx.anilibria.screen.auth.otp.AuthOtpViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:AuthViewModel.kt$ru.radiationx.anilibria.screen.auth.main.AuthViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:BasePlayerGuidedFragment.kt$ru.radiationx.anilibria.screen.player.BasePlayerGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:BaseRowsViewModel.kt$ru.radiationx.anilibria.common.BaseRowsViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:BaseVerticalGridFragment.kt$ru.radiationx.anilibria.common.fragment.BaseVerticalGridFragment.kt</ID>
     <ID>NewLineAtEndOfFile:BrowseTitleView.kt$ru.radiationx.anilibria.ui.widget.BrowseTitleView.kt</ID>
     <ID>NewLineAtEndOfFile:CachedRowsFragmentFactory.kt$ru.radiationx.anilibria.common.CachedRowsFragmentFactory.kt</ID>
@@ -63,7 +67,6 @@
     <ID>NewLineAtEndOfFile:CardLoadingView.kt$ru.radiationx.anilibria.ui.widget.CardLoadingView.kt</ID>
     <ID>NewLineAtEndOfFile:CardPresenterSelector.kt$ru.radiationx.anilibria.ui.presenter.CardPresenterSelector.kt</ID>
     <ID>NewLineAtEndOfFile:ConfigFragment.kt$ru.radiationx.anilibria.screen.config.ConfigFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:ConfiguringViewModel.kt$ru.radiationx.anilibria.screen.config.ConfiguringViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:CustomListRowPresenter.kt$ru.radiationx.anilibria.ui.presenter.cust.CustomListRowPresenter.kt</ID>
     <ID>NewLineAtEndOfFile:CustomListRowViewHolder.kt$ru.radiationx.anilibria.ui.presenter.cust.CustomListRowViewHolder.kt</ID>
     <ID>NewLineAtEndOfFile:DetailOtherGuidedFragment.kt$ru.radiationx.anilibria.screen.details.other.DetailOtherGuidedFragment.kt</ID>
@@ -95,41 +98,26 @@
     <ID>NewLineAtEndOfFile:LoadingCardPresenter.kt$ru.radiationx.anilibria.ui.presenter.LoadingCardPresenter.kt</ID>
     <ID>NewLineAtEndOfFile:MainFragment.kt$ru.radiationx.anilibria.screen.main.MainFragment.kt</ID>
     <ID>NewLineAtEndOfFile:MainPagesFragmentFactory.kt$ru.radiationx.anilibria.screen.mainpages.MainPagesFragmentFactory.kt</ID>
-    <ID>NewLineAtEndOfFile:MainPagesViewModel.kt$ru.radiationx.anilibria.screen.mainpages.MainPagesViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:MainYouTubeViewModel.kt$ru.radiationx.anilibria.screen.main.MainYouTubeViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:MotionLayoutListener.kt$ru.radiationx.anilibria.common.MotionLayoutListener.kt</ID>
     <ID>NewLineAtEndOfFile:NavigationModule.kt$ru.radiationx.anilibria.di.NavigationModule.kt</ID>
-    <ID>NewLineAtEndOfFile:PlayerEpisodesGuidedFragment.kt$ru.radiationx.anilibria.screen.player.episodes.PlayerEpisodesGuidedFragment.kt</ID>
     <ID>NewLineAtEndOfFile:PlayerModule.kt$ru.radiationx.anilibria.di.PlayerModule.kt</ID>
-    <ID>NewLineAtEndOfFile:PlayerQualityGuidedFragment.kt$ru.radiationx.anilibria.screen.player.quality.PlayerQualityGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:PlayerQualityViewModel.kt$ru.radiationx.anilibria.screen.player.quality.PlayerQualityViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:PlayerSpeedGuidedFragment.kt$ru.radiationx.anilibria.screen.player.speed.PlayerSpeedGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:PlayerSpeedViewModel.kt$ru.radiationx.anilibria.screen.player.speed.PlayerSpeedViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:QualityAction.kt$ru.radiationx.anilibria.screen.player.QualityAction.kt</ID>
     <ID>NewLineAtEndOfFile:ReleaseDetailsPresenter.kt$ru.radiationx.anilibria.ui.presenter.ReleaseDetailsPresenter.kt</ID>
     <ID>NewLineAtEndOfFile:RowDiffCallback.kt$ru.radiationx.anilibria.common.RowDiffCallback.kt</ID>
     <ID>NewLineAtEndOfFile:RowsFragment.kt$ru.radiationx.anilibria.extension.RowsFragment.kt</ID>
     <ID>NewLineAtEndOfFile:Screens.kt$ru.radiationx.anilibria.screen.Screens.kt</ID>
-    <ID>NewLineAtEndOfFile:SearchCompletedGuidedFragment.kt$ru.radiationx.anilibria.screen.search.completed.SearchCompletedGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:SearchCompletedViewModel.kt$ru.radiationx.anilibria.screen.search.completed.SearchCompletedViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:SearchController.kt$ru.radiationx.anilibria.screen.search.SearchController.kt</ID>
     <ID>NewLineAtEndOfFile:SearchFragment.kt$ru.radiationx.anilibria.screen.search.SearchFragment.kt</ID>
     <ID>NewLineAtEndOfFile:SearchGenreGuidedFragment.kt$ru.radiationx.anilibria.screen.search.genre.SearchGenreGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:SearchGenreViewModel.kt$ru.radiationx.anilibria.screen.search.genre.SearchGenreViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:SearchModule.kt$ru.radiationx.anilibria.di.SearchModule.kt</ID>
     <ID>NewLineAtEndOfFile:SearchSeasonGuidedFragment.kt$ru.radiationx.anilibria.screen.search.season.SearchSeasonGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:SearchSeasonViewModel.kt$ru.radiationx.anilibria.screen.search.season.SearchSeasonViewModel.kt</ID>
-    <ID>NewLineAtEndOfFile:SearchSortGuidedFragment.kt$ru.radiationx.anilibria.screen.search.sort.SearchSortGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:SearchSortViewModel.kt$ru.radiationx.anilibria.screen.search.sort.SearchSortViewModel.kt</ID>
-    <ID>NewLineAtEndOfFile:SearchViewModel.kt$ru.radiationx.anilibria.screen.search.SearchViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:SearchYearGuidedFragment.kt$ru.radiationx.anilibria.screen.search.year.SearchYearGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:SearchYearViewModel.kt$ru.radiationx.anilibria.screen.search.year.SearchYearViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:ShadowDescriptionView.kt$ru.radiationx.anilibria.ui.widget.ShadowDescriptionView.kt</ID>
     <ID>NewLineAtEndOfFile:SpeedAction.kt$ru.radiationx.anilibria.screen.player.SpeedAction.kt</ID>
     <ID>NewLineAtEndOfFile:SpinnerFragment.kt$ru.radiationx.anilibria.common.fragment.SpinnerFragment.kt</ID>
     <ID>NewLineAtEndOfFile:SuggestionsController.kt$ru.radiationx.anilibria.screen.suggestions.SuggestionsController.kt</ID>
-    <ID>NewLineAtEndOfFile:SuggestionsResultViewModel.kt$ru.radiationx.anilibria.screen.suggestions.SuggestionsResultViewModel.kt</ID>
-    <ID>NewLineAtEndOfFile:SuggestionsRowsViewModel.kt$ru.radiationx.anilibria.screen.suggestions.SuggestionsRowsViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:SystemSuggestionEntity.kt$ru.radiationx.anilibria.contentprovider.SystemSuggestionEntity.kt</ID>
     <ID>NewLineAtEndOfFile:TestFragment.kt$ru.radiationx.anilibria.screen.trash.TestFragment.kt</ID>
     <ID>NewLineAtEndOfFile:TvCheckerSources.kt$ru.radiationx.anilibria.TvCheckerSources.kt</ID>
@@ -137,7 +125,6 @@
     <ID>NewLineAtEndOfFile:UpdateFragment.kt$ru.radiationx.anilibria.screen.update.UpdateFragment.kt</ID>
     <ID>NewLineAtEndOfFile:UpdateModule.kt$ru.radiationx.anilibria.di.UpdateModule.kt</ID>
     <ID>NewLineAtEndOfFile:UpdateSourceGuidedFragment.kt$ru.radiationx.anilibria.screen.update.source.UpdateSourceGuidedFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:UpdateSourceViewModel.kt$ru.radiationx.anilibria.screen.update.source.UpdateSourceViewModel.kt</ID>
     <ID>NewLineAtEndOfFile:Video.kt$ru.radiationx.anilibria.screen.player.Video.kt</ID>
     <ID>NewLineAtEndOfFile:WatchingFragment.kt$ru.radiationx.anilibria.screen.watching.WatchingFragment.kt</ID>
     <ID>NewLineAtEndOfFile:YouTubeViewModel.kt$ru.radiationx.anilibria.screen.youtube.YouTubeViewModel.kt</ID>
@@ -156,8 +143,6 @@
     <ID>ReturnCount:SuggestionsRecommendsViewModel.kt$SuggestionsRecommendsViewModel$override suspend fun getLoader(requestPage: Int): List&lt;LibriaCard&gt;</ID>
     <ID>ReturnCount:WatchingContinueViewModel.kt$WatchingContinueViewModel$override suspend fun getLoader(requestPage: Int): List&lt;LibriaCard&gt;</ID>
     <ID>ReturnCount:WatchingContinueViewModel.kt$WatchingContinueViewModel$private fun isHasMore(response: PaginatedResponse&lt;*&gt;): Boolean</ID>
-    <ID>ReturnCount:WatchingHistoryViewModel.kt$WatchingHistoryViewModel$override suspend fun getLoader(requestPage: Int): List&lt;LibriaCard&gt;</ID>
-    <ID>ReturnCount:WatchingHistoryViewModel.kt$WatchingHistoryViewModel$private fun isHasMore(response: PaginatedResponse&lt;*&gt;): Boolean</ID>
     <ID>UnusedPrivateMember:DetailDataConverter.kt$DetailDataConverter$private fun Int.dayIterationPrefix(): String</ID>
     <ID>UnusedPrivateProperty:GradientBackgroundManager.kt$GradientBackgroundManager$private val classicGradientDrawable = GradientDrawable( GradientDrawable.Orientation.BL_TR, intArrayOf( Color.parseColor("#ee000000"), Color.parseColor("#55000000") ) )</ID>
     <ID>UseRequire:SuggestionsContentProvider.kt$SuggestionsContentProvider$throw IllegalArgumentException("Unknown Uri: $uri")</ID>

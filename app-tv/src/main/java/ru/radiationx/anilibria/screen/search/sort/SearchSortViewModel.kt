@@ -1,6 +1,8 @@
 package ru.radiationx.anilibria.screen.search.sort
 
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.search.SearchController
@@ -18,12 +20,14 @@ class SearchSortViewModel @Inject constructor(
         "По новизне"
     )
 
-    val titlesData = MutableStateFlow<List<String>>(emptyList())
-    val selectedIndex = MutableStateFlow(-1)
+    private val _titlesData = MutableStateFlow<List<String>>(emptyList())
+    val titlesData: StateFlow<List<String>> = _titlesData.asStateFlow()
+    private val _selectedIndex = MutableStateFlow(-1)
+    val selectedIndex: StateFlow<Int> = _selectedIndex.asStateFlow()
 
     init {
-        titlesData.value = titles
-        selectedIndex.value = when (argExtra.sort) {
+        _titlesData.value = titles
+        _selectedIndex.value = when (argExtra.sort) {
             SearchForm.Sort.RATING -> 0
             SearchForm.Sort.DATE -> 1
         }

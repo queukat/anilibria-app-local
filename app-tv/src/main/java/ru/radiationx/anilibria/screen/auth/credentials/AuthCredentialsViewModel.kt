@@ -2,6 +2,8 @@ package ru.radiationx.anilibria.screen.auth.credentials
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
@@ -15,23 +17,25 @@ class AuthCredentialsViewModel @Inject constructor(
     private val guidedRouter: GuidedRouter,
 ) : LifecycleViewModel() {
 
-    val progressState = MutableStateFlow(false)
-    val error = MutableStateFlow("")
+    private val _progressState = MutableStateFlow(false)
+    val progressState: StateFlow<Boolean> = _progressState.asStateFlow()
+    private val _error = MutableStateFlow("")
+    val error: StateFlow<String> = _error.asStateFlow()
 
     fun onLoginClicked(login: String, password: String, code: String) {
         viewModelScope.launch {
-            progressState.value = true
-            error.value = ""
+            _progressState.value = true
+            _error.value = ""
             coRunCatching {
                 authRepository.signIn(login, password, code)
             }.onSuccess {
                 guidedRouter.finishGuidedChain()
-                error.value = ""
+                _error.value = ""
             }.onFailure {
                 Timber.e(it)
-                error.value = it.message.toString()
+                _error.value = it.message.toString()
             }
-            progressState.value = false
+            _progressState.value = false
         }
     }
 }

@@ -38,7 +38,7 @@ class MainScheduleViewModel @Inject constructor(
 
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
         val payload = tvContentUseCase.loadMainSchedule(currentTimeMs = System.currentTimeMillis())
-        rowTitle.value = payload.title
+        _rowTitle.value = payload.title
         return payload.releases.map { converter.toCard(it) }
     }
 

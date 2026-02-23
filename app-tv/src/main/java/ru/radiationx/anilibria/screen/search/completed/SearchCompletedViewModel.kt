@@ -1,6 +1,8 @@
 package ru.radiationx.anilibria.screen.search.completed
 
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.search.SearchController
@@ -17,12 +19,14 @@ class SearchCompletedViewModel @Inject constructor(
         "Только завершенные"
     )
 
-    val titlesData = MutableStateFlow<List<String>>(emptyList())
-    val selectedIndex = MutableStateFlow(-1)
+    private val _titlesData = MutableStateFlow<List<String>>(emptyList())
+    val titlesData: StateFlow<List<String>> = _titlesData.asStateFlow()
+    private val _selectedIndex = MutableStateFlow(-1)
+    val selectedIndex: StateFlow<Int> = _selectedIndex.asStateFlow()
 
     init {
-        titlesData.value = titles
-        selectedIndex.value = if (argExtra.isCompleted) 1 else 0
+        _titlesData.value = titles
+        _selectedIndex.value = if (argExtra.isCompleted) 1 else 0
     }
 
     fun applySort(index: Int) {

@@ -6,13 +6,11 @@ import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.leanback.app.BrowseSupportFragment
-import androidx.lifecycle.lifecycleScope
 import dev.androidbroadcast.vbpd.viewBinding
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.databinding.FragmentProfileBinding
+import ru.radiationx.shared.ktx.android.subscribeTo
 import ru.radiationx.shared_app.di.quillParentViewModel
 import ru.radiationx.shared_app.imageloader.showImageUrl
 
@@ -36,7 +34,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile),
         backgroundManager.clearGradient()
 
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
-        viewModel.profileData.onEach { profile ->
+        subscribeTo(viewModel.profileData) { profile ->
             val hasAuth = (profile != null)
 
             if (hasAuth) {
@@ -60,7 +58,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile),
             binding.profileNick.isVisible = hasAuth
             binding.profileSignIn.isGone = hasAuth
             binding.profileSignOut.isVisible = hasAuth
-        }.launchIn(viewLifecycleOwner.lifecycleScope)
+        }
 
         binding.profileSignIn.setOnClickListener { viewModel.onSignInClick() }
         binding.profileSignOut.setOnClickListener { viewModel.onSignOutClick() }

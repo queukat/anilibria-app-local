@@ -2,6 +2,8 @@ package ru.radiationx.anilibria.screen.config
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ru.radiationx.anilibria.screen.LifecycleViewModel
@@ -17,7 +19,8 @@ class ConfiguringViewModel @Inject constructor(
 ) : LifecycleViewModel() {
 
     private var configuringStarted = false
-    val screenStateData = MutableStateFlow<ConfigScreenState?>(null)
+    private val _screenStateData = MutableStateFlow<ConfigScreenState?>(null)
+    val screenStateData: StateFlow<ConfigScreenState?> = _screenStateData.asStateFlow()
     val completeEvent = EventFlow<Unit>()
 
     fun startConfiguring() {
@@ -37,7 +40,7 @@ class ConfiguringViewModel @Inject constructor(
         configuringInteractor
             .observeScreenState()
             .onEach {
-                screenStateData.value = it
+                _screenStateData.value = it
             }
             .launchIn(viewModelScope)
 

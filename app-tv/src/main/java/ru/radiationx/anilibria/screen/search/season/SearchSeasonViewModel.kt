@@ -30,7 +30,7 @@ class SearchSeasonViewModel @Inject constructor(
                 currentSeasons.addAll(seasons)
                 currentValues.clear()
                 currentValues.addAll(seasons.map { it.value })
-                valuesData.value = seasons.map { it.title }
+                _valuesData.value = seasons.map { it.title }
                 updateChecked()
                 updateSelected()
             }.onFailure {

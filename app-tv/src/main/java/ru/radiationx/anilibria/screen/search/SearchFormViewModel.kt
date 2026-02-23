@@ -2,6 +2,8 @@ package ru.radiationx.anilibria.screen.search
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
@@ -19,11 +21,16 @@ class SearchFormViewModel @Inject constructor(
     private val guidedRouter: GuidedRouter,
 ) : LifecycleViewModel() {
 
-    val yearData = MutableStateFlow<String?>(null)
-    val seasonData = MutableStateFlow<String?>(null)
-    val genreData = MutableStateFlow<String?>(null)
-    val sortData = MutableStateFlow<String?>(null)
-    val onlyCompletedData = MutableStateFlow<String?>(null)
+    private val _yearData = MutableStateFlow<String?>(null)
+    val yearData: StateFlow<String?> = _yearData.asStateFlow()
+    private val _seasonData = MutableStateFlow<String?>(null)
+    val seasonData: StateFlow<String?> = _seasonData.asStateFlow()
+    private val _genreData = MutableStateFlow<String?>(null)
+    val genreData: StateFlow<String?> = _genreData.asStateFlow()
+    private val _sortData = MutableStateFlow<String?>(null)
+    val sortData: StateFlow<String?> = _sortData.asStateFlow()
+    private val _onlyCompletedData = MutableStateFlow<String?>(null)
+    val onlyCompletedData: StateFlow<String?> = _onlyCompletedData.asStateFlow()
 
     private var searchForm = SearchForm()
 
@@ -77,14 +84,14 @@ class SearchFormViewModel @Inject constructor(
     }
 
     private fun updateDataByForm() {
-        yearData.value = searchForm.years.map { it.title }.generateListTitle("Все годы")
-        seasonData.value = searchForm.seasons.map { it.title }.generateListTitle("Все сезоны")
-        genreData.value = searchForm.genres.map { it.title }.generateListTitle("Все жанры")
-        sortData.value = when (searchForm.sort) {
+        _yearData.value = searchForm.years.map { it.title }.generateListTitle("Все годы")
+        _seasonData.value = searchForm.seasons.map { it.title }.generateListTitle("Все сезоны")
+        _genreData.value = searchForm.genres.map { it.title }.generateListTitle("Все жанры")
+        _sortData.value = when (searchForm.sort) {
             SearchForm.Sort.RATING -> "По популярности"
             SearchForm.Sort.DATE -> "По новизне"
         }
-        onlyCompletedData.value = if (searchForm.onlyCompleted) {
+        _onlyCompletedData.value = if (searchForm.onlyCompleted) {
             "Только завершенные"
         } else {
             "Все"

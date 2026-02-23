@@ -3,7 +3,10 @@ package ru.radiationx.anilibria.screen.player
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -44,14 +47,17 @@ class PlayerViewModel @Inject constructor(
     private val playerController: PlayerController,
 ) : LifecycleViewModel() {
 
-    val videoData = MutableStateFlow<Video?>(null)
-    val qualityState = MutableStateFlow(preferencesHolder.playerQuality.value)
-    val speedState = MutableStateFlow(preferencesHolder.playSpeed.value)
+    private val _videoData = MutableStateFlow<Video?>(null)
+    val videoData: StateFlow<Video?> = _videoData.asStateFlow()
+    private val _qualityState = MutableStateFlow(preferencesHolder.playerQuality.value)
+    val qualityState: StateFlow<PlayerQuality> = _qualityState.asStateFlow()
+    private val _speedState = MutableStateFlow(preferencesHolder.playSpeed.value)
+    val speedState: StateFlow<Float> = _speedState.asStateFlow()
     private val _commands = MutableSharedFlow<PlayerCommand>(
         replay = 0,
         extraBufferCapacity = 16,
     )
-    val commands = _commands.asSharedFlow()
+    val commands: SharedFlow<PlayerCommand> = _commands.asSharedFlow()
 
     private var currentReleases: List<Release> = emptyList()
     private var currentEpisodes: List<Episode> = emptyList()
@@ -81,7 +87,7 @@ class PlayerViewModel @Inject constructor(
         preferencesHolder.playerQuality
             .onEach { quality ->
                 currentQuality = quality
-                qualityState.value = quality
+                _qualityState.value = quality
                 updateEpisode()
             }
             .launchIn(viewModelScope)
@@ -90,7 +96,7 @@ class PlayerViewModel @Inject constructor(
         preferencesHolder.playSpeed
             .onEach { speed ->
                 currentSpeed = speed
-                speedState.value = speed
+                _speedState.value = speed
             }
             .launchIn(viewModelScope)
 
@@ -343,9 +349,9 @@ class PlayerViewModel @Inject constructor(
                 skips = episode.skips,
             )
 
-            if (force || videoData.value?.url != newVideo.url) {
-                videoData.value = newVideo
-            } else if (videoData.value?.seek != newVideo.seek) {
+            if (force || _videoData.value?.url != newVideo.url) {
+                _videoData.value = newVideo
+            } else if (_videoData.value?.seek != newVideo.seek) {
                 // url тот же, но seek изменился — отправим одноразовую команду.
                 emitCommand(PlayerCommand.Seek(newVideo.seek))
             }

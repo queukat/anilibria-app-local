@@ -41,7 +41,7 @@ class DetailRelatedViewModel @Inject constructor(
 
     init {
         // Сразу кинем LoadingCard (чтобы не было пустого списка)
-        cardsData.value = listOf(loadingCard)
+        _cardsData.value = listOf(loadingCard)
 
         // Следим за изменением «description» конкретного релиза,
         // и когда оно меняется — делаем refresh().

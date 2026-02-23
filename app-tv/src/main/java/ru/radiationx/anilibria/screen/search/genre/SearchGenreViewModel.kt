@@ -31,21 +31,21 @@ class SearchGenreViewModel @Inject constructor(
                 currentGenres.addAll(genres)
                 currentValues.clear()
                 currentValues.addAll(genres.map { it.value })
-                valuesData.value = genres.map { it.title }
-                progressState.value = false
+                _valuesData.value = genres.map { it.title }
+                _progressState.value = false
                 updateChecked()
                 updateSelected()
             }
             .launchIn(viewModelScope)
 
         viewModelScope.launch {
-            progressState.value = true
+            _progressState.value = true
             coRunCatching {
                 tvSearchUseCase.loadGenres()
             }.onFailure {
                 Timber.e(it)
             }
-            progressState.value = false
+            _progressState.value = false
         }
     }
 

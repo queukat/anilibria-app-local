@@ -43,7 +43,7 @@ class WatchingContinueViewModel @Inject constructor(
                 val hadLocalProgress = localProgressReleaseIds.value.isNotEmpty()
                 localProgressReleaseIds.value = releaseIds
                 if (hadLocalProgress && releaseIds.isEmpty()) {
-                    cardsData.value = emptyList()
+                    _cardsData.value = emptyList()
                 }
                 onRefreshClick()
             }

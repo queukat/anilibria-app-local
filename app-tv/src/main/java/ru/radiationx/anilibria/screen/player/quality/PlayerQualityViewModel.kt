@@ -2,6 +2,8 @@ package ru.radiationx.anilibria.screen.player.quality
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
@@ -26,8 +28,10 @@ class PlayerQualityViewModel @Inject constructor(
         val FULL_HD_ACTION_ID = PlayerQuality.FULLHD.ordinal.toLong()
     }
 
-    val availableData = MutableStateFlow<List<Long>>(emptyList())
-    val selectedData = MutableStateFlow(-1L)
+    private val _availableData = MutableStateFlow<List<Long>>(emptyList())
+    val availableData: StateFlow<List<Long>> = _availableData.asStateFlow()
+    private val _selectedData = MutableStateFlow(-1L)
+    val selectedData: StateFlow<Long> = _selectedData.asStateFlow()
 
     init {
         combine(
@@ -51,8 +55,8 @@ class PlayerQualityViewModel @Inject constructor(
 
     private fun updateAvailable(release: Release, quality: PlayerQuality) {
         val episode = release.episodes.firstOrNull { it.id == argExtra.episodeId } ?: return
-        availableData.value = episode.qualityInfo.available.map { it.ordinal.toLong() }
-        selectedData.value = episode.qualityInfo.getActualFor(quality)?.ordinal?.toLong() ?: -1L
+        _availableData.value = episode.qualityInfo.available.map { it.ordinal.toLong() }
+        _selectedData.value = episode.qualityInfo.getActualFor(quality)?.ordinal?.toLong() ?: -1L
     }
 
 }

@@ -1,16 +1,22 @@
 package ru.radiationx.anilibria.screen.search
 
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 
 abstract class BaseSearchValuesViewModel(
     argExtra: SearchValuesExtra,
 ) : LifecycleViewModel() {
 
-    val progressState = MutableStateFlow(false)
-    val valuesData = MutableStateFlow<List<String>>(emptyList())
-    val checkedIndicesData = MutableStateFlow<List<Pair<Int, Boolean>>>(emptyList())
-    val selectedIndex = MutableStateFlow(-1)
+    protected val _progressState = MutableStateFlow(false)
+    val progressState: StateFlow<Boolean> = _progressState.asStateFlow()
+    protected val _valuesData = MutableStateFlow<List<String>>(emptyList())
+    val valuesData: StateFlow<List<String>> = _valuesData.asStateFlow()
+    protected val _checkedIndicesData = MutableStateFlow<List<Pair<Int, Boolean>>>(emptyList())
+    val checkedIndicesData: StateFlow<List<Pair<Int, Boolean>>> = _checkedIndicesData.asStateFlow()
+    protected val _selectedIndex = MutableStateFlow(-1)
+    val selectedIndex: StateFlow<Int> = _selectedIndex.asStateFlow()
 
     protected val currentValues = mutableListOf<String>()
     protected val checkedValues = mutableSetOf<String>()
@@ -46,13 +52,13 @@ abstract class BaseSearchValuesViewModel(
         firstCheckedValue?.also {
             val selectedIndex = currentValues.indexOf(it)
             if (selectedIndex >= 0) {
-                this.selectedIndex.value = selectedIndex
+                _selectedIndex.value = selectedIndex
             }
         }
     }
 
     protected fun updateChecked() {
-        checkedIndicesData.value =
+        _checkedIndicesData.value =
             currentValues.mapIndexed { index, item -> Pair(index, checkedValues.contains(item)) }
     }
 }

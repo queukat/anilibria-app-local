@@ -16,10 +16,10 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ru.radiationx.shared.ktx.android.launchInStarted
 import ru.radiationx.anilibria.R
 import ru.radiationx.shared.ktx.android.asSoftware
 import ru.radiationx.shared.ktx.android.getCompatColor
@@ -96,7 +96,7 @@ class GradientBackgroundManager @Inject constructor(
             .onEach {
                 instantApplyColor(it)
             }
-            .launchIn(activity.lifecycleScope)
+            .launchInStarted(activity)
     }
 
     fun clearGradient() {

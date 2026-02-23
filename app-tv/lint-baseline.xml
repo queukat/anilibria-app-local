@@ -24,39 +24,6 @@
     </issue>
 
     <issue
-        id="NewApi"
-        message="Call requires API level 24 (current min is 21): `java.util.concurrent.CompletableFuture()`"
-        errorLine1="        val deferredResult = CompletableFuture&lt;List&lt;SuggestionItem>>()"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionsContentProvider.kt"
-            line="102"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 24 (current min is 21): `java.util.concurrent.CompletableFuture#complete`"
-        errorLine1="            deferredResult.complete(result)"
-        errorLine2="                           ~~~~~~~~">
-        <location
-            file="src/main/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionsContentProvider.kt"
-            line="108"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 24 (current min is 21): `java.util.concurrent.CompletableFuture#get`"
-        errorLine1="            deferredResult.get(QUERY_TIMEOUT_MS, TimeUnit.MILLISECONDS)"
-        errorLine2="                           ~~~">
-        <location
-            file="src/main/java/ru/radiationx/anilibria/contentprovider/suggestions/SuggestionsContentProvider.kt"
-            line="111"
-            column="28"/>
-    </issue>
-
-    <issue
         id="UnusedAttribute"
         message="Attribute `focusedByDefault` is only used in API level 26 and higher (current min is 21)"
         errorLine1="        android:focusedByDefault=&quot;true&quot;"
@@ -545,17 +512,6 @@
             file="src/main/res/layout/my_guidance.xml"
             line="11"
             column="6"/>
-    </issue>
-
-    <issue
-        id="MonochromeLauncherIcon"
-        message="The application adaptive icon is missing a monochrome tag"
-        errorLine1="&lt;adaptive-icon xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
-        errorLine2="^">
-        <location
-            file="src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
-            line="2"
-            column="1"/>
     </issue>
 
     <issue

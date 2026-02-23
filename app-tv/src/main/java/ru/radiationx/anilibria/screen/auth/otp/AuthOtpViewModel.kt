@@ -4,6 +4,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
@@ -20,8 +22,10 @@ class AuthOtpViewModel @Inject constructor(
     private val guidedRouter: GuidedRouter,
 ) : LifecycleViewModel() {
 
-    val otpInfoData = MutableStateFlow<OtpInfo?>(null)
-    val state = MutableStateFlow(State())
+    private val _otpInfoData = MutableStateFlow<OtpInfo?>(null)
+    val otpInfoData: StateFlow<OtpInfo?> = _otpInfoData.asStateFlow()
+    private val _state = MutableStateFlow(State())
+    val state: StateFlow<State> = _state.asStateFlow()
 
     private var timerJob: Job? = null
     private var signInJob: Job? = null
@@ -46,7 +50,7 @@ class AuthOtpViewModel @Inject constructor(
     }
 
     private fun signIn() {
-        val code = otpInfoData.value?.code ?: return
+        val code = _otpInfoData.value?.code ?: return
         signInJob?.cancel()
         signInJob = viewModelScope.launch {
             coRunCatching {
@@ -65,7 +69,7 @@ class AuthOtpViewModel @Inject constructor(
             coRunCatching {
                 authRepository.getOtpInfo()
             }.onSuccess {
-                otpInfoData.value = it
+                _otpInfoData.value = it
                 startTimer(it)
                 updateState(ButtonState.COMPLETE, false)
             }.onFailure {
@@ -103,11 +107,11 @@ class AuthOtpViewModel @Inject constructor(
     }
 
     private fun updateState(
-        buttonState: ButtonState = state.value.buttonState,
-        progress: Boolean = state.value.progress,
-        error: String = state.value.error,
+        buttonState: ButtonState = _state.value.buttonState,
+        progress: Boolean = _state.value.progress,
+        error: String = _state.value.error,
     ) {
-        state.value = State(buttonState, progress, error)
+        _state.value = State(buttonState, progress, error)
     }
 
     data class State(

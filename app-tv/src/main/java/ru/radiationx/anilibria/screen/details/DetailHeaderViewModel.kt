@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -44,8 +46,10 @@ class DetailHeaderViewModel @Inject constructor(
 
     private val releaseId: ReleaseId = argExtra.id
 
-    val releaseData = MutableStateFlow<LibriaDetails?>(null)
-    val progressState = MutableStateFlow(DetailsState(loadingProgress = true))
+    private val _releaseData = MutableStateFlow<LibriaDetails?>(null)
+    val releaseData: StateFlow<LibriaDetails?> = _releaseData.asStateFlow()
+    private val _progressState = MutableStateFlow(DetailsState(loadingProgress = true))
+    val progressState: StateFlow<DetailsState> = _progressState.asStateFlow()
 
     private val v1ReleaseState = MutableStateFlow<DetailHeaderRemoteData?>(null)
 
@@ -119,11 +123,11 @@ class DetailHeaderViewModel @Inject constructor(
                 // Overlay from AniLiberty (if удалось загрузить) — иначе остаёмся на legacy.
                 val details = v1?.let { aniOverlay.apply(baseDetails, it) } ?: baseDetails
 
-                releaseData.value = details
+                _releaseData.value = details
 
                 // Убираем "initial loading" как только получили хотя бы один результат.
-                if (progressState.value.loadingProgress) {
-                    progressState.value = progressState.value.copy(loadingProgress = false)
+                if (_progressState.value.loadingProgress) {
+                    _progressState.value = _progressState.value.copy(loadingProgress = false)
                 }
             }
             .launchIn(viewModelScope)
@@ -223,12 +227,12 @@ class DetailHeaderViewModel @Inject constructor(
                 return@launch
             }
 
-            progressState.value = progressState.value.copy(updateProgress = true)
+            _progressState.value = _progressState.value.copy(updateProgress = true)
 
             try {
                 // Берём состояние из UI (оно уже "нормализовано" нашей логикой),
                 // иначе fallback на legacy.
-                val wasFavorite = releaseData.value?.isFavorite ?: release.favoriteInfo.isAdded
+                val wasFavorite = _releaseData.value?.isFavorite ?: release.favoriteInfo.isAdded
 
                 // 1) server mutate (token-first repository)
                 if (wasFavorite) {
@@ -259,13 +263,13 @@ class DetailHeaderViewModel @Inject constructor(
             } catch (error: Throwable) {
                 Timber.e(error)
             } finally {
-                progressState.value = progressState.value.copy(updateProgress = false)
+                _progressState.value = _progressState.value.copy(updateProgress = false)
             }
         }
     }
 
     fun onDescriptionClick() {
-        val details = releaseData.value ?: return
+        val details = _releaseData.value ?: return
 
         val title = details.titleRu.ifBlank { "Описание" }
         val message = details.description.ifBlank { "Описание отсутствует" }

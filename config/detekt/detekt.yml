@@ -5,7 +5,15 @@ complexity:
   active: false
 
 coroutines:
-  active: false
+  active: true
+  GlobalCoroutineUsage:
+    active: true
+  InjectDispatcher:
+    active: false
+  RedundantSuspendModifier:
+    active: true
+  SleepInsteadOfDelay:
+    active: true
 
 empty-blocks:
   active: false
@@ -20,7 +28,17 @@ performance:
   active: false
 
 potential-bugs:
-  active: false
+  active: true
+  AvoidReferentialEquality:
+    active: true
+  CastNullableToNonNullableType:
+    active: true
+  UnsafeCallOnNullableType:
+    active: true
+  UnsafeCast:
+    active: true
+  UnreachableCode:
+    active: true
 
 comments:
   active: false

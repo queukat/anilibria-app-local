@@ -31,8 +31,8 @@ class SearchYearViewModel @Inject constructor(
                 currentYears.addAll(years)
                 currentValues.clear()
                 currentValues.addAll(years.map { it.value })
-                valuesData.value = years.map { it.title }
-                progressState.value = false
+                _valuesData.value = years.map { it.title }
+                _progressState.value = false
                 updateChecked()
                 updateSelected()
             }
@@ -40,13 +40,13 @@ class SearchYearViewModel @Inject constructor(
 
 
         viewModelScope.launch {
-            progressState.value = true
+            _progressState.value = true
             coRunCatching {
                 tvSearchUseCase.loadYears()
             }.onFailure {
                 Timber.e(it)
             }
-            progressState.value = false
+            _progressState.value = false
         }
     }
 
