@@ -14,7 +14,7 @@
         android:layout_marginEnd="8dp"
         android:nextFocusRight="@id/searchTitleSeason"
         android:nextFocusUp="@id/title_other"
-        android:text="Год" />
+        android:text="@string/search_filter_year" />
 
     <Button
         android:id="@+id/searchTitleSeason"
@@ -25,7 +25,7 @@
         android:nextFocusLeft="@id/searchTitleYear"
         android:nextFocusRight="@id/searchTitleGenre"
         android:nextFocusUp="@id/title_other"
-        android:text="Сезон" />
+        android:text="@string/search_filter_season" />
 
     <Button
         android:id="@+id/searchTitleGenre"
@@ -36,7 +36,7 @@
         android:nextFocusLeft="@id/searchTitleSeason"
         android:nextFocusRight="@id/searchTitleSort"
         android:nextFocusUp="@id/title_other"
-        android:text="Жанр" />
+        android:text="@string/search_filter_genre" />
 
     <Button
         android:id="@+id/searchTitleSort"
@@ -47,7 +47,7 @@
         android:nextFocusLeft="@id/searchTitleGenre"
         android:nextFocusRight="@id/searchTitleComplete"
         android:nextFocusUp="@id/title_other"
-        android:text="По популярности" />
+        android:text="@string/search_filter_sort_popularity" />
 
     <Button
         android:id="@+id/searchTitleComplete"
@@ -56,6 +56,6 @@
         android:layout_height="wrap_content"
         android:nextFocusLeft="@id/searchTitleSort"
         android:nextFocusUp="@id/title_other"
-        android:text="Только завершенные" />
+        android:text="@string/search_filter_completed_only" />
 
 </androidx.appcompat.widget.LinearLayoutCompat>

@@ -33,6 +33,8 @@ import ru.radiationx.quill.installModules
 import ru.radiationx.quill.quillModule
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
+import timber.log.Timber
+import java.util.concurrent.atomic.AtomicBoolean
 
 class SuggestionsFragment : SearchSupportFragment(), SearchSupportFragment.SearchResultProvider {
 
@@ -190,7 +192,7 @@ class SuggestionsFragment : SearchSupportFragment(), SearchSupportFragment.Searc
             searchBarField.isAccessible = true
 
             val sr = speechRecField.get(this) ?: return
-            val sb = searchBarField.get(this)
+            val sb = searchBarField.get(this) ?: return
             val setSpeechRecMethod = sb::class.java.getDeclaredMethod(
                 "setSpeechRecognizer",
                 SpeechRecognizer::class.java
@@ -203,8 +205,20 @@ class SuggestionsFragment : SearchSupportFragment(), SearchSupportFragment.Searc
             destroyMethod.invoke(sr)
 
             speechRecField.set(this, null)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (exception: ReflectiveOperationException) {
+            logSpeechCleanupError(exception)
+        } catch (exception: SecurityException) {
+            logSpeechCleanupError(exception)
         }
+    }
+
+    private fun logSpeechCleanupError(error: Exception) {
+        if (speechCleanupErrorLogged.compareAndSet(false, true)) {
+            Timber.e(error, "Failed to cleanup SpeechRecognizer workaround")
+        }
+    }
+
+    companion object {
+        private val speechCleanupErrorLogged = AtomicBoolean(false)
     }
 }

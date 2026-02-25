@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import java.math.BigDecimal
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -204,9 +205,9 @@ class WatchingContinueViewModel @Inject constructor(
         val seconds = totalSeconds % 60
 
         return if (hours > 0) {
-            String.format("%d:%02d:%02d", hours, minutes, seconds)
+            String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
         } else {
-            String.format("%d:%02d", minutes, seconds)
+            String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
         }
     }
 

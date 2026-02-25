@@ -57,17 +57,6 @@
     </issue>
 
     <issue
-        id="SpUsage"
-        message="Should use &quot;`sp`&quot; instead of &quot;`dp`&quot; for text sizes"
-        errorLine1="        android:textSize=&quot;32dp&quot; />"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/fragment_empty.xml"
-            line="23"
-            column="9"/>
-    </issue>
-
-    <issue
         id="DiscouragedApi"
         message="Should not restrict activity to fixed orientation. This may not be suitable for different form factors, causing the app to be letterboxed."
         errorLine1="            android:screenOrientation=&quot;landscape&quot;"
@@ -609,17 +598,6 @@
     </issue>
 
     <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="    &lt;ImageView"
-        errorLine2="     ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/view_card_loading.xml"
-            line="14"
-            column="6"/>
-    </issue>
-
-    <issue
         id="SetTextI18n"
         message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
         errorLine1="                titleView?.text = &quot;Код: ${it.code}&quot;"
@@ -648,19 +626,8 @@
         errorLine2="                                        ~~~~~~">
         <location
             file="src/main/java/ru/radiationx/anilibria/screen/update/UpdateFragment.kt"
-            line="66"
+            line="67"
             column="41"/>
-    </issue>
-
-    <issue
-        id="HardcodedText"
-        message="Hardcoded string &quot;Coming soon&quot;, should use `@string` resource"
-        errorLine1="        android:text=&quot;Coming soon&quot;"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/fragment_empty.xml"
-            line="22"
-            column="9"/>
     </issue>
 
     <issue
@@ -836,61 +803,6 @@
         <location
             file="src/main/res/layout/view_player_skips.xml"
             line="23"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="HardcodedText"
-        message="Hardcoded string &quot;Год&quot;, should use `@string` resource"
-        errorLine1="        android:text=&quot;Год&quot; />"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/view_search_controls.xml"
-            line="17"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="HardcodedText"
-        message="Hardcoded string &quot;Сезон&quot;, should use `@string` resource"
-        errorLine1="        android:text=&quot;Сезон&quot; />"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/view_search_controls.xml"
-            line="28"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="HardcodedText"
-        message="Hardcoded string &quot;Жанр&quot;, should use `@string` resource"
-        errorLine1="        android:text=&quot;Жанр&quot; />"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/view_search_controls.xml"
-            line="39"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="HardcodedText"
-        message="Hardcoded string &quot;По популярности&quot;, should use `@string` resource"
-        errorLine1="        android:text=&quot;По популярности&quot; />"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/view_search_controls.xml"
-            line="50"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="HardcodedText"
-        message="Hardcoded string &quot;Только завершенные&quot;, should use `@string` resource"
-        errorLine1="        android:text=&quot;Только завершенные&quot; />"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/view_search_controls.xml"
-            line="59"
             column="9"/>
     </issue>
 

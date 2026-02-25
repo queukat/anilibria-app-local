@@ -3,6 +3,8 @@ package ru.radiationx.anilibria
 import android.app.ActivityManager
 import android.app.Application
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import io.appmetrica.analytics.AppMetrica
 import io.appmetrica.analytics.AppMetricaConfig
 import kotlinx.coroutines.CompletableDeferred
@@ -72,8 +74,14 @@ class App : Application() {
         }.onFailure {
             Timber.e(it, "Migration pipeline failed on startup.")
         }
-        // Warm up image loader singleton during app init, not on first card binding.
-        Quill.getRootScope().get(LibriaImageLoader::class)
+        // Warm up image loader after first loop cycle to reduce startup work in onCreate.
+        Handler(Looper.getMainLooper()).post {
+            runCatching {
+                Quill.getRootScope().get(LibriaImageLoader::class)
+            }.onFailure {
+                Timber.w(it, "Image loader warmup failed.")
+            }
+        }
         if (AndroidTestMode.enabled) {
             Quill.getRootScope().get(ApiConfig::class).needConfig = false
         }
