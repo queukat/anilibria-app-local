@@ -8,7 +8,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -134,7 +137,9 @@ class WatchingRowsSeparationTest {
     }
 
     @Test
-    fun clearWatchProgress_removesRemoteContinueItem() = runBlocking {
+    fun clearWatchProgress_removesRemoteContinueItem() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 51)
         val card = LibriaCard(
             title = "Release 51",
@@ -199,14 +204,17 @@ class WatchingRowsSeparationTest {
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
-        waitUntil { continueVm.cardsData.value.isNotEmpty() }
+        advanceUntilIdle()
+        assertTrue("Continue must contain remote item before clear", continueVm.cardsData.value.isNotEmpty())
 
         // Эмулируем очистку watch-progress: локальный список эпизодов пуст.
         episodesHolder.setEpisodes(emptyList())
         coEvery { releaseInteractor.getAccesses(release.id) } returns emptyList()
-        waitUntil { continueVm.cardsData.value.isEmpty() }
+        continueVm.onRefreshClick()
+        advanceUntilIdle()
 
         assertTrue("Continue should disappear when watch progress cleared even if remote still returns item", continueVm.cardsData.value.isEmpty())
     }
@@ -257,7 +265,9 @@ class WatchingRowsSeparationTest {
     }
 
     @Test
-    fun remoteContinueItemDisappearsAfterWatchProgressClearAndVmRecreate() = runBlocking {
+    fun remoteContinueItemDisappearsAfterWatchProgressClearAndVmRecreate() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 77)
         val card = LibriaCard(
             title = "Release 77",
@@ -315,12 +325,16 @@ class WatchingRowsSeparationTest {
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        continueVmFirst.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVmFirst.onRefreshClick()
-        waitUntil { continueVmFirst.cardsData.value.isNotEmpty() }
+        advanceUntilIdle()
+        assertTrue("Continue must contain remote item before clear", continueVmFirst.cardsData.value.isNotEmpty())
 
         episodesHolder.setEpisodes(emptyList())
-        waitUntil { continueVmFirst.cardsData.value.isEmpty() }
+        continueVmFirst.onRefreshClick()
+        advanceUntilIdle()
+        assertTrue("First VM should clear continue items after watch progress clear", continueVmFirst.cardsData.value.isEmpty())
 
         val continueVmSecond = WatchingContinueViewModel(
             converter = converter,
@@ -330,9 +344,10 @@ class WatchingRowsSeparationTest {
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        continueVmSecond.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVmSecond.onRefreshClick()
-        waitUntil { continueVmSecond.cardsData.value.isEmpty() }
+        advanceUntilIdle()
 
         assertTrue("Continue should stay empty after watch progress clear even after VM recreate", continueVmSecond.cardsData.value.isEmpty())
     }

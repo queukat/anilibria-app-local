@@ -1,6 +1,7 @@
 package ru.radiationx.anilibria.common
 
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,6 +61,7 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
 
     /** Job для отмены/предотвращения параллельных запросов. */
     private var requestJob: Job? = null
+    private var loaderDispatcher: CoroutineDispatcher = Dispatchers.IO
 
     override fun onColdCreate() {
         super.onColdCreate()
@@ -137,6 +139,14 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
     /** Плейсхолдер, когда данные пришли пустыми (чтобы не оставлять UI "тихо пустым"). */
     protected open fun getEmptyStateCard(): CardItem? = null
 
+    /**
+     * Test hook to make asynchronous loading deterministic.
+     * Production keeps using Dispatchers.IO.
+     */
+    internal fun setLoaderDispatcherForTests(dispatcher: CoroutineDispatcher) {
+        loaderDispatcher = dispatcher
+    }
+
     /** Главный метод для загрузки (первая или следующая страница). */
     private fun loadPage(requestPage: Int) {
         if (requestJob?.isActive == true) return
@@ -146,7 +156,7 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
                 _cardsData.value = currentCards + loadingCard
             }
             coRunCatching {
-                withContext(Dispatchers.IO) { getLoader(requestPage) }
+                withContext(loaderDispatcher) { getLoader(requestPage) }
             }.onSuccess { newCards ->
                 val isFirstPage = requestPage == firstPage
                 val allowModify = if (isFirstPage) {
