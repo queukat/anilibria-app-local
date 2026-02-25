@@ -36,7 +36,8 @@ dependencies {
     api(libs.okhttp.logging.interceptor)
     api(libs.okhttp.urlconnection)
 
-    implementation libs.chucker
+    debugImplementation libs.chucker
+    releaseImplementation libs.chucker.noop
 
     api libs.kotlin.coroutines.core
 

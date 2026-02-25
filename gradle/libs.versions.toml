@@ -61,6 +61,7 @@ androidnetworktools = { module = "com.github.stealthcopter:AndroidNetworkTools",
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
 androidx-cardview = { module = "androidx.cardview:cardview", version.ref = "androidx-cardview" }
 chucker = { module = "com.github.chuckerteam.chucker:library", version.ref = "chucker" }
+chucker-noop = { module = "com.github.chuckerteam.chucker:library-no-op", version.ref = "chucker" }
 cicerone = { module = "com.github.terrakok:cicerone", version.ref = "cicerone" }
 coil = { module = "io.coil-kt:coil", version.ref = "coil" }
 androidx-collection-ktx = { module = "androidx.collection:collection-ktx", version.ref = "androidx-collection" }
