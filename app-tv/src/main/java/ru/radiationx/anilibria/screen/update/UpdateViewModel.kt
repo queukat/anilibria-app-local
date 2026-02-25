@@ -114,7 +114,7 @@ class UpdateViewModel @Inject constructor(
 
                                     is TvUpdateUseCase.ApkVerificationResult.Failure -> {
                                         _errorMessages.tryEmit(verification.reason)
-                                        return@launch
+                                        return@collect
                                     }
                                 }
                             }

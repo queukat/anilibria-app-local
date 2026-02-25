@@ -162,12 +162,12 @@ class ApiConfigStorage @Inject constructor(
 }
 
 @JsonClass(generateAdapter = true)
-private data class ApiConfigProxyCredsPayload(
+internal data class ApiConfigProxyCredsPayload(
     val items: List<ApiConfigProxyCred>,
 )
 
 @JsonClass(generateAdapter = true)
-private data class ApiConfigProxyCred(
+internal data class ApiConfigProxyCred(
     val addressTag: String,
     val proxyTag: String,
     val user: String?,

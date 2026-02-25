@@ -8,7 +8,7 @@ import ru.radiationx.quill.QuillModule
 class DataModule(context: Context) : QuillModule() {
 
     init {
-        installModules(
+        include(
             DataStorageModule(context),
             DataNetworkModule(context),
             DataRepositoryModule(),

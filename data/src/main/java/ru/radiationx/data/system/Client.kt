@@ -94,7 +94,8 @@ open class Client @Inject constructor(
         return withContext(Dispatchers.IO) {
             var attempt = 0
             var delayMs = RetryPolicy.initialBackoffMs
-            while (true) {
+            var result: Response? = null
+            while (result == null) {
                 val body = getRequestBody(method, args)
                 val httpUrl = getHttpUrl(url, method, args)
                 val request = Request.Builder()
@@ -106,7 +107,8 @@ open class Client @Inject constructor(
                 try {
                     val callResponse = call.awaitResponse()
                     if (callResponse.isSuccessful) {
-                        return@withContext callResponse
+                        result = callResponse
+                        continue
                     }
                     if (RetryPolicy.shouldRetryOnHttpCode(method, callResponse.code, attempt)) {
                         callResponse.close()
@@ -126,6 +128,7 @@ open class Client @Inject constructor(
                     throw error
                 }
             }
+            result ?: error("Unexpected empty response after retry loop.")
         }
     }
 

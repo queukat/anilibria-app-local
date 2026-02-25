@@ -41,9 +41,12 @@ class TvUpdateUseCaseImpl @Inject constructor(
         file: DownloadedFile,
         expectedSha256: String?,
     ): TvUpdateUseCase.ApkVerificationResult {
-        return apkVerifier.verify(
+        return when (val result = apkVerifier.verify(
             apkFile = file.local,
             expectedSha256 = expectedSha256,
-        )
+        )) {
+            ApkVerifier.Result.Success -> TvUpdateUseCase.ApkVerificationResult.Success
+            is ApkVerifier.Result.Failure -> TvUpdateUseCase.ApkVerificationResult.Failure(result.reason)
+        }
     }
 }

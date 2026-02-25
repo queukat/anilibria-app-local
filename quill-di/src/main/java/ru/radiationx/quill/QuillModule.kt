@@ -108,4 +108,13 @@ open class QuillModule {
     ): Binding<T>.CanBeBound {
         return qualifier?.let { withName(qualifier.java) } ?: this
     }
+
+    /**
+     * Installs bindings from child modules into the current module.
+     */
+    fun include(vararg modules: QuillModule) {
+        modules.forEach { module ->
+            tpModule.bindingSet.addAll(module.tpModule.bindingSet)
+        }
+    }
 }
