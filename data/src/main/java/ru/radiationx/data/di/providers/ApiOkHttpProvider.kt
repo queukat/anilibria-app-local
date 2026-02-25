@@ -1,10 +1,8 @@
 package ru.radiationx.data.di.providers
 
 import android.content.Context
-import com.chuckerteam.chucker.api.ChuckerInterceptor
 import okhttp3.Credentials
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import ru.radiationx.data.SharedBuildConfig
 import ru.radiationx.data.analytics.features.SslCompatAnalytics
 import ru.radiationx.data.datasource.remote.address.ApiConfig
@@ -31,16 +29,6 @@ class ApiOkHttpProvider @Inject constructor(
     private val sslCompat: SslCompat,
     private val sslCompatAnalytics: SslCompatAnalytics
 ) : Provider<OkHttpClient> {
-
-    companion object {
-        private val redactedHeaders = listOf(
-            "Authorization",
-            "Cookie",
-            "Set-Cookie",
-            "X-Api-Key",
-            "Proxy-Authorization",
-        )
-    }
 
     override fun get(): OkHttpClient = OkHttpClient.Builder()
         .appendSslCompatAnalytics(sslCompat, sslCompatAnalytics)
@@ -103,19 +91,13 @@ class ApiOkHttpProvider @Inject constructor(
             cookieJar(appCookieJar)
         }
         .apply {
-            if (sharedBuildConfig.debug) {
-                val loggingInterceptor = HttpLoggingInterceptor()
-                    .apply {
-                        level = HttpLoggingInterceptor.Level.HEADERS
-                        redactedHeaders.forEach(::redactHeader)
-                    }
-                addNetworkInterceptor(loggingInterceptor)
-                addNetworkInterceptor(
-                    ChuckerInterceptor.Builder(context)
-                        .redactHeaders(*redactedHeaders.toTypedArray())
-                        .build()
-                )
-            }
+            // Contains auth-related requests; keep BODY disabled even if explicit flag is enabled.
+            DebugNetworkLoggingPolicy.appendTo(
+                builder = this,
+                context = context,
+                sharedBuildConfig = sharedBuildConfig,
+                allowBodyLogging = false,
+            )
         }
         .build()
 }

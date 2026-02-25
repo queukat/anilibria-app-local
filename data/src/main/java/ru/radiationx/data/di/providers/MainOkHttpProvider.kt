@@ -1,9 +1,7 @@
 package ru.radiationx.data.di.providers
 
 import android.content.Context
-import com.chuckerteam.chucker.api.ChuckerInterceptor
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import ru.radiationx.data.SharedBuildConfig
 import ru.radiationx.data.analytics.features.SslCompatAnalytics
 import ru.radiationx.data.sslcompat.SslCompat
@@ -33,10 +31,12 @@ class MainOkHttpProvider @Inject constructor(
                 .build()
         }
         .apply {
-            if (sharedBuildConfig.debug) {
-                addNetworkInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY))
-                addNetworkInterceptor(ChuckerInterceptor.Builder(context).build())
-            }
+            DebugNetworkLoggingPolicy.appendTo(
+                builder = this,
+                context = context,
+                sharedBuildConfig = sharedBuildConfig,
+                allowBodyLogging = true,
+            )
         }
         .build()
 }

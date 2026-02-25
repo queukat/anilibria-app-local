@@ -15,6 +15,15 @@ android {
         targetSdk app_target_sdk_version
     }
 
+    buildTypes {
+        debug {
+            buildConfigField "boolean", "ENABLE_HTTP_BODY_LOGGING", "false"
+        }
+        release {
+            buildConfigField "boolean", "ENABLE_HTTP_BODY_LOGGING", "false"
+        }
+    }
+
     sourceSets {
         test {
             java.srcDirs += "src/liveTest/java"
