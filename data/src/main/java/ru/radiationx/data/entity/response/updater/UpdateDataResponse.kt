@@ -25,6 +25,7 @@ data class UpdateDataResponse(
     data class UpdateLink(
         @Json(name = "name") val name: String?,
         @Json(name = "url") val url: String?,
-        @Json(name = "type") val type: String?
+        @Json(name = "type") val type: String?,
+        @Json(name = "sha256") val sha256: String? = null,
     )
 }

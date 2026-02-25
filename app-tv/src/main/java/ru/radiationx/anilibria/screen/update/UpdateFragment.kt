@@ -3,6 +3,7 @@ package ru.radiationx.anilibria.screen.update
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.core.text.parseAsHtml
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -75,6 +76,10 @@ class UpdateFragment : Fragment(R.layout.fragment_update) {
                 TransitionManager.beginDelayedTransition(binding.updateRoot, Fade())
             }
             binding.updateContainer.isVisible = !it
+        }
+
+        subscribeTo(viewModel.errorMessages) { message ->
+            Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
         }
 
         binding.updateButton.setOnClickListener {

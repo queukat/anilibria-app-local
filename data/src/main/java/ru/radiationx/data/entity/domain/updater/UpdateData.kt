@@ -21,6 +21,7 @@ data class UpdateData(
         val name: String,
         val url: String,
         val type: LinkType,
+        val sha256: String? = null,
     )
 
     enum class LinkType {

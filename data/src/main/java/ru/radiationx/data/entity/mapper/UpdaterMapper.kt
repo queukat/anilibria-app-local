@@ -26,5 +26,6 @@ fun UpdateDataResponse.UpdateLink.toDomain() = UpdateData.UpdateLink(
         "file" -> UpdateData.LinkType.FILE
         "site" -> UpdateData.LinkType.SITE
         else -> UpdateData.LinkType.SITE
-    }
+    },
+    sha256 = sha256,
 )

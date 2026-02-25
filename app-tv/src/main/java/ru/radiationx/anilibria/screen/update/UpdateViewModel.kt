@@ -2,10 +2,13 @@ package ru.radiationx.anilibria.screen.update
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -38,6 +41,8 @@ class UpdateViewModel @Inject constructor(
     val downloadProgressShowState: StateFlow<Boolean> = _downloadProgressShowState.asStateFlow()
     private val _downloadProgressData = MutableStateFlow(0)
     val downloadProgressData: StateFlow<Int> = _downloadProgressData.asStateFlow()
+    private val _errorMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -87,26 +92,43 @@ class UpdateViewModel @Inject constructor(
         if (downloadJob?.isActive == true) {
             return
         }
+        val expectedSha256 = _updateData.value
+            ?.links
+            ?.firstOrNull { it.url == url }
+            ?.sha256
         downloadJob = viewModelScope.launch {
             _downloadProgressShowState.value = true
-            coRunCatching {
-                tvUpdateUseCase.downloadUpdate(url).collect { event ->
-                    when (event) {
-                        is RemoteFileLoadEvent.Progress -> {
-                            _downloadProgressData.value = event.value
-                        }
+            try {
+                coRunCatching {
+                    tvUpdateUseCase.downloadUpdate(url).collect { event ->
+                        when (event) {
+                            is RemoteFileLoadEvent.Progress -> {
+                                _downloadProgressData.value = event.value
+                            }
 
-                        is RemoteFileLoadEvent.Completed -> {
-                            systemUtils.openLocalFile(event.file.toLocalFile())
+                            is RemoteFileLoadEvent.Completed -> {
+                                when (val verification = tvUpdateUseCase.verifyApk(event.file, expectedSha256)) {
+                                    TvUpdateUseCase.ApkVerificationResult.Success -> {
+                                        systemUtils.openLocalFile(event.file.toLocalFile())
+                                    }
+
+                                    is TvUpdateUseCase.ApkVerificationResult.Failure -> {
+                                        _errorMessages.tryEmit(verification.reason)
+                                        return@launch
+                                    }
+                                }
+                            }
                         }
                     }
+                }.onSuccess {
+                    Unit
+                }.onFailure {
+                    Timber.e(it)
+                    _errorMessages.tryEmit("Не удалось загрузить обновление.")
                 }
-            }.onSuccess {
-                Unit
-            }.onFailure {
-                Timber.e(it)
+            } finally {
+                _downloadProgressShowState.value = false
             }
-            _downloadProgressShowState.value = false
         }
     }
 
