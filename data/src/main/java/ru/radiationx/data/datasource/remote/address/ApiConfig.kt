@@ -70,7 +70,7 @@ class ApiConfig @Inject constructor(
 
         addresses.forEach { address ->
             address.proxies.forEach { proxy ->
-                proxyPings[address.tag]?.also {
+                proxyPings[proxy.tag]?.also {
                     proxy.ping = it
                 }
             }

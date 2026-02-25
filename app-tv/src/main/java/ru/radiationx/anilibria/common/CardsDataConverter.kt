@@ -38,7 +38,9 @@ class CardsDataConverter @Inject constructor(
             title.orEmpty(),
             descItems.joinToString(" • "),
             poster.orEmpty(),
-            LibriaCard.Type.Release(releaseItem.id)
+            LibriaCard.Type.Release(releaseItem.id),
+            relativeTimestampSec = torrentUpdate.toLong().takeIf { it != 0L },
+            relativePrefix = "Обновлен",
         )
     }
 
@@ -47,7 +49,9 @@ class CardsDataConverter @Inject constructor(
             title.orEmpty(),
             "Вышел ${Date(timestamp * 1000L).relativeDate(context).decapitalizeDefault()}",
             image.orEmpty(),
-            LibriaCard.Type.Youtube(youtubeItem.link)
+            LibriaCard.Type.Youtube(youtubeItem.link),
+            relativeTimestampSec = timestamp.toLong(),
+            relativePrefix = "Вышел",
         )
     }
 

@@ -2,6 +2,7 @@ package ru.radiationx.anilibria.screen.main
 
 import android.os.Bundle
 import android.view.View
+import androidx.lifecycle.lifecycleScope
 import androidx.leanback.app.RowsSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.ListRow
@@ -9,6 +10,10 @@ import androidx.leanback.widget.OnItemViewSelectedListener
 import androidx.leanback.widget.Presenter
 import androidx.leanback.widget.Row
 import androidx.leanback.widget.RowPresenter
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.LibriaCard
@@ -25,6 +30,10 @@ import ru.radiationx.shared_app.di.quillParentViewModel
 
 class MainFragment : RowsSupportFragment() {
 
+    companion object {
+        private const val DESCRIPTION_TICK_MS = 60_000L
+    }
+
     private val rowsPresenter by lazy { CustomListRowPresenter() }
     private val rowsAdapter by lazy { ArrayObjectAdapter(rowsPresenter) }
 
@@ -36,6 +45,10 @@ class MainFragment : RowsSupportFragment() {
     private val scheduleViewModel by quillParentViewModel<MainScheduleViewModel>()
     private val favoritesViewModel by quillParentViewModel<MainFavoritesViewModel>()
     private val youtubeViewModel by quillParentViewModel<MainYouTubeViewModel>()
+
+    private var selectedItem: Any? = null
+    private var selectedRowViewHolder: CustomListRowViewHolder? = null
+    private var descriptionTickerJob: Job? = null
 
     private fun getViewModel(rowId: Long): BaseCardsViewModel? = when (rowId) {
         MainViewModel.FEED_ROW_ID -> feedViewModel
@@ -82,7 +95,40 @@ class MainFragment : RowsSupportFragment() {
 
     override fun onResume() {
         super.onResume()
+        startDescriptionTicker()
         notifyReady()
+    }
+
+    override fun onPause() {
+        descriptionTickerJob?.cancel()
+        descriptionTickerJob = null
+        super.onPause()
+    }
+
+    override fun onDestroyView() {
+        selectedItem = null
+        selectedRowViewHolder = null
+        super.onDestroyView()
+    }
+
+    private fun startDescriptionTicker() {
+        if (descriptionTickerJob?.isActive == true) return
+        descriptionTickerJob = viewLifecycleOwner.lifecycleScope.launch {
+            while (isActive) {
+                delay(DESCRIPTION_TICK_MS)
+                applySelectedDescription()
+            }
+        }
+    }
+
+    private fun applySelectedDescription() {
+        val rowViewHolder = selectedRowViewHolder ?: return
+        when (val item = selectedItem) {
+            is LibriaCard -> rowViewHolder.setDescription(item.title, item.resolveDescription(requireContext()))
+            is LinkCard -> rowViewHolder.setDescription(item.title, "")
+            is LoadingCard -> rowViewHolder.setDescription(item.title, item.description)
+            else -> rowViewHolder.setDescription("", "")
+        }
     }
 
     private fun notifyReady() {
@@ -96,12 +142,9 @@ class MainFragment : RowsSupportFragment() {
         ) {
             if (rowViewHolder is CustomListRowViewHolder) {
                 backgroundManager.applyCard(item)
-                when (item) {
-                    is LibriaCard -> rowViewHolder.setDescription(item.title, item.description)
-                    is LinkCard -> rowViewHolder.setDescription(item.title, "")
-                    is LoadingCard -> rowViewHolder.setDescription(item.title, item.description)
-                    else -> rowViewHolder.setDescription("", "")
-                }
+                selectedItem = item
+                selectedRowViewHolder = rowViewHolder
+                applySelectedDescription()
             }
         }
     }
