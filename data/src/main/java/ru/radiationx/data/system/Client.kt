@@ -24,7 +24,7 @@ import kotlin.coroutines.resumeWithException
 
 open class Client @Inject constructor(
     private val clientWrapper: ClientWrapper,
-    private val sharedBuildConfig: SharedBuildConfig,
+    @Suppress("unused") private val sharedBuildConfig: SharedBuildConfig,
 ) : IClient {
 
     companion object {
@@ -126,7 +126,7 @@ open class Client @Inject constructor(
 
     private fun getHttpUrl(url: String, method: String, args: Map<String, String>): HttpUrl {
         var httpUrl = url.toHttpUrlOrNull() ?: throw Exception("URL incorrect: '$url'")
-        if (sharedBuildConfig.debug || method == METHOD_GET) {
+        if (method == METHOD_GET) {
             httpUrl = httpUrl.newBuilder().let { builder ->
                 args.forEach { builder.addQueryParameter(it.key, it.value) }
                 builder.build()

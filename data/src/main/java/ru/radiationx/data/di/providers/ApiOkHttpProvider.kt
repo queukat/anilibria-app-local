@@ -32,6 +32,16 @@ class ApiOkHttpProvider @Inject constructor(
     private val sslCompatAnalytics: SslCompatAnalytics
 ) : Provider<OkHttpClient> {
 
+    companion object {
+        private val redactedHeaders = listOf(
+            "Authorization",
+            "Cookie",
+            "Set-Cookie",
+            "X-Api-Key",
+            "Proxy-Authorization",
+        )
+    }
+
     override fun get(): OkHttpClient = OkHttpClient.Builder()
         .appendSslCompatAnalytics(sslCompat, sslCompatAnalytics)
         .appendSslCompat(sslCompat)
@@ -94,8 +104,17 @@ class ApiOkHttpProvider @Inject constructor(
         }
         .apply {
             if (sharedBuildConfig.debug) {
-                addNetworkInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY))
-                addNetworkInterceptor(ChuckerInterceptor.Builder(context).build())
+                val loggingInterceptor = HttpLoggingInterceptor()
+                    .apply {
+                        level = HttpLoggingInterceptor.Level.HEADERS
+                        redactedHeaders.forEach(::redactHeader)
+                    }
+                addNetworkInterceptor(loggingInterceptor)
+                addNetworkInterceptor(
+                    ChuckerInterceptor.Builder(context)
+                        .redactHeaders(*redactedHeaders.toTypedArray())
+                        .build()
+                )
             }
         }
         .build()
