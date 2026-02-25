@@ -4,7 +4,6 @@ import android.content.Context
 import ru.mintrocket.lib.mintpermissions.MintPermissions
 import ru.mintrocket.lib.mintpermissions.flows.MintPermissionsFlow
 import ru.radiationx.anilibria.AppBuildConfig
-import ru.radiationx.anilibria.AppMigrationExecutor
 import ru.radiationx.anilibria.TvCheckerSources
 import ru.radiationx.anilibria.common.AniLibertyDetailsOverlay
 import ru.radiationx.data.SharedBuildConfig
@@ -12,7 +11,6 @@ import ru.radiationx.data.analytics.AnalyticsErrorReporter
 import ru.radiationx.data.analytics.AnalyticsSender
 import ru.radiationx.data.analytics.profile.AnalyticsProfile
 import ru.radiationx.data.datasource.remote.common.CheckerReserveSources
-import ru.radiationx.data.migration.MigrationExecutor
 import ru.radiationx.quill.QuillModule
 import ru.radiationx.shared_app.analytics.errors.AppMetricaErrorReporter
 import ru.radiationx.shared_app.analytics.errors.CombinedErrorReporter
@@ -36,7 +34,6 @@ class AppModule(context: Context) : QuillModule() {
         instance<Context> { appContext } // application Context
         singleImpl<SharedBuildConfig, AppBuildConfig>()
         singleImpl<CheckerReserveSources, TvCheckerSources>()
-        singleImpl<MigrationExecutor, AppMigrationExecutor>()
 
         singleImpl<LibriaImageLoader, CoilLibriaImageLoaderImpl>()
 

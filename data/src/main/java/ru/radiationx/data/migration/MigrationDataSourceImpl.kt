@@ -39,12 +39,23 @@ class MigrationDataSourceImpl @Inject constructor(
             val lastVersion = history.lastOrNull() ?: INITIAL_VERSION
             val disorder = checkIsDisordered(history)
 
+            Timber.i(
+                "Migration check: last=%d current=%d history=%s",
+                lastVersion,
+                currentVersion,
+                history.joinToString(prefix = "[", postfix = "]"),
+            )
+
             if (lastVersion < currentVersion) {
                 if (lastVersion > INITIAL_VERSION) {
                     migrationExecutor.execute(currentVersion, lastVersion, history)
                 }
                 val newHistory = history + currentVersion
                 saveHistory(newHistory)
+                Timber.i(
+                    "Migration history updated: %s",
+                    newHistory.joinToString(prefix = "[", postfix = "]"),
+                )
             }
             if (disorder) {
                 val errMsg =

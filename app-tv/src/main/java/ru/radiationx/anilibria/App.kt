@@ -11,6 +11,7 @@ import ru.mintrocket.lib.mintpermissions.flows.ext.initMintPermissionsFlow
 import ru.radiationx.anilibria.di.AppModule
 import ru.radiationx.data.di.DataModule
 import ru.radiationx.data.datasource.remote.address.ApiConfig
+import ru.radiationx.data.migration.MigrationDataSource
 import ru.radiationx.data.system.ApplicationCoroutineScope
 import ru.radiationx.data.system.AndroidTestMode
 import ru.radiationx.quill.Quill
@@ -66,6 +67,11 @@ class App : Application() {
             AppModule(this),
             DataModule(this)
         )
+        runCatching {
+            Quill.getRootScope().get(MigrationDataSource::class).update()
+        }.onFailure {
+            Timber.e(it, "Migration pipeline failed on startup.")
+        }
         // Warm up image loader singleton during app init, not on first card binding.
         Quill.getRootScope().get(LibriaImageLoader::class)
         if (AndroidTestMode.enabled) {
