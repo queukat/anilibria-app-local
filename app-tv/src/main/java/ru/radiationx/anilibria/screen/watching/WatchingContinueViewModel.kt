@@ -8,6 +8,7 @@ import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.data.datasource.holders.EpisodesCheckerHolder
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
+import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.interactors.ReleaseInteractor
@@ -18,6 +19,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import java.math.BigDecimal
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class WatchingContinueViewModel @Inject constructor(
@@ -37,12 +40,12 @@ class WatchingContinueViewModel @Inject constructor(
 
     init {
         episodesCheckerHolder.observeEpisodes()
-            .map(::toLocalProgressReleaseIds)
+            .map(::toLocalProgressState)
             .distinctUntilChanged()
-            .onEach { releaseIds ->
+            .onEach { state ->
                 val hadLocalProgress = localProgressReleaseIds.value.isNotEmpty()
-                localProgressReleaseIds.value = releaseIds
-                if (hadLocalProgress && releaseIds.isEmpty()) {
+                localProgressReleaseIds.value = state.releaseIds
+                if (hadLocalProgress && state.releaseIds.isEmpty()) {
                     _cardsData.value = emptyList()
                 }
                 onRefreshClick()
@@ -58,6 +61,8 @@ class WatchingContinueViewModel @Inject constructor(
     }
 
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
+        val localState = toLocalProgressState(episodesCheckerHolder.getEpisodes())
+
         if (remoteMode) {
             val remoteCards = try {
                 val response = userViewsRepository.getViewsHistory(
@@ -65,7 +70,10 @@ class WatchingContinueViewModel @Inject constructor(
                     limit = REMOTE_PAGE_LIMIT,
                 )
                 remoteHasMore = isHasMore(response)
-                mapRemoteContinue(response)
+                mapRemoteContinue(
+                    response = response,
+                    localState = localState,
+                )
             } catch (error: Throwable) {
                 // если упали/401 — переключаемся в local только на первой странице
                 remoteMode = false
@@ -105,32 +113,101 @@ class WatchingContinueViewModel @Inject constructor(
         cardRouter.navigate(card)
     }
 
-    private fun mapRemoteContinue(
+    private suspend fun mapRemoteContinue(
         response: PaginatedResponse<UserViewHistoryItem>,
+        localState: LocalProgressState,
     ): List<LibriaCard> {
         val usedReleaseIds = mutableSetOf<Int>()
-        val localReleaseIds = localProgressReleaseIds.value
+        val result = mutableListOf<LibriaCard>()
 
-        return response.data
-            .asSequence()
-            // Continue = не досмотрено до конца
-            .filter { !it.isWatched }
-            .mapNotNull { AniLibertyViewHistoryCardMapper.toContinueCardOrNull(it) }
-            .filter { card ->
-                val id = (card.type as? LibriaCard.Type.Release)?.releaseId?.id
-                id != null &&
-                    usedReleaseIds.add(id) &&
-                    localReleaseIds.contains(id)
+        response.data.forEach { item ->
+            if (item.isWatched) return@forEach
+
+            val card = AniLibertyViewHistoryCardMapper.toContinueCardOrNull(item) ?: return@forEach
+            val releaseId = (card.type as? LibriaCard.Type.Release)?.releaseId?.id
+            if (releaseId == null || !usedReleaseIds.add(releaseId) || !localState.releaseIds.contains(releaseId)) {
+                return@forEach
             }
-            .toList()
+
+            val localAccess = localState.latestByRelease[releaseId]
+            if (localAccess == null) {
+                result += card
+            } else {
+                result += card.copy(description = buildLocalContinueDescription(localAccess))
+            }
+        }
+
+        return result
     }
 
-    private fun toLocalProgressReleaseIds(
+    private fun toLocalProgressState(
         episodes: List<EpisodeAccess>,
-    ): Set<Int> {
-        return episodes.asSequence()
+    ): LocalProgressState {
+        val releaseIds = episodes.asSequence()
             .map { it.id.releaseId.id }
             .toSet()
+
+        val latestByRelease = episodes
+            .groupBy { it.id.releaseId.id }
+            .mapValues { (_, accesses) ->
+                accesses.maxByOrNull { it.lastAccessRaw } ?: accesses.first()
+            }
+
+        return LocalProgressState(
+            releaseIds = releaseIds,
+            latestByRelease = latestByRelease,
+        )
+    }
+
+    private suspend fun buildLocalContinueDescription(access: EpisodeAccess): String {
+        val episodeOrdinal = resolveLocalEpisodeOrdinal(access.id)
+        val positionText = access.seek
+            .takeIf { it > 0L }
+            ?.let(::formatPosition)
+
+        return when {
+            episodeOrdinal != null && positionText != null ->
+                "Вы остановились на серии $episodeOrdinal • $positionText"
+
+            episodeOrdinal != null ->
+                "Вы остановились на серии $episodeOrdinal"
+
+            positionText != null ->
+                "Вы остановились • $positionText"
+
+            else ->
+                "Вы остановились"
+        }
+    }
+
+    private suspend fun resolveLocalEpisodeOrdinal(episodeId: EpisodeId): String? {
+        val raw = episodeId.id.trim()
+        if (raw.isEmpty()) return null
+
+        normalizeOrdinalOrNull(raw)?.let { return it }
+
+        return runCatching {
+            userViewsRepository.resolveEpisodeOrdinal(episodeId)
+        }.getOrNull()
+    }
+
+    private fun normalizeOrdinalOrNull(value: String): String? {
+        return runCatching {
+            BigDecimal(value).stripTrailingZeros().toPlainString()
+        }.getOrNull()
+    }
+
+    private fun formatPosition(positionMs: Long): String {
+        val totalSeconds = TimeUnit.MILLISECONDS.toSeconds(positionMs).coerceAtLeast(0L)
+        val hours = TimeUnit.SECONDS.toHours(totalSeconds)
+        val minutes = TimeUnit.SECONDS.toMinutes(totalSeconds) % 60
+        val seconds = totalSeconds % 60
+
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%d:%02d", minutes, seconds)
+        }
     }
 
     private suspend fun loadLocalContinue(): List<LibriaCard> {
@@ -157,9 +234,8 @@ class WatchingContinueViewModel @Inject constructor(
         return pairs
             .sortedByDescending { it.second?.lastAccessRaw ?: 0L }
             .map { (release, lastEpisode) ->
-                val episodeNumber = lastEpisode?.id?.id
                 converter.toCard(release).copy(
-                    description = episodeNumber?.let { "Вы остановились на $it серии" }.orEmpty()
+                    description = lastEpisode?.let { buildLocalContinueDescription(it) }.orEmpty()
                 )
             }
     }
@@ -173,4 +249,9 @@ class WatchingContinueViewModel @Inject constructor(
     companion object {
         private const val REMOTE_PAGE_LIMIT = 50
     }
+
+    private data class LocalProgressState(
+        val releaseIds: Set<Int>,
+        val latestByRelease: Map<Int, EpisodeAccess>,
+    )
 }

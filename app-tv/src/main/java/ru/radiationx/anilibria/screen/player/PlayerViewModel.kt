@@ -110,7 +110,7 @@ class PlayerViewModel @Inject constructor(
             playerController.data.value = releases
 
             currentRelease = releases.firstOrNull { it.id == argExtra.releaseId } ?: releases.firstOrNull()
-            currentEpisodes = releases.flatMap { it.episodes }.sortedByEpisodeOrdinalAsc()
+            currentEpisodes = releases.toPlaybackEpisodesOrder()
 
             val initialEpisodeId = argExtra.episodeId
                 ?: runCatching {

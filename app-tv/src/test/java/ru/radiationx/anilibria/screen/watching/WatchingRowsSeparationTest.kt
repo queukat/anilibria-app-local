@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -334,6 +335,189 @@ class WatchingRowsSeparationTest {
         waitUntil { continueVmSecond.cardsData.value.isEmpty() }
 
         assertTrue("Continue should stay empty after watch progress clear even after VM recreate", continueVmSecond.cardsData.value.isEmpty())
+    }
+
+    @Test
+    fun remoteContinueDescriptionUsesLocalEpisodeAndTimeWhenDifferent() = runBlocking {
+        val release = release(id = 88)
+        val localAccess = EpisodeAccess(
+            id = EpisodeId("3", release.id),
+            seek = 65_000,
+            isViewed = true,
+            lastAccess = 2_000L,
+        )
+
+        val episodesHolder = FakeEpisodesCheckerHolder(listOf(localAccess))
+
+        val converter = mockk<CardsDataConverter>(relaxed = true)
+        val historyRepository = mockk<HistoryRepository>()
+        coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(emptyList(), 0)
+        every { historyRepository.observeReleases(any()) } returns MutableStateFlow(HistoryReleases(emptyList(), 0))
+
+        val releaseInteractor = mockk<ReleaseInteractor>()
+        coEvery { releaseInteractor.getAccesses(release.id) } returns listOf(localAccess)
+
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } answers {
+            PaginatedResponse(
+                data = listOf(
+                    UserViewHistoryItem(
+                        releaseId = release.id,
+                        titleMain = release.names.first(),
+                        titleEnglish = null,
+                        titleAlternative = null,
+                        posterPreview = null,
+                        posterThumbnail = null,
+                        episodeOrdinal = 1.0,
+                        timeSeconds = 12.0,
+                        isWatched = false,
+                    )
+                ),
+                meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
+            )
+        }
+
+        val continueVm = WatchingContinueViewModel(
+            converter = converter,
+            releaseInteractor = releaseInteractor,
+            historyRepository = historyRepository,
+            episodesCheckerHolder = episodesHolder,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        continueVm.onRefreshClick()
+        waitUntil {
+            continueVm.cardsData.value.isNotEmpty() &&
+                continueVm.cardsData.value.none { it is LoadingCard }
+        }
+
+        val firstCard = continueVm.cardsData.value.first() as LibriaCard
+        val description = firstCard.description
+
+        assertTrue("Description should use local episode ordinal", description.contains("серии 3"))
+        assertTrue("Description should use local playback time", description.contains("1:05"))
+        assertFalse("Description should not use stale remote episode/time", description.contains("серии 1"))
+    }
+
+    @Test
+    fun remoteContinueDescriptionResolvesUuidEpisodeIdToOrdinal() = runBlocking {
+        val release = release(id = 89)
+        val localAccess = EpisodeAccess(
+            id = EpisodeId("9fa62e2e-f1aa-4e9d-a1f7-123456789abc", release.id),
+            seek = 65_000,
+            isViewed = true,
+            lastAccess = 2_000L,
+        )
+
+        val episodesHolder = FakeEpisodesCheckerHolder(listOf(localAccess))
+
+        val converter = mockk<CardsDataConverter>(relaxed = true)
+        val historyRepository = mockk<HistoryRepository>()
+        coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(emptyList(), 0)
+        every { historyRepository.observeReleases(any()) } returns MutableStateFlow(HistoryReleases(emptyList(), 0))
+
+        val releaseInteractor = mockk<ReleaseInteractor>()
+        coEvery { releaseInteractor.getAccesses(release.id) } returns listOf(localAccess)
+
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.resolveEpisodeOrdinal(localAccess.id) } returns "9"
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } answers {
+            PaginatedResponse(
+                data = listOf(
+                    UserViewHistoryItem(
+                        releaseId = release.id,
+                        titleMain = release.names.first(),
+                        titleEnglish = null,
+                        titleAlternative = null,
+                        posterPreview = null,
+                        posterThumbnail = null,
+                        episodeOrdinal = 1.0,
+                        timeSeconds = 12.0,
+                        isWatched = false,
+                    )
+                ),
+                meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
+            )
+        }
+
+        val continueVm = WatchingContinueViewModel(
+            converter = converter,
+            releaseInteractor = releaseInteractor,
+            historyRepository = historyRepository,
+            episodesCheckerHolder = episodesHolder,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        continueVm.onRefreshClick()
+        waitUntil {
+            continueVm.cardsData.value.isNotEmpty() &&
+                continueVm.cardsData.value.none { it is LoadingCard }
+        }
+
+        val firstCard = continueVm.cardsData.value.first() as LibriaCard
+        val description = firstCard.description
+
+        assertTrue("Description should use resolved ordinal from UUID", description.contains("серии 9"))
+        assertTrue("Description should use local playback time", description.contains("1:05"))
+        assertFalse("Description should not expose UUID as episode number", description.contains("9fa62e2e-f1aa"))
+    }
+
+    @Test
+    fun localContinueDescriptionResolvesUuidEpisodeIdToOrdinal() = runBlocking {
+        val release = release(id = 90)
+        val localAccess = EpisodeAccess(
+            id = EpisodeId("9fa62e2e-f1aa-4e9d-a1f7-123456789abc", release.id),
+            seek = 65_000,
+            isViewed = true,
+            lastAccess = 2_000L,
+        )
+
+        val episodesHolder = FakeEpisodesCheckerHolder(listOf(localAccess))
+
+        val converter = mockk<CardsDataConverter>(relaxed = true)
+        every {
+            converter.toCard(release)
+        } returns LibriaCard(
+            title = "Release 90",
+            description = "",
+            image = "",
+            type = LibriaCard.Type.Release(release.id),
+        )
+
+        val historyRepository = mockk<HistoryRepository>()
+        coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(listOf(release), 1)
+        every { historyRepository.observeReleases(any()) } returns MutableStateFlow(HistoryReleases(listOf(release), 1))
+
+        val releaseInteractor = mockk<ReleaseInteractor>()
+        coEvery { releaseInteractor.getAccesses(release.id) } returns listOf(localAccess)
+
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } throws RuntimeException("offline")
+        coEvery { userViewsRepository.resolveEpisodeOrdinal(localAccess.id) } returns "9"
+
+        val continueVm = WatchingContinueViewModel(
+            converter = converter,
+            releaseInteractor = releaseInteractor,
+            historyRepository = historyRepository,
+            episodesCheckerHolder = episodesHolder,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        continueVm.onRefreshClick()
+        waitUntil {
+            continueVm.cardsData.value.isNotEmpty() &&
+                continueVm.cardsData.value.none { it is LoadingCard }
+        }
+
+        val firstCard = continueVm.cardsData.value.first() as LibriaCard
+        val description = firstCard.description
+
+        assertTrue("Local fallback should use resolved ordinal from UUID", description.contains("серии 9"))
+        assertTrue("Local fallback should use playback time", description.contains("1:05"))
+        assertFalse("Local fallback should not expose UUID as episode number", description.contains("9fa62e2e-f1aa"))
     }
 
     private suspend fun waitUntil(predicate: () -> Boolean) {

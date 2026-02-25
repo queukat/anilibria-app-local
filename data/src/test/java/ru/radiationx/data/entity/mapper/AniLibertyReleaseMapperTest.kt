@@ -12,6 +12,7 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyImageWithOptimi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyPublishDay
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseAlias
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseEpisodeId
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertySeason
 import ru.radiationx.data.system.ApiUtils
@@ -95,11 +96,101 @@ class AniLibertyReleaseMapperTest {
         assertNull(mapped?.series)
     }
 
+    @Test
+    fun toLegacyFullReleaseOrNull_sortsBySortOrder_andFallbacksTitleAndId() {
+        val release = buildRelease(
+            isOngoing = true,
+            episodesTotal = 2,
+            latestEpisodeOrdinal = null,
+            episodes = listOf(
+                AniLibertyEpisode(
+                    id = AniLibertyReleaseEpisodeId("9fa62e2e-f1aa"),
+                    name = null,
+                    ordinal = null,
+                    ending = null,
+                    opening = null,
+                    preview = null,
+                    hls480 = "https://cdn/2.m3u8",
+                    hls720 = null,
+                    hls1080 = null,
+                    duration = null,
+                    rutubeId = null,
+                    youtubeId = null,
+                    updatedAt = null,
+                    sortOrder = 2.0,
+                    releaseId = AniLibertyReleaseId(10),
+                    nameEnglish = null,
+                ),
+                AniLibertyEpisode(
+                    id = AniLibertyReleaseEpisodeId("6db50b66-9a6c"),
+                    name = null,
+                    ordinal = null,
+                    ending = null,
+                    opening = null,
+                    preview = null,
+                    hls480 = "https://cdn/1.m3u8",
+                    hls720 = null,
+                    hls1080 = null,
+                    duration = null,
+                    rutubeId = null,
+                    youtubeId = null,
+                    updatedAt = null,
+                    sortOrder = 1.0,
+                    releaseId = AniLibertyReleaseId(10),
+                    nameEnglish = null,
+                ),
+            ),
+        )
+
+        val mapped = release.toLegacyFullReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val episodes = mapped?.episodes.orEmpty()
+
+        assertEquals(listOf("1", "2"), episodes.map { it.id.id })
+        assertEquals(listOf("Серия 1", "Серия 2"), episodes.map { it.title })
+    }
+
+    @Test
+    fun toLegacyFullReleaseOrNull_prefixesOrdinalWhenNameExists() {
+        val release = buildRelease(
+            isOngoing = true,
+            episodesTotal = 1,
+            latestEpisodeOrdinal = 1.0,
+            episodes = listOf(
+                AniLibertyEpisode(
+                    id = AniLibertyReleaseEpisodeId("0f8fad5b-d9cb-469f-a165-70867728950e"),
+                    name = "Начало",
+                    ordinal = null,
+                    ending = null,
+                    opening = null,
+                    preview = null,
+                    hls480 = "https://cdn/1.m3u8",
+                    hls720 = null,
+                    hls1080 = null,
+                    duration = null,
+                    rutubeId = null,
+                    youtubeId = null,
+                    updatedAt = null,
+                    sortOrder = 1.0,
+                    releaseId = AniLibertyReleaseId(10),
+                    nameEnglish = null,
+                )
+            ),
+        )
+
+        val mapped = release.toLegacyFullReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val episodes = mapped?.episodes.orEmpty()
+
+        assertEquals(1, episodes.size)
+        assertEquals("1", episodes.first().id.id)
+        assertEquals("1 • Начало", episodes.first().title)
+    }
+
     private fun buildRelease(
         isOngoing: Boolean?,
         episodesTotal: Int?,
         latestEpisodeOrdinal: Double?,
         episodeOrdinals: List<Double> = emptyList(),
+        episodes: List<AniLibertyEpisode>? = null,
     ): AniLibertyRelease {
         return AniLibertyRelease(
             id = AniLibertyReleaseId(10),
@@ -148,7 +239,7 @@ class AniLibertyReleaseMapperTest {
             abandonedCount = null,
             genres = emptyList(),
             members = emptyList(),
-            episodes = episodeOrdinals.map { ordinal ->
+            episodes = episodes ?: episodeOrdinals.map { ordinal ->
                 AniLibertyEpisode(
                     id = null,
                     name = null,

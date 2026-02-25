@@ -24,6 +24,7 @@ import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.domain.types.TorrentId
 import ru.radiationx.data.system.ApiUtils
+import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -77,10 +78,10 @@ fun AniLibertyRelease.toLegacyReleaseOrNull(
 
     val yearText = year?.toString()
 
-    val latest = latestEpisode?.ordinal?.takeIf { it > 0.0 }
+    val latest = latestEpisode?.toDisplayOrder()?.takeIf { it > 0.0 }
         ?: episodes
             .orEmpty()
-            .mapNotNull { it.ordinal?.takeIf { ordinal -> ordinal > 0.0 } }
+            .mapNotNull { it.toDisplayOrder()?.takeIf { order -> order > 0.0 } }
             .maxOrNull()
     val total = episodesTotal?.takeIf { it > 0 }
     val ongoing = isOngoing ?: isInProduction
@@ -172,11 +173,13 @@ fun AniLibertyRelease.toLegacyFullReleaseOrNull(
     ) ?: return null
 
     val releaseId = base.id
-    val episodesDomain = episodes.orEmpty()
+    val sortedEpisodes = episodes.orEmpty().sortedByDisplayOrderAsc()
+
+    val episodesDomain = sortedEpisodes
         .mapNotNull { it.toLegacyEpisodeOrNull(releaseId, apiUtils) }
-    val sourceEpisodesDomain = episodes.orEmpty()
+    val sourceEpisodesDomain = sortedEpisodes
         .mapNotNull { it.toLegacySourceEpisodeOrNull(releaseId, apiUtils) }
-    val rutubeEpisodesDomain = episodes.orEmpty()
+    val rutubeEpisodesDomain = sortedEpisodes
         .mapNotNull { it.toLegacyRutubeEpisodeOrNull(releaseId, apiUtils) }
     val torrentsDomain = torrents.orEmpty()
         .mapNotNull { it.toLegacyTorrentOrNull(releaseId) }
@@ -186,15 +189,14 @@ fun AniLibertyRelease.toLegacyFullReleaseOrNull(
         franchises = franchises,
         episodes = episodesDomain,
         sourceEpisodes = sourceEpisodesDomain,
-        externalPlaylists = episodes.toYoutubeExternalPlaylistOrEmpty(releaseId, apiUtils),
+        externalPlaylists = sortedEpisodes.toYoutubeExternalPlaylistOrEmpty(releaseId, apiUtils),
         rutubePlaylist = rutubeEpisodesDomain,
         torrents = torrentsDomain,
     )
 }
 
 private fun formatEpisodeOrdinal(value: Double): String {
-    val str = value.toString()
-    return if (str.endsWith(".0")) str.dropLast(2) else str
+    return BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
 }
 
 private fun String?.toAbsoluteAniLibertyUrl(): String? {
@@ -374,10 +376,11 @@ private fun AniLibertyEpisode.toLegacyRutubeEpisodeOrNull(
 }
 
 private fun AniLibertyEpisode.toEpisodeIdOrNull(releaseId: ReleaseId): EpisodeId? {
-    val value = id?.value
+    val value = toDisplayOrder()
+        ?.let(::formatEpisodeOrdinal)
+        ?: id?.value
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
-        ?: ordinal?.let(::formatEpisodeOrdinal)
     value ?: return null
     return EpisodeId(value, releaseId)
 }
@@ -393,9 +396,27 @@ private fun AniLibertyEpisode.toCombinedTitle(apiUtils: ApiUtils): String? {
         ?.takeIf { it.isNotEmpty() }
 
     val title = listOfNotNull(titleMain, titleEnglish).joinToString(" • ")
-    if (title.isNotEmpty()) return title
+    val ordinalTitle = toDisplayOrder()
+        ?.let(::formatEpisodeOrdinal)
+        ?.let { ordinal ->
+            title.takeIf { it.isNotEmpty() }?.let { "$ordinal • $it" }
+        }
 
-    return ordinal?.let { "Серия ${formatEpisodeOrdinal(it)}" }
+    return ordinalTitle
+        ?: title.takeIf { it.isNotEmpty() }
+        ?: toDisplayOrder()?.let { "Серия ${formatEpisodeOrdinal(it)}" }
+}
+
+private fun AniLibertyEpisode.toDisplayOrder(): Double? = sortOrder ?: ordinal
+
+private fun List<AniLibertyEpisode>.sortedByDisplayOrderAsc(): List<AniLibertyEpisode> {
+    return sortedWith(
+        compareBy<AniLibertyEpisode>(
+            { it.toDisplayOrder() == null },
+            { it.toDisplayOrder() ?: Double.MAX_VALUE },
+            { it.id?.value.orEmpty() },
+        )
+    )
 }
 
 private fun AniLibertyEpisode.toSkipsOrNull(): PlayerSkips? {

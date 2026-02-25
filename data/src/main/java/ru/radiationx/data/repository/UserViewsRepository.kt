@@ -51,6 +51,7 @@ class UserViewsRepository @Inject constructor(
      */
     private data class ReleaseEpisodesCache(
         val byOrdinal: Map<String, AniLibertyReleaseEpisodeId>,
+        val ordinalByEpisodeId: Map<AniLibertyReleaseEpisodeId, String>,
         val allIds: List<AniLibertyReleaseEpisodeId>,
     )
 
@@ -126,6 +127,23 @@ class UserViewsRepository @Inject constructor(
         val aniEpisodeId = resolveAniEpisodeIdOrNull(episodeId) ?: return@withContext null
         val snapshot = getTimecodesSnapshot()
         snapshot[aniEpisodeId]
+    }
+
+    /**
+     * Resolve human-readable episode ordinal for an [EpisodeId].
+     *
+     * Useful when local episode id is AniLiberty UUID and UI needs "series N" label.
+     */
+    suspend fun resolveEpisodeOrdinal(
+        episodeId: EpisodeId,
+    ): String? = withContext(Dispatchers.IO) {
+        normalizeOrdinalStringOrNull(episodeId.id)?.let { return@withContext it }
+
+        val releaseCache = getReleaseEpisodesCacheOrNull(episodeId.releaseId) ?: return@withContext null
+        val aniEpisodeId = runCatching { AniLibertyReleaseEpisodeId(episodeId.id) }.getOrNull()
+            ?: return@withContext null
+
+        releaseCache.ordinalByEpisodeId[aniEpisodeId]
     }
 
     /**
@@ -314,8 +332,19 @@ class UserViewsRepository @Inject constructor(
         }
 
         val allIds = episodes.mapNotNull { it.id }
+        val ordinalByEpisodeId = buildMap {
+            episodes.forEach { episode ->
+                val id = episode.id ?: return@forEach
+                val ordinal = episode.ordinal ?: episode.sortOrder ?: return@forEach
+                put(id, normalizeOrdinalDouble(ordinal))
+            }
+        }
 
-        return ReleaseEpisodesCache(byOrdinal = byOrdinal, allIds = allIds)
+        return ReleaseEpisodesCache(
+            byOrdinal = byOrdinal,
+            ordinalByEpisodeId = ordinalByEpisodeId,
+            allIds = allIds,
+        )
             .also { cache[releaseId] = it }
     }
 
@@ -402,10 +431,15 @@ class UserViewsRepository @Inject constructor(
         (seconds * 1000.0).roundToLong()
 
     private fun normalizeOrdinalString(value: String): String {
+        return normalizeOrdinalStringOrNull(value) ?: value.trim()
+    }
+
+    private fun normalizeOrdinalStringOrNull(value: String): String? {
         val trimmed = value.trim()
+        if (trimmed.isEmpty()) return null
         return runCatching {
             BigDecimal(trimmed).stripTrailingZeros().toPlainString()
-        }.getOrDefault(trimmed)
+        }.getOrNull()
     }
 
     private fun normalizeOrdinalDouble(value: Double): String =

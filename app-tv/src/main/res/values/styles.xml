@@ -91,6 +91,7 @@
     <style name="AppTheme.Player.LeanbackWizard" parent="AppTheme.LeanbackWizard">
         <item name="guidedStepBackground">@color/app_guidedstep_actions_background_player</item>
         <item name="guidedActionsElevation">@dimen/lb_guidedactions_elevation</item>
+        <item name="guidedActionTitleMaxLines">@integer/player_guided_action_title_max_lines</item>
     </style>
 
     <style name="AppTheme.Widget.GuidanceIconStyle" parent="Widget.Leanback.GuidanceIconStyle">

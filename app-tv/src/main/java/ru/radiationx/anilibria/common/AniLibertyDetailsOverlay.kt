@@ -14,9 +14,6 @@ class AniLibertyDetailsOverlay @Inject constructor() {
         val titleRu = v1.titleRu.takeIfNotBlank() ?: base.titleRu
         val titleEn = v1.titleEn.takeIfNotBlank() ?: base.titleEn
 
-        val age = v1.ageRatingLabel?.takeIfNotBlank()
-            ?: v1.ageRatingValue?.takeIfNotBlank()
-
         val baseExtra = base.extra
 
         val durationRaw = v1.averageDurationOfEpisode
@@ -25,19 +22,13 @@ class AniLibertyDetailsOverlay @Inject constructor() {
 
         val durationToAdd = durationRaw?.takeIf { !durationRegex.containsMatchIn(baseExtra) }
 
-        val ageToAdd = age?.takeIf {
-            !baseExtra.contains("рейтинг", ignoreCase = true) &&
-                !baseExtra.contains(it, ignoreCase = true)
-        }
-
         val extraAddon = listOfNotNull(
-            ageToAdd?.let { "Рейтинг: $it" },
             durationToAdd,
         ).joinToString(" • ")
 
 
         Timber.tag("AniLibertyDetailsOverlay")
-            .d("ageRating=$age duration=${v1.averageDurationOfEpisode}")
+            .d("duration=${v1.averageDurationOfEpisode}")
         Timber.tag("AniLibertyDetailsOverlay").d("extraAddon='$extraAddon'")
 
         val extra = listOf(base.extra, extraAddon)
