@@ -1,6 +1,7 @@
 package ru.radiationx.data.system
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.Call
@@ -29,6 +30,7 @@ open class Client @Inject constructor(
 
     companion object {
         const val METHOD_GET = "GET"
+        const val METHOD_HEAD = "HEAD"
         const val METHOD_POST = "POST"
         const val METHOD_PUT = "PUT"
         const val METHOD_DELETE = "DELETE"
@@ -90,19 +92,40 @@ open class Client @Inject constructor(
         args: Map<String, String>,
     ): Response {
         return withContext(Dispatchers.IO) {
-            val body = getRequestBody(method, args)
-            val httpUrl = getHttpUrl(url, method, args)
-            val request = Request.Builder()
-                .url(httpUrl)
-                .method(method, body)
-                .build()
+            var attempt = 0
+            var delayMs = RetryPolicy.initialBackoffMs
+            while (true) {
+                val body = getRequestBody(method, args)
+                val httpUrl = getHttpUrl(url, method, args)
+                val request = Request.Builder()
+                    .url(httpUrl)
+                    .method(method, body)
+                    .build()
 
-            val call = clientWrapper.get().newCall(request)
-            val callResponse = call.awaitResponse()
-            if (!callResponse.isSuccessful) {
-                throw HttpException(callResponse.code, callResponse.message, callResponse)
+                val call = clientWrapper.get().newCall(request)
+                try {
+                    val callResponse = call.awaitResponse()
+                    if (callResponse.isSuccessful) {
+                        return@withContext callResponse
+                    }
+                    if (RetryPolicy.shouldRetryOnHttpCode(method, callResponse.code, attempt)) {
+                        callResponse.close()
+                        delay(delayMs)
+                        attempt += 1
+                        delayMs = RetryPolicy.nextBackoff(delayMs)
+                        continue
+                    }
+                    throw HttpException(callResponse.code, callResponse.message, callResponse)
+                } catch (error: IOException) {
+                    if (RetryPolicy.shouldRetryOnException(method, attempt)) {
+                        delay(delayMs)
+                        attempt += 1
+                        delayMs = RetryPolicy.nextBackoff(delayMs)
+                        continue
+                    }
+                    throw error
+                }
             }
-            callResponse
         }
     }
 
@@ -120,13 +143,13 @@ open class Client @Inject constructor(
                 .build()
         }
 
-        METHOD_GET, METHOD_DELETE -> null
+        METHOD_GET, METHOD_HEAD, METHOD_DELETE -> null
         else -> throw Exception("Unknown method: $method")
     }
 
     private fun getHttpUrl(url: String, method: String, args: Map<String, String>): HttpUrl {
         var httpUrl = url.toHttpUrlOrNull() ?: throw Exception("URL incorrect: '$url'")
-        if (method == METHOD_GET) {
+        if (method == METHOD_GET || method == METHOD_HEAD) {
             httpUrl = httpUrl.newBuilder().let { builder ->
                 args.forEach { builder.addQueryParameter(it.key, it.value) }
                 builder.build()
@@ -210,4 +233,26 @@ open class Client @Inject constructor(
         }
     }
 
+}
+
+internal object RetryPolicy {
+    const val maxRetries: Int = 2
+    const val initialBackoffMs: Long = 200L
+    private const val maxBackoffMs: Long = 1_000L
+
+    fun shouldRetryOnException(method: String, attempt: Int): Boolean {
+        return isIdempotent(method) && attempt < maxRetries
+    }
+
+    fun shouldRetryOnHttpCode(method: String, code: Int, attempt: Int): Boolean {
+        return isIdempotent(method) && attempt < maxRetries && code in 500..599
+    }
+
+    fun nextBackoff(currentMs: Long): Long {
+        return (currentMs * 2).coerceAtMost(maxBackoffMs)
+    }
+
+    private fun isIdempotent(method: String): Boolean {
+        return method == Client.METHOD_GET || method == Client.METHOD_HEAD
+    }
 }
