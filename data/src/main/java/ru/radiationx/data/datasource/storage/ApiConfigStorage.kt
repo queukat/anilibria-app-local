@@ -6,16 +6,19 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.JsonClass
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import ru.radiationx.data.CriticalSecureDataPreferences
 import ru.radiationx.data.DataPreferences
-import ru.radiationx.data.SecureDataPreferences
+import ru.radiationx.data.di.CriticalSecureStorageStatus
 import ru.radiationx.data.entity.response.config.ApiConfigResponse
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 class ApiConfigStorage @Inject constructor(
     @DataPreferences private val sharedPreferences: SharedPreferences,
-    @SecureDataPreferences private val securePreferences: SharedPreferences,
-    private val moshi: Moshi
+    @CriticalSecureDataPreferences private val securePreferences: SharedPreferences,
+    private val criticalSecureStorageStatus: CriticalSecureStorageStatus,
+    private val moshi: Moshi,
 ) {
 
     companion object {
@@ -30,10 +33,12 @@ class ApiConfigStorage @Inject constructor(
     private val proxyCredsAdapter by lazy {
         moshi.adapter(ApiConfigProxyCredsPayload::class.java)
     }
+    private val degradedModeWarningPrinted = AtomicBoolean(false)
 
     suspend fun save(config: ApiConfigResponse) {
         withContext(Dispatchers.IO) {
             try {
+                warnIfSecureStorageUnavailable()
                 val sanitizedConfig = sanitizeConfig(config)
                 val json = adapter.toJson(sanitizedConfig)
                 val credsPayload = extractProxyCreds(config)
@@ -99,6 +104,7 @@ class ApiConfigStorage @Inject constructor(
     }
 
     private fun loadProxyCreds(): ApiConfigProxyCredsPayload {
+        warnIfSecureStorageUnavailable()
         return runCatching {
             securePreferences
                 .getString(KEY_API_CONFIG_PROXY_CREDS, null)
@@ -156,8 +162,19 @@ class ApiConfigStorage @Inject constructor(
                         )
                     }
                 }
-            }
+        }
         return ApiConfigProxyCredsPayload(items)
+    }
+
+    private fun warnIfSecureStorageUnavailable() {
+        if (!criticalSecureStorageStatus.isAvailable()) {
+            if (degradedModeWarningPrinted.compareAndSet(false, true)) {
+                Timber.w(
+                    criticalSecureStorageStatus.getUnavailableCause(),
+                    "Secure proxy credentials storage unavailable. Proxy credentials are not persisted in plaintext.",
+                )
+            }
+        }
     }
 }
 

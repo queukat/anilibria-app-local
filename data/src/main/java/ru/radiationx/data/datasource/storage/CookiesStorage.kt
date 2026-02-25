@@ -6,11 +6,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import ru.radiationx.data.CriticalSecureDataPreferences
 import ru.radiationx.data.DataPreferences
-import ru.radiationx.data.SecureDataPreferences
 import ru.radiationx.data.datasource.SuspendMutableStateFlow
 import ru.radiationx.data.datasource.holders.CookieHolder
 import ru.radiationx.data.datasource.holders.CookieHolder.Companion.cookieNames
+import ru.radiationx.data.di.CriticalSecureStorageStatus
+import timber.log.Timber
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
@@ -19,10 +21,12 @@ import javax.inject.Inject
  */
 class CookiesStorage @Inject constructor(
     @DataPreferences private val plaintextPreferences: SharedPreferences,
-    @SecureDataPreferences private val encryptedPreferences: SharedPreferences,
+    @CriticalSecureDataPreferences private val encryptedPreferences: SharedPreferences,
+    private val criticalSecureStorageStatus: CriticalSecureStorageStatus,
 ) : CookieHolder {
 
     private val migrationDone = AtomicBoolean(false)
+    private val degradedModeWarningPrinted = AtomicBoolean(false)
 
     private val cookiesState = SuspendMutableStateFlow {
         migrateIfNeeded()
@@ -85,6 +89,9 @@ class CookiesStorage @Inject constructor(
         if (!migrationDone.compareAndSet(false, true)) {
             return
         }
+        if (!criticalSecureStorageStatus.isAvailable()) {
+            warnDegradedModeOnce()
+        }
         val cookieKeys = cookieNames.map { "cookie_$it" }
         SensitivePreferenceMigrator.migrateKeys(
             keys = cookieKeys,
@@ -104,6 +111,15 @@ class CookiesStorage @Inject constructor(
             override fun remove(key: String) {
                 sharedPreferences.edit().remove(key).apply()
             }
+        }
+    }
+
+    private fun warnDegradedModeOnce() {
+        if (degradedModeWarningPrinted.compareAndSet(false, true)) {
+            Timber.w(
+                criticalSecureStorageStatus.getUnavailableCause(),
+                "Secure cookies storage unavailable. Critical cookies are not persisted in plaintext.",
+            )
         }
     }
 

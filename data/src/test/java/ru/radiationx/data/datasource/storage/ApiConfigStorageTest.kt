@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import ru.radiationx.data.di.CriticalSecureStorageStatus
 import ru.radiationx.data.entity.response.config.ApiConfigAddressResponse
 import ru.radiationx.data.entity.response.config.ApiConfigProxyResponse
 import ru.radiationx.data.entity.response.config.ApiConfigResponse
@@ -21,6 +22,7 @@ class ApiConfigStorageTest {
         val storage = ApiConfigStorage(
             sharedPreferences = plaintextPrefs,
             securePreferences = securePrefs,
+            criticalSecureStorageStatus = CriticalSecureStorageStatus(),
             moshi = Moshi.Builder().build(),
         )
 
@@ -47,6 +49,7 @@ class ApiConfigStorageTest {
         val storage = ApiConfigStorage(
             sharedPreferences = plaintextPrefs,
             securePreferences = securePrefs,
+            criticalSecureStorageStatus = CriticalSecureStorageStatus(),
             moshi = moshi,
         )
 

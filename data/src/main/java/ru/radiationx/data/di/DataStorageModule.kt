@@ -51,6 +51,7 @@ import ru.radiationx.quill.QuillModule
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Provider
+import java.util.concurrent.atomic.AtomicBoolean
 import ru.radiationx.data.ads.AdsConfigStorage
 
 class DataStorageModule(context: Context) : QuillModule() {
@@ -112,6 +113,10 @@ class DataStorageModule(context: Context) : QuillModule() {
         @DataPreferences private val fallbackPreferences: SharedPreferences,
     ) : Provider<SharedPreferences> {
 
+        companion object {
+            private val fallbackWarningPrinted = AtomicBoolean(false)
+        }
+
         override fun get(): SharedPreferences {
             return runCatching {
                 val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
@@ -124,7 +129,9 @@ class DataStorageModule(context: Context) : QuillModule() {
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
                 )
             }.getOrElse { error ->
-                Timber.w(error, "Falling back to plaintext prefs because encrypted prefs init failed.")
+                if (fallbackWarningPrinted.compareAndSet(false, true)) {
+                    Timber.w(error, "Encrypted prefs unavailable. Non-critical storage falls back to plaintext.")
+                }
                 fallbackPreferences
             }
         }
@@ -132,7 +139,6 @@ class DataStorageModule(context: Context) : QuillModule() {
 
     internal class CriticalSecureDataPreferencesProvider @Inject constructor(
         private val context: Context,
-        @DataPreferences private val fallbackPreferences: SharedPreferences,
         private val criticalSecureStorageStatus: CriticalSecureStorageStatus,
     ) : Provider<SharedPreferences> {
 
@@ -149,9 +155,55 @@ class DataStorageModule(context: Context) : QuillModule() {
                 )
             }.getOrElse { error ->
                 criticalSecureStorageStatus.markUnavailable(error)
-                Timber.e(error, "Critical secure prefs init failed: token storage switched to fail-closed mode.")
-                fallbackPreferences
+                Timber.e(error, "Critical secure prefs init failed: critical storages switched to degraded read-only mode.")
+                ReadOnlyEmptySharedPreferences
             }
         }
     }
+}
+
+private object ReadOnlyEmptySharedPreferences : SharedPreferences {
+    override fun getAll(): MutableMap<String, *> = mutableMapOf<String, Any?>()
+
+    override fun getString(key: String?, defValue: String?): String? = defValue
+
+    override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? = defValues
+
+    override fun getInt(key: String?, defValue: Int): Int = defValue
+
+    override fun getLong(key: String?, defValue: Long): Long = defValue
+
+    override fun getFloat(key: String?, defValue: Float): Float = defValue
+
+    override fun getBoolean(key: String?, defValue: Boolean): Boolean = defValue
+
+    override fun contains(key: String?): Boolean = false
+
+    override fun edit(): SharedPreferences.Editor = ReadOnlyEmptyEditor
+
+    override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) = Unit
+
+    override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) = Unit
+}
+
+private object ReadOnlyEmptyEditor : SharedPreferences.Editor {
+    override fun putString(key: String?, value: String?): SharedPreferences.Editor = this
+
+    override fun putStringSet(key: String?, values: MutableSet<String>?): SharedPreferences.Editor = this
+
+    override fun putInt(key: String?, value: Int): SharedPreferences.Editor = this
+
+    override fun putLong(key: String?, value: Long): SharedPreferences.Editor = this
+
+    override fun putFloat(key: String?, value: Float): SharedPreferences.Editor = this
+
+    override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = this
+
+    override fun remove(key: String?): SharedPreferences.Editor = this
+
+    override fun clear(): SharedPreferences.Editor = this
+
+    override fun commit(): Boolean = true
+
+    override fun apply() = Unit
 }
