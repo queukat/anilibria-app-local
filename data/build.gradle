@@ -15,6 +15,10 @@ android {
         targetSdk app_target_sdk_version
     }
 
+    buildFeatures {
+        buildConfig true
+    }
+
     buildTypes {
         debug {
             buildConfigField "boolean", "ENABLE_HTTP_BODY_LOGGING", "false"
