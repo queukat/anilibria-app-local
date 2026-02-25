@@ -58,6 +58,9 @@ class AppCookieJar @Inject constructor(
     }
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
-        return cookiesSnapshot.get().values.toList()
+        return cookiesSnapshot
+            .get()
+            .values
+            .filter { cookie -> cookie.matches(url) }
     }
 }

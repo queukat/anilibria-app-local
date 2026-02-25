@@ -63,6 +63,83 @@ class AppCookieJarTest {
         assertEquals(1, userHolder.deleteCalls)
     }
 
+    @Test
+    fun loadForRequest_doesNotReturnCookiesForOtherHost() {
+        val cookieHolder = FakeCookieHolder()
+        val userHolder = FakeUserHolder()
+        val jar = AppCookieJar(
+            cookieHolder = cookieHolder,
+            userHolder = userHolder,
+            applicationScope = ApplicationCoroutineScope(),
+        )
+        val hostA = "https://a.com/".toHttpUrl()
+        val hostB = "https://b.com/".toHttpUrl()
+
+        val cookie = Cookie.Builder()
+            .name("PHPSESSID")
+            .value("token")
+            .domain("a.com")
+            .path("/")
+            .build()
+
+        jar.saveFromResponse(hostA, listOf(cookie))
+
+        assertTrue(jar.loadForRequest(hostB).isEmpty())
+        assertEquals(1, jar.loadForRequest(hostA).size)
+    }
+
+    @Test
+    fun loadForRequest_doesNotReturnCookieForWrongPath() {
+        val cookieHolder = FakeCookieHolder()
+        val userHolder = FakeUserHolder()
+        val jar = AppCookieJar(
+            cookieHolder = cookieHolder,
+            userHolder = userHolder,
+            applicationScope = ApplicationCoroutineScope(),
+        )
+        val sourceUrl = "https://example.org/x/start".toHttpUrl()
+        val sameHostOtherPath = "https://example.org/y/next".toHttpUrl()
+        val matchingPath = "https://example.org/x/next".toHttpUrl()
+
+        val cookie = Cookie.Builder()
+            .name("PHPSESSID")
+            .value("token")
+            .domain("example.org")
+            .path("/x")
+            .build()
+
+        jar.saveFromResponse(sourceUrl, listOf(cookie))
+
+        assertTrue(jar.loadForRequest(sameHostOtherPath).isEmpty())
+        assertEquals(1, jar.loadForRequest(matchingPath).size)
+    }
+
+    @Test
+    fun loadForRequest_doesNotReturnSecureCookieForHttp() {
+        val cookieHolder = FakeCookieHolder()
+        val userHolder = FakeUserHolder()
+        val jar = AppCookieJar(
+            cookieHolder = cookieHolder,
+            userHolder = userHolder,
+            applicationScope = ApplicationCoroutineScope(),
+        )
+        val httpsUrl = "https://example.org/".toHttpUrl()
+        val httpUrl = "http://example.org/".toHttpUrl()
+
+        val secureCookie = Cookie.Builder()
+            .name("PHPSESSID")
+            .value("token")
+            .domain("example.org")
+            .path("/")
+            .secure()
+            .build()
+
+        jar.saveFromResponse(httpsUrl, listOf(secureCookie))
+
+        assertEquals(1, jar.loadForRequest(httpsUrl).size)
+        assertTrue(jar.loadForRequest(httpUrl).isEmpty())
+    }
+
     private fun waitUntil(predicate: () -> Boolean) {
         repeat(50) {
             if (predicate()) {
