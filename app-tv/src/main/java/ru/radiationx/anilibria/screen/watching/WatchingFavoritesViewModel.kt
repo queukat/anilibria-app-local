@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.CardsDataConverter
@@ -224,8 +226,15 @@ class WatchingFavoritesViewModel @Inject constructor(
             }
 
             try {
-                val all = withContext(Dispatchers.IO) {
-                    loadAllFavoritesSafe()
+                val all = loadAllFavoritesIncremental { partial ->
+                    releasesCache = partial
+                    val filters = withContext(Dispatchers.Default) {
+                        computeAvailableFilters(partial)
+                    }
+                    availableYears = filters.years
+                    availableSeasons = filters.seasons
+                    availableGenres = filters.genres
+                    rebuildFromCache()
                 }
 
                 releasesCache = all
@@ -245,7 +254,7 @@ class WatchingFavoritesViewModel @Inject constructor(
                 if (is401) {
                     showNeedAuth()
                 } else {
-                    if (showLoading) {
+                    if (releasesCache.isEmpty()) {
                         _cardsData.value = listOf(
                             LoadingCard(
                                 title = "Ошибка загрузки",
@@ -254,8 +263,11 @@ class WatchingFavoritesViewModel @Inject constructor(
                             ),
                             LinkCard("Повторить")
                         )
+                    } else {
+                        // Keep partially loaded cards and provide explicit retry action.
+                        _cardsData.value = _cardsData.value
+                            .filterNot { it is LinkCard && it.title == "Повторить" } + LinkCard("Повторить")
                     }
-                    // If showLoading is false, keep cached UI as is.
                 }
             }
         }
@@ -272,12 +284,14 @@ class WatchingFavoritesViewModel @Inject constructor(
         )
     }
 
-    private suspend fun loadAllFavoritesSafe(): List<Release> {
+    private suspend fun loadAllFavoritesIncremental(
+        onPartialLoaded: suspend (List<Release>) -> Unit,
+    ): List<Release> {
         val result = LinkedHashMap<Int, Release>()
         var page = 1
         var unchangedPages = 0
 
-        while (page <= 200) {
+        while (page <= 200 && currentCoroutineContext().isActive) {
             val response = favoriteRepository.getFavorites(page)
             val data = response.data
             if (data.isEmpty()) break
@@ -285,6 +299,10 @@ class WatchingFavoritesViewModel @Inject constructor(
             val before = result.size
             data.forEach { r -> result[r.id.id] = r }
             val after = result.size
+
+            if (after > before) {
+                onPartialLoaded(result.values.toList())
+            }
 
             if (after == before) {
                 unchangedPages += 1
