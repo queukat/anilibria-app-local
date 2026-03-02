@@ -16,14 +16,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import ru.radiationx.anilibria.common.CardsDataConverter
-import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.Paginated
-import ru.radiationx.data.entity.domain.release.BlockedInfo
-import ru.radiationx.data.entity.domain.release.FavoriteInfo
 import ru.radiationx.data.entity.domain.release.Release
-import ru.radiationx.data.entity.domain.types.ReleaseCode
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.repository.FavoriteRepository
@@ -104,7 +100,7 @@ class WatchingFavoritesViewModelStream2Test {
     }
 
     @Test
-    fun byDate_preservesServerOrderAcrossPages() = runBlocking {
+    fun initialSync_doesNotRequestMoreThanFiftyPages() = runBlocking {
         val authStateFlow = MutableStateFlow(AuthState.AUTH)
         val authRepository = mockk<AuthRepository>()
         every { authRepository.observeAuthState() } returns authStateFlow
@@ -114,41 +110,20 @@ class WatchingFavoritesViewModelStream2Test {
         coEvery { favoriteRepository.getFavorites(any()) } answers {
             val page = firstArg<Int>()
             requests += page
-            when (page) {
-                1 -> response(page, listOf(release(10, "A", "2020"), release(20, "B", "2019")))
-                2 -> response(page, listOf(release(30, "C", "2026")))
-                else -> emptyResponse(page)
-            }
+            singleItemResponse(page)
         }
 
-        val converter = mockk<CardsDataConverter>()
-        every { converter.toCard(any<Release>()) } answers {
-            val release = firstArg<Release>()
-            LibriaCard(
-                title = release.title.orEmpty(),
-                description = "",
-                image = "",
-                type = LibriaCard.Type.Release(release.id),
-            )
-        }
-
-        val viewModel = WatchingFavoritesViewModel(
+        WatchingFavoritesViewModel(
             favoriteRepository = favoriteRepository,
             authRepository = authRepository,
-            converter = converter,
+            converter = mockk<CardsDataConverter>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
 
-        waitUntil {
-            extractIds(viewModel.cardsData.value) == listOf(10, 20, 30)
-        }
+        waitUntil { requests.size >= 50 }
+        delay(100)
 
-        assertEquals("Expected pages to be requested in sequence", listOf(1, 2, 3), requests)
-        assertEquals(
-            "Date mode must keep backend order to avoid jumping cards",
-            listOf(10, 20, 30),
-            extractIds(viewModel.cardsData.value),
-        )
+        assertEquals("Expected sync to stop at 50 pages max", 50, requests.size)
     }
 
     private suspend fun waitUntil(predicate: () -> Boolean) {
@@ -167,50 +142,23 @@ class WatchingFavoritesViewModelStream2Test {
         allItems = 0,
     )
 
-    private fun response(page: Int, data: List<Release>): Paginated<Release> = Paginated(
-        data = data,
+    private fun singleItemResponse(page: Int): Paginated<Release> = Paginated(
+        data = listOf(fakeRelease(page)),
         page = page,
-        allPages = 3,
+        allPages = null,
         perPage = 25,
-        allItems = data.size,
+        allItems = null,
     )
 
-    private fun extractIds(items: List<*>): List<Int> {
-        return items
-            .filterIsInstance<LibriaCard>()
-            .mapNotNull { (it.type as? LibriaCard.Type.Release)?.releaseId?.id }
-    }
-
-    private fun release(id: Int, title: String, year: String): Release {
-        return Release(
-            id = ReleaseId(id),
-            code = ReleaseCode("code_$id"),
-            names = listOf(title),
-            series = null,
-            poster = null,
-            torrentUpdate = 0,
-            status = null,
-            statusCode = null,
-            types = emptyList(),
-            genres = emptyList(),
-            voices = emptyList(),
-            members = null,
-            year = year,
-            season = null,
-            days = emptyList(),
-            description = null,
-            announce = null,
-            favoriteInfo = FavoriteInfo(rating = 0, isAdded = true),
-            link = null,
-            franchises = emptyList(),
-            showDonateDialog = false,
-            blockedInfo = BlockedInfo(isBlocked = false, reason = null),
-            moonwalkLink = null,
-            episodes = emptyList(),
-            sourceEpisodes = emptyList(),
-            externalPlaylists = emptyList(),
-            rutubePlaylist = emptyList(),
-            torrents = emptyList(),
-        )
+    private fun fakeRelease(id: Int): Release {
+        val release = mockk<Release>(relaxed = true)
+        every { release.id } returns ReleaseId(id)
+        every { release.title } returns "title-$id"
+        every { release.year } returns "2026"
+        every { release.season } returns "spring"
+        every { release.genres } returns emptyList()
+        every { release.statusCode } returns Release.STATUS_CODE_COMPLETE
+        every { release.torrentUpdate } returns id
+        return release
     }
 }

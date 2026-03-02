@@ -4,6 +4,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -12,6 +13,7 @@ import org.junit.Test
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoriteSorting
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseAlias
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
@@ -44,7 +46,7 @@ class FavoriteRepositoryContractTest {
     }
 
     @Test
-    fun getFavorites_requestsAniLibertyWithoutIncludeExcludeFields() = runBlocking {
+    fun getFavorites_requestsAniLibertyWithSortingAndSlimFields() = runBlocking {
         coEvery {
             aniLibertyApi.getUserFavoriteReleasesFiltered(
                 page = 1,
@@ -55,7 +57,7 @@ class FavoriteRepositoryContractTest {
                 search = null,
                 sorting = AniLibertyFavoriteSorting.FreshAtDesc,
                 ageRatings = null,
-                fields = null,
+                fields = AniLibertyReleaseFields.FavoritesList,
             )
         } returns PaginatedResponse(
             data = listOf(release(id = 10096, titleRu = "Hell Mode")),
@@ -80,7 +82,7 @@ class FavoriteRepositoryContractTest {
                 search = null,
                 sorting = AniLibertyFavoriteSorting.FreshAtDesc,
                 ageRatings = null,
-                fields = null,
+                fields = AniLibertyReleaseFields.FavoritesList,
             )
         }
     }
@@ -106,6 +108,28 @@ class FavoriteRepositoryContractTest {
                 fields = null,
             )
         }
+    }
+
+    @Test
+    fun getFavorites_whenCancelled_doesNotFallbackToLegacy() = runBlocking {
+        coEvery {
+            aniLibertyApi.getUserFavoriteReleasesFiltered(
+                page = 1,
+                limit = 25,
+                years = null,
+                types = null,
+                genres = null,
+                search = null,
+                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                ageRatings = null,
+                fields = AniLibertyReleaseFields.FavoritesList,
+            )
+        } throws CancellationException("cancelled")
+
+        val error = runCatching { repository.getFavorites(page = 1) }.exceptionOrNull()
+
+        assertTrue(error is CancellationException)
+        coVerify(exactly = 0) { favoriteApi.getFavorites(any()) }
     }
 
     private fun release(id: Int, titleRu: String): AniLibertyRelease {

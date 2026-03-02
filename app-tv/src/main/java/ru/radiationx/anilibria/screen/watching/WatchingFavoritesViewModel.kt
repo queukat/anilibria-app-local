@@ -291,7 +291,7 @@ class WatchingFavoritesViewModel @Inject constructor(
         var page = 1
         var unchangedPages = 0
 
-        while (page <= 200 && currentCoroutineContext().isActive) {
+        while (page <= MAX_FAVORITES_SYNC_PAGES && currentCoroutineContext().isActive) {
             val response = favoriteRepository.getFavorites(page)
             val data = response.data
             if (data.isEmpty()) break
@@ -304,9 +304,18 @@ class WatchingFavoritesViewModel @Inject constructor(
                 onPartialLoaded(result.values.toList())
             }
 
+            val responsePage = response.page
+            val responseAllPages = response.allPages
+            val reachedLastPage = responsePage != null &&
+                responseAllPages != null &&
+                responsePage >= responseAllPages
+            if (reachedLastPage) {
+                break
+            }
+
             if (after == before) {
                 unchangedPages += 1
-                if (unchangedPages >= 2) break
+                if (unchangedPages >= MAX_UNCHANGED_PAGES) break
             } else {
                 unchangedPages = 0
             }
@@ -418,5 +427,10 @@ class WatchingFavoritesViewModel @Inject constructor(
             "осен" in s || "aut" in s || "fall" in s -> 4
             else -> Int.MIN_VALUE
         }
+    }
+
+    private companion object {
+        private const val MAX_FAVORITES_SYNC_PAGES = 50
+        private const val MAX_UNCHANGED_PAGES = 2
     }
 }

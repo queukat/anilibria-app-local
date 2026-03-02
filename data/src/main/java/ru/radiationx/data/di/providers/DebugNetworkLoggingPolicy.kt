@@ -1,6 +1,7 @@
 package ru.radiationx.data.di.providers
 
 import android.content.Context
+import com.chuckerteam.chucker.api.ChuckerCollector
 import com.chuckerteam.chucker.api.ChuckerInterceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -42,10 +43,27 @@ internal object DebugNetworkLoggingPolicy {
         }
 
         builder.addNetworkInterceptor(loggingInterceptor)
+        if (!shouldAttachChucker(sharedBuildConfig.applicationId)) {
+            return
+        }
+
+        val collector = ChuckerCollector(
+            context = context,
+            showNotification = shouldShowChuckerNotification(sharedBuildConfig.applicationId),
+        )
         builder.addNetworkInterceptor(
             ChuckerInterceptor.Builder(context)
+                .collector(collector)
                 .redactHeaders(*redactedHeaders)
                 .build()
         )
+    }
+
+    internal fun shouldShowChuckerNotification(applicationId: String): Boolean {
+        return shouldAttachChucker(applicationId)
+    }
+
+    internal fun shouldAttachChucker(applicationId: String): Boolean {
+        return !applicationId.endsWith(".app.tv", ignoreCase = true)
     }
 }

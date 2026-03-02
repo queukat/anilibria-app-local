@@ -33,6 +33,24 @@ data class AniLibertyReleaseFields(
     companion object Presets {
 
         /**
+         * Пресет под списки избранного в TV.
+         *
+         * Списку нужны базовые поля релиза (id, name, poster, year/season, status),
+         * но не нужны тяжёлые коллекции episodes/members/torrents и длинные тексты.
+         */
+        val FavoritesList: AniLibertyReleaseFields = AniLibertyReleaseFields(
+            exclude = setOf(
+                AniLibertyReleaseExclude.EPISODES,
+                AniLibertyReleaseExclude.MEMBERS,
+                AniLibertyReleaseExclude.TORRENTS,
+            ),
+            excludeRaw = setOf(
+                AniLibertyFieldName("description"),
+                AniLibertyFieldName("notification"),
+            )
+        )
+
+        /**
          * Пресет под шапку деталей.
          *
          * Цель: убрать самые тяжёлые списки (episodes/members/torrents), оставив информацию,
