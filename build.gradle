@@ -1,3 +1,5 @@
+import io.gitlab.arturbosch.detekt.Detekt
+
 buildscript {
     ext {
         // main
@@ -30,9 +32,10 @@ plugins {
 }
 
 // todo delete after fixes in conscrypt library
+// Tracking: https://github.com/google/conscrypt/issues/1413
 allprojects {
     if (libs.versions.conscrypt.android.get() == "2.5.3") {
-        throw new Exception("Do not use conscrypt version 2.5.3, it's broken")
+        throw new Exception("Do not use conscrypt version 2.5.3, it's broken (crashes on 16KB page-size devices)")
     }
 }
 
@@ -63,7 +66,7 @@ configure(detektTargets.collect { project(it) }) {
         baseline = file("$projectDir/detekt-baseline.xml")
     }
 
-    tasks.withType(io.gitlab.arturbosch.detekt.Detekt).configureEach {
+    tasks.withType(Detekt).configureEach {
         source = files("src/main/java", "src/main/kotlin")
         include("**/*.kt", "**/*.kts")
         exclude("**/build/**")

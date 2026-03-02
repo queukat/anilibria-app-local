@@ -345,11 +345,8 @@ class WatchingFavoritesViewModel @Inject constructor(
                     .toList()
 
                 when (sortMode) {
-                    SortMode.BY_DATE -> filtered.sortedWith(
-                        compareByDescending<Release> { parseYear(it.year) }
-                            .thenByDescending { seasonRank(it.season) }
-                            .thenByDescending { it.torrentUpdate }
-                    )
+                    // Preserve API order (newer first from backend sorting) to avoid reordering jumps.
+                    SortMode.BY_DATE -> filtered
                     SortMode.BY_TITLE -> filtered.sortedBy { it.title }
                 }
             }

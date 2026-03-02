@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoriteSorting
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 import ru.radiationx.data.datasource.remote.api.FavoriteApi
@@ -38,9 +39,10 @@ class FavoriteRepository @Inject constructor(
     suspend fun getFavorites(page: Int): Paginated<Release> = withContext(Dispatchers.IO) {
         // 1) v1 first
         runCatching {
-            val response = aniLibertyApi.getUserFavoriteReleases(
+            val response = aniLibertyApi.getUserFavoriteReleasesFiltered(
                 page = page,
                 limit = DEFAULT_LIMIT,
+                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
                 fields = null,
             )
 

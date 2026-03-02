@@ -11,6 +11,7 @@ import org.junit.Before
 import org.junit.Test
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoriteSorting
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseAlias
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
@@ -45,9 +46,15 @@ class FavoriteRepositoryContractTest {
     @Test
     fun getFavorites_requestsAniLibertyWithoutIncludeExcludeFields() = runBlocking {
         coEvery {
-            aniLibertyApi.getUserFavoriteReleases(
+            aniLibertyApi.getUserFavoriteReleasesFiltered(
                 page = 1,
                 limit = 25,
+                years = null,
+                types = null,
+                genres = null,
+                search = null,
+                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                ageRatings = null,
                 fields = null,
             )
         } returns PaginatedResponse(
@@ -64,9 +71,15 @@ class FavoriteRepositoryContractTest {
 
         assertEquals(1, result.data.size)
         coVerify(exactly = 1) {
-            aniLibertyApi.getUserFavoriteReleases(
+            aniLibertyApi.getUserFavoriteReleasesFiltered(
                 page = 1,
                 limit = 25,
+                years = null,
+                types = null,
+                genres = null,
+                search = null,
+                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                ageRatings = null,
                 fields = null,
             )
         }

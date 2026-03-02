@@ -1,3 +1,5 @@
+import com.android.build.api.dsl.ManagedVirtualDevice
+
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 
@@ -99,7 +101,7 @@ android {
     testOptions {
         managedDevices {
             devices {
-                pixel2Api33(com.android.build.api.dsl.ManagedVirtualDevice) {
+                pixel2Api33(ManagedVirtualDevice) {
                     device = "Pixel 2"
                     apiLevel = 33
                     systemImageSource = "google_apis"
@@ -148,12 +150,12 @@ dependencies {
 
     implementation libs.viewbindingpropertydelegate
 
-    testImplementation "junit:junit:4.13.2"
-    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1"
-    testImplementation "io.mockk:mockk:1.13.13"
+    testImplementation libs.junit
+    testImplementation libs.kotlinx.coroutines.test
+    testImplementation libs.mockk
 
-    androidTestImplementation "androidx.test:core-ktx:1.6.1"
-    androidTestImplementation "androidx.test:runner:1.6.2"
-    androidTestImplementation "androidx.test.ext:junit:1.2.1"
-    androidTestImplementation "androidx.test.uiautomator:uiautomator:2.3.0"
+    androidTestImplementation libs.androidx.core.ktx
+    androidTestImplementation libs.androidx.runner
+    androidTestImplementation libs.androidx.junit
+    androidTestImplementation libs.androidx.uiautomator
 }
