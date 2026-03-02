@@ -151,6 +151,34 @@ class EpisodesCheckerStorageTest {
         )
     }
 
+    @Test
+    fun putAllEpisodeBatched_savesInBatches_notPerItem() = runBlocking {
+        val prefs = EpisodesInMemorySharedPreferences()
+        val storage = createStorage(sharedPreferences = prefs)
+
+        val episodes = (1..120).map { index ->
+            EpisodeAccess(
+                id = EpisodeId(id = index.toString(), releaseId = ReleaseId(index)),
+                seek = index * 1_000L,
+                isViewed = true,
+                lastAccess = index.toLong(),
+            )
+        }
+
+        storage.putAllEpisodeBatched(
+            episodes = episodes,
+            batchSize = 10,
+            saveEveryBatches = 1,
+        )
+
+        assertEquals(episodes.size, storage.getEpisodes().size)
+        assertTrue("Expected at least one persisted snapshot", prefs.applyCount > 0)
+        assertTrue(
+            "Batched save must not write once per item",
+            prefs.applyCount < episodes.size,
+        )
+    }
+
     private fun createStorage(
         sharedPreferences: SharedPreferences = EpisodesInMemorySharedPreferences(),
     ): EpisodesCheckerStorage {
@@ -167,6 +195,8 @@ private class EpisodesInMemorySharedPreferences(
 
     private val values = ConcurrentHashMap(initial)
     val applyThreadNames = Collections.synchronizedList(mutableListOf<String>())
+    val applyCount: Int
+        get() = applyThreadNames.size
 
     override fun contains(key: String?): Boolean = key != null && values.containsKey(key)
 

@@ -33,6 +33,7 @@ class EpisodesCheckerStorage @Inject constructor(
         private const val LEGACY_LOCAL_EPISODES_KEY = "data.local_episodes"
         private const val LOCAL_EPISODES_KEY = "data.local_episodes_v2"
         private const val MIN_PROGRESS_DELTA_MS = 1_000L
+        private const val BULK_SAVE_MIN_INTERVAL_MS = 750L
     }
 
     private val legacyDataAdapter by lazy {
@@ -89,18 +90,42 @@ class EpisodesCheckerStorage @Inject constructor(
     }
 
     override suspend fun putAllEpisode(episodes: List<EpisodeAccess>) {
+        if (episodes.isEmpty()) return
+        putAllEpisodeBatched(
+            episodes = episodes,
+            batchSize = episodes.size,
+            saveEveryBatches = Int.MAX_VALUE,
+        )
+    }
+
+    override suspend fun putAllEpisodeBatched(
+        episodes: List<EpisodeAccess>,
+        batchSize: Int,
+        saveEveryBatches: Int,
+    ) {
+        if (episodes.isEmpty()) return
+
+        val safeBatchSize = batchSize.coerceAtLeast(1)
+        val safeSaveEveryBatches = saveEveryBatches.coerceAtLeast(1)
+
         writeMutex.withLock {
+            val startedAtMs = nowMs()
+
             var changedCount = 0
             var incomingWins = 0
             var localWins = 0
-            var totalCount = 0
+            var chunkIndex = 0
+            var persistedSnapshots = 0
+            var lastPersistAtMs = startedAtMs
 
-            localEpisodesRelay.update { localEpisodes ->
-                val mergedByEpisodeId = localEpisodes
-                    .associateBy { it.id }
-                    .toMutableMap()
+            val mergedByEpisodeId = localEpisodesRelay.getValue()
+                .associateBy { it.id }
+                .toMutableMap()
 
-                episodes.forEach { incoming ->
+            episodes.chunked(safeBatchSize).forEach { chunk ->
+                chunkIndex += 1
+
+                chunk.forEach { incoming ->
                     val current = mergedByEpisodeId[incoming.id]
                     val winner = resolveEpisodeConflict(current = current, incoming = incoming)
                     if (winner === incoming) {
@@ -114,18 +139,46 @@ class EpisodesCheckerStorage @Inject constructor(
                     mergedByEpisodeId[incoming.id] = winner
                 }
 
-                totalCount = mergedByEpisodeId.size
-                mergedByEpisodeId.values.toList()
+                val nowMs = nowMs()
+                val canPersistThisBatch = chunkIndex % safeSaveEveryBatches == 0
+                val enoughTimeSinceLastPersist = nowMs - lastPersistAtMs >= BULK_SAVE_MIN_INTERVAL_MS
+                if (canPersistThisBatch && enoughTimeSinceLastPersist) {
+                    val saveStartedAtMs = nowMs()
+                    saveAll(mergedByEpisodeId.values.toList())
+                    val saveDurationMs = nowMs() - saveStartedAtMs
+                    persistedSnapshots += 1
+                    lastPersistAtMs = nowMs()
+                    Timber.d(
+                        "EpisodesCheckerStorage.write op=putAllBatched checkpoint batch=%d chunkSize=%d saveDurationMs=%d",
+                        chunkIndex,
+                        chunk.size,
+                        saveDurationMs,
+                    )
+                }
             }
 
-            saveAll()
+            val finalSnapshot = mergedByEpisodeId.values.toList()
+            localEpisodesRelay.setValue(finalSnapshot)
+
+            val finalSaveStartedAtMs = nowMs()
+            saveAll(finalSnapshot)
+            val finalSaveDurationMs = nowMs() - finalSaveStartedAtMs
+            persistedSnapshots += 1
+            val durationMs = nowMs() - startedAtMs
+
             Timber.d(
-                "EpisodesCheckerStorage.write op=putAll incoming=%d changed=%d incomingWins=%d localWins=%d total=%d",
+                "EpisodesCheckerStorage.write op=putAllBatched incoming=%d changed=%d incomingWins=%d localWins=%d total=%d chunks=%d saves=%d batchSize=%d saveEvery=%d durationMs=%d finalSaveMs=%d",
                 episodes.size,
                 changedCount,
                 incomingWins,
                 localWins,
-                totalCount,
+                finalSnapshot.size,
+                chunkIndex,
+                persistedSnapshots,
+                safeBatchSize,
+                safeSaveEveryBatches,
+                durationMs,
+                finalSaveDurationMs,
             )
         }
     }
@@ -192,9 +245,13 @@ class EpisodesCheckerStorage @Inject constructor(
     }
 
     private suspend fun saveAll() {
+        saveAll(localEpisodesRelay.getValue())
+    }
+
+    private suspend fun saveAll(episodes: List<EpisodeAccess>) {
         withContext(Dispatchers.IO) {
-            val jsonEpisodes = localEpisodesRelay.getValue()
-                .map { it.toDb() }
+            val jsonEpisodes = episodes
+                .map { episode -> episode.toDb() }
                 .let { dataAdapter.toJson(it) }
             sharedPreferences
                 .edit()
@@ -202,6 +259,8 @@ class EpisodesCheckerStorage @Inject constructor(
                 .apply()
         }
     }
+
+    private fun nowMs(): Long = System.currentTimeMillis()
 
     private suspend fun loadAll(): List<EpisodeAccess> {
         return withContext(Dispatchers.IO) {

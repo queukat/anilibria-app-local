@@ -245,15 +245,10 @@ class UserViewsSyncInteractor @Inject constructor(
         maxPages: Int,
         syncSessionStartedAtMs: Long,
     ): Boolean = withContext(Dispatchers.IO) {
-        val pages = loadHistoryPages(maxPages = maxPages) ?: return@withContext false
-        if (pages.isEmpty()) return@withContext true
-
         val initialLocalHistoryIds: Set<ReleaseId> = runCatching { historyHolder.getIds().toSet() }
             .onFailure { Timber.w(it, "UserViewsSync: failed to read local history ids") }
             .getOrNull()
             ?: return@withContext false
-
-        val missingReleaseIds = mutableListOf<ReleaseId>()
 
         // We'll compare against a mutable snapshot so that we don't depend on write ordering.
         val localEpisodeMap = runCatching { episodesCheckerHolder.getEpisodes() }
@@ -263,18 +258,42 @@ class UserViewsSyncInteractor @Inject constructor(
             ?.toMutableMap()
             ?: return@withContext false
 
-        val updates = mutableListOf<EpisodeAccess>()
+        val pagesLoad = loadHistoryPages(
+            maxPages = maxPages,
+            knownLocalHistoryIds = initialLocalHistoryIds,
+            knownLocalEpisodeIds = localEpisodeMap.keys,
+        ) ?: return@withContext false
+
+        if (pagesLoad.pages.isEmpty()) {
+            Timber.d(
+                "UserViewsSync.import summary maxPages=%d pagesScanned=%d stopReason=%s (empty payload)",
+                maxPages,
+                pagesLoad.pagesScanned,
+                pagesLoad.stopReason,
+            )
+            return@withContext true
+        }
+
+        val importStartedAtMs = nowMs()
+        val updatesByEpisodeId = linkedMapOf<EpisodeId, EpisodeAccess>()
+        val missingReleaseIdsOrdered = LinkedHashSet<ReleaseId>()
+
+        var processedItems = 0
+        var skippedLowProgress = 0
+        var skippedMalformed = 0
+        var updateTouches = 0
+        var missingReleaseTouches = 0
 
         // Process from oldest to newest to keep latest item as the final state.
-        pages.asReversed().forEach { page ->
+        pagesLoad.pages.asReversed().forEach { page ->
             page.data.asReversed().forEach { item ->
-                val releaseId = item.extractReleaseId() ?: return@forEach
-                val ordinal = item.episode?.ordinal ?: item.episode?.sortOrder ?: return@forEach
+                processedItems += 1
 
-                val episodeId = EpisodeId(
-                    id = normalizeOrdinalDouble(ordinal),
-                    releaseId = releaseId,
-                )
+                val episodeId = item.extractEpisodeId() ?: run {
+                    skippedMalformed += 1
+                    return@forEach
+                }
+                val releaseId = episodeId.releaseId
 
                 // Remote progress
                 val durationMs = item.episode?.duration?.let(::secondsToMs)
@@ -286,13 +305,17 @@ class UserViewsSyncInteractor @Inject constructor(
                     remoteTimeMs
                 }
 
-                if (!remoteIsWatched && remoteSeekMs < MIN_IMPORT_POSITION_MS) return@forEach
+                if (!remoteIsWatched && remoteSeekMs < MIN_IMPORT_POSITION_MS) {
+                    skippedLowProgress += 1
+                    return@forEach
+                }
 
                 // Remote-only release import (do not reorder existing local history)
                 if (releaseId !in initialLocalHistoryIds) {
                     // "move to end" semantics: last occurrence wins
-                    missingReleaseIds.remove(releaseId)
-                    missingReleaseIds.add(releaseId)
+                    missingReleaseIdsOrdered.remove(releaseId)
+                    missingReleaseIdsOrdered.add(releaseId)
+                    missingReleaseTouches += 1
                 }
 
                 // Merge with local
@@ -310,25 +333,78 @@ class UserViewsSyncInteractor @Inject constructor(
                 ) ?: return@forEach
 
                 if (merged != local) {
-                    updates.add(merged)
+                    updatesByEpisodeId[episodeId] = merged
                     localEpisodeMap[episodeId] = merged
+                    updateTouches += 1
                 }
             }
         }
 
+        val updates = updatesByEpisodeId.values.toList()
         if (updates.isNotEmpty()) {
-            val ok = runCatching { episodesCheckerHolder.putAllEpisode(updates) }
+            val saveStartedAtMs = nowMs()
+            val ok = runCatching {
+                episodesCheckerHolder.putAllEpisodeBatched(
+                    episodes = updates,
+                    batchSize = SYNC_EPISODE_WRITE_BATCH_SIZE,
+                    saveEveryBatches = SYNC_BULK_SAVE_EVERY_BATCHES,
+                )
+            }
                 .onFailure { Timber.w(it, "UserViewsSync: failed to update local episodes") }
                 .isSuccess
             if (!ok) return@withContext false
+
+            Timber.d(
+                "UserViewsSync.import saveEpisodes count=%d batchSize=%d saveEvery=%d durationMs=%d",
+                updates.size,
+                SYNC_EPISODE_WRITE_BATCH_SIZE,
+                SYNC_BULK_SAVE_EVERY_BATCHES,
+                nowMs() - saveStartedAtMs,
+            )
         }
 
+        val missingReleaseIds = missingReleaseIdsOrdered.toList()
         if (missingReleaseIds.isNotEmpty()) {
-            val ok = runCatching { historyHolder.putAllIds(missingReleaseIds) }
+            val saveStartedAtMs = nowMs()
+            val ok = runCatching {
+                historyHolder.putAllIdsBatched(
+                    ids = missingReleaseIds,
+                    batchSize = SYNC_HISTORY_WRITE_BATCH_SIZE,
+                    saveEveryBatches = SYNC_BULK_SAVE_EVERY_BATCHES,
+                )
+            }
                 .onFailure { Timber.w(it, "UserViewsSync: failed to update local history (remote-only import)") }
                 .isSuccess
             if (!ok) return@withContext false
+
+            Timber.d(
+                "UserViewsSync.import saveHistory count=%d batchSize=%d saveEvery=%d durationMs=%d",
+                missingReleaseIds.size,
+                SYNC_HISTORY_WRITE_BATCH_SIZE,
+                SYNC_BULK_SAVE_EVERY_BATCHES,
+                nowMs() - saveStartedAtMs,
+            )
         }
+
+        Timber.d(
+            "UserViewsSync.import summary maxPages=%d pagesScanned=%d itemsScanned=%d newMarkers=%d duplicateMarkers=%d noNewMarkerStreak=%d noNewLocalTargetStreak=%d processedItems=%d skippedLowProgress=%d skippedMalformed=%d updates=%d updateTouches=%d missingReleaseIds=%d missingReleaseTouches=%d stopReason=%s durationMs=%d",
+            maxPages,
+            pagesLoad.pagesScanned,
+            pagesLoad.itemsScanned,
+            pagesLoad.newMarkers,
+            pagesLoad.duplicateMarkers,
+            pagesLoad.noNewMarkerStreak,
+            pagesLoad.noNewLocalTargetStreak,
+            processedItems,
+            skippedLowProgress,
+            skippedMalformed,
+            updates.size,
+            updateTouches,
+            missingReleaseIds.size,
+            missingReleaseTouches,
+            pagesLoad.stopReason,
+            nowMs() - importStartedAtMs,
+        )
 
         true
     }
@@ -462,8 +538,23 @@ class UserViewsSyncInteractor @Inject constructor(
 
     private suspend fun loadHistoryPages(
         maxPages: Int,
-    ): List<PaginatedResponse<AniLibertyUserViewHistoryItem>>? {
+        knownLocalHistoryIds: Set<ReleaseId>,
+        knownLocalEpisodeIds: Set<EpisodeId>,
+    ): HistoryPagesLoadResult? {
         val result = mutableListOf<PaginatedResponse<AniLibertyUserViewHistoryItem>>()
+        val seenItemMarkers = HashSet<String>()
+        val seenPageHeadMarkers = HashSet<String>()
+        val knownHistoryIds = knownLocalHistoryIds.toMutableSet()
+        val knownEpisodeIds = knownLocalEpisodeIds.toMutableSet()
+
+        var pagesScanned = 0
+        var itemsScanned = 0
+        var newMarkers = 0
+        var duplicateMarkers = 0
+        var noNewMarkerStreak = 0
+        var noNewLocalTargetStreak = 0
+        var stopReason = "max_pages_reached"
+
         var page = 1
         while (page <= maxPages) {
             val response = runCatching {
@@ -476,16 +567,119 @@ class UserViewsSyncInteractor @Inject constructor(
                 Timber.w(it, "UserViewsSync: failed to load views history page=$page")
             }.getOrNull() ?: return null
 
-            if (response.data.isEmpty()) break
+            if (response.data.isEmpty()) {
+                stopReason = "empty_page"
+                break
+            }
+
+            val pageHeadMarker = buildHistoryPageHeadMarker(response.data.firstOrNull())
+            if (pageHeadMarker != null && !seenPageHeadMarkers.add(pageHeadMarker)) {
+                stopReason = "repeated_page_head"
+                Timber.d(
+                    "UserViewsSync.history page=%d repeated head marker detected, stop loading",
+                    page,
+                )
+                break
+            }
+
+            var pageNewMarkers = 0
+            var pageDuplicateMarkers = 0
+            var pageNewHistoryIds = 0
+            var pageNewEpisodeIds = 0
+            response.data.forEach { item ->
+                itemsScanned += 1
+
+                buildHistoryItemMarker(item)?.let { marker ->
+                    if (seenItemMarkers.add(marker)) {
+                        pageNewMarkers += 1
+                    } else {
+                        pageDuplicateMarkers += 1
+                    }
+                }
+
+                item.extractReleaseId()
+                    ?.let { releaseId ->
+                        if (knownHistoryIds.add(releaseId)) {
+                            pageNewHistoryIds += 1
+                        }
+                    }
+
+                item.extractEpisodeId()
+                    ?.let { episodeId ->
+                        if (knownEpisodeIds.add(episodeId)) {
+                            pageNewEpisodeIds += 1
+                        }
+                    }
+            }
+
+            newMarkers += pageNewMarkers
+            duplicateMarkers += pageDuplicateMarkers
+            // Guard against backend pagination loops or "stuck" pages that keep repeating old history.
+            noNewMarkerStreak = if (pageNewMarkers == 0) noNewMarkerStreak + 1 else 0
+            // If we do not discover any history IDs/episodes unknown to local for several pages,
+            // deep paging becomes mostly redundant for incremental sync.
+            val hasNewLocalTargets = pageNewHistoryIds > 0 || pageNewEpisodeIds > 0
+            noNewLocalTargetStreak = if (hasNewLocalTargets) 0 else noNewLocalTargetStreak + 1
+
+            pagesScanned += 1
             result.add(response)
 
             val allPages = response.meta.allPages
-            if (allPages != null && page >= allPages) break
-            if (allPages == null && response.data.size < HISTORY_PAGE_LIMIT) break
+            Timber.d(
+                "UserViewsSync.history page=%d/%s items=%d newMarkers=%d duplicateMarkers=%d newHistoryIds=%d newEpisodeIds=%d noNewMarkerStreak=%d noNewLocalTargetStreak=%d",
+                page,
+                allPages?.toString() ?: "?",
+                response.data.size,
+                pageNewMarkers,
+                pageDuplicateMarkers,
+                pageNewHistoryIds,
+                pageNewEpisodeIds,
+                noNewMarkerStreak,
+                noNewLocalTargetStreak,
+            )
+
+            if (allPages != null && page >= allPages) {
+                stopReason = "meta_last_page"
+                break
+            }
+            if (allPages == null && response.data.size < HISTORY_PAGE_LIMIT) {
+                stopReason = "short_page"
+                break
+            }
+            if (noNewMarkerStreak >= HISTORY_STOP_ON_NO_NEW_MARKER_PAGES) {
+                stopReason = "no_new_markers"
+                break
+            }
+            if (noNewLocalTargetStreak >= HISTORY_STOP_ON_NO_NEW_LOCAL_TARGET_PAGES) {
+                stopReason = "no_new_local_targets"
+                break
+            }
 
             page++
         }
-        return result
+
+        Timber.d(
+            "UserViewsSync.history summary maxPages=%d pagesScanned=%d itemsScanned=%d newMarkers=%d duplicateMarkers=%d noNewMarkerStreak=%d noNewLocalTargetStreak=%d stopReason=%s",
+            maxPages,
+            pagesScanned,
+            itemsScanned,
+            newMarkers,
+            duplicateMarkers,
+            noNewMarkerStreak,
+            noNewLocalTargetStreak,
+            stopReason,
+        )
+
+        return HistoryPagesLoadResult(
+            pages = result,
+            stopReason = stopReason,
+            pagesScanned = pagesScanned,
+            itemsScanned = itemsScanned,
+            newMarkers = newMarkers,
+            duplicateMarkers = duplicateMarkers,
+            noNewMarkerStreak = noNewMarkerStreak,
+            noNewLocalTargetStreak = noNewLocalTargetStreak,
+        )
     }
 
     private suspend fun getReleaseEpisodesCacheOrNull(releaseId: ReleaseId): ReleaseEpisodesCache? {
@@ -730,11 +924,46 @@ class UserViewsSyncInteractor @Inject constructor(
         return value.replaceRange(match.range, ".$normalized")
     }
 
+    private fun buildHistoryPageHeadMarker(item: AniLibertyUserViewHistoryItem?): String? {
+        item ?: return null
+        return buildHistoryItemMarker(item)
+            ?: item.updatedAt
+            ?: item.createdAt
+    }
+
+    private fun buildHistoryItemMarker(item: AniLibertyUserViewHistoryItem): String? {
+        val episodeId = item.extractEpisodeId() ?: return null
+        val watchedFlag = if (item.isWatched == true) "1" else "0"
+        val timeMs = item.time?.let(::secondsToMs) ?: 0L
+        return buildString(96) {
+            append(episodeId.releaseId.id)
+            append('|')
+            append(episodeId.id)
+            append('|')
+            append(timeMs)
+            append('|')
+            append(watchedFlag)
+            append('|')
+            append(item.updatedAt ?: "")
+            append('|')
+            append(item.createdAt ?: "")
+        }
+    }
+
     private fun AniLibertyUserViewHistoryItem.extractReleaseId(): ReleaseId? {
         val id = releaseId?.value
             ?: release?.id?.value
             ?: episode?.releaseId?.value
         return id?.let(::ReleaseId)
+    }
+
+    private fun AniLibertyUserViewHistoryItem.extractEpisodeId(): EpisodeId? {
+        val releaseId = extractReleaseId() ?: return null
+        val ordinal = episode?.ordinal ?: episode?.sortOrder ?: return null
+        return EpisodeId(
+            id = normalizeOrdinalDouble(ordinal),
+            releaseId = releaseId,
+        )
     }
 
     private data class ReleaseEpisodesCache(
@@ -758,20 +987,39 @@ class UserViewsSyncInteractor @Inject constructor(
         val isTrusted: Boolean,
     )
 
+    private data class HistoryPagesLoadResult(
+        val pages: List<PaginatedResponse<AniLibertyUserViewHistoryItem>>,
+        val stopReason: String,
+        val pagesScanned: Int,
+        val itemsScanned: Int,
+        val newMarkers: Int,
+        val duplicateMarkers: Int,
+        val noNewMarkerStreak: Int,
+        val noNewLocalTargetStreak: Int,
+    )
+
     private data class JavaTimeInstantParser(
         val parseMethod: java.lang.reflect.Method,
         val toEpochMilliMethod: java.lang.reflect.Method,
     )
+
+    private fun nowMs(): Long = System.currentTimeMillis()
 
     private companion object {
         private const val HISTORY_PAGE_LIMIT = 50
         private const val LIGHT_IMPORT_PAGES = 3
 
         /**
-         * "Full import" upper bound. In normal cases `meta.allPages` will stop us earlier.
-         * Keep it reasonably high as a safety net against server-side pagination issues.
+         * Full import safety cap.
+         * We also stop earlier when history pages become stable (no new markers/local targets).
          */
-        private const val MAX_HISTORY_PAGES = 1000
+        private const val MAX_HISTORY_PAGES = 50
+        private const val HISTORY_STOP_ON_NO_NEW_MARKER_PAGES = 2
+        private const val HISTORY_STOP_ON_NO_NEW_LOCAL_TARGET_PAGES = 4
+
+        private const val SYNC_EPISODE_WRITE_BATCH_SIZE = 250
+        private const val SYNC_HISTORY_WRITE_BATCH_SIZE = 250
+        private const val SYNC_BULK_SAVE_EVERY_BATCHES = 4
 
         private const val UPSERT_BATCH_SIZE = 100
 

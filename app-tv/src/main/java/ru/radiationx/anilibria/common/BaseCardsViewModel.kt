@@ -73,12 +73,12 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
 
     /** Вызывается, когда нажали на «LinkCard(Загрузить ещё)». */
     open fun onLinkCardClick() {
-        onLinkCardBind()
+        loadPage(currentPage + 1)
     }
 
     /** Можно переопределить, если нужна особая логика при биндинге/фокусе LinkCard. */
     open fun onLinkCardBind() {
-        loadPage(currentPage + 1)
+        // No-op by default. Loading next page must happen only on explicit click.
     }
 
     /** Нажали «обновить» (обычно перезагрузить c первой страницы). */

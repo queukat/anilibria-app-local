@@ -12,6 +12,7 @@ import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.data.entity.common.AuthState
+import ru.radiationx.data.entity.domain.Paginated
 import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.repository.FavoriteRepository
@@ -27,6 +28,7 @@ class MainFavoritesViewModel @Inject constructor(
 
     private val cacheTtlMs: Long = 2 * 60 * 1000L
     private var lastLoadAtMs: Long = 0L
+    private var pagingState = PagingState(page = firstPage - 1)
 
     override val defaultTitle: String = "Обновления в избранном"
 
@@ -55,17 +57,94 @@ class MainFavoritesViewModel @Inject constructor(
         }
     }
 
-    override suspend fun getLoader(requestPage: Int): List<LibriaCard> = favoriteRepository
-        .getFavorites(requestPage)
-        .also {
+    override fun onRefreshClick() {
+        if (pagingState.isLoading) return
+        pagingState = pagingState.copy(
+            page = firstPage - 1,
+            isLoading = true,
+            hasMore = true,
+            error = null,
+        )
+        super.onRefreshClick()
+    }
+
+    override fun onLinkCardClick() {
+        val state = pagingState
+        if (state.isLoading || !state.hasMore) return
+        pagingState = state.copy(
+            isLoading = true,
+            error = null,
+        )
+        super.onLinkCardClick()
+    }
+
+    override fun onLoadingCardClick() {
+        if (pagingState.isLoading) return
+        pagingState = pagingState.copy(
+            isLoading = true,
+            error = null,
+        )
+        super.onLoadingCardClick()
+    }
+
+    override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
+        return try {
+            val response = favoriteRepository.getFavorites(requestPage)
             lastLoadAtMs = SystemClock.elapsedRealtime()
-            releaseInteractor.updateItemsCache(it.data)
+            releaseInteractor.updateItemsCache(response.data)
+
+            val mapped = response.data
+                .sortedByDescending { it.torrentUpdate }
+                .map { converter.toCard(it) }
+            val allItems = if (requestPage == firstPage) mapped else pagingState.items + mapped
+
+            pagingState = pagingState.copy(
+                items = allItems,
+                page = requestPage,
+                hasMore = hasMoreResponse(response),
+                error = null,
+            )
+
+            mapped
+        } catch (error: Throwable) {
+            pagingState = pagingState.copy(error = error)
+            throw error
+        } finally {
+            pagingState = pagingState.copy(isLoading = false)
         }
-        .let { favoriteItems ->
-            favoriteItems.data.sortedByDescending { it.torrentUpdate }.map { converter.toCard(it) }
-        }
+    }
+
+    override fun hasMoreCards(newCards: List<LibriaCard>, allCards: List<LibriaCard>): Boolean {
+        pagingState = pagingState.copy(items = allCards)
+        return pagingState.hasMore
+    }
 
     override fun onLibriaCardClick(card: LibriaCard) {
         cardRouter.navigate(card)
+    }
+
+    private fun hasMoreResponse(response: Paginated<*>): Boolean {
+        val limit = response.perPage?.takeIf { it > 0 } ?: FAVORITES_PAGE_LIMIT
+        if (response.data.isEmpty()) return false
+        if (response.data.size < limit) return false
+
+        val page = response.page
+        val allPages = response.allPages
+        if (page != null && allPages != null) {
+            return page < allPages
+        }
+        return true
+    }
+
+    private data class PagingState(
+        val items: List<LibriaCard> = emptyList(),
+        val page: Int,
+        val isLoading: Boolean = false,
+        val hasMore: Boolean = true,
+        val error: Throwable? = null,
+    )
+
+    private companion object {
+        private const val FAVORITES_PAGE_LIMIT = 25
     }
 }

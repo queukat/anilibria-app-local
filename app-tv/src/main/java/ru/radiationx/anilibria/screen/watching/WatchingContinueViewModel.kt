@@ -36,7 +36,7 @@ class WatchingContinueViewModel @Inject constructor(
     override val defaultTitle: String = "Продолжить просмотр"
 
     private var remoteMode: Boolean = true
-    private var remoteHasMore: Boolean = true
+    private var pagingState = PagingState(page = firstPage - 1)
     private val localProgressReleaseIds = MutableStateFlow<Set<Int>>(emptySet())
 
     init {
@@ -55,51 +55,116 @@ class WatchingContinueViewModel @Inject constructor(
     }
 
     override fun onRefreshClick() {
+        if (pagingState.isLoading) return
         // если был фолбек на local — при refresh попробуем remote снова
         remoteMode = true
-        remoteHasMore = true
+        pagingState = pagingState.copy(
+            page = firstPage - 1,
+            isLoading = true,
+            hasMore = true,
+            error = null,
+        )
         super.onRefreshClick()
     }
 
-    override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
-        val localState = toLocalProgressState(episodesCheckerHolder.getEpisodes())
+    override fun onLinkCardClick() {
+        val state = pagingState
+        if (state.isLoading || !state.hasMore) return
+        pagingState = state.copy(
+            isLoading = true,
+            error = null,
+        )
+        super.onLinkCardClick()
+    }
 
-        if (remoteMode) {
-            val remoteCards = try {
+    override fun onLoadingCardClick() {
+        if (pagingState.isLoading) return
+        pagingState = pagingState.copy(
+            isLoading = true,
+            error = null,
+        )
+        super.onLoadingCardClick()
+    }
+
+    override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
+        return try {
+            val localState = toLocalProgressState(episodesCheckerHolder.getEpisodes())
+
+            if (remoteMode) {
                 val response = userViewsRepository.getViewsHistory(
                     page = requestPage,
                     limit = REMOTE_PAGE_LIMIT,
                 )
-                remoteHasMore = isHasMore(response)
-                mapRemoteContinue(
+                val remoteCards = mapRemoteContinue(
                     response = response,
                     localState = localState,
                 )
-            } catch (error: Throwable) {
+
+                // remote пустой — на первой странице попробуем local (на сервере может не быть данных)
+                if (remoteCards.isEmpty() && requestPage == firstPage) {
+                    remoteMode = false
+                    val localCards = loadLocalContinue()
+                    pagingState = pagingState.copy(
+                        items = localCards,
+                        page = firstPage,
+                        hasMore = false,
+                        error = null,
+                    )
+                    return localCards
+                }
+
+                val allItems = if (requestPage == firstPage) remoteCards else pagingState.items + remoteCards
+                pagingState = pagingState.copy(
+                    items = allItems,
+                    page = requestPage,
+                    hasMore = hasMoreResponse(response),
+                    error = null,
+                )
+                return remoteCards
+            }
+
+            // Local-режим без пагинации: отдаём данные только на первой странице.
+            if (requestPage == firstPage) {
+                val localCards = loadLocalContinue()
+                pagingState = pagingState.copy(
+                    items = localCards,
+                    page = firstPage,
+                    hasMore = false,
+                    error = null,
+                )
+                localCards
+            } else {
+                pagingState = pagingState.copy(
+                    hasMore = false,
+                    error = null,
+                )
+                emptyList()
+            }
+        } catch (error: Throwable) {
+            if (remoteMode) {
                 // если упали/401 — переключаемся в local только на первой странице
                 remoteMode = false
-                remoteHasMore = false
+                pagingState = pagingState.copy(hasMore = false)
                 if (requestPage == firstPage) {
-                    return loadLocalContinue()
+                    return runCatching { loadLocalContinue() }
+                        .onSuccess { localCards ->
+                            pagingState = pagingState.copy(
+                                items = localCards,
+                                page = firstPage,
+                                hasMore = false,
+                                error = null,
+                            )
+                        }
+                        .getOrElse { localError ->
+                            pagingState = pagingState.copy(error = localError)
+                            throw localError
+                        }
                 }
-                throw error
             }
-
-            // remote пустой — на первой странице попробуем local (на сервере может не быть данных)
-            if (remoteCards.isEmpty() && requestPage == firstPage) {
-                remoteMode = false
-                remoteHasMore = false
-                return loadLocalContinue()
-            }
-
-            return remoteCards
-        }
-
-        // Local-режим без пагинации: отдаём данные только на первой странице.
-        return if (requestPage == firstPage) {
-            loadLocalContinue()
-        } else {
-            emptyList()
+            pagingState = pagingState.copy(error = error)
+            throw error
+        } finally {
+            pagingState = pagingState.copy(isLoading = false)
         }
     }
 
@@ -107,7 +172,8 @@ class WatchingContinueViewModel @Inject constructor(
         newCards: List<LibriaCard>,
         allCards: List<LibriaCard>,
     ): Boolean {
-        return remoteMode && remoteHasMore
+        pagingState = pagingState.copy(items = allCards)
+        return remoteMode && pagingState.hasMore
     }
 
     override fun onLibriaCardClick(card: LibriaCard) {
@@ -241,15 +307,30 @@ class WatchingContinueViewModel @Inject constructor(
             }
     }
 
-    private fun isHasMore(response: PaginatedResponse<*>): Boolean {
-        val page = response.meta.page ?: return response.data.size >= REMOTE_PAGE_LIMIT
-        val allPages = response.meta.allPages ?: return response.data.size >= REMOTE_PAGE_LIMIT
-        return page < allPages
+    private fun hasMoreResponse(response: PaginatedResponse<*>): Boolean {
+        val limit = response.meta.perPage?.takeIf { it > 0 } ?: REMOTE_PAGE_LIMIT
+        if (response.data.isEmpty()) return false
+        if (response.data.size < limit) return false
+
+        val page = response.meta.page
+        val allPages = response.meta.allPages
+        if (page != null && allPages != null) {
+            return page < allPages
+        }
+        return true
     }
 
     companion object {
         private const val REMOTE_PAGE_LIMIT = 50
     }
+
+    private data class PagingState(
+        val items: List<LibriaCard> = emptyList(),
+        val page: Int,
+        val isLoading: Boolean = false,
+        val hasMore: Boolean = true,
+        val error: Throwable? = null,
+    )
 
     private data class LocalProgressState(
         val releaseIds: Set<Int>,

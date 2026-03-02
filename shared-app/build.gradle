@@ -5,13 +5,13 @@ plugins {
 }
 
 android {
-    namespace "ru.radiationx.shared_app"
+    namespace = "ru.radiationx.shared_app"
 
-    compileSdk app_compile_sdk_version
+    compileSdk = app_compile_sdk_version
 
     defaultConfig {
-        minSdk app_min_sdk_version
-        targetSdk app_target_sdk_version
+        minSdk = app_min_sdk_version
+        targetSdk = app_target_sdk_version
     }
 }
 

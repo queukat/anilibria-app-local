@@ -80,6 +80,7 @@ class DetailRecommendsViewModelTest {
         assertTrue("Expected global fallback recommendations call", globalIndex >= 0)
         assertTrue("Global fallback should happen after seeded call", globalIndex > seededIndex)
         assertTrue(fakeUseCase.legacyCalls == 0)
+        waitUntil { viewModel.cardsData.value.any { it is LibriaCard } }
         assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
     }
 

@@ -10,7 +10,7 @@ import ru.radiationx.shared.ktx.android.getCompatColor
 import ru.radiationx.shared.ktx.android.getCompatDrawable
 
 class LinkCardPresenter(
-    private val bindListener: (() -> Unit)?,
+    @Suppress("UNUSED_PARAMETER") private val bindListener: (() -> Unit)?,
 ) : Presenter() {
 
     override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
@@ -30,9 +30,7 @@ class LinkCardPresenter(
     override fun onBindViewHolder(viewHolder: ViewHolder, item: Any?) {
         item ?: return
         item as LinkCard
-        viewHolder.view.post {
-            bindListener?.invoke()
-        }
+        // Bind must stay side-effect free: pagination/loading is triggered by explicit click only.
     }
 
     override fun onUnbindViewHolder(viewHolder: ViewHolder) {

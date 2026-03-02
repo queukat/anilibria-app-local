@@ -35,8 +35,7 @@ class AnalyticsInstallerProfileDataSource @Inject constructor(
         val packageManager: PackageManager = context.packageManager
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            val installer = packageManager.getInstallerPackageName(context.packageName)
-            return InstallerInfo(installing = installer)
+            return InstallerInfo(installing = getInstallerPackageNameCompat(packageManager))
         }
 
         val sourceInfo = packageManager.getInstallSourceInfo(context.packageName)
@@ -58,6 +57,16 @@ class AnalyticsInstallerProfileDataSource @Inject constructor(
             originating = sourceInfo.originatingPackageName,
             updateOwner = updateOwner,
         )
+    }
+
+    private fun getInstallerPackageNameCompat(packageManager: PackageManager): String? {
+        return runCatching {
+            val method = PackageManager::class.java.getMethod(
+                "getInstallerPackageName",
+                String::class.java,
+            )
+            method.invoke(packageManager, context.packageName) as? String
+        }.getOrNull()
     }
 
     private data class InstallerInfo(

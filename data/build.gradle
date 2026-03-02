@@ -6,17 +6,17 @@ plugins {
 }
 
 android {
-    namespace "ru.radiationx.data"
+    namespace = "ru.radiationx.data"
 
-    compileSdk app_compile_sdk_version
+    compileSdk = app_compile_sdk_version
 
     defaultConfig {
-        minSdk app_min_sdk_version
-        targetSdk app_target_sdk_version
+        minSdk = app_min_sdk_version
+        targetSdk = app_target_sdk_version
     }
 
     buildFeatures {
-        buildConfig true
+        buildConfig = true
     }
 
     buildTypes {
