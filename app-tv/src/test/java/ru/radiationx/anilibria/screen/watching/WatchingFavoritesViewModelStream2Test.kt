@@ -20,6 +20,7 @@ import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.Paginated
 import ru.radiationx.data.entity.domain.release.Release
+import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.repository.FavoriteRepository
 
@@ -98,6 +99,33 @@ class WatchingFavoritesViewModelStream2Test {
         assertEquals("Expected one request for each explicit loadMore click", 3, requests.size)
     }
 
+    @Test
+    fun initialSync_doesNotRequestMoreThanFiftyPages() = runBlocking {
+        val authStateFlow = MutableStateFlow(AuthState.AUTH)
+        val authRepository = mockk<AuthRepository>()
+        every { authRepository.observeAuthState() } returns authStateFlow
+
+        val requests = mutableListOf<Int>()
+        val favoriteRepository = mockk<FavoriteRepository>()
+        coEvery { favoriteRepository.getFavorites(any()) } answers {
+            val page = firstArg<Int>()
+            requests += page
+            singleItemResponse(page)
+        }
+
+        WatchingFavoritesViewModel(
+            favoriteRepository = favoriteRepository,
+            authRepository = authRepository,
+            converter = mockk<CardsDataConverter>(relaxed = true),
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        waitUntil { requests.size >= 50 }
+        delay(100)
+
+        assertEquals("Expected sync to stop at 50 pages max", 50, requests.size)
+    }
+
     private suspend fun waitUntil(predicate: () -> Boolean) {
         repeat(100) {
             if (predicate()) return
@@ -113,4 +141,24 @@ class WatchingFavoritesViewModelStream2Test {
         perPage = 25,
         allItems = 0,
     )
+
+    private fun singleItemResponse(page: Int): Paginated<Release> = Paginated(
+        data = listOf(fakeRelease(page)),
+        page = page,
+        allPages = null,
+        perPage = 25,
+        allItems = null,
+    )
+
+    private fun fakeRelease(id: Int): Release {
+        val release = mockk<Release>(relaxed = true)
+        every { release.id } returns ReleaseId(id)
+        every { release.title } returns "title-$id"
+        every { release.year } returns "2026"
+        every { release.season } returns "spring"
+        every { release.genres } returns emptyList()
+        every { release.statusCode } returns Release.STATUS_CODE_COMPLETE
+        every { release.torrentUpdate } returns id
+        return release
+    }
 }

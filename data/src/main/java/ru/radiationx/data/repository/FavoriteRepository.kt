@@ -1,9 +1,12 @@
 package ru.radiationx.data.repository
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoriteSorting
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 import ru.radiationx.data.datasource.remote.api.FavoriteApi
@@ -38,10 +41,11 @@ class FavoriteRepository @Inject constructor(
     suspend fun getFavorites(page: Int): Paginated<Release> = withContext(Dispatchers.IO) {
         // 1) v1 first
         runCatching {
-            val response = aniLibertyApi.getUserFavoriteReleases(
+            val response = aniLibertyApi.getUserFavoriteReleasesFiltered(
                 page = page,
                 limit = DEFAULT_LIMIT,
-                fields = null,
+                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                fields = AniLibertyReleaseFields.FavoritesList,
             )
 
             // Map safely (skip items without id)
@@ -57,6 +61,9 @@ class FavoriteRepository @Inject constructor(
             updateMiddleware.handle(filtered.data)
             filtered
         }.getOrElse { error ->
+            if (error is CancellationException) {
+                throw error
+            }
             Timber.w(error, "AniLiberty favorites failed, fallback to legacy")
 
             // 2) legacy fallback
