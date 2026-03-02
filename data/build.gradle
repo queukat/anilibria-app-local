@@ -78,11 +78,14 @@ dependencies {
 
     testImplementation "junit:junit:4.13.2"
     testImplementation "io.mockk:mockk:1.13.13"
+    testImplementation(platform(libs.okhttp.bom))
+    testImplementation("com.squareup.okhttp3:mockwebserver")
 }
 
 tasks.withType(Test).configureEach {
-    if (name != "liveApiTest") {
+    if (name != "liveApiTest" && name != "liveApiSmokeTest") {
         exclude("**/*LiveContractTest.class")
+        exclude("**/*SmokeTest.class")
     }
 }
 
@@ -99,6 +102,34 @@ tasks.register("liveApiTest", Test) {
     environment("ANILIBERTY_LIVE_TESTS", System.getenv("ANILIBERTY_LIVE_TESTS") ?: "1")
     if (System.getenv("ANILIBERTY_BASE_URL") != null) {
         environment("ANILIBERTY_BASE_URL", System.getenv("ANILIBERTY_BASE_URL"))
+    }
+    shouldRunAfter("testDebugUnitTest")
+
+    testLogging {
+        events("passed", "failed", "skipped")
+        showStandardStreams = true
+    }
+}
+
+tasks.register("liveApiSmokeTest", Test) {
+    group = "verification"
+    description = "Runs AniLiberty live smoke/e2e tests only."
+    dependsOn("testDebugUnitTest")
+
+    def debugUnitTest = tasks.named("testDebugUnitTest", Test).get()
+    testClassesDirs = debugUnitTest.testClassesDirs
+    classpath = debugUnitTest.classpath
+    include("**/*SmokeTest.class")
+
+    environment("ANILIBERTY_BASE_URL", System.getenv("ANILIBERTY_BASE_URL") ?: "https://aniliberty.top")
+    if (System.getenv("ANILIBERTY_TOKEN") != null) {
+        environment("ANILIBERTY_TOKEN", System.getenv("ANILIBERTY_TOKEN"))
+    }
+    if (System.getenv("ANILIBERTY_E2E_WRITE") != null) {
+        environment("ANILIBERTY_E2E_WRITE", System.getenv("ANILIBERTY_E2E_WRITE"))
+    }
+    if (System.getenv("ANILIBERTY_TEST_EPISODE_ID") != null) {
+        environment("ANILIBERTY_TEST_EPISODE_ID", System.getenv("ANILIBERTY_TEST_EPISODE_ID"))
     }
     shouldRunAfter("testDebugUnitTest")
 

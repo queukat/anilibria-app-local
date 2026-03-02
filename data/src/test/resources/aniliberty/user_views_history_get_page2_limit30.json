@@ -1,0 +1,29 @@
+{
+  "data": [
+    {
+      "release_episode_id": "episode-history-1",
+      "release_id": 9001,
+      "time": 87.3,
+      "is_watched": false,
+      "created_at": "2026-02-20T10:00:00Z",
+      "updated_at": "2026-02-20T10:10:00Z"
+    },
+    {
+      "release_episode_id": "episode-history-2",
+      "release_id": 9002,
+      "time": 1520.0,
+      "is_watched": true,
+      "created_at": "2026-02-21T11:00:00Z",
+      "updated_at": "2026-02-21T11:40:00Z"
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "total": 142,
+      "count": 30,
+      "per_page": 30,
+      "current_page": 2,
+      "total_pages": 5
+    }
+  }
+}

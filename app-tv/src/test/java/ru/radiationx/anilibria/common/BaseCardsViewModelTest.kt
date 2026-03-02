@@ -1,0 +1,92 @@
+package ru.radiationx.anilibria.common
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import ru.radiationx.data.entity.domain.types.ReleaseId
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class BaseCardsViewModelTest {
+
+    private val testDispatcher = UnconfinedTestDispatcher()
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun refreshEmitsUpdatedCardsWhenRefreshHasNoProgressCard() = runBlocking {
+        val viewModel = TestCardsViewModel(
+            loaderResults = ArrayDeque(
+                listOf(
+                    listOf(card(title = "A")),
+                    listOf(card(title = "B")),
+                )
+            )
+        )
+
+        val snapshots = mutableListOf<List<String>>()
+        val collectJob = launch {
+            viewModel.cardsData.collect { items ->
+                snapshots += items
+                    .filterIsInstance<LibriaCard>()
+                    .map { it.title }
+            }
+        }
+
+        viewModel.onRefreshClick()
+        waitUntil { snapshots.any { it == listOf("A") } }
+
+        viewModel.onRefreshClick()
+        waitUntil { snapshots.any { it == listOf("B") } }
+
+        assertTrue("First refresh must emit the first snapshot", snapshots.any { it == listOf("A") })
+        assertTrue("Second refresh must emit updated snapshot", snapshots.any { it == listOf("B") })
+
+        collectJob.cancel()
+    }
+
+    private suspend fun waitUntil(predicate: () -> Boolean) {
+        repeat(100) {
+            if (predicate()) return
+            delay(20)
+        }
+        error("Condition was not met in time")
+    }
+
+    private fun card(title: String): LibriaCard = LibriaCard(
+        title = title,
+        description = "",
+        image = "",
+        type = LibriaCard.Type.Release(ReleaseId(1)),
+    )
+}
+
+private class TestCardsViewModel(
+    private val loaderResults: ArrayDeque<List<LibriaCard>>,
+) : BaseCardsViewModel() {
+
+    override val preventClearOnRefresh: Boolean = true
+    override val progressOnRefresh: Boolean = false
+
+    override fun hasMoreCards(newCards: List<LibriaCard>, allCards: List<LibriaCard>): Boolean = false
+
+    override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
+        return loaderResults.removeFirst()
+    }
+}

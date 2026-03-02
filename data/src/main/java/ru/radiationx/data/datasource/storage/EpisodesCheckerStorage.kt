@@ -5,6 +5,8 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import ru.radiationx.data.DataPreferences
 import ru.radiationx.data.datasource.SuspendMutableStateFlow
@@ -16,6 +18,7 @@ import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.mapper.toDb
 import ru.radiationx.data.entity.mapper.toDomain
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -29,6 +32,7 @@ class EpisodesCheckerStorage @Inject constructor(
     companion object {
         private const val LEGACY_LOCAL_EPISODES_KEY = "data.local_episodes"
         private const val LOCAL_EPISODES_KEY = "data.local_episodes_v2"
+        private const val MIN_PROGRESS_DELTA_MS = 1_000L
     }
 
     private val legacyDataAdapter by lazy {
@@ -44,6 +48,7 @@ class EpisodesCheckerStorage @Inject constructor(
     private val localEpisodesRelay = SuspendMutableStateFlow {
         loadAll()
     }
+    private val writeMutex = Mutex()
 
     override fun observeEpisodes(): Flow<List<EpisodeAccess>> =
         localEpisodesRelay
@@ -53,29 +58,76 @@ class EpisodesCheckerStorage @Inject constructor(
     }
 
     override suspend fun putEpisode(episode: EpisodeAccess) {
-        localEpisodesRelay.update { localEpisodes ->
-            val mutableLocalEpisodes = localEpisodes.toMutableList()
-            mutableLocalEpisodes
-                .firstOrNull { it.id == episode.id }
-                ?.let { mutableLocalEpisodes.remove(it) }
-            mutableLocalEpisodes.add(episode)
-            mutableLocalEpisodes
+        writeMutex.withLock {
+            var replaced = false
+            var totalCount = 0
+
+            localEpisodesRelay.update { localEpisodes ->
+                val mutableLocalEpisodes = localEpisodes.toMutableList()
+                val index = mutableLocalEpisodes.indexOfFirst { it.id == episode.id }
+                if (index >= 0) {
+                    replaced = true
+                    mutableLocalEpisodes[index] = episode
+                } else {
+                    mutableLocalEpisodes.add(episode)
+                }
+                totalCount = mutableLocalEpisodes.size
+                mutableLocalEpisodes
+            }
+
+            saveAll()
+            Timber.d(
+                "EpisodesCheckerStorage.write op=putEpisode episodeId=%s seekMs=%d isViewed=%s lastAccessMs=%d replaced=%s total=%d",
+                episode.id.toString(),
+                episode.seek,
+                episode.isViewed,
+                episode.lastAccessRaw,
+                replaced,
+                totalCount,
+            )
         }
-        saveAll()
     }
 
     override suspend fun putAllEpisode(episodes: List<EpisodeAccess>) {
-        localEpisodesRelay.update { localEpisodes ->
-            val mutableLocalEpisodes = localEpisodes.toMutableList()
-            episodes.forEach { episode ->
-                mutableLocalEpisodes
-                    .firstOrNull { it.id == episode.id }
-                    ?.let { mutableLocalEpisodes.remove(it) }
-                mutableLocalEpisodes.add(episode)
+        writeMutex.withLock {
+            var changedCount = 0
+            var incomingWins = 0
+            var localWins = 0
+            var totalCount = 0
+
+            localEpisodesRelay.update { localEpisodes ->
+                val mergedByEpisodeId = localEpisodes
+                    .associateBy { it.id }
+                    .toMutableMap()
+
+                episodes.forEach { incoming ->
+                    val current = mergedByEpisodeId[incoming.id]
+                    val winner = resolveEpisodeConflict(current = current, incoming = incoming)
+                    if (winner === incoming) {
+                        incomingWins++
+                    } else {
+                        localWins++
+                    }
+                    if (current != winner) {
+                        changedCount++
+                    }
+                    mergedByEpisodeId[incoming.id] = winner
+                }
+
+                totalCount = mergedByEpisodeId.size
+                mergedByEpisodeId.values.toList()
             }
-            mutableLocalEpisodes
+
+            saveAll()
+            Timber.d(
+                "EpisodesCheckerStorage.write op=putAll incoming=%d changed=%d incomingWins=%d localWins=%d total=%d",
+                episodes.size,
+                changedCount,
+                incomingWins,
+                localWins,
+                totalCount,
+            )
         }
-        saveAll()
     }
 
     override suspend fun getEpisodes(releaseId: ReleaseId): List<EpisodeAccess> {
@@ -87,12 +139,56 @@ class EpisodesCheckerStorage @Inject constructor(
     }
 
     override suspend fun remove(releaseId: ReleaseId) {
-        localEpisodesRelay.update { localEpisodes ->
-            val mutableLocalEpisodes = localEpisodes.toMutableList()
-            mutableLocalEpisodes.removeAll { it.id.releaseId == releaseId }
-            mutableLocalEpisodes
+        writeMutex.withLock {
+            var removedCount = 0
+            var totalCount = 0
+
+            localEpisodesRelay.update { localEpisodes ->
+                val mutableLocalEpisodes = localEpisodes.toMutableList()
+                val beforeSize = mutableLocalEpisodes.size
+                mutableLocalEpisodes.removeAll { it.id.releaseId == releaseId }
+                removedCount = beforeSize - mutableLocalEpisodes.size
+                totalCount = mutableLocalEpisodes.size
+                mutableLocalEpisodes
+            }
+
+            saveAll()
+            Timber.d(
+                "EpisodesCheckerStorage.write op=remove releaseId=%s removed=%d total=%d",
+                releaseId.id,
+                removedCount,
+                totalCount,
+            )
         }
-        saveAll()
+    }
+
+    private fun resolveEpisodeConflict(
+        current: EpisodeAccess?,
+        incoming: EpisodeAccess,
+    ): EpisodeAccess {
+        if (current == null) return incoming
+
+        val currentLastAccess = current.lastAccessRaw
+        val incomingLastAccess = incoming.lastAccessRaw
+
+        val hasComparableFreshTimestamps = currentLastAccess > 0L &&
+            incomingLastAccess > 0L &&
+            currentLastAccess != incomingLastAccess
+
+        if (hasComparableFreshTimestamps) {
+            return if (incomingLastAccess > currentLastAccess) incoming else current
+        }
+
+        if (current.isViewed != incoming.isViewed) {
+            return if (incoming.isViewed) incoming else current
+        }
+
+        return when {
+            incoming.seek > current.seek + MIN_PROGRESS_DELTA_MS -> incoming
+            current.seek > incoming.seek + MIN_PROGRESS_DELTA_MS -> current
+            incomingLastAccess > currentLastAccess -> incoming
+            else -> current
+        }
     }
 
     private suspend fun saveAll() {

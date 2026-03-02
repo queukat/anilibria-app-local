@@ -68,10 +68,21 @@ class UserViewsSyncInteractor @Inject constructor(
         val tokenHash = sha256(token)
 
         syncMutex.withLock {
-            try {
-                val needUpload = syncHolder.getLastUploadTokenHash() != tokenHash
-                val needFullImport = syncHolder.getLastFullImportTokenHash() != tokenHash
+            val syncSessionStartedAtMs = System.currentTimeMillis()
+            val needUpload = syncHolder.getLastUploadTokenHash() != tokenHash
+            val needFullImport = syncHolder.getLastFullImportTokenHash() != tokenHash
+            var uploadStatus = if (needUpload) "pending" else "skipped"
+            var importStatus = "pending"
+            var finishReason = "success"
 
+            Timber.d(
+                "UserViewsSync.sync start sessionStartedAtMs=%d needUpload=%s needFullImport=%s",
+                syncSessionStartedAtMs,
+                needUpload,
+                needFullImport,
+            )
+
+            try {
                 // 1) One-time upload (migration)
                 if (needUpload) {
                     val uploadOk = runCatching { uploadLocalToRemoteWithConflicts() }
@@ -84,29 +95,57 @@ class UserViewsSyncInteractor @Inject constructor(
                     if (uploadOk) {
                         syncHolder.setLastUploadTokenHash(tokenHash)
                     }
+                    uploadStatus = if (uploadOk) "ok" else "failed"
+                    if (!uploadOk) {
+                        finishReason = "upload_failed"
+                    }
                 }
 
                 // 2) Import remote -> local.
                 //    - If full import is not done yet: do full import (all pages).
                 //    - Otherwise: do light import to catch new remote-only items.
                 val importOk = if (needFullImport) {
-                    importRemoteHistoryToLocal(maxPages = MAX_HISTORY_PAGES)
+                    importRemoteHistoryToLocal(
+                        maxPages = MAX_HISTORY_PAGES,
+                        syncSessionStartedAtMs = syncSessionStartedAtMs,
+                    )
                         .also { ok ->
                             if (ok) {
                                 syncHolder.setLastFullImportTokenHash(tokenHash)
                             }
                         }
                 } else {
-                    importRemoteHistoryToLocal(maxPages = LIGHT_IMPORT_PAGES)
+                    importRemoteHistoryToLocal(
+                        maxPages = LIGHT_IMPORT_PAGES,
+                        syncSessionStartedAtMs = syncSessionStartedAtMs,
+                    )
                 }
+                importStatus = if (importOk) "ok" else "failed"
 
                 if (!importOk) {
                     // Not fatal: we'll try again on the next AUTH trigger.
                     Timber.d("UserViewsSync: import failed (will retry later)")
+                    if (finishReason == "success") {
+                        finishReason = "import_failed"
+                    }
                 }
             } catch (error: Throwable) {
-                if (error is CancellationException) throw error
+                if (error is CancellationException) {
+                    finishReason = "cancelled"
+                    throw error
+                }
+                finishReason = "unexpected_error"
                 Timber.w(error, "UserViewsSync: unexpected error")
+            } finally {
+                Timber.d(
+                    "UserViewsSync.sync finish sessionStartedAtMs=%d needUpload=%s needFullImport=%s uploadStatus=%s importStatus=%s reason=%s",
+                    syncSessionStartedAtMs,
+                    needUpload,
+                    needFullImport,
+                    uploadStatus,
+                    importStatus,
+                    finishReason,
+                )
             }
         }
     }
@@ -204,6 +243,7 @@ class UserViewsSyncInteractor @Inject constructor(
      */
     private suspend fun importRemoteHistoryToLocal(
         maxPages: Int,
+        syncSessionStartedAtMs: Long,
     ): Boolean = withContext(Dispatchers.IO) {
         val pages = loadHistoryPages(maxPages = maxPages) ?: return@withContext false
         if (pages.isEmpty()) return@withContext true
@@ -257,13 +297,16 @@ class UserViewsSyncInteractor @Inject constructor(
 
                 // Merge with local
                 val local = localEpisodeMap[episodeId]
+                val remoteTimestamp = extractRemoteTimestamp(item)
                 val merged = mergeEpisodeProgress(
                     episodeId = episodeId,
                     local = local,
                     remoteSeekMs = remoteSeekMs,
                     remoteIsWatched = remoteIsWatched,
                     durationMs = durationMs,
-                    remoteLastAccessMs = parseTimestampMs(item.updatedAt) ?: parseTimestampMs(item.createdAt),
+                    remoteLastAccessMs = remoteTimestamp.lastAccessMs,
+                    remoteTimestampTrusted = remoteTimestamp.isTrusted,
+                    syncSessionStartedAtMs = syncSessionStartedAtMs,
                 ) ?: return@forEach
 
                 if (merged != local) {
@@ -297,11 +340,58 @@ class UserViewsSyncInteractor @Inject constructor(
         remoteIsWatched: Boolean,
         durationMs: Long?,
         remoteLastAccessMs: Long?,
+        remoteTimestampTrusted: Boolean,
+        syncSessionStartedAtMs: Long,
     ): EpisodeAccess? {
         val localSeekMs = local?.seek ?: 0L
+        val localLastAccessMs = local?.lastAccessRaw ?: 0L
 
         // If remote has no meaningful data and local exists - keep local.
-        if (!remoteIsWatched && remoteSeekMs <= 0L && local != null) {
+        if (!remoteIsWatched && remoteSeekMs <= 0L) {
+            logMergeDecision(
+                episodeId = episodeId,
+                local = local,
+                remoteSeekMs = remoteSeekMs,
+                remoteIsWatched = remoteIsWatched,
+                remoteLastAccessMs = remoteLastAccessMs,
+                remoteTimestampTrusted = remoteTimestampTrusted,
+                winner = if (local == null) "skip" else "local",
+                reason = "remote_empty_progress",
+            )
+            return local
+        }
+
+        if (local != null && localLastAccessMs > syncSessionStartedAtMs) {
+            logMergeDecision(
+                episodeId = episodeId,
+                local = local,
+                remoteSeekMs = remoteSeekMs,
+                remoteIsWatched = remoteIsWatched,
+                remoteLastAccessMs = remoteLastAccessMs,
+                remoteTimestampTrusted = remoteTimestampTrusted,
+                winner = "local",
+                reason = "local_modified_after_sync_start",
+            )
+            return local
+        }
+
+        if (
+            local != null &&
+            localLastAccessMs > 0L &&
+            remoteTimestampTrusted &&
+            remoteLastAccessMs != null &&
+            remoteLastAccessMs + REMOTE_TIMESTAMP_DRIFT_TOLERANCE_MS < localLastAccessMs
+        ) {
+            logMergeDecision(
+                episodeId = episodeId,
+                local = local,
+                remoteSeekMs = remoteSeekMs,
+                remoteIsWatched = remoteIsWatched,
+                remoteLastAccessMs = remoteLastAccessMs,
+                remoteTimestampTrusted = true,
+                winner = "local",
+                reason = "remote_timestamp_older_than_local",
+            )
             return local
         }
 
@@ -323,24 +413,51 @@ class UserViewsSyncInteractor @Inject constructor(
             else -> remoteComparable > localComparable + MIN_PROGRESS_DELTA_MS
         }
 
-        if (!remoteBetter) return local
+        if (!remoteBetter) {
+            logMergeDecision(
+                episodeId = episodeId,
+                local = local,
+                remoteSeekMs = remoteSeekMs,
+                remoteIsWatched = remoteIsWatched,
+                remoteLastAccessMs = remoteLastAccessMs,
+                remoteTimestampTrusted = remoteTimestampTrusted,
+                winner = if (local == null) "skip" else "local",
+                reason = "progress_not_better",
+            )
+            return local
+        }
 
         val mergedSeekMs = when {
             remoteIsWatched && durationMs != null && durationMs > 0L -> durationMs
             else -> maxOf(localSeekMs, remoteSeekMs)
         }
 
-        val mergedLastAccess = maxOf(
-            local?.lastAccessRaw ?: 0L,
-            remoteLastAccessMs ?: System.currentTimeMillis(),
-        )
+        val remoteFreshnessMs = when {
+            remoteTimestampTrusted && remoteLastAccessMs != null -> remoteLastAccessMs
+            local != null -> localLastAccessMs
+            else -> syncSessionStartedAtMs
+        }
+        val mergedLastAccess = maxOf(localLastAccessMs, remoteFreshnessMs)
 
-        return EpisodeAccess(
+        val merged = EpisodeAccess(
             id = episodeId,
             seek = mergedSeekMs,
             isViewed = true,
             lastAccess = mergedLastAccess,
         )
+
+        logMergeDecision(
+            episodeId = episodeId,
+            local = local,
+            remoteSeekMs = remoteSeekMs,
+            remoteIsWatched = remoteIsWatched,
+            remoteLastAccessMs = remoteLastAccessMs,
+            remoteTimestampTrusted = remoteTimestampTrusted,
+            winner = "remote",
+            reason = "remote_progress_selected",
+        )
+
+        return merged
     }
 
     private suspend fun loadHistoryPages(
@@ -536,13 +653,48 @@ class UserViewsSyncInteractor @Inject constructor(
         // Thread-safe approach: create new formatter per call.
         SIMPLE_DATE_PATTERNS.forEach { pattern ->
             val formatter = SimpleDateFormat(pattern, Locale.US).apply {
-                isLenient = true
+                isLenient = false
             }
             runCatching { formatter.parse(value)?.time }
                 .getOrNull()
                 ?.let { return it }
         }
         return null
+    }
+
+    private fun extractRemoteTimestamp(item: AniLibertyUserViewHistoryItem): RemoteTimestampInfo {
+        parseTimestampMs(item.updatedAt)?.let {
+            return RemoteTimestampInfo(lastAccessMs = it, isTrusted = true)
+        }
+        parseTimestampMs(item.createdAt)?.let {
+            return RemoteTimestampInfo(lastAccessMs = it, isTrusted = true)
+        }
+        return RemoteTimestampInfo(lastAccessMs = null, isTrusted = false)
+    }
+
+    private fun logMergeDecision(
+        episodeId: EpisodeId,
+        local: EpisodeAccess?,
+        remoteSeekMs: Long,
+        remoteIsWatched: Boolean,
+        remoteLastAccessMs: Long?,
+        remoteTimestampTrusted: Boolean,
+        winner: String,
+        reason: String,
+    ) {
+        Timber.d(
+            "UserViewsSync.merge episodeId=%s localSeekMs=%d remoteSeekMs=%d localViewed=%s remoteViewed=%s localLastAccessMs=%d remoteLastAccessMs=%d remoteTimestampTrusted=%s winner=%s reason=%s",
+            episodeId,
+            local?.seek ?: 0L,
+            remoteSeekMs,
+            local?.isViewed == true,
+            remoteIsWatched,
+            local?.lastAccessRaw ?: 0L,
+            remoteLastAccessMs ?: -1L,
+            remoteTimestampTrusted,
+            winner,
+            reason,
+        )
     }
 
     private fun normalizeIso8601ForSdf(value: String): String {
@@ -601,6 +753,11 @@ class UserViewsSyncInteractor @Inject constructor(
         val isWatched: Boolean,
     )
 
+    private data class RemoteTimestampInfo(
+        val lastAccessMs: Long?,
+        val isTrusted: Boolean,
+    )
+
     private data class JavaTimeInstantParser(
         val parseMethod: java.lang.reflect.Method,
         val toEpochMilliMethod: java.lang.reflect.Method,
@@ -621,6 +778,7 @@ class UserViewsSyncInteractor @Inject constructor(
         private const val MIN_UPLOAD_POSITION_MS = 5_000L
         private const val MIN_IMPORT_POSITION_MS = 5_000L
         private const val MIN_PROGRESS_DELTA_MS = 1_000L
+        private const val REMOTE_TIMESTAMP_DRIFT_TOLERANCE_MS = 5_000L
 
         private const val WATCHED_TOLERANCE_PERCENT = 0.03
         private const val WATCHED_TOLERANCE_MIN_MS = 5_000L

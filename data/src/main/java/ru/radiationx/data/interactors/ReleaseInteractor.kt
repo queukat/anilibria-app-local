@@ -151,7 +151,7 @@ class ReleaseInteractor @Inject constructor(
         updateEpisode(id) {
             it.copy(
                 seek = seek,
-                lastAccess = System.currentTimeMillis(),
+                lastAccess = maxOf(it.lastAccessRaw, System.currentTimeMillis()),
                 isViewed = true
             )
         }

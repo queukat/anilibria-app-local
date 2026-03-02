@@ -1,0 +1,12 @@
+[
+  {
+    "release_episode_id": "episode-1",
+    "time": 120.5,
+    "is_watched": false
+  },
+  {
+    "release_episode_id": "episode-2",
+    "time": 1440.0,
+    "is_watched": true
+  }
+]

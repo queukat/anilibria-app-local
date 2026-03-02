@@ -181,7 +181,7 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
                 _cardsData.value = if (hasMoreCards(newCards, currentCards)) {
                     currentCards + loadMoreCard
                 } else {
-                    currentCards
+                    currentCards.toList()
                 }
             }.onFailure { error ->
                 Timber.e(error)
