@@ -2,6 +2,7 @@ package ru.radiationx.anilibria.screen.player.episodes
 
 import androidx.lifecycle.viewModelScope
 import com.github.terrakok.cicerone.Router
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +26,7 @@ import ru.radiationx.shared.ktx.asTimeSecString
 import java.util.Date
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PlayerEpisodesViewModel @Inject constructor(
     private val argExtra: PlayerExtra,
     private val releaseInteractor: ReleaseInteractor,

@@ -1,6 +1,7 @@
 package ru.radiationx.shared_app.controllers.loadersearch
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.onEach
 import ru.radiationx.shared_app.controllers.loadersingle.SingleLoader
 import ru.radiationx.shared_app.controllers.loadersingle.SingleLoaderState
 
+@OptIn(FlowPreview::class)
 class SearchLoader<QUERY : SearchQuery, DATA>(
     private val coroutineScope: CoroutineScope,
     private val dataSource: suspend (QUERY) -> DATA
@@ -70,4 +72,3 @@ fun <T> StringSearchLoader(
     coroutineScope: CoroutineScope,
     dataSource: suspend (StringQuery) -> T
 ) = SearchLoader(coroutineScope, dataSource)
-

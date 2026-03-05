@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.resetMain
@@ -41,7 +42,8 @@ import ru.radiationx.data.entity.response.PaginatedResponse
 @OptIn(ExperimentalCoroutinesApi::class)
 class WatchingRowsSeparationTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private val sharedScheduler = TestCoroutineScheduler()
+    private val testDispatcher = UnconfinedTestDispatcher(sharedScheduler)
 
     @Before
     fun setUp() {
