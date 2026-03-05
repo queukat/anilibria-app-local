@@ -32,6 +32,8 @@ android {
 
     compileSdk = app_compile_sdk_version
     def androidUserHome = System.getenv("ANDROID_USER_HOME") ?: "${System.getProperty("user.home")}/.android"
+    def debugStoreFile = file("${androidUserHome}/debug.keystore")
+    def hasDebugSigning = debugStoreFile.exists()
 
     def releaseStoreFile = resolveSigningProperty(project, "RELEASE_STORE_FILE")
     def releaseStorePassword = resolveSigningProperty(project, "RELEASE_STORE_PASSWORD")
@@ -56,11 +58,13 @@ android {
     }
 
     signingConfigs {
-        debug {
-            storeFile = file("${androidUserHome}/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+        if (hasDebugSigning) {
+            debug {
+                storeFile = debugStoreFile
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
         }
         if (hasReleaseSigning) {
             release {
@@ -74,7 +78,9 @@ android {
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.debug
+            if (hasDebugSigning) {
+                signingConfig = signingConfigs.debug
+            }
         }
         release {
             if (hasReleaseSigning) {
@@ -96,6 +102,12 @@ android {
 
     lint {
         baseline = file("lint-baseline.xml")
+    }
+
+    packaging {
+        jniLibs {
+            keepDebugSymbols += ["**/libconscrypt_jni.so"]
+        }
     }
 
     testOptions {

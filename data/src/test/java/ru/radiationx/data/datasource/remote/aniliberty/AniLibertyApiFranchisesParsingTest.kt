@@ -5,7 +5,6 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.Response
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import ru.radiationx.data.datasource.remote.IClient
 import ru.radiationx.data.datasource.remote.NetworkResponse
@@ -50,7 +49,7 @@ class AniLibertyApiFranchisesParsingTest {
         val result = api.getFranchises(fields = null)
 
         assertEquals(1, result.size)
-        assertTrue(result.first() is AniLibertyFranchise)
+        assertEquals("franchise-1", result.first().id)
     }
 }
 

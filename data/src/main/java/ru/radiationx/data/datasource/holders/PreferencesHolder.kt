@@ -2,6 +2,7 @@ package ru.radiationx.data.datasource.holders
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +44,7 @@ interface PreferencesHolder {
 
 }
 
+@OptIn(ExperimentalForInheritanceCoroutinesApi::class)
 class AppPreference<T>(
     private val key: String,
     private val sharedPreferences: SharedPreferences,

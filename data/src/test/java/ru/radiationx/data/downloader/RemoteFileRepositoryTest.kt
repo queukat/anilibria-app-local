@@ -5,6 +5,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlin.io.path.createTempDirectory
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
@@ -21,7 +22,7 @@ class RemoteFileRepositoryTest {
 
     @Test
     fun loadFile_emitsProgressAndCompletionEvents() = runBlocking {
-        val tempDir = createTempDir(prefix = "remote-file-test")
+        val tempDir = createTempDirectory(prefix = "remote-file-test").toFile()
         val context = mockk<Context>()
         every { context.cacheDir } returns tempDir
 

@@ -58,7 +58,10 @@ class UserStorage @Inject constructor(
                 .getString(KEY_SAVED_USER, null)
                 ?.let { JSONObject(it) }
                 ?.let { userJson ->
-                    val rawAvatar = userJson.optString("avatar", null)
+                    val rawAvatar = userJson
+                        .opt("avatar")
+                        ?.takeUnless { it == JSONObject.NULL }
+                        ?.toString()
                     val avatarUrl = rawAvatar
                         ?.takeUnless { it.isBlank() || it.equals("null", ignoreCase = true) }
 
