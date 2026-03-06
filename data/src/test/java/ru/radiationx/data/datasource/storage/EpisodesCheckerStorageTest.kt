@@ -4,11 +4,13 @@ import android.content.SharedPreferences
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
@@ -144,6 +146,7 @@ class EpisodesCheckerStorageTest {
             )
         )
 
+        waitUntil { prefs.applyThreadNames.isNotEmpty() }
         assertTrue("Expected at least one SharedPreferences.apply call", prefs.applyThreadNames.isNotEmpty())
         assertTrue(
             "saveAll must run on IO/background dispatcher",
@@ -179,13 +182,38 @@ class EpisodesCheckerStorageTest {
         )
     }
 
+    @Test
+    fun rapidPutEpisode_coalescesSingleItemWrites() = runBlocking {
+        val prefs = EpisodesInMemorySharedPreferences()
+        val storage = createStorage(sharedPreferences = prefs)
+        val episodeId = EpisodeId(id = "11", releaseId = ReleaseId(11))
+
+        storage.putEpisode(EpisodeAccess(episodeId, seek = 1_000L, isViewed = true, lastAccess = 1L))
+        storage.putEpisode(EpisodeAccess(episodeId, seek = 2_000L, isViewed = true, lastAccess = 2L))
+        storage.putEpisode(EpisodeAccess(episodeId, seek = 3_000L, isViewed = true, lastAccess = 3L))
+
+        waitUntil { prefs.applyCount == 1 }
+
+        assertEquals(1, prefs.applyCount)
+        assertEquals(3_000L, storage.getEpisode(episodeId)?.seek)
+    }
+
     private fun createStorage(
         sharedPreferences: SharedPreferences = EpisodesInMemorySharedPreferences(),
     ): EpisodesCheckerStorage {
         return EpisodesCheckerStorage(
             sharedPreferences = sharedPreferences,
             moshi = Moshi.Builder().build(),
+            applicationScope = ApplicationCoroutineScope(),
         )
+    }
+
+    private suspend fun waitUntil(predicate: () -> Boolean) {
+        repeat(100) {
+            if (predicate()) return
+            delay(25)
+        }
+        error("Condition was not met in time")
     }
 }
 

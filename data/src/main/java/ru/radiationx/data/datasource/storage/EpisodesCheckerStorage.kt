@@ -4,7 +4,10 @@ import android.content.SharedPreferences
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -18,6 +21,7 @@ import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.mapper.toDb
 import ru.radiationx.data.entity.mapper.toDomain
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -27,6 +31,7 @@ import javax.inject.Inject
 class EpisodesCheckerStorage @Inject constructor(
     @DataPreferences private val sharedPreferences: SharedPreferences,
     private val moshi: Moshi,
+    private val applicationScope: ApplicationCoroutineScope = ApplicationCoroutineScope(),
 ) : EpisodesCheckerHolder {
 
     companion object {
@@ -34,6 +39,7 @@ class EpisodesCheckerStorage @Inject constructor(
         private const val LOCAL_EPISODES_KEY = "data.local_episodes_v2"
         private const val MIN_PROGRESS_DELTA_MS = 1_000L
         private const val BULK_SAVE_MIN_INTERVAL_MS = 750L
+        private const val SINGLE_SAVE_DEBOUNCE_MS = 500L
     }
 
     private val legacyDataAdapter by lazy {
@@ -50,6 +56,7 @@ class EpisodesCheckerStorage @Inject constructor(
         loadAll()
     }
     private val writeMutex = Mutex()
+    private var pendingSaveJob: Job? = null
 
     override fun observeEpisodes(): Flow<List<EpisodeAccess>> =
         localEpisodesRelay
@@ -76,9 +83,9 @@ class EpisodesCheckerStorage @Inject constructor(
                 mutableLocalEpisodes
             }
 
-            saveAll()
+            scheduleDeferredSaveLocked("putEpisode")
             Timber.d(
-                "EpisodesCheckerStorage.write op=putEpisode episodeId=%s seekMs=%d isViewed=%s lastAccessMs=%d replaced=%s total=%d",
+                "EpisodesCheckerStorage.write op=putEpisode episodeId=%s seekMs=%d isViewed=%s lastAccessMs=%d replaced=%s total=%d persist=deferred",
                 episode.id.toString(),
                 episode.seek,
                 episode.isViewed,
@@ -160,6 +167,7 @@ class EpisodesCheckerStorage @Inject constructor(
             val finalSnapshot = mergedByEpisodeId.values.toList()
             localEpisodesRelay.setValue(finalSnapshot)
 
+            cancelPendingSaveLocked()
             val finalSaveStartedAtMs = nowMs()
             saveAll(finalSnapshot)
             val finalSaveDurationMs = nowMs() - finalSaveStartedAtMs
@@ -205,9 +213,9 @@ class EpisodesCheckerStorage @Inject constructor(
                 mutableLocalEpisodes
             }
 
-            saveAll()
+            scheduleDeferredSaveLocked("remove")
             Timber.d(
-                "EpisodesCheckerStorage.write op=remove releaseId=%s removed=%d total=%d",
+                "EpisodesCheckerStorage.write op=remove releaseId=%s removed=%d total=%d persist=deferred",
                 releaseId.id,
                 removedCount,
                 totalCount,
@@ -246,6 +254,34 @@ class EpisodesCheckerStorage @Inject constructor(
 
     private suspend fun saveAll() {
         saveAll(localEpisodesRelay.getValue())
+    }
+
+    private fun scheduleDeferredSaveLocked(reason: String) {
+        pendingSaveJob?.cancel()
+        pendingSaveJob = applicationScope.launch {
+            delay(SINGLE_SAVE_DEBOUNCE_MS)
+            flushDeferredSave(reason)
+        }
+    }
+
+    private fun cancelPendingSaveLocked() {
+        pendingSaveJob?.cancel()
+        pendingSaveJob = null
+    }
+
+    private suspend fun flushDeferredSave(reason: String) {
+        writeMutex.withLock {
+            pendingSaveJob = null
+            val snapshot = localEpisodesRelay.getValue()
+            val saveStartedAtMs = nowMs()
+            saveAll(snapshot)
+            Timber.d(
+                "EpisodesCheckerStorage.write op=flush reason=%s total=%d saveDurationMs=%d",
+                reason,
+                snapshot.size,
+                nowMs() - saveStartedAtMs,
+            )
+        }
     }
 
     private suspend fun saveAll(episodes: List<EpisodeAccess>) {

@@ -1,6 +1,7 @@
 package ru.radiationx.anilibria.screen.watching
 
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.FlowPreview
 import ru.radiationx.anilibria.common.AniLibertyViewHistoryCardMapper
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
@@ -12,9 +13,11 @@ import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.repository.HistoryRepository
 import ru.radiationx.data.repository.UserViewsRepository
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -24,9 +27,11 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
+@OptIn(FlowPreview::class)
 class WatchingContinueViewModel @Inject constructor(
     private val converter: CardsDataConverter,
     private val releaseInteractor: ReleaseInteractor,
+    authRepository: AuthRepository,
     private val historyRepository: HistoryRepository,
     private val episodesCheckerHolder: EpisodesCheckerHolder,
     private val userViewsRepository: UserViewsRepository,
@@ -37,20 +42,24 @@ class WatchingContinueViewModel @Inject constructor(
 
     private var remoteMode: Boolean = true
     private var pagingState = PagingState(page = firstPage - 1)
-    private val localProgressReleaseIds = MutableStateFlow<Set<Int>>(emptySet())
+    private val autoRefreshSignals = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     init {
+        autoRefreshSignals
+            .debounce(AUTO_REFRESH_DEBOUNCE_MS)
+            .onEach { refreshFromAutoSignal() }
+            .launchIn(viewModelScope)
+
+        authRepository
+            .observeAuthState()
+            .distinctUntilChanged()
+            .onEach { requestAutoRefresh() }
+            .launchIn(viewModelScope)
+
         episodesCheckerHolder.observeEpisodes()
             .map(::toLocalProgressState)
             .distinctUntilChanged()
-            .onEach { state ->
-                val hadLocalProgress = localProgressReleaseIds.value.isNotEmpty()
-                localProgressReleaseIds.value = state.releaseIds
-                if (hadLocalProgress && state.releaseIds.isEmpty()) {
-                    _cardsData.value = emptyList()
-                }
-                onRefreshClick()
-            }
+            .onEach { requestAutoRefresh() }
             .launchIn(viewModelScope)
     }
 
@@ -91,14 +100,11 @@ class WatchingContinueViewModel @Inject constructor(
             val localState = toLocalProgressState(episodesCheckerHolder.getEpisodes())
 
             if (remoteMode) {
-                val response = userViewsRepository.getViewsHistory(
-                    page = requestPage,
-                    limit = REMOTE_PAGE_LIMIT,
-                )
-                val remoteCards = mapRemoteContinue(
-                    response = response,
+                val remoteBatch = loadRemoteContinueBatch(
+                    startPage = requestPage,
                     localState = localState,
                 )
+                val remoteCards = remoteBatch.cards
 
                 // remote пустой — на первой странице попробуем local (на сервере может не быть данных)
                 if (remoteCards.isEmpty() && requestPage == firstPage) {
@@ -116,8 +122,8 @@ class WatchingContinueViewModel @Inject constructor(
                 val allItems = if (requestPage == firstPage) remoteCards else pagingState.items + remoteCards
                 pagingState = pagingState.copy(
                     items = allItems,
-                    page = requestPage,
-                    hasMore = hasMoreResponse(response),
+                    page = remoteBatch.lastLoadedPage,
+                    hasMore = remoteBatch.hasMore,
                     error = null,
                 )
                 return remoteCards
@@ -180,11 +186,19 @@ class WatchingContinueViewModel @Inject constructor(
         cardRouter.navigate(card)
     }
 
+    private fun requestAutoRefresh() {
+        autoRefreshSignals.tryEmit(Unit)
+    }
+
+    private fun refreshFromAutoSignal() {
+        onRefreshClick()
+    }
+
     private suspend fun mapRemoteContinue(
         response: PaginatedResponse<UserViewHistoryItem>,
         localState: LocalProgressState,
+        usedReleaseIds: MutableSet<Int>,
     ): List<LibriaCard> {
-        val usedReleaseIds = mutableSetOf<Int>()
         val result = mutableListOf<LibriaCard>()
 
         response.data.forEach { item ->
@@ -192,7 +206,7 @@ class WatchingContinueViewModel @Inject constructor(
 
             val card = AniLibertyViewHistoryCardMapper.toContinueCardOrNull(item) ?: return@forEach
             val releaseId = (card.type as? LibriaCard.Type.Release)?.releaseId?.id
-            if (releaseId == null || !usedReleaseIds.add(releaseId) || !localState.releaseIds.contains(releaseId)) {
+            if (releaseId == null || !usedReleaseIds.add(releaseId)) {
                 return@forEach
             }
 
@@ -205,6 +219,48 @@ class WatchingContinueViewModel @Inject constructor(
         }
 
         return result
+    }
+
+    private suspend fun loadRemoteContinueBatch(
+        startPage: Int,
+        localState: LocalProgressState,
+    ): RemoteContinueBatch {
+        val cards = mutableListOf<LibriaCard>()
+        val usedReleaseIds = pagingState.items
+            .mapNotNullTo(mutableSetOf()) { card ->
+                (card.type as? LibriaCard.Type.Release)?.releaseId?.id
+            }
+
+        var page = startPage
+        var lastLoadedPage = startPage
+        var hasMore = false
+
+        while (true) {
+            val response = userViewsRepository.getViewsHistory(
+                page = page,
+                limit = REMOTE_PAGE_LIMIT,
+            )
+            lastLoadedPage = response.meta.page ?: page
+            hasMore = hasMoreResponse(response)
+
+            cards += mapRemoteContinue(
+                response = response,
+                localState = localState,
+                usedReleaseIds = usedReleaseIds,
+            )
+
+            if (cards.size >= MIN_REMOTE_BATCH_CARDS || !hasMore) {
+                break
+            }
+
+            page = lastLoadedPage + 1
+        }
+
+        return RemoteContinueBatch(
+            cards = cards,
+            lastLoadedPage = lastLoadedPage,
+            hasMore = hasMore,
+        )
     }
 
     private fun toLocalProgressState(
@@ -308,20 +364,20 @@ class WatchingContinueViewModel @Inject constructor(
     }
 
     private fun hasMoreResponse(response: PaginatedResponse<*>): Boolean {
-        val limit = response.meta.perPage?.takeIf { it > 0 } ?: REMOTE_PAGE_LIMIT
-        if (response.data.isEmpty()) return false
-        if (response.data.size < limit) return false
-
         val page = response.meta.page
         val allPages = response.meta.allPages
         if (page != null && allPages != null) {
             return page < allPages
         }
-        return true
+
+        val limit = response.meta.perPage?.takeIf { it > 0 } ?: REMOTE_PAGE_LIMIT
+        return response.data.isNotEmpty() && response.data.size >= limit
     }
 
     companion object {
         private const val REMOTE_PAGE_LIMIT = 50
+        private const val MIN_REMOTE_BATCH_CARDS = 10
+        private const val AUTO_REFRESH_DEBOUNCE_MS = 250L
     }
 
     private data class PagingState(
@@ -335,5 +391,11 @@ class WatchingContinueViewModel @Inject constructor(
     private data class LocalProgressState(
         val releaseIds: Set<Int>,
         val latestByRelease: Map<Int, EpisodeAccess>,
+    )
+
+    private data class RemoteContinueBatch(
+        val cards: List<LibriaCard>,
+        val lastLoadedPage: Int,
+        val hasMore: Boolean,
     )
 }

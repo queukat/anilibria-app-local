@@ -16,7 +16,6 @@ import ru.radiationx.anilibria.screen.MainPagesScreen
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.types.ReleaseId
-import ru.radiationx.data.interactors.UserViewsSyncInteractor
 import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.system.AndroidTestMode
 import ru.radiationx.shared.ktx.coRunCatching
@@ -27,7 +26,6 @@ class AppLauncherViewModel @Inject constructor(
     private val apiConfig: ApiConfig,
     private val router: Router,
     private val authRepository: AuthRepository,
-    private val userViewsSyncInteractor: UserViewsSyncInteractor,
 ) : LifecycleViewModel() {
 
     sealed interface AppLauncherCommand {
@@ -75,21 +73,6 @@ class AppLauncherViewModel @Inject constructor(
 
     private fun initMain() {
         firstLaunch = false
-
-        // Автосинхронизация прогресса при появлении авторизации:
-        // - при обновлении приложения (локальная база уже есть, сервер пустой)
-        // - при логине в рамках текущей сессии
-        authRepository
-            .observeAuthState()
-            .distinctUntilChanged()
-            .onEach { state ->
-                if (state == AuthState.AUTH) {
-                    viewModelScope.launch {
-                        userViewsSyncInteractor.syncIfNeeded()
-                    }
-                }
-            }
-            .launchIn(viewModelScope)
 
         viewModelScope.launch {
             router.newRootScreen(MainPagesScreen())

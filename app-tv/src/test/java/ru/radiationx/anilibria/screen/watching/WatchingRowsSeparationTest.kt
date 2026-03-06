@@ -1,6 +1,7 @@
 package ru.radiationx.anilibria.screen.watching
 
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -9,6 +10,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -25,6 +28,7 @@ import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.data.datasource.holders.EpisodesCheckerHolder
+import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.HistoryReleases
 import ru.radiationx.data.entity.domain.release.BlockedInfo
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
@@ -35,6 +39,7 @@ import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseCode
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.repository.HistoryRepository
 import ru.radiationx.data.repository.UserViewsRepository
 import ru.radiationx.data.entity.response.PaginatedResponse
@@ -56,7 +61,9 @@ class WatchingRowsSeparationTest {
     }
 
     @Test
-    fun clearWatchProgress_removesContinueButKeepsOpenedHistory() = runBlocking {
+    fun clearWatchProgress_removesContinueButKeepsOpenedHistory() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 42)
         val card = LibriaCard(
             title = "Release 42",
@@ -96,29 +103,30 @@ class WatchingRowsSeparationTest {
 
         val userViewsRepository = mockk<UserViewsRepository>()
         coEvery { userViewsRepository.getViewsHistory(any(), any()) } throws RuntimeException("offline")
+        val authRepository = mockAuthRepository(AuthState.NO_AUTH)
 
         val continueVm = WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
+            authRepository = authRepository,
             historyRepository = historyRepository,
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
         val historyVm = WatchingHistoryViewModel(
             converter = converter,
+            authRepository = authRepository,
             historyRepository = historyRepository,
+            userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        historyVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
         historyVm.onRefreshClick()
-        waitUntil {
-            continueVm.cardsData.value.isNotEmpty() &&
-                historyVm.cardsData.value.isNotEmpty() &&
-                continueVm.cardsData.value.none { it is LoadingCard } &&
-                historyVm.cardsData.value.none { it is LoadingCard }
-        }
+        advanceUntilIdle()
 
         assertTrue(continueVm.cardsData.value.isNotEmpty())
         assertTrue(historyVm.cardsData.value.isNotEmpty())
@@ -128,18 +136,15 @@ class WatchingRowsSeparationTest {
         coEvery { releaseInteractor.getAccesses(release.id) } returns emptyList()
 
         historyVm.onRefreshClick()
-        waitUntil {
-            continueVm.cardsData.value.isEmpty() &&
-                historyVm.cardsData.value.isNotEmpty() &&
-                historyVm.cardsData.value.none { it is LoadingCard }
-        }
+        advanceTimeBy(300)
+        advanceUntilIdle()
 
         assertTrue("Continue must be empty after clearing watch progress", continueVm.cardsData.value.isEmpty())
         assertTrue("Opened history must remain after clearing watch progress", historyVm.cardsData.value.isNotEmpty())
     }
 
     @Test
-    fun clearWatchProgress_removesRemoteContinueItem() = runTest {
+    fun clearWatchProgress_keepsRemoteContinueItem() = runTest {
         val deterministicDispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 51)
@@ -197,10 +202,12 @@ class WatchingRowsSeparationTest {
                 meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
             )
         }
+        val authRepository = mockAuthRepository(AuthState.AUTH)
 
         val continueVm = WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
+            authRepository = authRepository,
             historyRepository = historyRepository,
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
@@ -218,7 +225,7 @@ class WatchingRowsSeparationTest {
         continueVm.onRefreshClick()
         advanceUntilIdle()
 
-        assertTrue("Continue should disappear when watch progress cleared even if remote still returns item", continueVm.cardsData.value.isEmpty())
+        assertTrue("Continue should keep remote item when local watch progress is cleared", continueVm.cardsData.value.isNotEmpty())
     }
 
     @Test
@@ -239,20 +246,21 @@ class WatchingRowsSeparationTest {
         val historyRepository = mockk<HistoryRepository>()
         coEvery { historyRepository.getReleases(any()) } answers { openedHistoryFlow.value }
         every { historyRepository.observeReleases(any()) } returns openedHistoryFlow
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } throws RuntimeException("offline")
+        val authRepository = mockAuthRepository(AuthState.NO_AUTH)
 
         val historyVm = WatchingHistoryViewModel(
             converter = converter,
+            authRepository = authRepository,
             historyRepository = historyRepository,
+            userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
 
-        historyVm.onRefreshClick()
-        waitUntil {
-            historyVm.cardsData.value.isEmpty()
-        }
-
         // Simulate "open" action by writing card id into opened history storage.
         openedHistoryFlow.value = HistoryReleases(listOf(release), 1)
+        historyVm.onRefreshClick()
 
         waitUntil {
             historyVm.cardsData.value.isNotEmpty() &&
@@ -267,7 +275,7 @@ class WatchingRowsSeparationTest {
     }
 
     @Test
-    fun remoteContinueItemDisappearsAfterWatchProgressClearAndVmRecreate() = runTest {
+    fun remoteContinueItemRemainsAfterWatchProgressClearAndVmRecreate() = runTest {
         val deterministicDispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 77)
@@ -318,10 +326,12 @@ class WatchingRowsSeparationTest {
                 meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
             )
         }
+        val authRepository = mockAuthRepository(AuthState.AUTH)
 
         val continueVmFirst = WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
+            authRepository = authRepository,
             historyRepository = historyRepository,
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
@@ -336,11 +346,12 @@ class WatchingRowsSeparationTest {
         episodesHolder.setEpisodes(emptyList())
         continueVmFirst.onRefreshClick()
         advanceUntilIdle()
-        assertTrue("First VM should clear continue items after watch progress clear", continueVmFirst.cardsData.value.isEmpty())
+        assertTrue("First VM should keep remote continue items after watch progress clear", continueVmFirst.cardsData.value.isNotEmpty())
 
         val continueVmSecond = WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
+            authRepository = authRepository,
             historyRepository = historyRepository,
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
@@ -351,7 +362,7 @@ class WatchingRowsSeparationTest {
         continueVmSecond.onRefreshClick()
         advanceUntilIdle()
 
-        assertTrue("Continue should stay empty after watch progress clear even after VM recreate", continueVmSecond.cardsData.value.isEmpty())
+        assertTrue("Continue should keep remote items after VM recreate even without local watch progress", continueVmSecond.cardsData.value.isNotEmpty())
     }
 
     @Test
@@ -393,10 +404,12 @@ class WatchingRowsSeparationTest {
                 meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
             )
         }
+        val authRepository = mockAuthRepository(AuthState.AUTH)
 
         val continueVm = WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
+            authRepository = authRepository,
             historyRepository = historyRepository,
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
@@ -457,10 +470,12 @@ class WatchingRowsSeparationTest {
                 meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
             )
         }
+        val authRepository = mockAuthRepository(AuthState.AUTH)
 
         val continueVm = WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
+            authRepository = authRepository,
             historyRepository = historyRepository,
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
@@ -513,10 +528,12 @@ class WatchingRowsSeparationTest {
         val userViewsRepository = mockk<UserViewsRepository>()
         coEvery { userViewsRepository.getViewsHistory(any(), any()) } throws RuntimeException("offline")
         coEvery { userViewsRepository.resolveEpisodeOrdinal(localAccess.id) } returns "9"
+        val authRepository = mockAuthRepository(AuthState.NO_AUTH)
 
         val continueVm = WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
+            authRepository = authRepository,
             historyRepository = historyRepository,
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
@@ -535,6 +552,181 @@ class WatchingRowsSeparationTest {
         assertTrue("Local fallback should use resolved ordinal from UUID", description.contains("серии 9"))
         assertTrue("Local fallback should use playback time", description.contains("1:05"))
         assertFalse("Local fallback should not expose UUID as episode number", description.contains("9fa62e2e-f1aa"))
+    }
+
+    @Test
+    fun remoteHistoryItemAppearsWhenLocalHistoryIsEmpty() = runBlocking {
+        val release = release(id = 123)
+        val historyRepository = mockk<HistoryRepository>()
+        coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(emptyList(), 0)
+        every { historyRepository.observeReleases(any()) } returns MutableStateFlow(HistoryReleases(emptyList(), 0))
+
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } returns PaginatedResponse(
+            data = listOf(
+                UserViewHistoryItem(
+                    releaseId = release.id,
+                    titleMain = release.names.first(),
+                    titleEnglish = null,
+                    titleAlternative = null,
+                    posterPreview = "/covers/test.jpg",
+                    posterThumbnail = null,
+                    episodeOrdinal = 4.0,
+                    timeSeconds = 120.0,
+                    isWatched = true,
+                )
+            ),
+            meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
+        )
+        val authRepository = mockAuthRepository(AuthState.AUTH)
+
+        val historyVm = WatchingHistoryViewModel(
+            converter = mockk<CardsDataConverter>(relaxed = true),
+            authRepository = authRepository,
+            historyRepository = historyRepository,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        historyVm.onRefreshClick()
+        waitUntil {
+            historyVm.cardsData.value.isNotEmpty() &&
+                historyVm.cardsData.value.none { it is LoadingCard }
+        }
+
+        assertTrue("History should show remote AniLiberty item when local history is empty", historyVm.cardsData.value.isNotEmpty())
+    }
+
+    @Test
+    fun remoteContinueLoadsNextPagesUntilAtLeastTenCards() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
+
+        val episodesHolder = FakeEpisodesCheckerHolder(emptyList())
+        val historyRepository = mockk<HistoryRepository>()
+        coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(emptyList(), 0)
+        every { historyRepository.observeReleases(any()) } returns MutableStateFlow(HistoryReleases(emptyList(), 0))
+
+        val releaseInteractor = mockk<ReleaseInteractor>()
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } answers {
+            val page = firstArg<Int>()
+            when (page) {
+                1 -> PaginatedResponse(
+                    data = (1..3).map { idx ->
+                        UserViewHistoryItem(
+                            releaseId = ReleaseId(idx),
+                            titleMain = "Release $idx",
+                            titleEnglish = null,
+                            titleAlternative = null,
+                            posterPreview = null,
+                            posterThumbnail = null,
+                            episodeOrdinal = idx.toDouble(),
+                            timeSeconds = 60.0,
+                            isWatched = false,
+                        )
+                    },
+                    meta = PaginatedResponse.PaginationResponse(1, 2, 50, 12),
+                )
+
+                2 -> PaginatedResponse(
+                    data = (4..12).map { idx ->
+                        UserViewHistoryItem(
+                            releaseId = ReleaseId(idx),
+                            titleMain = "Release $idx",
+                            titleEnglish = null,
+                            titleAlternative = null,
+                            posterPreview = null,
+                            posterThumbnail = null,
+                            episodeOrdinal = idx.toDouble(),
+                            timeSeconds = 60.0,
+                            isWatched = false,
+                        )
+                    },
+                    meta = PaginatedResponse.PaginationResponse(2, 2, 50, 12),
+                )
+
+                else -> error("Unexpected page $page")
+            }
+        }
+        val authRepository = mockAuthRepository(AuthState.AUTH)
+
+        val continueVm = WatchingContinueViewModel(
+            converter = mockk<CardsDataConverter>(relaxed = true),
+            releaseInteractor = releaseInteractor,
+            authRepository = authRepository,
+            historyRepository = historyRepository,
+            episodesCheckerHolder = episodesHolder,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+        continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
+
+        continueVm.onRefreshClick()
+        advanceUntilIdle()
+
+        assertTrue(
+            "Continue should aggregate pages until at least ten cards are collected",
+            continueVm.cardsData.value.count { it is LibriaCard } >= 10
+        )
+        coVerify(atLeast = 1) { userViewsRepository.getViewsHistory(2, any()) }
+    }
+
+    @Test
+    fun continueAutoRefresh_coalescesRapidSignalsIntoSingleLoad() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
+
+        val authState = MutableStateFlow(AuthState.NO_AUTH)
+        val authRepository = mockk<AuthRepository>()
+        every { authRepository.observeAuthState() } returns authState
+
+        val episodesHolder = FakeEpisodesCheckerHolder(emptyList())
+        val historyRepository = mockk<HistoryRepository>()
+        coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(emptyList(), 0)
+        every { historyRepository.observeReleases(any()) } returns MutableStateFlow(HistoryReleases(emptyList(), 0))
+
+        val releaseInteractor = mockk<ReleaseInteractor>()
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } returns PaginatedResponse(
+            data = emptyList(),
+            meta = PaginatedResponse.PaginationResponse(1, 1, 50, 0),
+        )
+
+        val continueVm = WatchingContinueViewModel(
+            converter = mockk<CardsDataConverter>(relaxed = true),
+            releaseInteractor = releaseInteractor,
+            authRepository = authRepository,
+            historyRepository = historyRepository,
+            episodesCheckerHolder = episodesHolder,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+        continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
+
+        runCurrent()
+        authState.value = AuthState.AUTH
+        episodesHolder.setEpisodes(
+            listOf(
+                EpisodeAccess(
+                    id = EpisodeId("1", ReleaseId(1)),
+                    seek = 10_000,
+                    isViewed = true,
+                    lastAccess = 1_000L,
+                )
+            )
+        )
+
+        advanceTimeBy(300)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { userViewsRepository.getViewsHistory(1, any()) }
+    }
+
+    private fun mockAuthRepository(state: AuthState): AuthRepository {
+        val authRepository = mockk<AuthRepository>()
+        every { authRepository.observeAuthState() } returns MutableStateFlow(state)
+        return authRepository
     }
 
     private suspend fun waitUntil(predicate: () -> Boolean) {

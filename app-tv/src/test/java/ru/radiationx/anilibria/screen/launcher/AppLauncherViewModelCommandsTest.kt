@@ -26,7 +26,6 @@ import org.junit.Test
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.other.ProfileItem
-import ru.radiationx.data.interactors.UserViewsSyncInteractor
 import ru.radiationx.data.repository.AuthRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -91,7 +90,6 @@ class AppLauncherViewModelCommandsTest {
             apiConfig = apiConfig,
             router = router,
             authRepository = authRepository,
-            userViewsSyncInteractor = mockk<UserViewsSyncInteractor>(relaxed = true),
         )
     }
 }
