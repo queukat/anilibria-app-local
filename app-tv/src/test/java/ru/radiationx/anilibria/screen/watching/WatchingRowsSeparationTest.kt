@@ -8,7 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -229,7 +228,9 @@ class WatchingRowsSeparationTest {
     }
 
     @Test
-    fun openedCardAppearsInHistoryAfterClear() = runBlocking {
+    fun openedCardAppearsInHistoryAfterClear() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 99)
         val continueCard = LibriaCard(
             title = "Release 99",
@@ -257,15 +258,12 @@ class WatchingRowsSeparationTest {
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        historyVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         // Simulate "open" action by writing card id into opened history storage.
         openedHistoryFlow.value = HistoryReleases(listOf(release), 1)
         historyVm.onRefreshClick()
-
-        waitUntil {
-            historyVm.cardsData.value.isNotEmpty() &&
-                historyVm.cardsData.value.none { it is LoadingCard }
-        }
+        advanceUntilIdle()
 
         assertTrue("Opened card must appear in history", historyVm.cardsData.value.isNotEmpty())
         assertTrue(
@@ -366,7 +364,9 @@ class WatchingRowsSeparationTest {
     }
 
     @Test
-    fun remoteContinueDescriptionUsesLocalEpisodeAndTimeWhenDifferent() = runBlocking {
+    fun remoteContinueDescriptionUsesLocalEpisodeAndTimeWhenDifferent() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 88)
         val localAccess = EpisodeAccess(
             id = EpisodeId("3", release.id),
@@ -415,12 +415,10 @@ class WatchingRowsSeparationTest {
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
-        waitUntil {
-            continueVm.cardsData.value.isNotEmpty() &&
-                continueVm.cardsData.value.none { it is LoadingCard }
-        }
+        advanceUntilIdle()
 
         val firstCard = continueVm.cardsData.value.first() as LibriaCard
         val description = firstCard.description
@@ -431,7 +429,9 @@ class WatchingRowsSeparationTest {
     }
 
     @Test
-    fun remoteContinueDescriptionResolvesUuidEpisodeIdToOrdinal() = runBlocking {
+    fun remoteContinueDescriptionResolvesUuidEpisodeIdToOrdinal() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 89)
         val localAccess = EpisodeAccess(
             id = EpisodeId("9fa62e2e-f1aa-4e9d-a1f7-123456789abc", release.id),
@@ -481,12 +481,10 @@ class WatchingRowsSeparationTest {
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
-        waitUntil {
-            continueVm.cardsData.value.isNotEmpty() &&
-                continueVm.cardsData.value.none { it is LoadingCard }
-        }
+        advanceUntilIdle()
 
         val firstCard = continueVm.cardsData.value.first() as LibriaCard
         val description = firstCard.description
@@ -497,7 +495,9 @@ class WatchingRowsSeparationTest {
     }
 
     @Test
-    fun localContinueDescriptionResolvesUuidEpisodeIdToOrdinal() = runBlocking {
+    fun localContinueDescriptionResolvesUuidEpisodeIdToOrdinal() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 90)
         val localAccess = EpisodeAccess(
             id = EpisodeId("9fa62e2e-f1aa-4e9d-a1f7-123456789abc", release.id),
@@ -539,12 +539,10 @@ class WatchingRowsSeparationTest {
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
-        waitUntil {
-            continueVm.cardsData.value.isNotEmpty() &&
-                continueVm.cardsData.value.none { it is LoadingCard }
-        }
+        advanceUntilIdle()
 
         val firstCard = continueVm.cardsData.value.first() as LibriaCard
         val description = firstCard.description
@@ -555,7 +553,9 @@ class WatchingRowsSeparationTest {
     }
 
     @Test
-    fun remoteHistoryItemAppearsWhenLocalHistoryIsEmpty() = runBlocking {
+    fun remoteHistoryItemAppearsWhenLocalHistoryIsEmpty() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 123)
         val historyRepository = mockk<HistoryRepository>()
         coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(emptyList(), 0)
@@ -587,12 +587,10 @@ class WatchingRowsSeparationTest {
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        historyVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         historyVm.onRefreshClick()
-        waitUntil {
-            historyVm.cardsData.value.isNotEmpty() &&
-                historyVm.cardsData.value.none { it is LoadingCard }
-        }
+        advanceUntilIdle()
 
         assertTrue("History should show remote AniLiberty item when local history is empty", historyVm.cardsData.value.isNotEmpty())
     }

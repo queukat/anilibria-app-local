@@ -113,6 +113,9 @@ class SuggestionQueryExecutorTest {
             }
 
             waitUntil { calls.get() == 1 }
+            // The first worker call increments `calls` before cache write is committed under lock.
+            // Give the async refresh a moment to publish the cached snapshot before advancing virtual time.
+            Thread.sleep(50L)
             now += 150L
 
             val stale = executor.execute("bleach") {
