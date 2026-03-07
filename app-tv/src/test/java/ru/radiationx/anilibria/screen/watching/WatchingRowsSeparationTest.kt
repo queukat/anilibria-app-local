@@ -15,7 +15,6 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -56,7 +55,7 @@ class WatchingRowsSeparationTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
+        // Watching VMs keep background collectors on Main; resetting it between tests races with those jobs on CI.
     }
 
     @Test
