@@ -6,9 +6,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
+import ru.radiationx.anilibria.common.LinkCard
+import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.data.interactors.tv.TvContentUseCase
 import ru.radiationx.shared.ktx.asDayName
@@ -21,8 +24,8 @@ class ScheduleViewModel @Inject constructor(
     private val cardRouter: LibriaCardRouter,
 ) : LifecycleViewModel() {
 
-    private val _scheduleRows = MutableStateFlow<List<Pair<String, List<LibriaCard>>>>(emptyList())
-    val scheduleRows: StateFlow<List<Pair<String, List<LibriaCard>>>> = _scheduleRows.asStateFlow()
+    private val _scheduleRows = MutableStateFlow<List<Pair<String, List<CardItem>>>>(emptyList())
+    val scheduleRows: StateFlow<List<Pair<String, List<CardItem>>>> = _scheduleRows.asStateFlow()
 
     override fun onColdCreate() {
         super.onColdCreate()
@@ -47,12 +50,12 @@ class ScheduleViewModel @Inject constructor(
 
                 val rows = orderedDays.mapNotNull { day ->
                     val dayReleases = grouped.firstOrNull { it.calendarDay == day }?.releases.orEmpty()
-                    val cards = dayReleases.map { dataConverter.toCard(it) }
+                    val cards: List<CardItem> = dayReleases.map { dataConverter.toCard(it) }
                     if (cards.isEmpty()) return@mapNotNull null
                     day.asDayName() to cards
                 }
 
-                val unknownCards = grouped.firstOrNull { it.calendarDay == null }?.releases
+                val unknownCards: List<CardItem> = grouped.firstOrNull { it.calendarDay == null }?.releases
                     .orEmpty()
                     .map { dataConverter.toCard(it) }
 
@@ -61,11 +64,37 @@ class ScheduleViewModel @Inject constructor(
                 } else {
                     rows
                 }
+            }.onFailure {
+                _scheduleRows.value = errorRows()
             }
         }
     }
 
     fun onCardClick(card: LibriaCard) {
         cardRouter.navigate(card)
+    }
+
+    fun onRetryClick() {
+        loadSchedule()
+    }
+
+    private fun errorRows(): List<Pair<String, List<CardItem>>> {
+        return listOf(
+            ERROR_ROW_TITLE to listOf(
+                LoadingCard(
+                    title = ERROR_CARD_TITLE,
+                    description = ERROR_CARD_DESCRIPTION,
+                    isError = true,
+                ),
+                LinkCard(RETRY_CARD_TITLE),
+            )
+        )
+    }
+
+    private companion object {
+        const val ERROR_ROW_TITLE = "Ошибка загрузки"
+        const val ERROR_CARD_TITLE = "Не удалось загрузить расписание"
+        const val ERROR_CARD_DESCRIPTION = "Проверьте подключение и попробуйте снова"
+        const val RETRY_CARD_TITLE = "Повторить"
     }
 }

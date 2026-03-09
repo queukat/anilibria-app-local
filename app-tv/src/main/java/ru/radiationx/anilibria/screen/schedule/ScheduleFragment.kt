@@ -12,6 +12,7 @@ import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.RowDiffCallback
+import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.ui.presenter.CardPresenterSelector
 import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowPresenter
@@ -42,18 +43,18 @@ class ScheduleFragment : BrowseSupportFragment() {
         setOnItemViewSelectedListener { _, item, rowViewHolder, _ ->
             backgroundManager.applyCard(item)
             if (rowViewHolder is CustomListRowViewHolder) {
-                when (item) {
-                    is LibriaCard -> rowViewHolder.setDescription(item.title, item.description)
-                    is LinkCard -> rowViewHolder.setDescription(item.title, "")
-                    is LoadingCard -> rowViewHolder.setDescription(item.title, item.description)
-                    else -> rowViewHolder.setDescription("", "")
-                }
+                val description = item.toTvCardDescription()
+                rowViewHolder.setDescription(description.title, description.subtitle)
             }
         }
 
         setOnItemViewClickedListener { _, item, _, _ ->
-            if (item is LibriaCard) {
-                viewModel.onCardClick(item)
+            when (item) {
+                is LibriaCard -> viewModel.onCardClick(item)
+                is LinkCard -> viewModel.onRetryClick()
+                is LoadingCard -> if (item.isError) {
+                    viewModel.onRetryClick()
+                }
             }
         }
 

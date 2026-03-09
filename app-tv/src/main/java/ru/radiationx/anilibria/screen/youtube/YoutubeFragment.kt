@@ -6,6 +6,7 @@ import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.OnItemViewSelectedListener
 import androidx.leanback.widget.VerticalGridPresenter
 import ru.radiationx.anilibria.common.*
+import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.common.fragment.GridFragment
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.ui.presenter.CardPresenterSelector
@@ -33,12 +34,8 @@ class YoutubeFragment : GridFragment() {
         }
         onItemViewSelectedListener = OnItemViewSelectedListener { _, item, _, _ ->
             backgroundManager.applyCard(item)
-            when (item) {
-                is LibriaCard -> setDescription(item.title, item.description)
-                is LinkCard -> setDescription(item.title, "")
-                is LoadingCard -> setDescription(item.title, item.description)
-                else -> setDescription("", "")
-            }
+            val description = item.toTvCardDescription()
+            setDescription(description.title, description.subtitle)
         }
 
         this.adapter = gridAdapter

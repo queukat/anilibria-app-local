@@ -7,17 +7,11 @@ import android.content.UriMatcher
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.App
 import ru.radiationx.anilibria.contentprovider.SystemSuggestionEntity
 import ru.radiationx.data.entity.domain.search.SuggestionItem
 import ru.radiationx.data.interactors.tv.TvSuggestionsUseCase
-import ru.radiationx.data.system.ApplicationCoroutineScope
 import ru.radiationx.quill.Quill
-import timber.log.Timber
 
 class SuggestionsContentProvider : ContentProvider() {
 
@@ -44,15 +38,26 @@ class SuggestionsContentProvider : ContentProvider() {
         private const val CACHE_TTL_MS = 10L * 60L * 1000L
         private const val MIN_REQUEST_INTERVAL_MS = 150L
         private const val MIN_QUERY_LENGTH = 3
+        private const val QUERY_TIMEOUT_MS = 3_000L
     }
 
     private val uriMatcher by lazy { buildUriMatcher() }
     private val suggestionsUseCase by lazy { Quill.getRootScope().get(TvSuggestionsUseCase::class) }
-    private val applicationScope by lazy { Quill.getRootScope().get(ApplicationCoroutineScope::class) }
-    private val cacheLock = Any()
-    private val refreshJobs = mutableMapOf<String, Job>()
-    private val suggestionsCache = mutableMapOf<String, SuggestionsCacheEntry>()
-    private var lastRefreshStartedAtMs: Long = 0L
+    private val queryHandlerLazy = lazy(LazyThreadSafetyMode.NONE) {
+        SuggestionsContentProviderQueryHandler<Uri>(
+            minQueryLength = MIN_QUERY_LENGTH,
+            maxResults = MAX_SUGGESTIONS,
+            timeoutMs = QUERY_TIMEOUT_MS,
+            cacheTtlMs = CACHE_TTL_MS,
+            minRequestIntervalMs = MIN_REQUEST_INTERVAL_MS,
+            loadSuggestions = { query -> suggestionsUseCase.loadSuggestions(query) },
+            awaitAppInitialized = { App.appInitialized.await() },
+            onRefreshReady = { refreshUri ->
+                context?.contentResolver?.notifyChange(refreshUri, null)
+            },
+        )
+    }
+    private val queryHandler get() = queryHandlerLazy.value
 
     override fun onCreate(): Boolean = true
 
@@ -65,12 +70,14 @@ class SuggestionsContentProvider : ContentProvider() {
     ): Cursor {
         if (uriMatcher.match(uri) == SEARCH_SUGGEST) {
             val query = uri.lastPathSegment.orEmpty().trim()
-            val items = getCachedSuggestions(query)
-            scheduleRefreshIfNeeded(query)
+            val items = queryHandler.query(uri, query)
             return MatrixCursor(queryProjection).apply {
                 items.forEach {
                     val entity = it.convertToEntity()
                     addRow(entity.getRow() + INTENT_ACTION + entity.id)
+                }
+                context?.contentResolver?.let { resolver ->
+                    setNotificationUri(resolver, uri)
                 }
             }
         } else {
@@ -94,87 +101,10 @@ class SuggestionsContentProvider : ContentProvider() {
         throw UnsupportedOperationException("delete is not implemented.")
 
     override fun shutdown() {
-        synchronized(cacheLock) {
-            refreshJobs.values.forEach { it.cancel() }
-            refreshJobs.clear()
+        if (queryHandlerLazy.isInitialized()) {
+            queryHandler.shutdown()
         }
         super.shutdown()
-    }
-
-    private fun getCachedSuggestions(rawQuery: String): List<SuggestionItem> {
-        val query = rawQuery.trim()
-        if (query.length < MIN_QUERY_LENGTH) {
-            return emptyList()
-        }
-        return synchronized(cacheLock) {
-            suggestionsCache[query]?.items.orEmpty()
-        }
-    }
-
-    private fun scheduleRefreshIfNeeded(rawQuery: String) {
-        val query = rawQuery.trim()
-        if (query.length < MIN_QUERY_LENGTH) {
-            return
-        }
-        val delayMs = synchronized(cacheLock) {
-            val now = System.currentTimeMillis()
-            val cacheEntry = suggestionsCache[query]
-            val isFresh = cacheEntry != null && now - cacheEntry.savedAtMs <= CACHE_TTL_MS
-            if (isFresh || refreshJobs[query]?.isActive == true) {
-                null
-            } else {
-                val elapsedSinceLastStart = now - lastRefreshStartedAtMs
-                (MIN_REQUEST_INTERVAL_MS - elapsedSinceLastStart).coerceAtLeast(0L)
-            }
-        } ?: return
-
-        val job = applicationScope.launch(start = CoroutineStart.LAZY) {
-            if (delayMs > 0L) {
-                delay(delayMs)
-            }
-            synchronized(cacheLock) {
-                lastRefreshStartedAtMs = System.currentTimeMillis()
-            }
-            val result = runCatching {
-                App.appInitialized.await()
-                suggestionsUseCase.loadSuggestions(query)
-                    .take(MAX_SUGGESTIONS)
-            }
-            synchronized(cacheLock) {
-                if (result.isSuccess) {
-                    suggestionsCache[query] = SuggestionsCacheEntry(
-                        savedAtMs = System.currentTimeMillis(),
-                        items = result.getOrDefault(emptyList()),
-                    )
-                }
-            }
-            result.exceptionOrNull()?.also { error ->
-                Timber.w(error, "Suggestions refresh failed for query: %s", query)
-            }
-        }
-
-        val scheduled = synchronized(cacheLock) {
-            if (refreshJobs[query]?.isActive == true) {
-                false
-            } else {
-                refreshJobs[query] = job
-                true
-            }
-        }
-
-        if (!scheduled) {
-            job.cancel()
-            return
-        }
-
-        job.start()
-        job.invokeOnCompletion {
-            synchronized(cacheLock) {
-                if (refreshJobs[query] === job) {
-                    refreshJobs.remove(query)
-                }
-            }
-        }
     }
 
     private fun SuggestionItem.convertToEntity() = SystemSuggestionEntity(
@@ -191,8 +121,3 @@ class SuggestionsContentProvider : ContentProvider() {
         addURI(AUTHORITY, "search/${SearchManager.SUGGEST_URI_PATH_QUERY}/*", SEARCH_SUGGEST)
     }
 }
-
-private data class SuggestionsCacheEntry(
-    val savedAtMs: Long,
-    val items: List<SuggestionItem>,
-)

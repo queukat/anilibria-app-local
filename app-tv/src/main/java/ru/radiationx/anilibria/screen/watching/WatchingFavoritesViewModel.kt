@@ -4,6 +4,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -249,6 +250,9 @@ class WatchingFavoritesViewModel @Inject constructor(
 
                 rebuildFromCache()
             } catch (e: Throwable) {
+                if (e is CancellationException) {
+                    throw e
+                }
                 val is401 = (e is ru.radiationx.data.system.HttpException && e.code == 401)
 
                 if (is401) {
@@ -281,6 +285,15 @@ class WatchingFavoritesViewModel @Inject constructor(
                 isError = true
             ),
             LinkCard("Открой профиль и войди")
+        )
+    }
+
+    private fun showAuthenticatedEmptyState() {
+        _cardsData.value = listOf(
+            LoadingCard(
+                title = "Избранное пока пусто",
+                description = "Добавьте тайтлы в избранное, чтобы они появились здесь",
+            )
         )
     }
 
@@ -331,7 +344,11 @@ class WatchingFavoritesViewModel @Inject constructor(
         rebuildJob = viewModelScope.launch {
             val src = releasesCache
             if (src.isEmpty()) {
-                _cardsData.value = emptyList()
+                if (currentAuthState == AuthState.AUTH) {
+                    showAuthenticatedEmptyState()
+                } else {
+                    _cardsData.value = emptyList()
+                }
                 return@launch
             }
 

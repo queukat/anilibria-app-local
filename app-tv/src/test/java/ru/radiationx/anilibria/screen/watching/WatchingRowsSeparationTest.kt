@@ -4,6 +4,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -718,6 +719,136 @@ class WatchingRowsSeparationTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { userViewsRepository.getViewsHistory(1, any()) }
+    }
+
+    @Test
+    fun cancelledContinueRefresh_keepsPreviouslyLoadedCards() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
+        val release = release(id = 124)
+
+        val episodesHolder = FakeEpisodesCheckerHolder(emptyList())
+        val historyRepository = mockk<HistoryRepository>()
+        coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(emptyList(), 0)
+        every { historyRepository.observeReleases(any()) } returns MutableStateFlow(HistoryReleases(emptyList(), 0))
+
+        val releaseInteractor = mockk<ReleaseInteractor>()
+        coEvery { releaseInteractor.getAccesses(release.id) } returns emptyList()
+
+        var requestCount = 0
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } answers {
+            requestCount += 1
+            if (requestCount == 1) {
+                PaginatedResponse(
+                    data = listOf(
+                        UserViewHistoryItem(
+                            releaseId = release.id,
+                            titleMain = release.names.first(),
+                            titleEnglish = null,
+                            titleAlternative = null,
+                            posterPreview = null,
+                            posterThumbnail = null,
+                            episodeOrdinal = 2.0,
+                            timeSeconds = 90.0,
+                            isWatched = false,
+                        )
+                    ),
+                    meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
+                )
+            } else {
+                throw CancellationException("continue refresh cancelled")
+            }
+        }
+
+        val continueVm = WatchingContinueViewModel(
+            converter = mockk<CardsDataConverter>(relaxed = true),
+            releaseInteractor = releaseInteractor,
+            authRepository = mockAuthRepository(AuthState.AUTH),
+            historyRepository = historyRepository,
+            episodesCheckerHolder = episodesHolder,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+        continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
+
+        continueVm.onRefreshClick()
+        advanceUntilIdle()
+        assertTrue(continueVm.cardsData.value.any { it is LibriaCard })
+
+        continueVm.onRefreshClick()
+        advanceUntilIdle()
+
+        assertTrue(
+            "Cancelled continue refresh should keep the previously loaded remote card",
+            continueVm.cardsData.value.any { it is LibriaCard }
+        )
+        assertFalse(
+            "Cancelled continue refresh should not become an error card",
+            continueVm.cardsData.value.any { it is LoadingCard && it.isError }
+        )
+    }
+
+    @Test
+    fun cancelledHistoryRefresh_keepsPreviouslyLoadedCards() = runTest {
+        val deterministicDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(deterministicDispatcher)
+        val release = release(id = 125)
+
+        val historyRepository = mockk<HistoryRepository>()
+        coEvery { historyRepository.getReleases(any()) } returns HistoryReleases(emptyList(), 0)
+        every { historyRepository.observeReleases(any()) } returns MutableStateFlow(HistoryReleases(emptyList(), 0))
+
+        var requestCount = 0
+        val userViewsRepository = mockk<UserViewsRepository>()
+        coEvery { userViewsRepository.getViewsHistory(any(), any()) } answers {
+            requestCount += 1
+            if (requestCount == 1) {
+                PaginatedResponse(
+                    data = listOf(
+                        UserViewHistoryItem(
+                            releaseId = release.id,
+                            titleMain = release.names.first(),
+                            titleEnglish = null,
+                            titleAlternative = null,
+                            posterPreview = null,
+                            posterThumbnail = null,
+                            episodeOrdinal = 4.0,
+                            timeSeconds = 120.0,
+                            isWatched = true,
+                        )
+                    ),
+                    meta = PaginatedResponse.PaginationResponse(1, 1, 1, 1),
+                )
+            } else {
+                throw CancellationException("history refresh cancelled")
+            }
+        }
+
+        val historyVm = WatchingHistoryViewModel(
+            converter = mockk<CardsDataConverter>(relaxed = true),
+            authRepository = mockAuthRepository(AuthState.AUTH),
+            historyRepository = historyRepository,
+            userViewsRepository = userViewsRepository,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+        historyVm.setLoaderDispatcherForTests(deterministicDispatcher)
+
+        historyVm.onRefreshClick()
+        advanceUntilIdle()
+        assertTrue(historyVm.cardsData.value.any { it is LibriaCard })
+
+        historyVm.onRefreshClick()
+        advanceUntilIdle()
+
+        assertTrue(
+            "Cancelled history refresh should keep the previously loaded remote card",
+            historyVm.cardsData.value.any { it is LibriaCard }
+        )
+        assertFalse(
+            "Cancelled history refresh should not become an error card",
+            historyVm.cardsData.value.any { it is LoadingCard && it.isError }
+        )
     }
 
     private fun mockAuthRepository(state: AuthState): AuthRepository {

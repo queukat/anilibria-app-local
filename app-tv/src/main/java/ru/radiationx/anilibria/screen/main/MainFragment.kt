@@ -16,15 +16,15 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.GradientBackgroundManager
+import ru.radiationx.anilibria.common.handleTvCardClick
+import ru.radiationx.anilibria.common.getOrPutRow
 import ru.radiationx.anilibria.common.LibriaCard
-import ru.radiationx.anilibria.common.LinkCard
-import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.RowDiffCallback
+import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.extension.createCardsRowBy
 import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowPresenter
 import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowViewHolder
-import ru.radiationx.quill.inject
 import ru.radiationx.shared.ktx.android.subscribeTo
 import ru.radiationx.shared_app.di.quillParentViewModel
 
@@ -70,24 +70,16 @@ class MainFragment : RowsSupportFragment() {
         adapter = rowsAdapter
         onItemViewSelectedListener = ItemViewSelectedListener()
 
-        setOnItemViewClickedListener { _, item, rowViewHolder, row ->
-            if (rowViewHolder is CustomListRowViewHolder) {
-                val vm: BaseCardsViewModel? = getViewModel((row as ListRow).id)
-                when (item) {
-                    is LinkCard -> vm?.onLinkCardClick()
-                    is LoadingCard -> vm?.onLoadingCardClick()
-                    is LibriaCard -> vm?.onLibriaCardClick(item)
-                }
-            }
+        setOnItemViewClickedListener { _, item, _, row ->
+            getViewModel((row as ListRow).id).handleTvCardClick(item)
         }
 
         val rowMap = mutableMapOf<Long, ListRow>()
         subscribeTo(mainViewModel.rowListData) { rowList ->
             val rows = rowList.map { rowId ->
-                val row = rowMap[rowId]
-                    ?: createCardsRowBy(rowId, rowsAdapter, getViewModel(rowId)!!)
-                rowMap[rowId] = row
-                row
+                rowMap.getOrPutRow(rowId) {
+                    createCardsRowBy(it, rowsAdapter, getViewModel(it)!!)
+                }
             }
             rowsAdapter.setItems(rows, RowDiffCallback)
         }
@@ -123,12 +115,10 @@ class MainFragment : RowsSupportFragment() {
 
     private fun applySelectedDescription() {
         val rowViewHolder = selectedRowViewHolder ?: return
-        when (val item = selectedItem) {
-            is LibriaCard -> rowViewHolder.setDescription(item.title, item.resolveDescription(requireContext()))
-            is LinkCard -> rowViewHolder.setDescription(item.title, "")
-            is LoadingCard -> rowViewHolder.setDescription(item.title, item.description)
-            else -> rowViewHolder.setDescription("", "")
+        val description = selectedItem.toTvCardDescription {
+            it.resolveDescription(requireContext())
         }
+        rowViewHolder.setDescription(description.title, description.subtitle)
     }
 
     private fun notifyReady() {

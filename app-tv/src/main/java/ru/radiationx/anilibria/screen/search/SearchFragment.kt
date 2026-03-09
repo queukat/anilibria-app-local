@@ -9,9 +9,8 @@ import androidx.leanback.widget.VerticalGridPresenter
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.CardDiffCallback
 import ru.radiationx.anilibria.common.GradientBackgroundManager
-import ru.radiationx.anilibria.common.LibriaCard
-import ru.radiationx.anilibria.common.LinkCard
-import ru.radiationx.anilibria.common.LoadingCard
+import ru.radiationx.anilibria.common.handleTvCardClick
+import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.common.fragment.BaseVerticalGridFragment
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.ui.presenter.CardPresenterSelector
@@ -64,39 +63,12 @@ class SearchFragment : BaseVerticalGridFragment() {
         backgroundManager.clearGradient()
         setOnItemViewSelectedListener { _, item, _, _ ->
             backgroundManager.applyCard(item)
-            when (item) {
-                is LibriaCard -> {
-                    setDescription(item.title, item.description)
-                }
-
-                is LinkCard -> {
-                    setDescription(item.title, "")
-                }
-
-                is LoadingCard -> {
-                    setDescription(item.title, item.description)
-                }
-
-                else -> {
-                    setDescription("", "")
-                }
-            }
+            val description = item.toTvCardDescription()
+            setDescription(description.title, description.subtitle)
         }
 
         setOnItemViewClickedListener { _, item, _, _ ->
-            when (item) {
-                is LinkCard -> {
-                    cardsViewModel.onLinkCardClick()
-                }
-
-                is LoadingCard -> {
-                    cardsViewModel.onLoadingCardClick()
-                }
-
-                is LibriaCard -> {
-                    cardsViewModel.onLibriaCardClick(item)
-                }
-            }
+            cardsViewModel.handleTvCardClick(item)
         }
 
         prepareEntranceTransition()

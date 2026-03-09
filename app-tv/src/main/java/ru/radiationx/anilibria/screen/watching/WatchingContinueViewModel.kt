@@ -2,6 +2,7 @@ package ru.radiationx.anilibria.screen.watching
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.CancellationException
 import ru.radiationx.anilibria.common.AniLibertyViewHistoryCardMapper
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
@@ -147,24 +148,30 @@ class WatchingContinueViewModel @Inject constructor(
                 emptyList()
             }
         } catch (error: Throwable) {
+            if (error is CancellationException) {
+                throw error
+            }
             if (remoteMode) {
                 // если упали/401 — переключаемся в local только на первой странице
                 remoteMode = false
                 pagingState = pagingState.copy(hasMore = false)
                 if (requestPage == firstPage) {
-                    return runCatching { loadLocalContinue() }
-                        .onSuccess { localCards ->
-                            pagingState = pagingState.copy(
-                                items = localCards,
-                                page = firstPage,
-                                hasMore = false,
-                                error = null,
-                            )
-                        }
-                        .getOrElse { localError ->
-                            pagingState = pagingState.copy(error = localError)
+                    return try {
+                        val localCards = loadLocalContinue()
+                        pagingState = pagingState.copy(
+                            items = localCards,
+                            page = firstPage,
+                            hasMore = false,
+                            error = null,
+                        )
+                        localCards
+                    } catch (localError: Throwable) {
+                        if (localError is CancellationException) {
                             throw localError
                         }
+                        pagingState = pagingState.copy(error = localError)
+                        throw localError
+                    }
                 }
             }
             pagingState = pagingState.copy(error = error)
@@ -309,9 +316,14 @@ class WatchingContinueViewModel @Inject constructor(
 
         normalizeOrdinalOrNull(raw)?.let { return it }
 
-        return runCatching {
+        return try {
             userViewsRepository.resolveEpisodeOrdinal(episodeId)
-        }.getOrNull()
+        } catch (error: Throwable) {
+            if (error is CancellationException) {
+                throw error
+            }
+            null
+        }
     }
 
     private fun normalizeOrdinalOrNull(value: String): String? {

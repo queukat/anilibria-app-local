@@ -13,14 +13,14 @@ import androidx.leanback.widget.OnItemViewSelectedListener
 import androidx.leanback.widget.Presenter
 import androidx.leanback.widget.Row
 import androidx.leanback.widget.RowPresenter
-import androidx.lifecycle.ViewModel
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardDiffCallback
 import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.LibriaCard
-import ru.radiationx.anilibria.common.LinkCard
-import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.RowDiffCallback
+import ru.radiationx.anilibria.common.getOrPutRow
+import ru.radiationx.anilibria.common.handleTvCardClick
+import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.extension.createCardsRowBy
 import ru.radiationx.anilibria.ui.presenter.CardPresenterSelector
@@ -28,7 +28,6 @@ import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowPresenter
 import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowViewHolder
 import ru.radiationx.anilibria.ui.widget.manager.ExternalProgressManager
 import ru.radiationx.anilibria.ui.widget.manager.ExternalTextManager
-import ru.radiationx.quill.inject
 import ru.radiationx.quill.installModules
 import ru.radiationx.quill.quillModule
 import ru.radiationx.quill.viewModel
@@ -73,11 +72,7 @@ class SuggestionsFragment : SearchSupportFragment(), SearchSupportFragment.Searc
         setOnItemViewClickedListener { _, item, rowViewHolder, row ->
             when (val vm = getViewModel((row as ListRow).id)) {
                 is BaseCardsViewModel -> {
-                    when (item) {
-                        is LinkCard -> vm.onLinkCardClick()
-                        is LoadingCard -> vm.onLoadingCardClick()
-                        is LibriaCard -> vm.onLibriaCardClick(item)
-                    }
+                    vm.handleTvCardClick(item)
                 }
 
                 is SuggestionsResultViewModel -> {
@@ -105,9 +100,7 @@ class SuggestionsFragment : SearchSupportFragment(), SearchSupportFragment.Searc
         val rowMap = mutableMapOf<Long, Row>()
         subscribeTo(rowsViewModel.rowListData) { rowList ->
             val rows = rowList.map { rowId ->
-                val row = rowMap[rowId] ?: createRowBy(rowId)
-                rowMap[rowId] = row
-                row
+                rowMap.getOrPutRow(rowId, ::createRowBy)
             }
             rowsAdapter.setItems(rows, RowDiffCallback)
         }
@@ -173,12 +166,8 @@ class SuggestionsFragment : SearchSupportFragment(), SearchSupportFragment.Searc
         ) {
             if (rowViewHolder is CustomListRowViewHolder) {
                 backgroundManager.applyCard(item)
-                when (item) {
-                    is LibriaCard -> rowViewHolder.setDescription(item.title, item.description)
-                    is LinkCard -> rowViewHolder.setDescription(item.title, "")
-                    is LoadingCard -> rowViewHolder.setDescription(item.title, item.description)
-                    else -> rowViewHolder.setDescription("", "")
-                }
+                val description = item.toTvCardDescription()
+                rowViewHolder.setDescription(description.title, description.subtitle)
             }
         }
     }

@@ -9,14 +9,13 @@ import androidx.leanback.widget.ClassPresenterSelector
 import androidx.leanback.widget.HeaderItem
 import androidx.leanback.widget.ListRow
 import androidx.leanback.widget.Row
-import androidx.lifecycle.ViewModel
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.GradientBackgroundManager
-import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaDetailsRow
-import ru.radiationx.anilibria.common.LinkCard
-import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.RowDiffCallback
+import ru.radiationx.anilibria.common.getOrPutRow
+import ru.radiationx.anilibria.common.handleTvCardClick
+import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.extension.createCardsRowBy
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsPresenter
@@ -24,7 +23,6 @@ import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowPresenter
 import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowViewHolder
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.QuillExtra
-import ru.radiationx.quill.inject
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.getExtraNotNull
 import ru.radiationx.shared.ktx.android.putExtra
@@ -115,11 +113,7 @@ class DetailFragment : RowsSupportFragment() {
             val vm = getViewModel((row as Row).id)
             // Проверяем, является ли vm «BaseCardsViewModel»
             if (vm is BaseCardsViewModel) {
-                when (item) {
-                    is LinkCard -> vm.onLinkCardClick()
-                    is LoadingCard -> vm.onLoadingCardClick()
-                    is LibriaCard -> vm.onLibriaCardClick(item)
-                }
+                vm.handleTvCardClick(item)
             }
         }
 
@@ -137,12 +131,8 @@ class DetailFragment : RowsSupportFragment() {
 
             // А ещё, если rowViewHolder — наш CustomListRowViewHolder, выставим description
             if (rowViewHolder is CustomListRowViewHolder) {
-                when (item) {
-                    is LibriaCard -> rowViewHolder.setDescription(item.title, item.description)
-                    is LinkCard -> rowViewHolder.setDescription(item.title, "")
-                    is LoadingCard -> rowViewHolder.setDescription(item.title, item.description)
-                    else -> rowViewHolder.setDescription("", "")
-                }
+                val description = item.toTvCardDescription()
+                rowViewHolder.setDescription(description.title, description.subtitle)
             }
         }
 
@@ -151,7 +141,7 @@ class DetailFragment : RowsSupportFragment() {
         subscribeTo(detailsViewModel.rowListData) { rowIds ->
             // rowIds обычно [1,2,3]
             val newRows = rowIds.map { rowId ->
-                rowMap.getOrPut(rowId) { createRowBy(rowId) }
+                rowMap.getOrPutRow(rowId, ::createRowBy)
             }
             rowsAdapter.setItems(newRows, RowDiffCallback)
         }

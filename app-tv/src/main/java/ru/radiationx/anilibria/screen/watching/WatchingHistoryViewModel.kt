@@ -2,6 +2,7 @@ package ru.radiationx.anilibria.screen.watching
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -104,23 +105,29 @@ class WatchingHistoryViewModel @Inject constructor(
                 emptyList()
             }
         } catch (error: Throwable) {
+            if (error is CancellationException) {
+                throw error
+            }
             if (remoteMode) {
                 remoteMode = false
                 pagingState = pagingState.copy(hasMore = false)
                 if (requestPage == firstPage) {
-                    return runCatching { loadLocalHistory() }
-                        .onSuccess { localCards ->
-                            pagingState = pagingState.copy(
-                                items = localCards,
-                                page = firstPage,
-                                hasMore = false,
-                                error = null,
-                            )
-                        }
-                        .getOrElse { localError ->
-                            pagingState = pagingState.copy(error = localError)
+                    return try {
+                        val localCards = loadLocalHistory()
+                        pagingState = pagingState.copy(
+                            items = localCards,
+                            page = firstPage,
+                            hasMore = false,
+                            error = null,
+                        )
+                        localCards
+                    } catch (localError: Throwable) {
+                        if (localError is CancellationException) {
                             throw localError
                         }
+                        pagingState = pagingState.copy(error = localError)
+                        throw localError
+                    }
                 }
             }
             pagingState = pagingState.copy(error = error)

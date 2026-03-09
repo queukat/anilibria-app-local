@@ -13,6 +13,7 @@ internal class SuggestionQueryExecutor<T>(
     private val timeoutMs: Long,
     private val cacheTtlMs: Long,
     private val minRequestIntervalMs: Long,
+    private val onCacheUpdated: (query: String, items: List<T>) -> Unit = { _, _ -> },
     private val nowMillis: () -> Long = { System.currentTimeMillis() },
     private val scheduler: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { runnable ->
         Thread(runnable, "suggestions-provider").apply {
@@ -95,6 +96,7 @@ internal class SuggestionQueryExecutor<T>(
         }
 
         val newItems = fetchWithTimeout(query, fetch)
+        var appliedItems: List<T>? = null
 
         synchronized(lock) {
             if (inFlightQuery == query) {
@@ -105,9 +107,12 @@ internal class SuggestionQueryExecutor<T>(
                 if (requestId >= lastAppliedId) {
                     lastAppliedRequestByQuery[query] = requestId
                     cache[query] = CacheEntry(query = query, savedAtMs = nowMillis(), items = newItems)
+                    appliedItems = newItems
                 }
             }
         }
+
+        appliedItems?.also { onCacheUpdated(query, it) }
     }
 
     private fun fetchWithTimeout(

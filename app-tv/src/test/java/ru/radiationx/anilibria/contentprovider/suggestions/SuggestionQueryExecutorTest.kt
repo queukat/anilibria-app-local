@@ -165,6 +165,38 @@ class SuggestionQueryExecutorTest {
         }
     }
 
+    @Test
+    fun execute_notifiesWhenCacheIsUpdated() {
+        val scheduler = Executors.newSingleThreadScheduledExecutor()
+        val worker = Executors.newSingleThreadExecutor()
+        val updates = mutableListOf<Pair<String, List<String>>>()
+        val executor = SuggestionQueryExecutor<String>(
+            minQueryLength = 3,
+            maxResults = 2,
+            timeoutMs = 200L,
+            cacheTtlMs = 1_000L,
+            minRequestIntervalMs = 0L,
+            onCacheUpdated = { query, items ->
+                updates += query to items
+            },
+            scheduler = scheduler,
+            workerExecutor = worker,
+        )
+
+        try {
+            val first = executor.execute("naruto") {
+                listOf("one", "two", "three")
+            }
+            assertTrue(first.isEmpty())
+
+            waitUntil { updates.isNotEmpty() }
+
+            assertEquals(listOf("naruto" to listOf("one", "two")), updates)
+        } finally {
+            executor.shutdown()
+        }
+    }
+
     private fun waitUntil(timeoutMs: Long = 1_500L, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (!condition()) {

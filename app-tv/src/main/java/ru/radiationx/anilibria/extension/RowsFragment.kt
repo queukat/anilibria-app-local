@@ -25,7 +25,9 @@ fun Fragment.createCardsRowBy(
     subscribeTo(viewModel.rowTitle) {
         val position = rowsAdapter.indexOf(row)
         row.headerItem = HeaderItem(it)
-        rowsAdapter.notifyArrayItemRangeChanged(position, 1)
+        if (position >= 0) {
+            rowsAdapter.notifyArrayItemRangeChanged(position, 1)
+        }
     }
     return row
 }
