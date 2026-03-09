@@ -3,24 +3,17 @@ package ru.radiationx.anilibria.screen.details
 import android.os.Bundle
 import android.view.View
 import androidx.core.graphics.ColorUtils
-import androidx.leanback.app.RowsSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.ClassPresenterSelector
 import androidx.leanback.widget.HeaderItem
 import androidx.leanback.widget.ListRow
 import androidx.leanback.widget.Row
 import ru.radiationx.anilibria.common.BaseCardsViewModel
-import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.LibriaDetailsRow
-import ru.radiationx.anilibria.common.RowDiffCallback
-import ru.radiationx.anilibria.common.getOrPutRow
-import ru.radiationx.anilibria.common.handleTvCardClick
-import ru.radiationx.anilibria.common.toTvCardDescription
-import ru.radiationx.anilibria.extension.applyCard
+import ru.radiationx.anilibria.common.fragment.BaseTvRowsSupportFragment
 import ru.radiationx.anilibria.extension.createCardsRowBy
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsPresenter
 import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowPresenter
-import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowViewHolder
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.QuillExtra
 import ru.radiationx.quill.viewModel
@@ -41,7 +34,7 @@ data class DetailExtra(
  *  1) «Шапку» (ReleaseDetails)
  *  2) «Related»/«Recommends» списки карточек
  */
-class DetailFragment : RowsSupportFragment() {
+class DetailFragment : BaseTvRowsSupportFragment() {
 
     companion object {
         private const val ARG_ID = "id"
@@ -50,9 +43,6 @@ class DetailFragment : RowsSupportFragment() {
             putParcelable(ARG_ID, releaseId)
         }
     }
-
-    /** Менеджер фона (если хотите инъекцию — можно inject, но здесь lazy) */
-    private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
 
     /** Аргументы */
     private val argExtra by lazy {
@@ -77,8 +67,6 @@ class DetailFragment : RowsSupportFragment() {
             )
         }
     }
-    private val rowsAdapter by lazy { ArrayObjectAdapter(rowsPresenter) }
-
     /** ViewModel’ы */
     private val detailsViewModel by viewModel<DetailsViewModel> { argExtra }
     private val headerViewModel by viewModel<DetailHeaderViewModel> { argExtra }
@@ -96,6 +84,12 @@ class DetailFragment : RowsSupportFragment() {
         else -> null
     }
 
+    override fun createRowsAdapter(): ArrayObjectAdapter = ArrayObjectAdapter(rowsPresenter)
+
+    override fun getBaseCardsViewModel(rowId: Long): BaseCardsViewModel? {
+        return getViewModel(rowId) as? BaseCardsViewModel
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -104,46 +98,8 @@ class DetailFragment : RowsSupportFragment() {
         viewLifecycleOwner.lifecycle.addObserver(headerViewModel)
         viewLifecycleOwner.lifecycle.addObserver(relatedViewModel)
         viewLifecycleOwner.lifecycle.addObserver(recommendsViewModel)
-
-        // Ставим адаптер
-        adapter = rowsAdapter
-
-        // Обработка кликов
-        setOnItemViewClickedListener { _, item, _, row ->
-            val vm = getViewModel((row as Row).id)
-            // Проверяем, является ли vm «BaseCardsViewModel»
-            if (vm is BaseCardsViewModel) {
-                vm.handleTvCardClick(item)
-            }
-        }
-
-        // Выбор (focus) элемента
-        setOnItemViewSelectedListener { _, item, rowViewHolder, row ->
-            // Если это ListRow — используем applyCard(...) для фона
-            if (row is ListRow) {
-                backgroundManager.applyCard(item)
-            }
-            // Если это LibriaDetailsRow, вызовем applyImage(...) с его постером
-            else if (row is LibriaDetailsRow) {
-                val url = row.details?.image ?: ""
-                applyImage(url)
-            }
-
-            // А ещё, если rowViewHolder — наш CustomListRowViewHolder, выставим description
-            if (rowViewHolder is CustomListRowViewHolder) {
-                val description = item.toTvCardDescription()
-                rowViewHolder.setDescription(description.title, description.subtitle)
-            }
-        }
-
-        // Подписка на список rowId от detailsViewModel
-        val rowMap = mutableMapOf<Long, Row>()
         subscribeTo(detailsViewModel.rowListData) { rowIds ->
-            // rowIds обычно [1,2,3]
-            val newRows = rowIds.map { rowId ->
-                rowMap.getOrPutRow(rowId, ::createRowBy)
-            }
-            rowsAdapter.setItems(newRows, RowDiffCallback)
+            submitRows(rowIds, ::createRowBy)
         }
     }
 
@@ -155,7 +111,7 @@ class DetailFragment : RowsSupportFragment() {
             DetailsViewModel.RELEASE_ROW_ID -> createHeaderRow(rowId, headerViewModel)
             DetailsViewModel.RELATED_ROW_ID,
             DetailsViewModel.RECOMMENDS_ROW_ID ->
-                createCardsRowBy(rowId, rowsAdapter, getViewModel(rowId) as BaseCardsViewModel)
+                createCardsRowBy(rowId, rowsAdapter, getBaseCardsViewModel(rowId)!!)
 
             else -> {
                 // Фолбэк (пустая строка)
@@ -196,6 +152,12 @@ class DetailFragment : RowsSupportFragment() {
             hslColor[1] = (hslColor[1] + 0.05f).coerceAtMost(1.0f)
             hslColor[2] = (hslColor[2] + 0.05f).coerceAtMost(1.0f)
             ColorUtils.HSLToColor(hslColor)
+        }
+    }
+
+    override fun onNonListRowSelected(item: Any?, row: Row) {
+        if (row is LibriaDetailsRow) {
+            applyImage(row.details?.image.orEmpty())
         }
     }
 }
