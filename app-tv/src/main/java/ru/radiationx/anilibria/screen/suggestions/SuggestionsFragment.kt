@@ -8,24 +8,14 @@ import androidx.leanback.app.SearchSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.HeaderItem
 import androidx.leanback.widget.ListRow
-import androidx.leanback.widget.ObjectAdapter
-import androidx.leanback.widget.OnItemViewSelectedListener
-import androidx.leanback.widget.Presenter
 import androidx.leanback.widget.Row
-import androidx.leanback.widget.RowPresenter
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardDiffCallback
-import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.LibriaCard
-import ru.radiationx.anilibria.common.RowDiffCallback
-import ru.radiationx.anilibria.common.getOrPutRow
 import ru.radiationx.anilibria.common.handleTvCardClick
-import ru.radiationx.anilibria.common.toTvCardDescription
-import ru.radiationx.anilibria.extension.applyCard
+import ru.radiationx.anilibria.common.fragment.BaseTvSearchRowsFragment
 import ru.radiationx.anilibria.extension.createCardsRowBy
 import ru.radiationx.anilibria.ui.presenter.CardPresenterSelector
-import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowPresenter
-import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowViewHolder
 import ru.radiationx.anilibria.ui.widget.manager.ExternalProgressManager
 import ru.radiationx.anilibria.ui.widget.manager.ExternalTextManager
 import ru.radiationx.quill.installModules
@@ -35,16 +25,10 @@ import ru.radiationx.shared.ktx.android.subscribeTo
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicBoolean
 
-class SuggestionsFragment : SearchSupportFragment(), SearchSupportFragment.SearchResultProvider {
-
-    private val rowsPresenter by lazy { CustomListRowPresenter() }
-    private val rowsAdapter by lazy { ArrayObjectAdapter(rowsPresenter) }
+class SuggestionsFragment : BaseTvSearchRowsFragment() {
 
     private val progressManager by lazy { ExternalProgressManager() }
     private val emptyTextManager by lazy { ExternalTextManager() }
-
-    // РАНЬШЕ: private val backgroundManager by inject<GradientBackgroundManager>()
-    private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
 
     private val rowsViewModel by viewModel<SuggestionsRowsViewModel>()
     private val resultViewModel by viewModel<SuggestionsResultViewModel>()
@@ -67,20 +51,6 @@ class SuggestionsFragment : SearchSupportFragment(), SearchSupportFragment.Searc
 
         backgroundManager.clearGradient()
 
-        setSearchResultProvider(this)
-        setOnItemViewSelectedListener(ItemViewSelectedListener())
-        setOnItemViewClickedListener { _, item, rowViewHolder, row ->
-            when (val vm = getViewModel((row as ListRow).id)) {
-                is BaseCardsViewModel -> {
-                    vm.handleTvCardClick(item)
-                }
-
-                is SuggestionsResultViewModel -> {
-                    if (item is LibriaCard) vm.onCardClick(item)
-                }
-            }
-        }
-
         progressManager.rootView = view as ViewGroup
         progressManager.initialDelay = 0L
 
@@ -97,12 +67,8 @@ class SuggestionsFragment : SearchSupportFragment(), SearchSupportFragment.Searc
             }
         }
 
-        val rowMap = mutableMapOf<Long, Row>()
         subscribeTo(rowsViewModel.rowListData) { rowList ->
-            val rows = rowList.map { rowId ->
-                rowMap.getOrPutRow(rowId, ::createRowBy)
-            }
-            rowsAdapter.setItems(rows, RowDiffCallback)
+            submitRows(rowList, ::createRowBy)
         }
     }
 
@@ -153,21 +119,11 @@ class SuggestionsFragment : SearchSupportFragment(), SearchSupportFragment.Searc
         return true
     }
 
-    override fun getResultsAdapter(): ObjectAdapter {
-        return rowsAdapter
-    }
-
-    private inner class ItemViewSelectedListener : OnItemViewSelectedListener {
-        override fun onItemSelected(
-            itemViewHolder: Presenter.ViewHolder?,
-            item: Any?,
-            rowViewHolder: RowPresenter.ViewHolder,
-            row: Row,
-        ) {
-            if (rowViewHolder is CustomListRowViewHolder) {
-                backgroundManager.applyCard(item)
-                val description = item.toTvCardDescription()
-                rowViewHolder.setDescription(description.title, description.subtitle)
+    override fun onRowItemClicked(item: Any?, row: Row) {
+        when (val vm = getViewModel((row as ListRow).id)) {
+            is BaseCardsViewModel -> vm.handleTvCardClick(item)
+            is SuggestionsResultViewModel -> if (item is LibriaCard) {
+                vm.onCardClick(item)
             }
         }
     }
