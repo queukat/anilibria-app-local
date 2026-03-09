@@ -1,6 +1,7 @@
 package ru.radiationx.anilibria.screen.main
 
 import com.github.terrakok.cicerone.Router
+import io.mockk.verify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -50,6 +51,7 @@ class MainTvViewModelsTest {
             converter = mockk<CardsDataConverter>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        viewModel.setLoaderDispatcherForTests(testDispatcher)
 
         viewModel.onRefreshClick()
         waitUntil { fakeUseCase.mainFeedCalls.isNotEmpty() }
@@ -71,12 +73,38 @@ class MainTvViewModelsTest {
             router = mockk<Router>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
+        viewModel.setLoaderDispatcherForTests(testDispatcher)
 
         viewModel.onRefreshClick()
         waitUntil { fakeUseCase.mainScheduleCalls > 0 }
 
         assertEquals("Ожидается сегодня", viewModel.rowTitle.value)
         assertTrue(viewModel.cardsData.value.isNotEmpty())
+    }
+
+    @Test
+    fun mainScheduleViewModel_emptyStateCardOpensFullSchedule() = runBlocking {
+        val fakeUseCase = FakeTvContentUseCase().apply {
+            mainScheduleResult = MainSchedulePayload(
+                title = "Ожидается сегодня",
+                releases = emptyList(),
+            )
+        }
+        val router = mockk<Router>(relaxed = true)
+        val viewModel = MainScheduleViewModel(
+            tvContentUseCase = fakeUseCase,
+            converter = mockk<CardsDataConverter>(relaxed = true),
+            router = router,
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+        viewModel.setLoaderDispatcherForTests(testDispatcher)
+
+        viewModel.onRefreshClick()
+        waitUntil { viewModel.cardsData.value.size == 1 }
+
+        viewModel.onLoadingCardClick()
+
+        verify(exactly = 1) { router.navigateTo(any()) }
     }
 
     private suspend fun waitUntil(predicate: () -> Boolean) {

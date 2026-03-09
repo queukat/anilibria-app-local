@@ -1,15 +1,17 @@
 package ru.radiationx.anilibria.screen.watching
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
+import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.entity.domain.search.SearchForm
 import ru.radiationx.data.repository.FavoriteRepository
 import ru.radiationx.data.repository.SearchRepository
-import ru.radiationx.data.interactors.ReleaseInteractor
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -28,26 +30,14 @@ class WatchingRecommendsViewModel @Inject constructor(
     override val defaultTitle: String = "Рекомендации"
 
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
-        // 1) Собираем «избранные» релизы (допустим, только первую страницу)
-        val userFavList = withContext(Dispatchers.IO) {
-            favoriteRepository.getFavorites(page = 1).data
-        }
-
-        // 2) Извлекаем жанры из избранных релизов, делаем множество
-        val userFavGenres = userFavList
-            .flatMap { it.genres }  // все жанры из каждого релиза
-            .toSet()                // во множество
-
-        // 3) Берём "топ по рейтингу" (примерно, как было раньше)
-        val topRated = withContext(Dispatchers.IO) {
-            // Можно собрать простую форму поиска:
-            //   sort = RATING
-            //   толькоCompleted = false (или true, по желанию)
-            // page = requestPage
-            searchRepository.searchReleases(SearchForm(sort = SearchForm.Sort.RATING), requestPage)
-        }
+        val userFavGenres = loadUserFavoriteGenres()
+        val topRated = loadTopRated(requestPage)
         // Обновляем кеш (если нужно)
         releaseInteractor.updateItemsCache(topRated.data)
+
+        if (userFavGenres.isEmpty()) {
+            return topRated.data.map { converter.toCard(it) }
+        }
 
         // 4) Фильтруем часть релизов, у которых есть пересечение жанров c userFavGenres
         val matchedByGenres = topRated.data.filter { release ->
@@ -67,5 +57,23 @@ class WatchingRecommendsViewModel @Inject constructor(
     override fun onLibriaCardClick(card: LibriaCard) {
         // Переход на детальный экран
         cardRouter.navigate(card)
+    }
+
+    private suspend fun loadUserFavoriteGenres(): Set<String> {
+        return try {
+            withContext(Dispatchers.IO) {
+                favoriteRepository.getFavorites(page = 1).data
+            }.flatMap { it.genres }.toSet()
+        } catch (error: Throwable) {
+            if (error is CancellationException) {
+                throw error
+            }
+            Timber.w(error, "Failed to load favorite genres for TV recommendations, fallback to top rated")
+            emptySet()
+        }
+    }
+
+    private suspend fun loadTopRated(requestPage: Int) = withContext(Dispatchers.IO) {
+        searchRepository.searchReleases(SearchForm(sort = SearchForm.Sort.RATING), requestPage)
     }
 }

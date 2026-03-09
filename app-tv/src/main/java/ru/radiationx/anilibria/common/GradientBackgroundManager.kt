@@ -26,6 +26,7 @@ import ru.radiationx.shared.ktx.android.getCompatColor
 import ru.radiationx.shared.ktx.coRunCatching
 import ru.radiationx.shared_app.imageloader.loadImageBitmap
 import timber.log.Timber
+import java.util.LinkedHashMap
 import javax.inject.Inject
 
 class GradientBackgroundManager @Inject constructor(
@@ -67,7 +68,11 @@ class GradientBackgroundManager @Inject constructor(
     private var colorApplierJob: Job? = null
     private val colorApplier = MutableStateFlow(defaultColor)
     private val colorEvaluator = ArgbEvaluatorCompat()
-    private val urlColorMap = mutableMapOf<String, Int>()
+    private val urlColorMap = LinkedHashMap<String, Int>(
+        MAX_COLOR_CACHE_SIZE,
+        0.75f,
+        true,
+    )
 
     private val defaultColorSelector = { palette: Palette ->
         palette.getMutedColor(defaultColor)
@@ -143,7 +148,10 @@ class GradientBackgroundManager @Inject constructor(
                     return@onSuccess
                 }
                 if (colorSelector == defaultColorSelector) {
-                    urlColorMap[normalizedUrl] = colorSelector(palette) ?: defaultColorSelector(palette)
+                    cacheDefaultColor(
+                        normalizedUrl,
+                        colorSelector(palette) ?: defaultColorSelector(palette)
+                    )
                 }
                 applyPalette(palette, colorSelector, colorModifier)
             }.onFailure {
@@ -199,5 +207,17 @@ class GradientBackgroundManager @Inject constructor(
                 }
                 start()
             }
+    }
+
+    private fun cacheDefaultColor(url: String, @ColorInt color: Int) {
+        urlColorMap[url] = color
+        while (urlColorMap.size > MAX_COLOR_CACHE_SIZE) {
+            val eldestKey = urlColorMap.entries.firstOrNull()?.key ?: break
+            urlColorMap.remove(eldestKey)
+        }
+    }
+
+    private companion object {
+        const val MAX_COLOR_CACHE_SIZE = 48
     }
 }

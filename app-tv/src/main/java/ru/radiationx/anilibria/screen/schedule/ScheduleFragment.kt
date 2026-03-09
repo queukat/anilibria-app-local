@@ -18,6 +18,8 @@ import ru.radiationx.shared.ktx.android.subscribeTo
 class ScheduleFragment : BaseTvBrowseRowsFragment() {
 
     private val viewModel by viewModel<ScheduleViewModel>()
+    private val rowHolders = linkedMapOf<String, ScheduleRowHolder>()
+    private var nextRowId = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,14 +33,23 @@ class ScheduleFragment : BaseTvBrowseRowsFragment() {
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
 
         subscribeTo(viewModel.scheduleRows) {
-            val rows = it.mapIndexed { index, day ->
-                val cardsPresenter = CardPresenterSelector(null)
-                val cardsAdapter = ArrayObjectAdapter(cardsPresenter)
-                cardsAdapter.setItems(day.second, CardDiffCallback)
-                ListRow(index.toLong(), HeaderItem(day.first), cardsAdapter)
+            val activeTitles = it.mapTo(mutableSetOf()) { day -> day.first }
+            rowHolders.keys.retainAll(activeTitles)
+
+            val rows = it.map { day ->
+                val rowHolder = rowHolders.getOrPut(day.first) {
+                    createScheduleRow(day.first)
+                }
+                rowHolder.cardsAdapter.setItems(day.second, CardDiffCallback)
+                rowHolder.row
             }
             rowsAdapter.setItems(rows, RowDiffCallback)
         }
+    }
+
+    override fun onDestroyView() {
+        rowHolders.clear()
+        super.onDestroyView()
     }
 
     override fun onRowItemClicked(item: Any?) {
@@ -50,4 +61,15 @@ class ScheduleFragment : BaseTvBrowseRowsFragment() {
             }
         }
     }
+
+    private fun createScheduleRow(title: String): ScheduleRowHolder {
+        val cardsAdapter = ArrayObjectAdapter(CardPresenterSelector(null))
+        val row = ListRow(nextRowId++, HeaderItem(title), cardsAdapter)
+        return ScheduleRowHolder(row = row, cardsAdapter = cardsAdapter)
+    }
+
+    private data class ScheduleRowHolder(
+        val row: ListRow,
+        val cardsAdapter: ArrayObjectAdapter,
+    )
 }

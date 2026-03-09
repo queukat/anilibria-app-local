@@ -105,6 +105,45 @@ class SuggestionsContentProviderQueryHandlerTest {
         }
     }
 
+    @Test
+    fun query_ignoresRefreshForEvictedTrackedKey_whenKeyCacheIsBounded() {
+        val refreshKeys = mutableListOf<String>()
+        val scheduler = Executors.newSingleThreadScheduledExecutor()
+        val worker = Executors.newSingleThreadExecutor()
+        val handler = SuggestionsContentProviderQueryHandler<String>(
+            minQueryLength = 3,
+            maxResults = 20,
+            timeoutMs = 500L,
+            cacheTtlMs = 1_000L,
+            minRequestIntervalMs = 0L,
+            maxTrackedQueries = 1,
+            loadSuggestions = { query ->
+                if (query == "naruto") {
+                    Thread.sleep(150L)
+                }
+                listOf(suggestion(query.hashCode(), query))
+            },
+            awaitAppInitialized = {},
+            onRefreshReady = { key: String -> refreshKeys += key },
+            scheduler = scheduler,
+            workerExecutor = worker,
+        )
+
+        try {
+            assertTrue(handler.query("content://suggest/naruto", "naruto").isEmpty())
+            assertTrue(handler.query("content://suggest/onepiece", "onepiece").isEmpty())
+
+            waitUntil { refreshKeys.size == 1 }
+
+            assertEquals(
+                listOf("content://suggest/onepiece"),
+                refreshKeys
+            )
+        } finally {
+            handler.shutdown()
+        }
+    }
+
     private fun suggestion(id: Int, title: String): SuggestionItem {
         return SuggestionItem(
             id = ReleaseId(id),

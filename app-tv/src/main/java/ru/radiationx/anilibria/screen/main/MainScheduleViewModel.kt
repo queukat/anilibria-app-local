@@ -25,11 +25,7 @@ class MainScheduleViewModel @Inject constructor(
 
     override val preventClearOnRefresh: Boolean = true
 
-    override fun getEmptyStateCard(): CardItem = LoadingCard(
-        title = "На сегодня релизов нет",
-        description = "Откройте полное расписание",
-        isError = false,
-    )
+    override fun getEmptyStateCard(): CardItem = emptyStateCard
 
     override fun onResume() {
         super.onResume()
@@ -51,11 +47,27 @@ class MainScheduleViewModel @Inject constructor(
         router.navigateTo(ScheduleScreen())
     }
 
+    override fun onLoadingCardClick() {
+        if (cardsData.value.singleOrNull() == emptyStateCard) {
+            onLinkCardClick()
+            return
+        }
+        super.onLoadingCardClick()
+    }
+
     override fun onLinkCardBind() {
         // do nothing
     }
 
     override fun onLibriaCardClick(card: LibriaCard) {
         cardRouter.navigate(card)
+    }
+
+    private companion object {
+        val emptyStateCard = LoadingCard(
+            title = "На сегодня релизов нет",
+            description = "Откройте полное расписание",
+            isError = false,
+        )
     }
 }

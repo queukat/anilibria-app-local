@@ -197,6 +197,78 @@ class SuggestionQueryExecutorTest {
         }
     }
 
+    @Test
+    fun execute_keepsStaleQueriesAvailableUntilSizePressureRequiresEviction() {
+        var now = 1_000L
+        val scheduler = Executors.newSingleThreadScheduledExecutor()
+        val worker = Executors.newSingleThreadExecutor()
+        val executor = SuggestionQueryExecutor<String>(
+            minQueryLength = 3,
+            maxResults = 20,
+            timeoutMs = 200L,
+            cacheTtlMs = 100L,
+            minRequestIntervalMs = 0L,
+            maxCacheEntries = 8,
+            nowMillis = { now },
+            scheduler = scheduler,
+            workerExecutor = worker,
+        )
+
+        try {
+            executor.execute("naruto") { listOf("naruto") }
+            waitUntil { executor.execute("naruto") { error("unexpected refresh") }.isNotEmpty() }
+
+            now += 150L
+            executor.execute("bleach") { listOf("bleach") }
+            waitUntil { executor.execute("bleach") { error("unexpected refresh") }.isNotEmpty() }
+
+            now += 150L
+            val stale = executor.execute("naruto") { listOf("naruto-new") }
+            assertEquals(listOf("naruto"), stale)
+
+            waitUntil {
+                executor.execute("naruto") { error("unexpected refresh") } == listOf("naruto-new")
+            }
+
+            val bleached = executor.execute("bleach") { listOf("bleach-new") }
+            assertEquals(listOf("bleach"), bleached)
+        } finally {
+            executor.shutdown()
+        }
+    }
+
+    @Test
+    fun execute_evictsLeastRecentlyUsedQueries_whenCacheIsBounded() {
+        val scheduler = Executors.newSingleThreadScheduledExecutor()
+        val worker = Executors.newSingleThreadExecutor()
+        val executor = SuggestionQueryExecutor<String>(
+            minQueryLength = 3,
+            maxResults = 20,
+            timeoutMs = 200L,
+            cacheTtlMs = 1_000L,
+            minRequestIntervalMs = 0L,
+            maxCacheEntries = 2,
+            scheduler = scheduler,
+            workerExecutor = worker,
+        )
+
+        try {
+            executor.execute("naruto") { listOf("naruto") }
+            waitUntil { executor.execute("naruto") { error("unexpected refresh") }.isNotEmpty() }
+
+            executor.execute("bleach") { listOf("bleach") }
+            waitUntil { executor.execute("bleach") { error("unexpected refresh") }.isNotEmpty() }
+
+            executor.execute("onepiece") { listOf("onepiece") }
+            waitUntil { executor.execute("onepiece") { error("unexpected refresh") }.isNotEmpty() }
+
+            val evicted = executor.execute("naruto") { listOf("naruto-new") }
+            assertTrue(evicted.isEmpty())
+        } finally {
+            executor.shutdown()
+        }
+    }
+
     private fun waitUntil(timeoutMs: Long = 1_500L, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (!condition()) {

@@ -2,6 +2,7 @@ package ru.radiationx.anilibria.contentprovider.suggestions
 
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.LinkedHashMap
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -13,6 +14,7 @@ internal class SuggestionQueryExecutor<T>(
     private val timeoutMs: Long,
     private val cacheTtlMs: Long,
     private val minRequestIntervalMs: Long,
+    private val maxCacheEntries: Int = DEFAULT_MAX_CACHE_ENTRIES,
     private val onCacheUpdated: (query: String, items: List<T>) -> Unit = { _, _ -> },
     private val nowMillis: () -> Long = { System.currentTimeMillis() },
     private val scheduler: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { runnable ->
@@ -32,8 +34,16 @@ internal class SuggestionQueryExecutor<T>(
     private var scheduledFuture: ScheduledFuture<*>? = null
     private var inFlightQuery: String? = null
     private var requestSequence: Long = 0L
-    private val lastAppliedRequestByQuery = mutableMapOf<String, Long>()
-    private val cache = mutableMapOf<String, CacheEntry<T>>()
+    private val lastAppliedRequestByQuery = LinkedHashMap<String, AppliedRequestEntry>(
+        maxCacheEntries,
+        0.75f,
+        true,
+    )
+    private val cache = LinkedHashMap<String, CacheEntry<T>>(
+        maxCacheEntries,
+        0.75f,
+        true,
+    )
 
     fun execute(rawQuery: String, fetch: (String) -> List<T>): List<T> {
         val query = rawQuery.trim()
@@ -42,7 +52,10 @@ internal class SuggestionQueryExecutor<T>(
         }
 
         val now = nowMillis()
-        val cacheEntry = synchronized(lock) { cache[query] }
+        val cacheEntry = synchronized(lock) {
+            cleanupStateLocked(now, keepQuery = query)
+            cache[query]
+        }
         val isCacheFresh = cacheEntry != null && now - cacheEntry.savedAtMs <= cacheTtlMs
 
         if (!isCacheFresh) {
@@ -64,6 +77,7 @@ internal class SuggestionQueryExecutor<T>(
                 return
             }
             requestId = ++requestSequence
+            cleanupStateLocked(now, keepQuery = query)
             val elapsedSinceLastStart = now - lastRefreshStartedAtMs
             delayMs = (minRequestIntervalMs - elapsedSinceLastStart).coerceAtLeast(0L)
             scheduledQuery = query
@@ -103,10 +117,20 @@ internal class SuggestionQueryExecutor<T>(
                 inFlightQuery = null
             }
             if (newItems != null) {
-                val lastAppliedId = lastAppliedRequestByQuery[query] ?: Long.MIN_VALUE
+                val now = nowMillis()
+                val lastAppliedId = lastAppliedRequestByQuery[query]?.requestId ?: Long.MIN_VALUE
                 if (requestId >= lastAppliedId) {
-                    lastAppliedRequestByQuery[query] = requestId
-                    cache[query] = CacheEntry(query = query, savedAtMs = nowMillis(), items = newItems)
+                    lastAppliedRequestByQuery[query] = AppliedRequestEntry(
+                        requestId = requestId,
+                        appliedAtMs = now,
+                    )
+                    cache[query] = CacheEntry(
+                        query = query,
+                        savedAtMs = now,
+                        requestId = requestId,
+                        items = newItems,
+                    )
+                    cleanupStateLocked(now, keepQuery = query)
                     appliedItems = newItems
                 }
             }
@@ -141,10 +165,79 @@ internal class SuggestionQueryExecutor<T>(
         scheduler.shutdownNow()
         workerExecutor.shutdownNow()
     }
+
+    private fun cleanupStateLocked(
+        now: Long,
+        keepQuery: String? = null,
+    ) {
+        val activeQueries = setOfNotNull(keepQuery, scheduledQuery, inFlightQuery)
+        pruneExpiredAppliedRequestsLocked(now, activeQueries)
+        trimCacheToSizeLocked(now, activeQueries)
+        trimToSize(lastAppliedRequestByQuery, maxCacheEntries, activeQueries)
+    }
+
+    private fun trimCacheToSizeLocked(
+        now: Long,
+        protectedQueries: Set<String>,
+    ) {
+        if (maxCacheEntries <= 0) {
+            cache.clear()
+            return
+        }
+        while (cache.size > maxCacheEntries) {
+            val eldestExpiredKey = cache.entries.firstOrNull { entry ->
+                entry.key !in protectedQueries && now - entry.value.savedAtMs > cacheTtlMs
+            }?.key
+            val eldestKey = eldestExpiredKey
+                ?: cache.entries.firstOrNull { it.key !in protectedQueries }?.key
+                ?: break
+            cache.remove(eldestKey)
+        }
+    }
+
+    private fun pruneExpiredAppliedRequestsLocked(
+        now: Long,
+        protectedQueries: Set<String>,
+    ) {
+        val iterator = lastAppliedRequestByQuery.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            val isExpired = now - entry.value.appliedAtMs > cacheTtlMs
+            val hasCacheEntry = cache.containsKey(entry.key)
+            if (isExpired && !hasCacheEntry && entry.key !in protectedQueries) {
+                iterator.remove()
+            }
+        }
+    }
+
+    private fun <K, V> trimToSize(
+        map: LinkedHashMap<K, V>,
+        maxSize: Int,
+        protectedKeys: Set<K>,
+    ) {
+        if (maxSize <= 0) {
+            map.clear()
+            return
+        }
+        while (map.size > maxSize) {
+            val eldestKey = map.entries.firstOrNull { it.key !in protectedKeys }?.key ?: break
+            map.remove(eldestKey)
+        }
+    }
+
+    private companion object {
+        const val DEFAULT_MAX_CACHE_ENTRIES = 32
+    }
 }
 
 private data class CacheEntry<T>(
     val query: String,
     val savedAtMs: Long,
+    val requestId: Long,
     val items: List<T>,
+)
+
+private data class AppliedRequestEntry(
+    val requestId: Long,
+    val appliedAtMs: Long,
 )
