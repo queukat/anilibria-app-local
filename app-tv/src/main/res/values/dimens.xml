@@ -10,6 +10,8 @@
     <dimen name="card_height">185dp</dimen>
     <dimen name="card_release_width">130dp</dimen>
     <dimen name="card_youtube_width">330dp</dimen>
-    <dimen name="detail_title_ru_scroll_height">96dp</dimen>
+    <dimen name="detail_title_ru_line_height">40sp</dimen>
+    <dimen name="detail_title_ru_scroll_height">80sp</dimen>
     <dimen name="detail_title_en_scroll_height">48dp</dimen>
+    <dimen name="detail_title_spacing">8dp</dimen>
 </resources>
