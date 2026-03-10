@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import ru.radiationx.anilibria.common.CardItem
+import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
@@ -31,8 +33,8 @@ class SuggestionsResultViewModel @Inject constructor(
 
     private val _progressState = MutableStateFlow(false)
     val progressState: StateFlow<Boolean> = _progressState.asStateFlow()
-    private val _resultData = MutableStateFlow<List<LibriaCard>>(emptyList())
-    val resultData: StateFlow<List<LibriaCard>> = _resultData.asStateFlow()
+    private val _resultData = MutableStateFlow<List<CardItem>>(emptyList())
+    val resultData: StateFlow<List<CardItem>> = _resultData.asStateFlow()
 
     init {
         searchLoader
@@ -63,13 +65,22 @@ class SuggestionsResultViewModel @Inject constructor(
 
     private fun showItems(result: SuggestionsController.SearchResult) {
         suggestionsController.resultEvent.emit(result)
-        _resultData.value = result.items.map {
-            LibriaCard(
-                it.names.getOrNull(0).orEmpty(),
-                it.names.getOrNull(1).orEmpty(),
-                it.poster.orEmpty(),
-                LibriaCard.Type.Release(it.id)
+        _resultData.value = if (result.validQuery && result.items.isEmpty()) {
+            listOf(
+                InfoCard(
+                    title = "Ничего не найдено",
+                    subtitle = "Попробуйте изменить запрос: \"${result.query}\"",
+                )
             )
+        } else {
+            result.items.map {
+                LibriaCard(
+                    it.names.getOrNull(0).orEmpty(),
+                    it.names.getOrNull(1).orEmpty(),
+                    it.poster.orEmpty(),
+                    LibriaCard.Type.Release(it.id)
+                )
+            }
         }
     }
 

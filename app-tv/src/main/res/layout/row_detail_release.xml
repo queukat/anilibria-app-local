@@ -49,36 +49,57 @@
         app:shapeAppearanceOverlay="@style/AppTheme.RoundedImageView" />
 
     <!-- Заголовок (RU) -->
-    <TextView
-        android:id="@+id/rowReleaseTitleRu"
+    <ScrollView
+        android:id="@+id/rowReleaseTitleRuScroll"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="@dimen/detail_title_ru_scroll_height"
         android:layout_marginTop="?browsePaddingBottom"
         android:layout_marginEnd="?browsePaddingEnd"
-        android:textColor="@color/dark_textDefault"
-        android:textSize="34sp"
-        android:maxLines="2"
-        android:ellipsize="end"
+        android:fadeScrollbars="false"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:nextFocusDown="@id/rowReleaseTitleEnScroll"
+        android:scrollbars="vertical"
         app:layout_constraintEnd_toStartOf="@id/rowReleaseImageCard"
         app:layout_constraintStart_toStartOf="@id/guideline_left"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:text="Фантазия Гранблю 2 Очень Длинное Название Которое Не Должно Ломать Всё" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/rowReleaseTitleRu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/dark_textDefault"
+            android:textSize="34sp"
+            tools:text="Фантазия Гранблю 2 Очень Длинное Название Которое Не Должно Ломать Всё" />
+
+    </ScrollView>
 
     <!-- Заголовок (ENG) -->
-    <TextView
-        android:id="@+id/rowReleaseTitleEn"
+    <ScrollView
+        android:id="@+id/rowReleaseTitleEnScroll"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="@dimen/detail_title_en_scroll_height"
         android:layout_marginTop="4dp"
         android:layout_marginEnd="?browsePaddingEnd"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:textColor="@color/dark_textDefault"
-        android:textSize="16sp"
+        android:fadeScrollbars="false"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:nextFocusDown="@id/rowReleaseDescriptionScroll"
+        android:nextFocusUp="@id/rowReleaseTitleRuScroll"
+        android:scrollbars="vertical"
         app:layout_constraintEnd_toStartOf="@id/rowReleaseImageCard"
         app:layout_constraintStart_toStartOf="@id/guideline_left"
-        app:layout_constraintTop_toBottomOf="@id/rowReleaseTitleRu"
-        tools:text="Granblue Fantasy The Animation Season 2" />
+        app:layout_constraintTop_toBottomOf="@id/rowReleaseTitleRuScroll">
+
+        <TextView
+            android:id="@+id/rowReleaseTitleEn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/dark_textDefault"
+            android:textSize="16sp"
+            tools:text="Granblue Fantasy The Animation Season 2" />
+
+    </ScrollView>
 
     <!-- Дополнительное (год, жанр...) -->
     <TextView
@@ -96,7 +117,7 @@
         app:layout_constraintHorizontal_chainStyle="packed"
         app:layout_constraintHorizontal_bias="0"
         app:layout_constraintStart_toStartOf="@id/guideline_left"
-        app:layout_constraintTop_toBottomOf="@id/rowReleaseTitleEn"
+        app:layout_constraintTop_toBottomOf="@id/rowReleaseTitleEnScroll"
         app:layout_constraintWidth_default="wrap"
         tools:text="2019 год, Экшен, ТВ (12эп.) 12 мин., Выходит по четвергам " />
 
@@ -176,9 +197,11 @@
 
         <!-- ScrollView, чтобы текст прокручивался, а не уезжал -->
         <ScrollView
+            android:id="@+id/rowReleaseDescriptionScroll"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_margin="8dp"
+            android:nextFocusUp="@id/rowReleaseTitleEnScroll"
             android:scrollbars="vertical"
             android:fadeScrollbars="false"
             android:focusable="true"

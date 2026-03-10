@@ -1,7 +1,6 @@
 package ru.radiationx.anilibria.ui.presenter
 
 import android.content.res.ColorStateList
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -124,6 +123,9 @@ class LibriaReleaseViewHolder(
         binding.rowReleaseExtra.text = details.extra
         binding.rowReleaseDescription.text = details.description
         binding.rowReleaseAnnounce.text = details.announce
+        binding.rowReleaseTitleRuScroll.scrollTo(0, 0)
+        binding.rowReleaseTitleEnScroll.scrollTo(0, 0)
+        binding.rowReleaseDescriptionScroll.scrollTo(0, 0)
         binding.rowReleaseAnnounce.isVisible = details.announce.isNotEmpty()
         binding.rowReleaseFavoriteCount.text = details.favoriteCount
         binding.rowReleaseFavoriteCount.isVisible = details.favoriteCount != "0"

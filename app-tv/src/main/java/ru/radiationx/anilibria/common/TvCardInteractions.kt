@@ -10,6 +10,7 @@ internal fun Any?.toTvCardDescription(
 ): TvCardDescription {
     return when (this) {
         is LibriaCard -> TvCardDescription(title = title, subtitle = libriaSubtitle(this))
+        is InfoCard -> TvCardDescription(title = title, subtitle = subtitle)
         is LinkCard -> TvCardDescription(title = title, subtitle = "")
         is LoadingCard -> TvCardDescription(title = title, subtitle = description)
         else -> TvCardDescription()

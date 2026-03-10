@@ -2,6 +2,7 @@ package ru.radiationx.anilibria.ui.presenter
 
 import androidx.leanback.widget.Presenter
 import androidx.leanback.widget.PresenterSelector
+import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
@@ -19,6 +20,7 @@ class CardPresenterSelector(
             return presenter
         }
         presentersMap[item::class.java] = when (item) {
+            is InfoCard -> InfoCardPresenter()
             is LibriaCard -> LibriaCardPresenter()
             is LinkCard -> LinkCardPresenter(linkBindListener)
             is LoadingCard -> LoadingCardPresenter()

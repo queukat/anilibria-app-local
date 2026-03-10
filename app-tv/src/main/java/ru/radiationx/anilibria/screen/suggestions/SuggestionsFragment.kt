@@ -17,7 +17,6 @@ import ru.radiationx.anilibria.common.fragment.BaseTvSearchRowsFragment
 import ru.radiationx.anilibria.extension.createCardsRowBy
 import ru.radiationx.anilibria.ui.presenter.CardPresenterSelector
 import ru.radiationx.anilibria.ui.widget.manager.ExternalProgressManager
-import ru.radiationx.anilibria.ui.widget.manager.ExternalTextManager
 import ru.radiationx.quill.installModules
 import ru.radiationx.quill.quillModule
 import ru.radiationx.quill.viewModel
@@ -28,7 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 class SuggestionsFragment : BaseTvSearchRowsFragment() {
 
     private val progressManager by lazy { ExternalProgressManager() }
-    private val emptyTextManager by lazy { ExternalTextManager() }
 
     private val rowsViewModel by viewModel<SuggestionsRowsViewModel>()
     private val resultViewModel by viewModel<SuggestionsResultViewModel>()
@@ -54,16 +52,9 @@ class SuggestionsFragment : BaseTvSearchRowsFragment() {
         progressManager.rootView = view as ViewGroup
         progressManager.initialDelay = 0L
 
-        emptyTextManager.rootView = view
-        emptyTextManager.initialDelay = 0L
-        emptyTextManager.text = "Ничего не найдено"
-
         subscribeTo(rowsViewModel.emptyResultState) { isEmpty ->
             if (isEmpty) {
-                emptyTextManager.show()
                 backgroundManager.clearGradient()
-            } else {
-                emptyTextManager.hide()
             }
         }
 

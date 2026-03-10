@@ -30,7 +30,7 @@ class SuggestionsRowsViewModel @Inject constructor(
             .resultEvent
             .onEach {
                 _emptyResultState.value = it.validQuery && it.items.isEmpty()
-                updateAvailableRow(RESULT_ROW_ID, it.validQuery && it.items.isNotEmpty())
+                updateAvailableRow(RESULT_ROW_ID, it.validQuery)
                 updateAvailableRow(RECOMMENDS_ROW_ID, !it.validQuery && it.items.isEmpty())
             }
             .launchIn(viewModelScope)
