@@ -297,6 +297,7 @@ internal fun WatchingDescriptionBar(
     title: String,
     subtitle: String,
     palette: WatchingPalette,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 18.dp),
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -310,7 +311,7 @@ internal fun WatchingDescriptionBar(
                     )
                 )
             )
-            .padding(horizontal = 8.dp, vertical = 18.dp)
+            .padding(contentPadding)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),

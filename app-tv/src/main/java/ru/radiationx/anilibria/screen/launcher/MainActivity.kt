@@ -2,6 +2,8 @@ package ru.radiationx.anilibria.screen.launcher
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.FragmentActivity
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.fragment.GuidedStepNavigator
@@ -42,7 +44,12 @@ class MainActivity : FragmentActivity() {
         )
 
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_fragments)
+        setContentView(
+            FragmentContainerView(this).apply {
+                id = R.id.fragmentContainer
+                layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+            }
+        )
 
         lifecycle.addObserver(viewModel)
         subscribeTo(viewModel.commands) { command ->

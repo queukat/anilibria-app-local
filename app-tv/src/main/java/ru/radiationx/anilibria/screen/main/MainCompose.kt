@@ -270,10 +270,9 @@ internal fun MainScreen(
                             requestSectionFocus(sectionIndex, -1, itemIndex)
                         }
                     },
-                        onDown = { itemIndex ->
-                            requestSectionFocus(sectionIndex, 1, itemIndex)
-                        },
-                        modifier = Modifier.padding(start = 16.dp),
+                    onDown = { itemIndex ->
+                        requestSectionFocus(sectionIndex, 1, itemIndex)
+                    },
                 )
             }
         }
@@ -288,6 +287,7 @@ internal fun MainScreen(
                     title = description.title.toString(),
                     subtitle = description.subtitle.toString(),
                     palette = palette,
+                    contentPadding = PaddingValues(vertical = 18.dp),
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -340,7 +340,6 @@ internal fun MainSectionBlock(
             state = rowState,
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(end = 24.dp),
         ) {
             itemsIndexed(
                 items = items,
