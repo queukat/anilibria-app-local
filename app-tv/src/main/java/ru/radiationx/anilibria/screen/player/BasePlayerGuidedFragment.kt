@@ -1,6 +1,6 @@
 package ru.radiationx.anilibria.screen.player
 
-import ru.radiationx.anilibria.common.fragment.FakeGuidedStepFragment
+import ru.radiationx.anilibria.common.fragment.ComposeGuidedFragment
 import ru.radiationx.anilibria.screen.player.BasePlayerGuidedFragment.Companion.ARG_EPISODE_ID
 import ru.radiationx.anilibria.screen.player.BasePlayerGuidedFragment.Companion.ARG_RELEASE_ID
 import ru.radiationx.data.entity.domain.types.EpisodeId
@@ -15,7 +15,7 @@ data class PlayerExtra(
     val episodeId: EpisodeId?
 ) : QuillExtra
 
-abstract class BasePlayerGuidedFragment : FakeGuidedStepFragment() {
+abstract class BasePlayerGuidedFragment : ComposeGuidedFragment() {
 
     companion object {
         const val ARG_RELEASE_ID = "release id"

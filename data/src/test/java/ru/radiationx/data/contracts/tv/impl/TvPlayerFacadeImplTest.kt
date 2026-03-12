@@ -9,6 +9,7 @@ import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.interactors.tv.TvReleaseUseCase
 import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.repository.UserViewsRepository
 
@@ -27,6 +28,7 @@ class TvPlayerFacadeImplTest {
 
         val facade = TvPlayerFacadeImpl(
             releaseInteractor = releaseInteractor,
+            tvReleaseUseCase = mockk<TvReleaseUseCase>(relaxed = true),
             userViewsRepository = mockk<UserViewsRepository>(relaxed = true),
             authRepository = mockk<AuthRepository>(relaxed = true),
         )
@@ -44,6 +46,7 @@ class TvPlayerFacadeImplTest {
 
         val facade = TvPlayerFacadeImpl(
             releaseInteractor = mockk<ReleaseInteractor>(relaxed = true),
+            tvReleaseUseCase = mockk<TvReleaseUseCase>(relaxed = true),
             userViewsRepository = userViewsRepository,
             authRepository = mockk<AuthRepository>(relaxed = true),
         )

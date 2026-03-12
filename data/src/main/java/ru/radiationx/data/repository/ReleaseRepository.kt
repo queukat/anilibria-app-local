@@ -96,6 +96,19 @@ class ReleaseRepository @Inject constructor(
             .also { updateMiddleware.handle(it) }
     }
 
+    suspend fun getReleaseAniLiberty(releaseId: ReleaseId): Release = withContext(Dispatchers.IO) {
+        val release = requireNotNull(
+            loadV1FullReleaseOrNull(
+                key = AniLibertyReleaseKey.id(releaseId.id),
+                withFranchises = true,
+            )
+        ) {
+            "AniLiberty release is unavailable for $releaseId"
+        }
+        updateMiddleware.handle(release)
+        release
+    }
+
     suspend fun getRelease(releaseIdName: ReleaseCode): Release = withContext(Dispatchers.IO) {
         val v1 = runCatching {
             // AniLiberty "alias" ~= legacy "code"
@@ -139,6 +152,27 @@ class ReleaseRepository @Inject constructor(
             .also { updateMiddleware.handle(it) }
     }
 
+    suspend fun getFullReleasesByIdAniLiberty(ids: List<ReleaseId>): List<Release> = withContext(Dispatchers.IO) {
+        if (ids.isEmpty()) return@withContext emptyList()
+
+        val releases = coroutineScope {
+            ids.map { rid ->
+                async {
+                    loadV1FullReleaseOrNull(
+                        key = AniLibertyReleaseKey.id(rid.id),
+                        withFranchises = false,
+                    )
+                }
+            }.awaitAll().filterNotNull()
+        }.distinctBy { it.id }
+
+        if (releases.isNotEmpty()) {
+            updateMiddleware.handle(releases)
+        }
+
+        releases
+    }
+
     suspend fun getFullReleasesById(ids: List<ReleaseId>): List<Release> = withContext(Dispatchers.IO) {
         if (ids.isEmpty()) return@withContext emptyList()
 
@@ -179,6 +213,24 @@ class ReleaseRepository @Inject constructor(
         }
 
         all
+    }
+
+    suspend fun loadWithFranchisesAniLiberty(releaseId: ReleaseId): List<Release> = withContext(Dispatchers.IO) {
+        val rootRelease = getReleaseAniLiberty(releaseId)
+        val rootReleaseIds = rootRelease.getFranchisesIds()
+        if (rootReleaseIds.isEmpty()) {
+            return@withContext listOf(rootRelease)
+        }
+
+        val idsToLoad = rootReleaseIds.filter { it != rootRelease.id }
+        val franchiseReleases = getFullReleasesByIdAniLiberty(idsToLoad)
+
+        val allReleasesMap = mutableMapOf<ReleaseId, Release>()
+        allReleasesMap[rootRelease.id] = rootRelease
+        franchiseReleases.forEach {
+            allReleasesMap[it.id] = it
+        }
+        rootReleaseIds.mapNotNull { allReleasesMap[it] }
     }
 
     suspend fun getReleases(page: Int): Paginated<Release> = withContext(Dispatchers.IO) {

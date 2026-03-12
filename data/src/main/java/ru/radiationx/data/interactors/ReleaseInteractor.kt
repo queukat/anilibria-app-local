@@ -70,6 +70,10 @@ class ReleaseInteractor @Inject constructor(
         return releaseItems.mapNotNull { it.findRelease(releaseId, releaseCode) }
     }
 
+    fun observeCachedFull(releaseId: ReleaseId? = null, releaseCode: ReleaseCode? = null): Flow<Release> {
+        return releases.mapNotNull { it.findRelease(releaseId, releaseCode) }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeFull(releaseId: ReleaseId? = null, releaseCode: ReleaseCode? = null): Flow<Release> {
         return flow {

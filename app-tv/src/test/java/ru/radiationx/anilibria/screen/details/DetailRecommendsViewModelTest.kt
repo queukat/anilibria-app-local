@@ -19,8 +19,6 @@ import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.ReleaseId
-import ru.radiationx.data.interactors.ReleaseInteractor
-import ru.radiationx.data.interactors.tv.DetailHeaderRemoteData
 import ru.radiationx.data.interactors.tv.MainSchedulePayload
 import ru.radiationx.data.interactors.tv.TvContentUseCase
 import ru.radiationx.data.interactors.tv.WeekSchedulePayload
@@ -42,10 +40,9 @@ class DetailRecommendsViewModelTest {
     }
 
     @Test
-    fun refresh_fallsBackToGlobalRecommendationsWhenSeededIsEmpty() = runBlocking {
+    fun refresh_usesRecommendationsFromUseCase() = runBlocking {
         val fakeUseCase = FakeTvContentUseCaseForDetails().apply {
-            seededRecommendations = emptyList()
-            globalRecommendations = listOf(mockRelease(9839))
+            recommendationsBySeed[9600] = listOf(mockRelease(9839))
         }
         val converter = mockk<CardsDataConverter>()
         every { converter.toCard(any<Release>()) } answers {
@@ -60,7 +57,6 @@ class DetailRecommendsViewModelTest {
 
         val viewModel = DetailRecommendsViewModel(
             tvContentUseCase = fakeUseCase,
-            releaseInteractor = mockk<ReleaseInteractor>(relaxed = true),
             converter = converter,
             cardRouter = LibriaCardRouter(
                 router = mockk<Router>(relaxed = true),
@@ -70,16 +66,40 @@ class DetailRecommendsViewModelTest {
         )
 
         viewModel.onRefreshClick()
-        waitUntil {
-            fakeUseCase.v1Calls.any { it == 9600 } && fakeUseCase.v1Calls.any { it == null }
+        waitUntil { fakeUseCase.recommendationCalls == listOf(9600) }
+        waitUntil { viewModel.cardsData.value.any { it is LibriaCard } }
+        assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
+    }
+
+    @Test
+    fun refresh_fallsBackToGlobalRecommendations_whenSeededListContainsOnlyCurrentRelease() = runBlocking {
+        val fakeUseCase = FakeTvContentUseCaseForDetails().apply {
+            recommendationsBySeed[9600] = listOf(mockRelease(9600))
+            recommendationsBySeed[null] = listOf(mockRelease(9839))
+        }
+        val converter = mockk<CardsDataConverter>()
+        every { converter.toCard(any<Release>()) } answers {
+            val release = firstArg<Release>()
+            LibriaCard(
+                title = "release-${release.id.id}",
+                description = "",
+                image = "",
+                type = LibriaCard.Type.Release(release.id),
+            )
         }
 
-        val seededIndex = fakeUseCase.v1Calls.indexOf(9600)
-        val globalIndex = fakeUseCase.v1Calls.indexOf(null)
-        assertTrue("Expected seeded recommendations call", seededIndex >= 0)
-        assertTrue("Expected global fallback recommendations call", globalIndex >= 0)
-        assertTrue("Global fallback should happen after seeded call", globalIndex > seededIndex)
-        assertTrue(fakeUseCase.legacyCalls == 0)
+        val viewModel = DetailRecommendsViewModel(
+            tvContentUseCase = fakeUseCase,
+            converter = converter,
+            cardRouter = LibriaCardRouter(
+                router = mockk<Router>(relaxed = true),
+                systemUtils = mockk<SystemUtils>(relaxed = true),
+            ),
+            extra = DetailExtra(id = ReleaseId(9600)),
+        )
+
+        viewModel.onRefreshClick()
+        waitUntil { fakeUseCase.recommendationCalls == listOf(9600, null) }
         waitUntil { viewModel.cardsData.value.any { it is LibriaCard } }
         assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
     }
@@ -100,10 +120,8 @@ class DetailRecommendsViewModelTest {
 }
 
 private class FakeTvContentUseCaseForDetails : TvContentUseCase {
-    var seededRecommendations: List<Release> = emptyList()
-    var globalRecommendations: List<Release> = emptyList()
-    val v1Calls = mutableListOf<Int?>()
-    var legacyCalls: Int = 0
+    val recommendationsBySeed = mutableMapOf<Int?, List<Release>>()
+    val recommendationCalls = mutableListOf<Int?>()
 
     override suspend fun loadMainFeed(requestPage: Int, pageLimit: Int): List<Release> = emptyList()
 
@@ -112,17 +130,10 @@ private class FakeTvContentUseCaseForDetails : TvContentUseCase {
 
     override suspend fun loadWeekSchedule(): List<WeekSchedulePayload> = emptyList()
 
-    override suspend fun loadDetailHeaderRemote(releaseId: ReleaseId): DetailHeaderRemoteData? = null
+    override suspend fun loadFavoriteState(releaseId: ReleaseId): Boolean? = null
 
-    override suspend fun loadDetailFavoriteState(releaseId: ReleaseId): Boolean? = null
-
-    override suspend fun loadV1Recommendations(seedReleaseId: Int?, limit: Int): List<Release> {
-        v1Calls += seedReleaseId
-        return if (seedReleaseId == null) globalRecommendations else seededRecommendations
-    }
-
-    override suspend fun loadLegacyRecommendations(releaseId: ReleaseId, requestPage: Int): List<Release> {
-        legacyCalls += 1
-        return emptyList()
+    override suspend fun loadRecommendations(seedReleaseId: Int?, limit: Int): List<Release> {
+        recommendationCalls += seedReleaseId
+        return recommendationsBySeed[seedReleaseId].orEmpty()
     }
 }

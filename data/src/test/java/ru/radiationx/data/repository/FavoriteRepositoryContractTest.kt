@@ -10,6 +10,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import ru.radiationx.data.datasource.holders.AuthTokenHolder
+import ru.radiationx.data.datasource.holders.CookieHolder
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoriteSorting
@@ -30,18 +32,24 @@ class FavoriteRepositoryContractTest {
     private val updateMiddleware = mockk<ReleaseUpdateMiddleware>(relaxed = true)
     private val apiUtils = mockk<ApiUtils>()
     private val apiConfig = mockk<ApiConfig>(relaxed = true)
+    private val authTokenHolder = mockk<AuthTokenHolder>()
+    private val cookieHolder = mockk<CookieHolder>()
 
     private lateinit var repository: FavoriteRepository
 
     @Before
     fun setUp() {
         every { apiUtils.escapeHtml(any()) } answers { firstArg<String?>() }
+        coEvery { authTokenHolder.getToken() } returns "token"
+        coEvery { cookieHolder.getCookies() } returns emptyMap()
         repository = FavoriteRepository(
             aniLibertyApi = aniLibertyApi,
             favoriteApi = favoriteApi,
             updateMiddleware = updateMiddleware,
             apiUtils = apiUtils,
             apiConfig = apiConfig,
+            authTokenHolder = authTokenHolder,
+            cookieHolder = cookieHolder,
         )
     }
 

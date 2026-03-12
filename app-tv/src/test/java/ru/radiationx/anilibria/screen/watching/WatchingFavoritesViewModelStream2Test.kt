@@ -27,8 +27,8 @@ import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.Paginated
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.ReleaseId
+import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
 import ru.radiationx.data.repository.AuthRepository
-import ru.radiationx.data.repository.FavoriteRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WatchingFavoritesViewModelStream2Test {
@@ -46,31 +46,30 @@ class WatchingFavoritesViewModelStream2Test {
     }
 
     @Test
-    fun bind_doesNotTriggerRequest() = runBlocking {
+    fun idle_doesNotTriggerAdditionalRequest() = runBlocking {
         val authStateFlow = MutableStateFlow(AuthState.AUTH)
         val authRepository = mockk<AuthRepository>()
         every { authRepository.observeAuthState() } returns authStateFlow
 
         val requests = mutableListOf<Int>()
-        val favoriteRepository = mockk<FavoriteRepository>()
-        coEvery { favoriteRepository.getFavorites(any()) } answers {
+        val tvFavoritesUseCase = mockk<TvFavoritesUseCase>()
+        coEvery { tvFavoritesUseCase.loadFavorites(any()) } answers {
             val page = firstArg<Int>()
             requests += page
             emptyResponse(page)
         }
 
         val viewModel = WatchingFavoritesViewModel(
-            favoriteRepository = favoriteRepository,
+            tvFavoritesUseCase = tvFavoritesUseCase,
             authRepository = authRepository,
             converter = mockk<CardsDataConverter>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
 
         waitUntil { requests.size == 1 }
-        viewModel.onLinkCardBind()
         delay(100)
 
-        assertEquals("Bind should not trigger a network request", 1, requests.size)
+        assertEquals("Idle state should not trigger a network request", 1, requests.size)
     }
 
     @Test
@@ -80,15 +79,15 @@ class WatchingFavoritesViewModelStream2Test {
         every { authRepository.observeAuthState() } returns authStateFlow
 
         val requests = mutableListOf<Int>()
-        val favoriteRepository = mockk<FavoriteRepository>()
-        coEvery { favoriteRepository.getFavorites(any()) } answers {
+        val tvFavoritesUseCase = mockk<TvFavoritesUseCase>()
+        coEvery { tvFavoritesUseCase.loadFavorites(any()) } answers {
             val page = firstArg<Int>()
             requests += page
             emptyResponse(page)
         }
 
         val viewModel = WatchingFavoritesViewModel(
-            favoriteRepository = favoriteRepository,
+            tvFavoritesUseCase = tvFavoritesUseCase,
             authRepository = authRepository,
             converter = mockk<CardsDataConverter>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -112,15 +111,15 @@ class WatchingFavoritesViewModelStream2Test {
         every { authRepository.observeAuthState() } returns authStateFlow
 
         val requests = mutableListOf<Int>()
-        val favoriteRepository = mockk<FavoriteRepository>()
-        coEvery { favoriteRepository.getFavorites(any()) } answers {
+        val tvFavoritesUseCase = mockk<TvFavoritesUseCase>()
+        coEvery { tvFavoritesUseCase.loadFavorites(any()) } answers {
             val page = firstArg<Int>()
             requests += page
             singleItemResponse(page)
         }
 
         WatchingFavoritesViewModel(
-            favoriteRepository = favoriteRepository,
+            tvFavoritesUseCase = tvFavoritesUseCase,
             authRepository = authRepository,
             converter = mockk<CardsDataConverter>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -138,13 +137,13 @@ class WatchingFavoritesViewModelStream2Test {
         val authRepository = mockk<AuthRepository>()
         every { authRepository.observeAuthState() } returns authStateFlow
 
-        val favoriteRepository = mockk<FavoriteRepository>()
-        coEvery { favoriteRepository.getFavorites(any()) } answers {
+        val tvFavoritesUseCase = mockk<TvFavoritesUseCase>()
+        coEvery { tvFavoritesUseCase.loadFavorites(any()) } answers {
             emptyResponse(firstArg<Int>())
         }
 
         val viewModel = WatchingFavoritesViewModel(
-            favoriteRepository = favoriteRepository,
+            tvFavoritesUseCase = tvFavoritesUseCase,
             authRepository = authRepository,
             converter = favoriteConverter(),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -171,8 +170,8 @@ class WatchingFavoritesViewModelStream2Test {
 
         val release = fakeRelease(7)
         var requestCount = 0
-        val favoriteRepository = mockk<FavoriteRepository>()
-        coEvery { favoriteRepository.getFavorites(any()) } answers {
+        val tvFavoritesUseCase = mockk<TvFavoritesUseCase>()
+        coEvery { tvFavoritesUseCase.loadFavorites(any()) } answers {
             requestCount += 1
             if (requestCount == 1) {
                 Paginated(
@@ -188,7 +187,7 @@ class WatchingFavoritesViewModelStream2Test {
         }
 
         val viewModel = WatchingFavoritesViewModel(
-            favoriteRepository = favoriteRepository,
+            tvFavoritesUseCase = tvFavoritesUseCase,
             authRepository = authRepository,
             converter = favoriteConverter(),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -211,12 +210,12 @@ class WatchingFavoritesViewModelStream2Test {
         val authRepository = mockk<AuthRepository>()
         every { authRepository.observeAuthState() } returns authStateFlow
 
-        val favoriteRepository = mockk<FavoriteRepository>()
-        coEvery { favoriteRepository.getFavorites(any()) } throws
+        val tvFavoritesUseCase = mockk<TvFavoritesUseCase>()
+        coEvery { tvFavoritesUseCase.loadFavorites(any()) } throws
             CancellationException("favorites load cancelled")
 
         val viewModel = WatchingFavoritesViewModel(
-            favoriteRepository = favoriteRepository,
+            tvFavoritesUseCase = tvFavoritesUseCase,
             authRepository = authRepository,
             converter = mockk<CardsDataConverter>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),

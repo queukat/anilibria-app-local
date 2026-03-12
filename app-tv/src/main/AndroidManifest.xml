@@ -29,10 +29,9 @@
         <activity
             android:name=".screen.launcher.MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:launchMode="singleTask"
             android:screenOrientation="landscape"
-            tools:ignore="LockedOrientationActivity">
+            tools:ignore="LockedOrientationActivity,DiscouragedApi">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

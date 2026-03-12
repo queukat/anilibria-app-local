@@ -13,14 +13,12 @@ import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.Paginated
-import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
 import ru.radiationx.data.repository.AuthRepository
-import ru.radiationx.data.repository.FavoriteRepository
 import javax.inject.Inject
 
 class MainFavoritesViewModel @Inject constructor(
-    private val releaseInteractor: ReleaseInteractor,
-    private val favoriteRepository: FavoriteRepository,
+    private val tvFavoritesUseCase: TvFavoritesUseCase,
     authRepository: AuthRepository,
     private val converter: CardsDataConverter,
     private val cardRouter: LibriaCardRouter,
@@ -89,9 +87,8 @@ class MainFavoritesViewModel @Inject constructor(
 
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
         return try {
-            val response = favoriteRepository.getFavorites(requestPage)
+            val response = tvFavoritesUseCase.loadFavorites(requestPage)
             lastLoadAtMs = SystemClock.elapsedRealtime()
-            releaseInteractor.updateItemsCache(response.data)
 
             val mapped = response.data
                 .sortedByDescending { it.torrentUpdate }

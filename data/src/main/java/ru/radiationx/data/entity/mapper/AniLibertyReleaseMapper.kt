@@ -84,7 +84,15 @@ fun AniLibertyRelease.toLegacyReleaseOrNull(
             .mapNotNull { it.toDisplayOrder()?.takeIf { order -> order > 0.0 } }
             .maxOrNull()
     val total = episodesTotal?.takeIf { it > 0 }
-    val ongoing = isOngoing ?: isInProduction
+    val hasPublishedEpisodes = latest != null || episodes.orEmpty().isNotEmpty()
+    val hasSchedule = publishDay?.value?.value != null
+    val statusCode = resolveLegacyStatusCode(
+        isOngoing = isOngoing,
+        isInProduction = isInProduction,
+        hasPublishedEpisodes = hasPublishedEpisodes,
+        hasSchedule = hasSchedule,
+    )
+    val ongoing = statusCode == Release.STATUS_CODE_PROGRESS
 
     val seriesText = when {
         total != null && latest != null && ongoing == true -> "${formatEpisodeOrdinal(latest)} из $total"
@@ -99,12 +107,6 @@ fun AniLibertyRelease.toLegacyReleaseOrNull(
         total != null -> total.toString()
         latest != null -> formatEpisodeOrdinal(latest)
         else -> null
-    }
-
-    val statusCode = when (ongoing) {
-        false -> Release.STATUS_CODE_COMPLETE
-        true -> Release.STATUS_CODE_PROGRESS
-        null -> Release.STATUS_CODE_NOTHING
     }
 
     val blocked = (isBlockedByGeo == true) || (isBlockedByCopyrights == true)
@@ -197,6 +199,28 @@ fun AniLibertyRelease.toLegacyFullReleaseOrNull(
 
 private fun formatEpisodeOrdinal(value: Double): String {
     return BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
+}
+
+private fun resolveLegacyStatusCode(
+    isOngoing: Boolean?,
+    isInProduction: Boolean?,
+    hasPublishedEpisodes: Boolean,
+    hasSchedule: Boolean,
+): String {
+    if (isOngoing == true || isInProduction == true) {
+        return Release.STATUS_CODE_PROGRESS
+    }
+
+    val hasExplicitStoppedState = isOngoing == false || isInProduction == false
+    if (!hasExplicitStoppedState) {
+        return Release.STATUS_CODE_NOTHING
+    }
+
+    return if (!hasPublishedEpisodes && hasSchedule) {
+        Release.STATUS_CODE_NOT_ONGOING
+    } else {
+        Release.STATUS_CODE_COMPLETE
+    }
 }
 
 private fun String?.toAbsoluteAniLibertyUrl(): String? {

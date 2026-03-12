@@ -1,15 +1,15 @@
 package ru.radiationx.anilibria.screen.mainpages
 
 import androidx.fragment.app.Fragment
-import androidx.leanback.widget.Row
-import ru.radiationx.anilibria.common.CachedRowsFragmentFactory
 import ru.radiationx.anilibria.screen.main.MainFragment
 import ru.radiationx.anilibria.screen.profile.ProfileFragment
 import ru.radiationx.anilibria.screen.watching.WatchingFavoritesGridFragment
 import ru.radiationx.anilibria.screen.watching.WatchingFragment
 import ru.radiationx.anilibria.screen.youtube.YoutubeFragment
 
-class MainPagesFragmentFactory : CachedRowsFragmentFactory() {
+class MainPagesFragmentFactory {
+
+    private val fragments = mutableMapOf<Long, Fragment>()
 
     companion object {
         const val ID_MAIN = 1L
@@ -45,15 +45,16 @@ class MainPagesFragmentFactory : CachedRowsFragmentFactory() {
         )
     }
 
-    override fun getFragmentByRow(row: Row): Fragment {
-        val fragment = when (row.id) {
-            ID_MAIN -> MainFragment()
-            ID_MY -> WatchingFragment()
-            ID_FAVORITES -> WatchingFavoritesGridFragment()
-            ID_YOUTUBE -> YoutubeFragment()
-            ID_PROFILE -> ProfileFragment()
-            else -> super.getFragmentByRow(row)
+    fun getFragmentById(id: Long): Fragment {
+        return fragments.getOrPut(id) {
+            when (id) {
+                ID_MAIN -> MainFragment()
+                ID_MY -> WatchingFragment()
+                ID_FAVORITES -> WatchingFavoritesGridFragment()
+                ID_YOUTUBE -> YoutubeFragment()
+                ID_PROFILE -> ProfileFragment()
+                else -> Fragment()
+            }
         }
-        return fragment
     }
 }

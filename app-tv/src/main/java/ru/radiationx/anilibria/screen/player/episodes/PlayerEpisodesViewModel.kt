@@ -22,6 +22,7 @@ import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.interactors.tv.TvReleaseUseCase
 import ru.radiationx.shared.ktx.asTimeSecString
 import java.util.Date
 import javax.inject.Inject
@@ -30,6 +31,7 @@ import javax.inject.Inject
 class PlayerEpisodesViewModel @Inject constructor(
     private val argExtra: PlayerExtra,
     private val releaseInteractor: ReleaseInteractor,
+    private val tvReleaseUseCase: TvReleaseUseCase,
     private val guidedRouter: GuidedRouter,
     private val playerController: PlayerController,
     private val router: Router,
@@ -48,13 +50,13 @@ class PlayerEpisodesViewModel @Inject constructor(
                 if (releases != null) {
                     flowOf(releases)
                 } else {
-                    releaseInteractor.observeFull(argExtra.releaseId).map { listOf(it) }
+                    tvReleaseUseCase.observeRelease(argExtra.releaseId).map { listOf(it) }
                 }
             }
         } else {
             // Снаружи плеера (например, из Details): всегда грузим релиз по аргументу.
             // Даже если в PlayerController остались данные от прошлого просмотра.
-            releaseInteractor.observeFull(argExtra.releaseId).map { listOf(it) }
+            tvReleaseUseCase.observeRelease(argExtra.releaseId).map { listOf(it) }
         }
 
         releasesFlow

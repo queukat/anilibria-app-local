@@ -17,9 +17,12 @@
 package ru.radiationx.anilibria.screen.player
 
 import android.content.Context
+import android.view.KeyEvent
+import android.view.View
 import androidx.leanback.app.VideoSupportFragment
 import androidx.leanback.media.PlaybackTransportControlGlue
 import androidx.leanback.widget.Action
+import androidx.leanback.widget.AbstractDetailsDescriptionPresenter
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.PlaybackControlsRow
 import androidx.leanback.widget.PlaybackControlsRow.FastForwardAction
@@ -27,6 +30,9 @@ import androidx.leanback.widget.PlaybackControlsRow.MultiAction
 import androidx.leanback.widget.PlaybackControlsRow.RewindAction
 import androidx.leanback.widget.PlaybackControlsRow.SkipNextAction
 import androidx.leanback.widget.PlaybackControlsRow.SkipPreviousAction
+import androidx.leanback.widget.PlaybackRowPresenter
+import androidx.leanback.widget.PlaybackTransportRowPresenter
+import androidx.leanback.widget.RowPresenter
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.leanback.LeanbackPlayerAdapter
 import ru.radiationx.data.entity.common.PlayerQuality
@@ -72,7 +78,34 @@ class VideoPlayerGlue(
     private val episodesAction by lazy { EpisodesAction(context) }
 
     init {
-        isSeekEnabled = true
+        // Leanback's built-in seek mode freezes progress updates until the user confirms with OK.
+        // For TV scrubbing we want immediate seek behavior instead, so progress stays in sync.
+        isSeekEnabled = false
+    }
+
+    override fun onCreateRowPresenter(): PlaybackRowPresenter {
+        val detailsPresenter = object : AbstractDetailsDescriptionPresenter() {
+            override fun onBindDescription(viewHolder: ViewHolder, obj: Any) {
+                val glue = obj as VideoPlayerGlue
+                viewHolder.title.text = glue.title
+                viewHolder.subtitle.text = glue.subtitle
+            }
+        }
+        return object : PlaybackTransportRowPresenter() {
+            override fun onBindRowViewHolder(vh: RowPresenter.ViewHolder, item: Any) {
+                super.onBindRowViewHolder(vh, item)
+                vh.setOnKeyListener(this@VideoPlayerGlue)
+                bindImmediateSeekListener(vh.view)
+            }
+
+            override fun onUnbindRowViewHolder(vh: RowPresenter.ViewHolder) {
+                clearImmediateSeekListener(vh.view)
+                super.onUnbindRowViewHolder(vh)
+                vh.setOnKeyListener(null)
+            }
+        }.apply {
+            setDescriptionPresenter(detailsPresenter)
+        }
     }
 
     override fun onCreatePrimaryActions(adapter: ArrayObjectAdapter) {
@@ -162,18 +195,22 @@ class VideoPlayerGlue(
 
     /** Skips backwards 10 seconds.  */
     fun rewind() {
-        var newPosition = currentPosition - TEN_SECONDS
-        if (newPosition < 0) newPosition = 0
-        playerAdapter?.seekTo(newPosition)
+        seekToImmediate(currentPosition - TEN_SECONDS)
     }
 
     /** Skips forward 10 seconds.  */
     fun fastForward() {
-        if (duration > -1) {
-            var newPosition = currentPosition + TEN_SECONDS
-            if (newPosition > duration) newPosition = duration
-            playerAdapter?.seekTo(newPosition)
-        }
+        seekToImmediate(currentPosition + TEN_SECONDS)
+    }
+
+    fun seekToImmediate(positionMs: Long) {
+        val targetPosition = clampPosition(positionMs)
+        playerAdapter?.seekTo(targetPosition)
+        syncProgressPosition(targetPosition)
+    }
+
+    fun syncProgressPosition(positionMs: Long) {
+        controlsRow?.currentPosition = clampPosition(positionMs)
     }
 
     /** Установить иконку качества (SD / HD / FULLHD) в панель управления. */
@@ -188,6 +225,49 @@ class VideoPlayerGlue(
                 notifyActionChanged(qualityAction, adapter)
             }
         }
+    }
+
+    private fun bindImmediateSeekListener(rootView: View) {
+        rootView.findViewById<View>(androidx.leanback.R.id.playback_progress)?.setOnKeyListener(
+            ::onProgressBarKey
+        )
+    }
+
+    private fun clearImmediateSeekListener(rootView: View) {
+        rootView.findViewById<View>(androidx.leanback.R.id.playback_progress)?.setOnKeyListener(
+            null
+        )
+    }
+
+    private fun onProgressBarKey(
+        view: View,
+        keyCode: Int,
+        event: KeyEvent,
+    ): Boolean {
+        return when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT,
+            KeyEvent.KEYCODE_MEDIA_REWIND,
+            KeyEvent.KEYCODE_MINUS -> handleSeekKey(event, -TEN_SECONDS)
+
+            KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+            KeyEvent.KEYCODE_PLUS -> handleSeekKey(event, TEN_SECONDS)
+
+            else -> false
+        }
+    }
+
+    private fun handleSeekKey(event: KeyEvent, deltaMs: Long): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            seekToImmediate(currentPosition + deltaMs)
+        }
+        return true
+    }
+
+    private fun clampPosition(positionMs: Long): Long {
+        val boundedPosition = positionMs.coerceAtLeast(0L)
+        return duration.takeIf { it > 0 }?.let { boundedPosition.coerceAtMost(it) }
+            ?: boundedPosition
     }
 
     companion object {

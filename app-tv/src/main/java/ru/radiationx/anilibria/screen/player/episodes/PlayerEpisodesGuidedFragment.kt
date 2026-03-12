@@ -2,19 +2,25 @@ package ru.radiationx.anilibria.screen.player.episodes
 
 import android.os.Bundle
 import android.view.View
-import androidx.leanback.widget.GuidedAction
-import ru.radiationx.anilibria.R
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import ru.radiationx.anilibria.screen.player.BasePlayerGuidedFragment
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceItem
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceList
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceSection
+import ru.radiationx.anilibria.ui.compose.TvOverlayScreen
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
 
 class PlayerEpisodesGuidedFragment : BasePlayerGuidedFragment() {
 
-    companion object;
-
     private val viewModel by viewModel<PlayerEpisodesViewModel> { argExtra }
-
-    override fun onProvideTheme(): Int = R.style.AppTheme_Player_LeanbackWizard
+    private var groupsState by mutableStateOf<List<PlayerEpisodesViewModel.Group>>(emptyList())
+    private var selectedActionIdState by mutableLongStateOf(-1L)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -22,56 +28,39 @@ class PlayerEpisodesGuidedFragment : BasePlayerGuidedFragment() {
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
 
         subscribeTo(viewModel.episodesData) {
-            actions = createGroupedActions(it)
+            groupsState = it
         }
 
         subscribeTo(viewModel.selectedActionId) { actionId ->
-            if (actionId >= 0L) {
-                selectedActionPosition = findActionPositionById(actionId)
-            }
+            selectedActionIdState = actionId
         }
     }
 
-    private fun createGroupedActions(groups: List<PlayerEpisodesViewModel.Group>): List<GuidedAction> {
-        if (groups.size <= 1) {
-            return groups.getOrNull(0)?.let { createEpisodesActions(it.actions) }.orEmpty()
+    @Composable
+    override fun RenderContent() {
+        TvOverlayScreen(
+            title = "Список серий",
+            subtitle = "Выберите эпизод, с которого нужно продолжить просмотр.",
+            panelMaxWidth = 860.dp,
+        ) { _ ->
+            TvOverlayChoiceList(
+                sections = groupsState.map { group ->
+                    TvOverlayChoiceSection(
+                        title = if (groupsState.size > 1) group.title else null,
+                        items = group.actions.map { action ->
+                            TvOverlayChoiceItem(
+                                id = action.id,
+                                title = action.title,
+                                subtitle = action.description,
+                                selected = action.id == selectedActionIdState,
+                            )
+                        }
+                    )
+                },
+                onItemClick = { choice ->
+                    viewModel.applyEpisode(choice.id)
+                },
+            )
         }
-        return buildList {
-            groups.forEach { group ->
-                val groupAction = GuidedAction.Builder(requireContext())
-                    .id(group.id)
-                    .title(group.title)
-                    .multilineDescription(true)
-                    .infoOnly(true)
-                    .enabled(false)
-                    .focusable(false)
-                    .build()
-                add(groupAction)
-                addAll(createEpisodesActions(group.actions))
-            }
-        }
-    }
-
-    private fun createEpisodesActions(
-        episodes: List<PlayerEpisodesViewModel.Action>,
-    ): List<GuidedAction> {
-        return episodes.map { action ->
-            GuidedAction.Builder(requireContext())
-                .id(action.id)
-                .title(action.title)
-                .description(action.description)
-                .build()
-        }
-    }
-
-    override fun onGuidedActionClicked(action: GuidedAction) {
-        if (!action.hasSubActions()) {
-            viewModel.applyEpisode(action.id)
-        }
-    }
-
-    override fun onSubGuidedActionClicked(action: GuidedAction): Boolean {
-        viewModel.applyEpisode(action.id)
-        return super.onSubGuidedActionClicked(action)
     }
 }

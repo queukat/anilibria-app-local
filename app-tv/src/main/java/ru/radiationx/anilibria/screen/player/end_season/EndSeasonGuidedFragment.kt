@@ -2,9 +2,13 @@ package ru.radiationx.anilibria.screen.player.end_season
 
 import android.os.Bundle
 import android.view.View
-import androidx.leanback.widget.GuidedAction
-import ru.radiationx.anilibria.R
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
 import ru.radiationx.anilibria.screen.player.BasePlayerGuidedFragment
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceItem
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceList
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceSection
+import ru.radiationx.anilibria.ui.compose.TvOverlayScreen
 import ru.radiationx.quill.viewModel
 
 class EndSeasonGuidedFragment : BasePlayerGuidedFragment() {
@@ -17,41 +21,45 @@ class EndSeasonGuidedFragment : BasePlayerGuidedFragment() {
 
     private val viewModel by viewModel<EndSeasonViewModel> { argExtra }
 
-    override fun onProvideTheme(): Int = R.style.AppTheme_Player_LeanbackWizard
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
     }
 
-    override fun onCreateActions(actions: MutableList<GuidedAction>, savedInstanceState: Bundle?) {
-        super.onCreateActions(actions, savedInstanceState)
-        actions.add(
-            GuidedAction.Builder(requireContext())
-                .id(REPLAY_EPISODE_ACTION_ID)
-                .title("Начать серию заново")
-                .build()
-        )
-        actions.add(
-            GuidedAction.Builder(requireContext())
-                .id(REPLAY_SEASON_ACTION_ID)
-                .title("Начать с первой серии")
-                .build()
-        )
-        actions.add(
-            GuidedAction.Builder(requireContext())
-                .id(CLOSE_ACTION_ID)
-                .title("Закрыть плеер")
-                .build()
-        )
-    }
-
-    override fun onGuidedActionClicked(action: GuidedAction) {
-        super.onGuidedActionClicked(action)
-        when (action.id) {
-            REPLAY_EPISODE_ACTION_ID -> viewModel.onReplayEpisodeClick()
-            REPLAY_SEASON_ACTION_ID -> viewModel.onReplaySeasonClick()
-            CLOSE_ACTION_ID -> viewModel.onCloseClick()
+    @Composable
+    override fun RenderContent() {
+        TvOverlayScreen(
+            title = "Сезон завершён",
+            subtitle = "Можно пересмотреть финальную серию, перезапустить сезон или закрыть плеер.",
+            panelMaxWidth = 720.dp,
+        ) { _ ->
+            TvOverlayChoiceList(
+                sections = listOf(
+                    TvOverlayChoiceSection(
+                        items = listOf(
+                            TvOverlayChoiceItem(
+                                id = REPLAY_EPISODE_ACTION_ID,
+                                title = "Начать серию заново",
+                            ),
+                            TvOverlayChoiceItem(
+                                id = REPLAY_SEASON_ACTION_ID,
+                                title = "Начать с первой серии",
+                            ),
+                            TvOverlayChoiceItem(
+                                id = CLOSE_ACTION_ID,
+                                title = "Закрыть плеер",
+                            ),
+                        )
+                    )
+                ),
+                onItemClick = { choice ->
+                    when (choice.id) {
+                        REPLAY_EPISODE_ACTION_ID -> viewModel.onReplayEpisodeClick()
+                        REPLAY_SEASON_ACTION_ID -> viewModel.onReplaySeasonClick()
+                        CLOSE_ACTION_ID -> viewModel.onCloseClick()
+                    }
+                },
+            )
         }
     }
 }

@@ -35,10 +35,10 @@ class TvDetailHeaderUseCaseImpl @Inject constructor(
     }
 
     override suspend fun addFavorite(releaseId: ReleaseId) {
-        favoriteRepository.addFavorite(releaseId)
+        favoriteRepository.addFavoriteAniLiberty(releaseId)
     }
 
     override suspend fun deleteFavorite(releaseId: ReleaseId) {
-        favoriteRepository.deleteFavorite(releaseId)
+        favoriteRepository.deleteFavoriteAniLiberty(releaseId)
     }
 }

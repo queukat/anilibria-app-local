@@ -11,11 +11,13 @@ import ru.radiationx.anilibria.screen.player.PlayerExtra
 import ru.radiationx.anilibria.screen.player.sortedByEpisodeOrdinalAsc
 import ru.radiationx.data.entity.domain.release.Episode
 import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.interactors.tv.TvReleaseUseCase
 import javax.inject.Inject
 
 class EndEpisodeViewModel @Inject constructor(
     private val argExtra: PlayerExtra,
     private val releaseInteractor: ReleaseInteractor,
+    private val tvReleaseUseCase: TvReleaseUseCase,
     private val guidedRouter: GuidedRouter,
     private val playerController: PlayerController,
 ) : LifecycleViewModel() {
@@ -25,8 +27,8 @@ class EndEpisodeViewModel @Inject constructor(
         get() = currentEpisodes.firstOrNull { it.id == argExtra.episodeId }
 
     init {
-        releaseInteractor
-            .observeFull(argExtra.releaseId)
+        tvReleaseUseCase
+            .observeRelease(argExtra.releaseId)
             .onEach {
                 currentEpisodes.clear()
                 currentEpisodes.addAll(it.episodes.sortedByEpisodeOrdinalAsc())

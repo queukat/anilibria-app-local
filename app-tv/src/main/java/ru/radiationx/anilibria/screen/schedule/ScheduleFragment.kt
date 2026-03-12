@@ -1,58 +1,96 @@
 package ru.radiationx.anilibria.screen.schedule
 
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
-import androidx.leanback.widget.ArrayObjectAdapter
-import androidx.leanback.widget.HeaderItem
-import androidx.leanback.widget.ListRow
-import ru.radiationx.anilibria.common.CardDiffCallback
+import android.view.ViewGroup
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.fragment.app.Fragment
+import ru.radiationx.anilibria.common.CardItem
+import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
-import ru.radiationx.anilibria.common.RowDiffCallback
-import ru.radiationx.anilibria.common.fragment.BaseTvBrowseRowsFragment
-import ru.radiationx.anilibria.ui.presenter.CardPresenterSelector
+import ru.radiationx.anilibria.extension.applyCard
+import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
 
-class ScheduleFragment : BaseTvBrowseRowsFragment() {
+class ScheduleFragment : Fragment() {
 
     private val viewModel by viewModel<ScheduleViewModel>()
-    private val rowHolders = linkedMapOf<String, ScheduleRowHolder>()
-    private var nextRowId = 0L
+    private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        headersState = HEADERS_DISABLED
-        isHeadersTransitionOnBackEnabled = false
-        title = "Расписание"
+    private var rowsState by mutableStateOf<List<Pair<String, List<CardItem>>>>(emptyList())
+    private var focusRequestToken by mutableIntStateOf(1)
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View {
+        return ComposeView(requireContext()).apply {
+            isFocusable = true
+            isFocusableInTouchMode = true
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    focusRequestToken++
+                }
+            }
+            setContent {
+                ScheduleScreen(
+                    sections = buildSections(),
+                    focusRequestToken = focusRequestToken,
+                    onItemClick = ::handleItemClick,
+                    onItemFocused = { item ->
+                        backgroundManager.applyCard(item)
+                    },
+                )
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        focusRequestToken++
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        backgroundManager.clearGradient()
+
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
 
         subscribeTo(viewModel.scheduleRows) {
-            val activeTitles = it.mapTo(mutableSetOf()) { day -> day.first }
-            rowHolders.keys.retainAll(activeTitles)
-
-            val rows = it.map { day ->
-                val rowHolder = rowHolders.getOrPut(day.first) {
-                    createScheduleRow(day.first)
-                }
-                rowHolder.cardsAdapter.setItems(day.second, CardDiffCallback)
-                rowHolder.row
-            }
-            rowsAdapter.setItems(rows, RowDiffCallback)
+            rowsState = it
         }
     }
 
     override fun onDestroyView() {
-        rowHolders.clear()
+        backgroundManager.clearGradient()
         super.onDestroyView()
     }
 
-    override fun onRowItemClicked(item: Any?) {
+    private fun buildSections(): List<MainSectionUiModel> {
+        return rowsState.mapIndexed { index, row ->
+            MainSectionUiModel(
+                id = index.toLong(),
+                title = row.first,
+                items = row.second,
+            )
+        }
+    }
+
+    private fun handleItemClick(
+        rowId: Long,
+        item: CardItem,
+    ) {
         when (item) {
             is LibriaCard -> viewModel.onCardClick(item)
             is LinkCard -> viewModel.onRetryClick()
@@ -61,15 +99,4 @@ class ScheduleFragment : BaseTvBrowseRowsFragment() {
             }
         }
     }
-
-    private fun createScheduleRow(title: String): ScheduleRowHolder {
-        val cardsAdapter = ArrayObjectAdapter(CardPresenterSelector(null))
-        val row = ListRow(nextRowId++, HeaderItem(title), cardsAdapter)
-        return ScheduleRowHolder(row = row, cardsAdapter = cardsAdapter)
-    }
-
-    private data class ScheduleRowHolder(
-        val row: ListRow,
-        val cardsAdapter: ArrayObjectAdapter,
-    )
 }

@@ -10,6 +10,10 @@ import ru.radiationx.data.interactors.tv.TvContentUseCase
 import ru.radiationx.data.interactors.tv.TvContentUseCaseImpl
 import ru.radiationx.data.interactors.tv.TvDetailHeaderUseCase
 import ru.radiationx.data.interactors.tv.TvDetailHeaderUseCaseImpl
+import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
+import ru.radiationx.data.interactors.tv.TvFavoritesUseCaseImpl
+import ru.radiationx.data.interactors.tv.TvReleaseUseCase
+import ru.radiationx.data.interactors.tv.TvReleaseUseCaseImpl
 import ru.radiationx.data.interactors.tv.TvSearchUseCase
 import ru.radiationx.data.interactors.tv.TvSearchUseCaseImpl
 import ru.radiationx.data.interactors.tv.TvSessionUseCase
@@ -24,6 +28,8 @@ class DataTvModule : QuillModule() {
 
     init {
         singleImpl<TvContentUseCase, TvContentUseCaseImpl>()
+        singleImpl<TvFavoritesUseCase, TvFavoritesUseCaseImpl>()
+        singleImpl<TvReleaseUseCase, TvReleaseUseCaseImpl>()
         singleImpl<TvSessionUseCase, TvSessionUseCaseImpl>()
         singleImpl<TvSearchUseCase, TvSearchUseCaseImpl>()
         singleImpl<TvUpdateUseCase, TvUpdateUseCaseImpl>()

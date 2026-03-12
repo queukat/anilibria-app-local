@@ -8,21 +8,14 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyPage
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseInclude
-import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.release.BlockedInfo
 import ru.radiationx.data.entity.domain.release.FavoriteInfo
-import ru.radiationx.data.entity.domain.release.GenreItem
 import ru.radiationx.data.entity.domain.release.Release
-import ru.radiationx.data.entity.domain.release.SeasonItem
-import ru.radiationx.data.entity.domain.release.YearItem
-import ru.radiationx.data.entity.domain.search.SearchForm
 import ru.radiationx.data.entity.domain.types.ReleaseCode
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.mapper.toLegacyReleaseOrNull
 import ru.radiationx.data.repository.AuthRepository
-import ru.radiationx.data.repository.ReleaseRepository
-import ru.radiationx.data.repository.SearchRepository
 import ru.radiationx.data.system.ApiUtils
 import ru.radiationx.data.system.AndroidTestMode
 import ru.radiationx.shared.ktx.asDayNameDeclension
@@ -39,10 +32,8 @@ interface TvContentUseCase {
     suspend fun loadMainFeed(requestPage: Int, pageLimit: Int): List<Release>
     suspend fun loadMainSchedule(currentTimeMs: Long): MainSchedulePayload
     suspend fun loadWeekSchedule(): List<WeekSchedulePayload>
-    suspend fun loadDetailHeaderRemote(releaseId: ReleaseId): DetailHeaderRemoteData?
-    suspend fun loadDetailFavoriteState(releaseId: ReleaseId): Boolean?
-    suspend fun loadV1Recommendations(seedReleaseId: Int?, limit: Int): List<Release>
-    suspend fun loadLegacyRecommendations(releaseId: ReleaseId, requestPage: Int): List<Release>
+    suspend fun loadFavoriteState(releaseId: ReleaseId): Boolean?
+    suspend fun loadRecommendations(seedReleaseId: Int?, limit: Int): List<Release>
 }
 
 data class MainSchedulePayload(
@@ -55,27 +46,9 @@ data class WeekSchedulePayload(
     val releases: List<Release>,
 )
 
-data class DetailHeaderRemoteData(
-    val titleRu: String?,
-    val titleEn: String?,
-    val ageRatingLabel: String?,
-    val ageRatingValue: String?,
-    val averageDurationOfEpisode: Int?,
-    val notification: String?,
-    val isOngoing: Boolean?,
-    val isInProduction: Boolean?,
-    val isBlockedByGeo: Boolean?,
-    val isBlockedByCopyrights: Boolean?,
-    val posterPreview: String?,
-    val posterThumbnail: String?,
-    val description: String?,
-)
-
 class TvContentUseCaseImpl @Inject constructor(
     private val aniLibertyApi: AniLibertyApi,
     private val authRepository: AuthRepository,
-    private val releaseRepository: ReleaseRepository,
-    private val searchRepository: SearchRepository,
     private val apiUtils: ApiUtils,
 ) : TvContentUseCase {
 
@@ -202,53 +175,7 @@ class TvContentUseCaseImpl @Inject constructor(
         }
     }
 
-    override suspend fun loadDetailHeaderRemote(releaseId: ReleaseId): DetailHeaderRemoteData? {
-        if (AndroidTestMode.enabled) {
-            return TvContentSmokeFixtures.releaseById(releaseId)?.let {
-                DetailHeaderRemoteData(
-                    titleRu = it.title,
-                    titleEn = it.titleEng,
-                    ageRatingLabel = "16+",
-                    ageRatingValue = "16+",
-                    averageDurationOfEpisode = 24,
-                    notification = "Smoke data",
-                    isOngoing = true,
-                    isInProduction = true,
-                    isBlockedByGeo = false,
-                    isBlockedByCopyrights = false,
-                    posterPreview = it.poster,
-                    posterThumbnail = it.poster,
-                    description = it.description,
-                )
-            }
-        }
-        val release = runCatching {
-            aniLibertyApi.getRelease(
-                key = AniLibertyReleaseKey.id(releaseId.id),
-                fields = null,
-            )
-        }.getOrNull()
-
-        return release?.let {
-            DetailHeaderRemoteData(
-                titleRu = it.name?.main,
-                titleEn = it.name?.english ?: it.name?.alternative,
-                ageRatingLabel = it.ageRating?.label,
-                ageRatingValue = it.ageRating?.value?.value,
-                averageDurationOfEpisode = it.averageDurationOfEpisode,
-                notification = it.notification,
-                isOngoing = it.isOngoing,
-                isInProduction = it.isInProduction,
-                isBlockedByGeo = it.isBlockedByGeo,
-                isBlockedByCopyrights = it.isBlockedByCopyrights,
-                posterPreview = it.poster?.optimized?.preview ?: it.poster?.preview,
-                posterThumbnail = it.poster?.optimized?.thumbnail ?: it.poster?.thumbnail,
-                description = it.description,
-            )
-        }
-    }
-
-    override suspend fun loadDetailFavoriteState(releaseId: ReleaseId): Boolean? {
+    override suspend fun loadFavoriteState(releaseId: ReleaseId): Boolean? {
         return when {
             AndroidTestMode.enabled -> false
             authRepository.getAuthState() != AuthState.AUTH -> null
@@ -260,7 +187,7 @@ class TvContentUseCaseImpl @Inject constructor(
         }
     }
 
-    override suspend fun loadV1Recommendations(seedReleaseId: Int?, limit: Int): List<Release> {
+    override suspend fun loadRecommendations(seedReleaseId: Int?, limit: Int): List<Release> {
         if (AndroidTestMode.enabled) {
             return TvContentSmokeFixtures.releases
                 .filter { release -> seedReleaseId == null || release.id.id != seedReleaseId }
@@ -274,29 +201,24 @@ class TvContentUseCaseImpl @Inject constructor(
             )
         }.getOrNull().orEmpty()
 
-        return releases
+        val mapped = releases
             .mapNotNull { it.toLegacyReleaseOrNull(apiUtils, isFavorite = false) }
             .distinctBy { it.id }
-    }
 
-    override suspend fun loadLegacyRecommendations(releaseId: ReleaseId, requestPage: Int): List<Release> {
-        if (AndroidTestMode.enabled) {
-            return TvContentSmokeFixtures.releases
-                .filterNot { it.id == releaseId }
-                .take(smokeRecommendationsLimit)
+        if (mapped.isNotEmpty() || seedReleaseId == null) {
+            return mapped
         }
-        val currentRelease = releaseRepository.getRelease(releaseId)
-        val form = SearchForm(
-            years = currentRelease.year?.let { setOf(YearItem(it, it)) }.orEmpty(),
-            seasons = currentRelease.season?.let { setOf(SeasonItem(it, it)) }.orEmpty(),
-            genres = currentRelease.genres.map { g -> GenreItem(g, g) }.toSet(),
-            sort = SearchForm.Sort.RATING,
-            onlyCompleted = false,
-        )
-        return searchRepository
-            .searchReleases(form, requestPage)
-            .data
-            .filterNot { it.id == releaseId }
+
+        return runCatching {
+            aniLibertyApi.getRecommendedReleases(
+                limit = limit,
+                releaseId = null,
+                fields = null,
+            )
+        }.getOrNull()
+            .orEmpty()
+            .mapNotNull { it.toLegacyReleaseOrNull(apiUtils, isFavorite = false) }
+            .distinctBy { it.id }
     }
 
     private fun publishDayToCalendarDayOrNull(day: Int): Int? = when (day) {
@@ -321,9 +243,6 @@ class TvContentUseCaseImpl @Inject constructor(
         else -> null
     }
 
-    private companion object {
-        const val smokeRecommendationsLimit = 12
-    }
 }
 
 private object TvContentSmokeFixtures {

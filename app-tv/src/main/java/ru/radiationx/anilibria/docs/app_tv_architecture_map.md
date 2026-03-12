@@ -4,7 +4,7 @@
 
 1. `Fragment` in `screen/*` receives UI events and subscribes to state.
 2. `ViewModel` in `screen/*` (often via `common/BaseCardsViewModel`) orchestrates loading and card state.
-3. Data is requested from shared module interactors/repositories (for example `TvContentUseCase`, `ReleaseInteractor`, `FavoriteRepository`).
+3. Data is requested from shared TV-oriented interactors/facades (for example `TvContentUseCase`, `TvFavoritesUseCase`, `ReleaseInteractor`).
 4. DTO/domain models are converted by `CardsDataConverter`/other mappers into `CardItem` UI models.
 5. Leanback presenters (`ui/presenter/*`) render card lists.
 

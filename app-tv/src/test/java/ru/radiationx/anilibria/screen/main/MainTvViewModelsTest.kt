@@ -19,7 +19,6 @@ import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.ReleaseId
-import ru.radiationx.data.interactors.tv.DetailHeaderRemoteData
 import ru.radiationx.data.interactors.tv.MainSchedulePayload
 import ru.radiationx.data.interactors.tv.TvContentUseCase
 import ru.radiationx.data.interactors.tv.WeekSchedulePayload
@@ -134,11 +133,7 @@ private class FakeTvContentUseCase : TvContentUseCase {
 
     override suspend fun loadWeekSchedule(): List<WeekSchedulePayload> = emptyList()
 
-    override suspend fun loadDetailHeaderRemote(releaseId: ReleaseId): DetailHeaderRemoteData? = null
+    override suspend fun loadFavoriteState(releaseId: ReleaseId): Boolean? = null
 
-    override suspend fun loadDetailFavoriteState(releaseId: ReleaseId): Boolean? = null
-
-    override suspend fun loadV1Recommendations(seedReleaseId: Int?, limit: Int): List<Release> = emptyList()
-
-    override suspend fun loadLegacyRecommendations(releaseId: ReleaseId, requestPage: Int): List<Release> = emptyList()
+    override suspend fun loadRecommendations(seedReleaseId: Int?, limit: Int): List<Release> = emptyList()
 }

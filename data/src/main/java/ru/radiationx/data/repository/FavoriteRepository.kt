@@ -3,6 +3,8 @@ package ru.radiationx.data.repository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
+import ru.radiationx.data.datasource.holders.AuthTokenHolder
+import ru.radiationx.data.datasource.holders.CookieHolder
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoriteSorting
@@ -18,8 +20,10 @@ import ru.radiationx.data.entity.domain.types.ReleaseCode
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.mapper.toDomain
 import ru.radiationx.data.entity.mapper.toLegacyReleaseOrNull
+import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.interactors.ReleaseUpdateMiddleware
 import ru.radiationx.data.system.ApiUtils
+import ru.radiationx.data.system.HttpException
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -31,7 +35,28 @@ class FavoriteRepository @Inject constructor(
     private val updateMiddleware: ReleaseUpdateMiddleware,
     private val apiUtils: ApiUtils,
     private val apiConfig: ApiConfig,
+    private val authTokenHolder: AuthTokenHolder,
+    private val cookieHolder: CookieHolder,
 ) {
+
+    suspend fun getFavoritesAniLiberty(page: Int): Paginated<Release> = withContext(Dispatchers.IO) {
+        mapAniLibertyFavorites(
+            aniLibertyApi.getUserFavoriteReleasesFiltered(
+                page = page,
+                limit = DEFAULT_LIMIT,
+                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                fields = AniLibertyReleaseFields.FavoritesList,
+            )
+        )
+    }
+
+    suspend fun addFavoriteAniLiberty(releaseId: ReleaseId) = withContext(Dispatchers.IO) {
+        aniLibertyApi.addToFavorites(listOf(AniLibertyReleaseId(releaseId.id)))
+    }
+
+    suspend fun deleteFavoriteAniLiberty(releaseId: ReleaseId) = withContext(Dispatchers.IO) {
+        aniLibertyApi.removeFromFavorites(listOf(AniLibertyReleaseId(releaseId.id)))
+    }
 
     /**
      * Favorites list (token-first).
@@ -39,29 +64,24 @@ class FavoriteRepository @Inject constructor(
      * We map AniLiberty v1 wire releases into legacy domain [Release] (subset, safe for lists).
      */
     suspend fun getFavorites(page: Int): Paginated<Release> = withContext(Dispatchers.IO) {
+        val hasToken = !authTokenHolder.getToken().isNullOrBlank()
+        val hasLegacyCookie = cookieHolder.getCookies()[CookieHolder.PHPSESSID] != null
+
         // 1) v1 first
         runCatching {
-            val response = aniLibertyApi.getUserFavoriteReleasesFiltered(
-                page = page,
-                limit = DEFAULT_LIMIT,
-                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
-                fields = AniLibertyReleaseFields.FavoritesList,
+            mapAniLibertyFavorites(
+                aniLibertyApi.getUserFavoriteReleasesFiltered(
+                    page = page,
+                    limit = DEFAULT_LIMIT,
+                    sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                    fields = AniLibertyReleaseFields.FavoritesList,
+                )
             )
-
-            // Map safely (skip items without id)
-            val mapped = response.toDomain { it.toLegacyReleaseOrNull(apiUtils, isFavorite = true) }
-            val filtered = Paginated(
-                data = mapped.data.filterNotNull(),
-                page = mapped.page,
-                allPages = mapped.allPages,
-                perPage = mapped.perPage,
-                allItems = mapped.allItems,
-            )
-
-            updateMiddleware.handle(filtered.data)
-            filtered
         }.getOrElse { error ->
             if (error is CancellationException) {
+                throw error
+            }
+            if (!shouldFallbackToLegacy(error, hasToken, hasLegacyCookie)) {
                 throw error
             }
             Timber.w(error, "AniLiberty favorites failed, fallback to legacy")
@@ -72,6 +92,37 @@ class FavoriteRepository @Inject constructor(
                 .toDomain { it.toDomain(apiUtils, apiConfig) }
                 .also { updateMiddleware.handle(it.data) }
         }
+    }
+
+    private suspend fun mapAniLibertyFavorites(
+        response: PaginatedResponse<ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease>,
+    ): Paginated<Release> {
+        val mapped = response.toDomain { it.toLegacyReleaseOrNull(apiUtils, isFavorite = true) }
+        val filtered = Paginated(
+            data = mapped.data.filterNotNull(),
+            page = mapped.page,
+            allPages = mapped.allPages,
+            perPage = mapped.perPage,
+            allItems = mapped.allItems,
+        )
+
+        updateMiddleware.handle(filtered.data)
+        return filtered
+    }
+
+    private fun shouldFallbackToLegacy(
+        error: Throwable,
+        hasToken: Boolean,
+        hasLegacyCookie: Boolean,
+    ): Boolean {
+        if (!hasLegacyCookie) {
+            return false
+        }
+        if (!hasToken) {
+            return true
+        }
+        val httpError = error as? HttpException ?: return true
+        return httpError.code !in setOf(401, 403)
     }
 
     suspend fun deleteFavorite(releaseId: ReleaseId): Release = withContext(Dispatchers.IO) {

@@ -4,117 +4,173 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.leanback.widget.ArrayObjectAdapter
-import androidx.leanback.widget.VerticalGridPresenter
-import ru.radiationx.anilibria.R
-import ru.radiationx.anilibria.common.CardDiffCallback
+import androidx.activity.OnBackPressedCallback
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.fragment.app.Fragment
+import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.GradientBackgroundManager
-import ru.radiationx.anilibria.common.handleTvCardClick
-import ru.radiationx.anilibria.common.toTvCardDescription
-import ru.radiationx.anilibria.common.fragment.BaseVerticalGridFragment
+import ru.radiationx.anilibria.common.InfoCard
+import ru.radiationx.anilibria.common.LibriaCard
+import ru.radiationx.anilibria.common.LinkCard
+import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.extension.applyCard
-import ru.radiationx.anilibria.ui.presenter.CardPresenterSelector
-import ru.radiationx.anilibria.ui.widget.SearchTitleView
-import ru.radiationx.anilibria.ui.widget.manager.ExternalTextManager
-import ru.radiationx.quill.inject
-import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
+import ru.radiationx.quill.viewModel
 
-class SearchFragment : BaseVerticalGridFragment() {
+class SearchFragment : Fragment() {
 
-    private val cardsPresenter = CardPresenterSelector {
-        cardsViewModel.onLinkCardBind()
-    }
-    private val cardsAdapter = ArrayObjectAdapter(cardsPresenter)
-
-    private val emptyTextManager by lazy { ExternalTextManager() }
-
-    private val backgroundManager by inject<GradientBackgroundManager>()
-
+    private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
     private val cardsViewModel by viewModel<SearchViewModel>()
     private val formViewModel by viewModel<SearchFormViewModel>()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        title = "Каталог"
-        setGridPresenter(VerticalGridPresenter().apply {
-            numberOfColumns = 6
-        })
-    }
+    private var cardsState by mutableStateOf<List<CardItem>>(emptyList())
+    private var filtersState by mutableStateOf(
+        SearchFormViewModel.FiltersUiState(
+            year = SearchFormViewModel.FilterChipState("Все годы", emphasized = false),
+            season = SearchFormViewModel.FilterChipState("Все сезоны", emphasized = false),
+            genre = SearchFormViewModel.FilterChipState("Все жанры", emphasized = false),
+            sort = SearchFormViewModel.FilterChipState("По популярности", emphasized = false),
+            onlyCompleted = SearchFormViewModel.FilterChipState("Все", emphasized = false),
+        )
+    )
+    private var progressState by mutableStateOf(false)
+    private var pickerState by mutableStateOf<SearchFormViewModel.FilterPickerState?>(null)
+    private var focusRequestToken by mutableIntStateOf(1)
+    private var pickerFocusRequestToken by mutableIntStateOf(0)
+    private var restoreFilterIndex by mutableIntStateOf(0)
+    private var restoreFilterToken by mutableIntStateOf(0)
 
-    override fun onInflateTitleView(
+    private var pickerBackCallback: OnBackPressedCallback? = null
+
+    override fun onCreateView(
         inflater: LayoutInflater,
-        parent: ViewGroup?,
+        container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
-        return inflater.inflate(R.layout.lb_search_titleview, parent, false)
+        return ComposeView(requireContext()).apply {
+            isFocusable = true
+            isFocusableInTouchMode = true
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    focusRequestToken++
+                }
+            }
+            setContent {
+                CatalogScreen(
+                    cards = cardsState.ifEmpty {
+                        if (progressState) {
+                            emptyList()
+                        } else {
+                            listOf(
+                                InfoCard(
+                                    title = "Ничего не найдено",
+                                    subtitle = "По данным параметрам ничего не найдено",
+                                )
+                            )
+                        }
+                    },
+                    filters = filtersState,
+                    progressVisible = progressState,
+                    pickerState = pickerState,
+                    focusRequestToken = focusRequestToken,
+                    pickerFocusRequestToken = pickerFocusRequestToken,
+                    restoreFilterIndex = restoreFilterIndex,
+                    restoreFilterToken = restoreFilterToken,
+                    onSearchClick = cardsViewModel::onSearchClick,
+                    onYearClick = formViewModel::onYearClick,
+                    onSeasonClick = formViewModel::onSeasonClick,
+                    onGenreClick = formViewModel::onGenreClick,
+                    onSortClick = formViewModel::onSortClick,
+                    onOnlyCompletedClick = formViewModel::onOnlyCompletedClick,
+                    onPickerToggleOption = formViewModel::togglePickerSelection,
+                    onPickerSingleSelect = formViewModel::selectSinglePicker,
+                    onPickerApply = formViewModel::applyFilterPicker,
+                    onPickerReset = formViewModel::resetFilterPicker,
+                    onPickerDismiss = formViewModel::dismissFilterPicker,
+                    onItemClick = ::handleItemClick,
+                    onItemFocused = { item ->
+                        backgroundManager.applyCard(item)
+                    },
+                )
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        focusRequestToken++
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        backgroundManager.clearGradient()
+
+        pickerBackCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                formViewModel.dismissFilterPicker()
+            }
+        }.also {
+            requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
+        }
+
         viewLifecycleOwner.lifecycle.addObserver(cardsViewModel)
         viewLifecycleOwner.lifecycle.addObserver(formViewModel)
 
-        setOnSearchClickedListener {
-            cardsViewModel.onSearchClick()
-        }
-
-        backgroundManager.clearGradient()
-        setOnItemViewSelectedListener { _, item, _, _ ->
-            backgroundManager.applyCard(item)
-            val description = item.toTvCardDescription()
-            setDescription(description.title, description.subtitle)
-        }
-
-        setOnItemViewClickedListener { _, item, _, _ ->
-            cardsViewModel.handleTvCardClick(item)
-        }
-
-        prepareEntranceTransition()
-        adapter = cardsAdapter
-
-        emptyTextManager.rootView = view as ViewGroup
-        emptyTextManager.initialDelay = 0L
-        emptyTextManager.text = "По данным параметрам ничего не найдено"
-
-        (titleView as? SearchTitleView?)?.apply {
-            setYearClickListener({ formViewModel.onYearClick() })
-            setSeasonClickListener({ formViewModel.onSeasonClick() })
-            setGenreClickListener({ formViewModel.onGenreClick() })
-            setSortClickListener({ formViewModel.onSortClick() })
-            setOnlyCompletedClickListener({ formViewModel.onOnlyCompletedClick() })
-
-            subscribeTo(formViewModel.yearData) { year = it }
-            subscribeTo(formViewModel.seasonData) { season = it }
-            subscribeTo(formViewModel.genreData) { genre = it }
-            subscribeTo(formViewModel.sortData) { sort = it }
-            subscribeTo(formViewModel.onlyCompletedData) { onlyCompleted = it }
-        }
-
-        progressBarManager.initialDelay = 0
-
         subscribeTo(cardsViewModel.progressState) {
-            if (it) {
-                progressBarManager.show()
-            } else {
-                progressBarManager.hide()
-            }
+            progressState = it
         }
 
         subscribeTo(cardsViewModel.cardsData) {
-            if (it.isEmpty()) {
-                backgroundManager.clearGradient()
-                setDescriptionVisible(false)
-                emptyTextManager.show()
-            } else {
-                emptyTextManager.hide()
-                setDescriptionVisible(true)
+            cardsState = it
+        }
+
+        subscribeTo(formViewModel.filtersUiState) {
+            filtersState = it
+        }
+
+        subscribeTo(formViewModel.filterPicker) { picker ->
+            val previous = pickerState
+            pickerState = picker
+            pickerBackCallback?.isEnabled = picker != null
+            if (picker != null) {
+                pickerFocusRequestToken++
+            } else if (previous != null) {
+                restoreFilterIndex = filterIndexFor(previous.kind)
+                restoreFilterToken++
             }
-            cardsAdapter.setItems(it, CardDiffCallback)
-            startEntranceTransition()
         }
     }
 
+    override fun onDestroyView() {
+        pickerBackCallback?.remove()
+        pickerBackCallback = null
+        backgroundManager.clearGradient()
+        super.onDestroyView()
+    }
 
+    private fun handleItemClick(item: CardItem) {
+        when (item) {
+            is LibriaCard -> cardsViewModel.onLibriaCardClick(item)
+            is LinkCard -> cardsViewModel.onLinkCardClick()
+            is LoadingCard -> cardsViewModel.onLoadingCardClick()
+            is InfoCard -> Unit
+        }
+    }
+
+    private fun filterIndexFor(kind: SearchFormViewModel.FilterPickerKind): Int {
+        return when (kind) {
+            SearchFormViewModel.FilterPickerKind.YEAR -> 0
+            SearchFormViewModel.FilterPickerKind.SEASON -> 1
+            SearchFormViewModel.FilterPickerKind.GENRE -> 2
+            SearchFormViewModel.FilterPickerKind.SORT -> 3
+            SearchFormViewModel.FilterPickerKind.COMPLETED -> 4
+        }
+    }
 }

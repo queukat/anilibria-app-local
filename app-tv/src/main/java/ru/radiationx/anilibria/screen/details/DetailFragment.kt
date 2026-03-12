@@ -1,40 +1,43 @@
 package ru.radiationx.anilibria.screen.details
 
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
+import androidx.activity.OnBackPressedCallback
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.graphics.ColorUtils
-import androidx.leanback.widget.ArrayObjectAdapter
-import androidx.leanback.widget.ClassPresenterSelector
-import androidx.leanback.widget.HeaderItem
-import androidx.leanback.widget.ListRow
-import androidx.leanback.widget.Row
-import ru.radiationx.anilibria.common.BaseCardsViewModel
-import ru.radiationx.anilibria.common.LibriaDetailsRow
-import ru.radiationx.anilibria.common.fragment.BaseTvRowsSupportFragment
-import ru.radiationx.anilibria.extension.createCardsRowBy
-import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsPresenter
-import ru.radiationx.anilibria.ui.presenter.cust.CustomListRowPresenter
+import androidx.fragment.app.Fragment
+import com.github.terrakok.cicerone.Router
+import ru.radiationx.anilibria.common.CardItem
+import ru.radiationx.anilibria.common.DetailsState
+import ru.radiationx.anilibria.common.GradientBackgroundManager
+import ru.radiationx.anilibria.common.LibriaCard
+import ru.radiationx.anilibria.common.LibriaDetails
+import ru.radiationx.anilibria.common.LinkCard
+import ru.radiationx.anilibria.common.LoadingCard
+import ru.radiationx.anilibria.extension.applyCard
+import ru.radiationx.anilibria.screen.main.MainSectionUiModel
+import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsCallbacks
+import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsRowUiState
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.QuillExtra
+import ru.radiationx.quill.inject
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.getExtraNotNull
 import ru.radiationx.shared.ktx.android.putExtra
 import ru.radiationx.shared.ktx.android.subscribeTo
 
-/**
- * Простая data-класс «аргументов» для экрана.
- * Хранит releaseId и т.д.
- */
 data class DetailExtra(
     val id: ReleaseId
 ) : QuillExtra
 
-/**
- * Фрагмент, показывающий:
- *  1) «Шапку» (ReleaseDetails)
- *  2) «Related»/«Recommends» списки карточек
- */
-class DetailFragment : BaseTvRowsSupportFragment() {
+class DetailFragment : Fragment() {
 
     companion object {
         private const val ARG_ID = "id"
@@ -44,120 +47,239 @@ class DetailFragment : BaseTvRowsSupportFragment() {
         }
     }
 
-    /** Аргументы */
     private val argExtra by lazy {
         DetailExtra(id = getExtraNotNull(ARG_ID))
     }
 
-    /** Презентеры для строк/рядов */
-    private val rowsPresenter by lazy {
-        ClassPresenterSelector().apply {
-            // Для обычного ListRow
-            addClassPresenter(ListRow::class.java, CustomListRowPresenter())
-            // Для детали (LibriaDetailsRow)
-            addClassPresenter(
-                LibriaDetailsRow::class.java,
-                ReleaseDetailsPresenter(
-                    continueClickListener = { headerViewModel.onContinueClick() },
-                    playClickListener = { headerViewModel.onPlayClick() },
-                    favoriteClickListener = { headerViewModel.onFavoriteClick() },
-                    descriptionClickListener = { headerViewModel.onDescriptionClick() },
-                    otherClickListener = { headerViewModel.onOtherClick() }
-                )
-            )
-        }
-    }
-    /** ViewModel’ы */
     private val detailsViewModel by viewModel<DetailsViewModel> { argExtra }
+    private val router by inject<Router>()
     private val headerViewModel by viewModel<DetailHeaderViewModel> { argExtra }
     private val relatedViewModel by viewModel<DetailRelatedViewModel> { argExtra }
     private val recommendsViewModel by viewModel<DetailRecommendsViewModel> { argExtra }
+    private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
 
-    /**
-     * По rowId возвращаем ViewModel: либо headerViewModel, либо relatedViewModel/recommendsViewModel.
-     * Если нужно что-то ещё — добавляйте case.
-     */
-    private fun getViewModel(rowId: Long): Any? = when (rowId) {
-        DetailsViewModel.RELEASE_ROW_ID -> headerViewModel
-        DetailsViewModel.RELATED_ROW_ID -> relatedViewModel
-        DetailsViewModel.RECOMMENDS_ROW_ID -> recommendsViewModel
-        else -> null
+    private var rowIdsState by mutableStateOf<List<Long>>(emptyList())
+    private var detailsState by mutableStateOf<LibriaDetails?>(null)
+    private var progressState by mutableStateOf(DetailsState(loadingProgress = true))
+    private var relatedCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
+    private var relatedTitleState by mutableStateOf("")
+    private var recommendsCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
+    private var recommendsTitleState by mutableStateOf("")
+    private var headerFocusToken by mutableIntStateOf(1)
+    private var isHeaderSelected by mutableStateOf(true)
+    private var contentRestoreToken by mutableIntStateOf(0)
+    private var restoreSectionIndex by mutableIntStateOf(0)
+    private var restoreItemIndex by mutableIntStateOf(0)
+    private var restoreItemId by mutableIntStateOf(Int.MIN_VALUE)
+    private var hasRestoreTarget by mutableStateOf(false)
+    private var wasHeaderLoading by mutableStateOf(true)
+    private var restoreItemState by mutableStateOf<CardItem?>(null)
+    private var allowContentSelectionCapture by mutableStateOf(false)
+    private var pendingContentRestoreAfterLoad by mutableStateOf(false)
+    private var backPressedCallback: OnBackPressedCallback? = null
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View {
+        return ComposeView(requireContext()).apply {
+            isFocusable = true
+            isFocusableInTouchMode = true
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
+                if (hasFocus && isHeaderSelected) {
+                    requestHeaderFocus()
+                }
+            }
+            setContent {
+                DetailScreen(
+                    headerUiState = ReleaseDetailsRowUiState(
+                        details = detailsState,
+                        progressState = progressState,
+                        initialFocusToken = headerFocusToken,
+                    ),
+                    headerCallbacks = ReleaseDetailsCallbacks(
+                        continueClick = { headerViewModel.onContinueClick() },
+                        playClick = { headerViewModel.onPlayClick() },
+                        favoriteClick = { headerViewModel.onFavoriteClick() },
+                        descriptionClick = { headerViewModel.onDescriptionClick() },
+                        otherClick = { headerViewModel.onOtherClick() },
+                    ),
+                    sections = buildSections(),
+                    contentRestoreState = DetailContentRestoreState(
+                        focusToken = contentRestoreToken,
+                        preferredSectionIndex = restoreSectionIndex,
+                        preferredItemIndex = restoreItemIndex,
+                        preferredItemId = restoreItemId,
+                    ),
+                    contentSelectionEnabled = allowContentSelectionCapture,
+                    onRequestHeaderFocus = ::requestHeaderFocus,
+                    onHeaderFocusSettled = {
+                        allowContentSelectionCapture = true
+                    },
+                    onSectionItemClick = ::handleSectionItemClick,
+                    onContentItemFocused = contentFocus@{ sectionIndex, itemIndex, item ->
+                        if (!allowContentSelectionCapture) {
+                            return@contentFocus
+                        }
+                        hasRestoreTarget = true
+                        restoreSectionIndex = sectionIndex
+                        restoreItemIndex = itemIndex
+                        restoreItemId = item.getId()
+                        restoreItemState = item
+                        isHeaderSelected = false
+                        backgroundManager.applyCard(item)
+                    },
+                )
+            }
+        }
     }
 
-    override fun createRowsAdapter(): ArrayObjectAdapter = ArrayObjectAdapter(rowsPresenter)
-
-    override fun getBaseCardsViewModel(rowId: Long): BaseCardsViewModel? {
-        return getViewModel(rowId) as? BaseCardsViewModel
+    override fun onResume() {
+        super.onResume()
+        if (hasRestoreTarget && !isHeaderSelected) {
+            if (progressState.loadingProgress) {
+                pendingContentRestoreAfterLoad = true
+            } else {
+                requestContentRestore()
+            }
+        } else {
+            requestHeaderFocus()
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Привязываем lifecycle (чтобы onResume()/onPause() и др. вызывались)
+        backgroundManager.clearGradient()
+
         viewLifecycleOwner.lifecycle.addObserver(detailsViewModel)
         viewLifecycleOwner.lifecycle.addObserver(headerViewModel)
         viewLifecycleOwner.lifecycle.addObserver(relatedViewModel)
         viewLifecycleOwner.lifecycle.addObserver(recommendsViewModel)
-        subscribeTo(detailsViewModel.rowListData) { rowIds ->
-            submitRows(rowIds, ::createRowBy)
+        backPressedCallback = object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                router.exit()
+            }
+        }.also {
+            requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
+        }
+
+        relatedTitleState = relatedViewModel.defaultTitle
+        recommendsTitleState = recommendsViewModel.defaultTitle
+
+        subscribeTo(detailsViewModel.rowListData) {
+            rowIdsState = it
+        }
+        subscribeTo(headerViewModel.releaseData) {
+            detailsState = it
+            if (isHeaderSelected) {
+                applyImage(it?.image.orEmpty())
+            }
+        }
+        subscribeTo(headerViewModel.progressState) {
+            val loadingFinished = wasHeaderLoading && !it.loadingProgress
+            progressState = it
+            wasHeaderLoading = it.loadingProgress
+            if (loadingFinished) {
+                if (pendingContentRestoreAfterLoad && hasRestoreTarget && !isHeaderSelected) {
+                    requestContentRestore()
+                } else {
+                    requestHeaderFocus()
+                }
+            }
+        }
+        subscribeTo(relatedViewModel.rowTitle) {
+            relatedTitleState = it
+        }
+        subscribeTo(relatedViewModel.cardsData) {
+            relatedCardsState = it
+        }
+        subscribeTo(recommendsViewModel.rowTitle) {
+            recommendsTitleState = it
+        }
+        subscribeTo(recommendsViewModel.cardsData) {
+            recommendsCardsState = it
         }
     }
 
-    /**
-     * В зависимости от rowId делаем либо «шапку» (LibriaDetailsRow), либо «cards» (ListRow).
-     */
-    private fun createRowBy(rowId: Long): Row {
-        return when (rowId) {
-            DetailsViewModel.RELEASE_ROW_ID -> createHeaderRow(rowId, headerViewModel)
-            DetailsViewModel.RELATED_ROW_ID,
-            DetailsViewModel.RECOMMENDS_ROW_ID ->
-                createCardsRowBy(rowId, rowsAdapter, getBaseCardsViewModel(rowId)!!)
+    override fun onDestroyView() {
+        backPressedCallback?.remove()
+        backPressedCallback = null
+        backgroundManager.clearGradient()
+        super.onDestroyView()
+    }
 
-            else -> {
-                // Фолбэк (пустая строка)
-                ListRow(HeaderItem("Empty"), ArrayObjectAdapter())
+    private fun buildSections(): List<MainSectionUiModel> {
+        return rowIdsState.mapNotNull { rowId ->
+            when (rowId) {
+                DetailsViewModel.RELATED_ROW_ID -> MainSectionUiModel(
+                    id = rowId,
+                    title = relatedTitleState,
+                    items = relatedCardsState,
+                )
+
+                DetailsViewModel.RECOMMENDS_ROW_ID -> MainSectionUiModel(
+                    id = rowId,
+                    title = recommendsTitleState,
+                    items = recommendsCardsState,
+                )
+
+                else -> null
             }
         }
     }
 
-    /**
-     * Для «шапки» (LibriaDetailsRow)
-     */
-    private fun createHeaderRow(rowId: Long, vm: DetailHeaderViewModel): Row {
-        val row = LibriaDetailsRow(rowId)
-        subscribeTo(vm.releaseData) {
-            val pos = rowsAdapter.indexOf(row)
-            row.details = it
-            if (pos >= 0) rowsAdapter.notifyArrayItemRangeChanged(pos, 1)
+    private fun handleSectionItemClick(
+        rowId: Long,
+        item: CardItem,
+    ) {
+        val viewModel = when (rowId) {
+            DetailsViewModel.RELATED_ROW_ID -> relatedViewModel
+            DetailsViewModel.RECOMMENDS_ROW_ID -> recommendsViewModel
+            else -> null
+        } ?: return
+
+        when (item) {
+            is LibriaCard -> viewModel.onLibriaCardClick(item)
+            is LinkCard -> viewModel.onLinkCardClick()
+            is LoadingCard -> if (item.isError) {
+                viewModel.onLoadingCardClick()
+            }
         }
-        subscribeTo(vm.progressState) {
-            val pos = rowsAdapter.indexOf(row)
-            row.state = it
-            if (pos >= 0) rowsAdapter.notifyArrayItemRangeChanged(pos, 1)
-        }
-        return row
     }
 
-    /**
-     * Вызывается, когда фокус на LibriaDetailsRow → нужно обновить фон (по ссылке на картинку).
-     */
+    private fun requestHeaderFocus() {
+        pendingContentRestoreAfterLoad = false
+        allowContentSelectionCapture = false
+        isHeaderSelected = true
+        headerFocusToken++
+        applyImage(detailsState?.image.orEmpty())
+    }
+
+    private fun requestContentRestore() {
+        if (!hasRestoreTarget) {
+            requestHeaderFocus()
+            return
+        }
+        pendingContentRestoreAfterLoad = false
+        allowContentSelectionCapture = true
+        isHeaderSelected = false
+        contentRestoreToken++
+        restoreItemState?.let(backgroundManager::applyCard)
+    }
+
     private fun applyImage(image: String) {
         backgroundManager.applyImage(
             image,
-            colorSelector = { null } // Можно возвращать цвет, если хотите
+            colorSelector = { null },
         ) { originalColor ->
-            // Немного модифицируем HSL
             val hslColor = FloatArray(3)
             ColorUtils.colorToHSL(originalColor, hslColor)
             hslColor[1] = (hslColor[1] + 0.05f).coerceAtMost(1.0f)
             hslColor[2] = (hslColor[2] + 0.05f).coerceAtMost(1.0f)
             ColorUtils.HSLToColor(hslColor)
-        }
-    }
-
-    override fun onNonListRowSelected(item: Any?, row: Row) {
-        if (row is LibriaDetailsRow) {
-            applyImage(row.details?.image.orEmpty())
         }
     }
 }

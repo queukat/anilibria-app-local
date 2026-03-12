@@ -212,8 +212,14 @@ open class BasePlayerFragment : VideoSupportFragment() {
      * Вызывайте это, чтобы подготовить плеер к воспроизведению URL. Например:
      * preparePlayer("https://site.com/video.mp4")
      */
-    protected fun preparePlayer(url: String) {
-        player?.setMediaItem(MediaItem.fromUri(url.toUri()), false)
+    protected fun preparePlayer(
+        url: String,
+        startPositionMs: Long = 0L,
+    ) {
+        player?.setMediaItem(
+            MediaItem.fromUri(url.toUri()),
+            startPositionMs.coerceAtLeast(0L)
+        )
         player?.prepare()
     }
 }

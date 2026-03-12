@@ -2,10 +2,11 @@ package ru.radiationx.anilibria.common
 
 import android.animation.ValueAnimator
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import androidx.annotation.ColorInt
+import androidx.core.graphics.drawable.toDrawable
+import androidx.core.graphics.toColorInt
 import androidx.fragment.app.FragmentActivity
 import androidx.leanback.app.BackgroundManager
 import androidx.lifecycle.lifecycleScope
@@ -40,20 +41,20 @@ class GradientBackgroundManager @Inject constructor(
     private val defaultColor = activity.getCompatColor(R.color.dark_colorAccent)
     private val foregroundColor = activity.getCompatColor(R.color.dark_windowBackground)
 
-    private val backgroundDrawable = ColorDrawable(defaultColor)
-    private val foregroundDrawable = ColorDrawable(foregroundColor)
+    private val backgroundDrawable = defaultColor.toDrawable()
+    private val foregroundDrawable = foregroundColor.toDrawable()
     private val classicGradientDrawable = GradientDrawable(
         GradientDrawable.Orientation.BL_TR,
         intArrayOf(
-            Color.parseColor("#ee000000"),
-            Color.parseColor("#55000000")
+            "#ee000000".toColorInt(),
+            "#55000000".toColorInt()
         )
     )
     private val customGradientDrawable = LinearGradientDrawable(
         190f,
         intArrayOf(
-            Color.parseColor("#ee000000"),
-            Color.parseColor("#55000000")
+            "#ee000000".toColorInt(),
+            "#55000000".toColorInt()
         )
     )
     private val layerDrawable = LayerDrawable(

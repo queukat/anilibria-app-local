@@ -19,13 +19,11 @@ import org.junit.Test
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
-import ru.radiationx.data.entity.domain.Paginated
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.search.SearchForm
 import ru.radiationx.data.entity.domain.types.ReleaseId
-import ru.radiationx.data.interactors.ReleaseInteractor
-import ru.radiationx.data.repository.FavoriteRepository
-import ru.radiationx.data.repository.SearchRepository
+import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
+import ru.radiationx.data.interactors.tv.TvSearchUseCase
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WatchingRecommendsViewModelTest {
@@ -45,26 +43,17 @@ class WatchingRecommendsViewModelTest {
     @Test
     fun refresh_fallsBackToTopRated_whenFavoritesUnavailable() = runBlocking {
         val releases = listOf(fakeRelease(101, genres = listOf("action")), fakeRelease(102, genres = listOf("drama")))
-        val favoriteRepository = mockk<FavoriteRepository>()
-        coEvery { favoriteRepository.getFavorites(any()) } throws IllegalStateException("guest mode")
+        val tvFavoritesUseCase = mockk<TvFavoritesUseCase>()
+        coEvery { tvFavoritesUseCase.loadFavorites(any()) } throws IllegalStateException("guest mode")
 
-        val searchRepository = mockk<SearchRepository>()
-        coEvery { searchRepository.searchReleases(any(), any()) } answers {
-            Paginated(
-                data = releases,
-                page = secondArg(),
-                allPages = 1,
-                perPage = releases.size,
-                allItems = releases.size,
-            )
-        }
+        val tvSearchUseCase = mockk<TvSearchUseCase>()
+        coEvery { tvSearchUseCase.searchReleases(any(), any()) } returns releases
 
         val viewModel = WatchingRecommendsViewModel(
-            searchRepository = searchRepository,
-            releaseInteractor = mockk<ReleaseInteractor>(relaxed = true),
+            tvSearchUseCase = tvSearchUseCase,
             converter = converter(),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-            favoriteRepository = favoriteRepository,
+            tvFavoritesUseCase = tvFavoritesUseCase,
         )
         viewModel.setLoaderDispatcherForTests(testDispatcher)
 
@@ -74,9 +63,9 @@ class WatchingRecommendsViewModelTest {
         val cards = viewModel.cardsData.value.filterIsInstance<LibriaCard>()
         assertEquals(listOf("title-101", "title-102"), cards.map { it.title })
         assertTrue(viewModel.cardsData.value.none { it is ru.radiationx.anilibria.common.LoadingCard && it.isError })
-        coVerify(exactly = 1) { favoriteRepository.getFavorites(1) }
+        coVerify(exactly = 1) { tvFavoritesUseCase.loadFavorites(1) }
         coVerify(exactly = 1) {
-            searchRepository.searchReleases(
+            tvSearchUseCase.searchReleases(
                 SearchForm(sort = SearchForm.Sort.RATING),
                 1,
             )

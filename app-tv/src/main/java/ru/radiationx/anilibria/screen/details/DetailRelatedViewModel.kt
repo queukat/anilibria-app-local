@@ -9,7 +9,7 @@ import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
-import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.interactors.tv.TvReleaseUseCase
 import javax.inject.Inject
 
 /**
@@ -21,7 +21,7 @@ import javax.inject.Inject
  */
 class DetailRelatedViewModel @Inject constructor(
     argExtra: DetailExtra,
-    private val releaseInteractor: ReleaseInteractor,
+    private val tvReleaseUseCase: TvReleaseUseCase,
     private val converter: CardsDataConverter,
     private val cardRouter: LibriaCardRouter,
 ) : BaseCardsViewModel() {
@@ -30,7 +30,7 @@ class DetailRelatedViewModel @Inject constructor(
 
     /**
      * Не загружаем сразу при onColdCreate (переопределение),
-     * а ждём «observeFull(releaseId)» (или manual refresh).
+     * а ждём TV-only observeRelease(releaseId) (или manual refresh).
      */
     override val loadOnCreate: Boolean = false
 
@@ -45,8 +45,8 @@ class DetailRelatedViewModel @Inject constructor(
 
         // Следим за изменением «description» конкретного релиза,
         // и когда оно меняется — делаем refresh().
-        releaseInteractor
-            .observeFull(releaseId)
+        tvReleaseUseCase
+            .observeRelease(releaseId)
             .map { it.description.orEmpty() }
             .distinctUntilChanged()
             .onEach {
@@ -60,15 +60,10 @@ class DetailRelatedViewModel @Inject constructor(
      * Но в данном случае у нас одна страница, где показываем все franchises.
      */
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
-        // 1) Загружаем франшизы, исключая сам релиз
-        val allFranchises = releaseInteractor
+        val allFranchises = tvReleaseUseCase
             .loadWithFranchises(releaseId)
             .filter { it.id != releaseId }
 
-        // 2) Обновляем кэш
-        releaseInteractor.updateItemsCache(allFranchises)
-
-        // 3) Преобразуем в LibriaCard
         return allFranchises.map { converter.toCard(it) }
     }
 

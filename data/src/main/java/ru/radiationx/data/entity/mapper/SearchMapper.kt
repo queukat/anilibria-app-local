@@ -1,8 +1,12 @@
 package ru.radiationx.data.entity.mapper
 
 import ru.radiationx.data.datasource.remote.address.ApiConfig
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyCatalogReferenceSeason
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyGenre
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertySeason
 import ru.radiationx.data.entity.domain.release.GenreItem
+import ru.radiationx.data.entity.domain.release.SeasonItem
 import ru.radiationx.data.entity.domain.release.YearItem
 import ru.radiationx.data.entity.domain.search.SuggestionItem
 import ru.radiationx.data.entity.domain.types.ReleaseCode
@@ -106,7 +110,35 @@ fun String.toYearItem(): YearItem = YearItem(
     value = this
 )
 
+fun Int.toYearItem(): YearItem = toString().toYearItem()
+
 fun String.toGenreItem(): GenreItem = GenreItem(
     title = this.capitalizeDefault(),
     value = this
 )
+
+fun AniLibertyGenre.toGenreItemOrNull(): GenreItem? {
+    val genreId = id ?: return null
+    val genreTitle = name?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    return GenreItem(
+        title = genreTitle,
+        value = genreId.toString(),
+    )
+}
+
+fun AniLibertyCatalogReferenceSeason.toSeasonItemOrNull(): SeasonItem? {
+    val seasonValue = value ?: return null
+    val title = description?.trim()?.takeIf { it.isNotEmpty() } ?: seasonValue.toSeasonTitle()
+    return SeasonItem(
+        title = title,
+        value = seasonValue.value,
+    )
+}
+
+fun AniLibertySeason.toSeasonTitle(): String = when (value.lowercase()) {
+    AniLibertySeason.Winter.value -> "Зима"
+    AniLibertySeason.Spring.value -> "Весна"
+    AniLibertySeason.Summer.value -> "Лето"
+    AniLibertySeason.Autumn.value -> "Осень"
+    else -> value.capitalizeDefault()
+}

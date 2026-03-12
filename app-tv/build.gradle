@@ -6,6 +6,7 @@ import java.text.SimpleDateFormat
 plugins {
     alias libs.plugins.android.application
     alias libs.plugins.kotlin.android
+    alias libs.plugins.kotlin.compose
     alias libs.plugins.ksp
 //    alias libs.plugins.appmetrica
 }
@@ -44,7 +45,7 @@ android {
 
     defaultConfig {
         applicationId = "ru.radiationx.anilibria.app.tv"
-        minSdk = tv_min_sdk_version
+        minSdk = Math.max(tv_min_sdk_version as int, 23)
         targetSdk = app_target_sdk_version
         versionCode = tv_version_code
         versionName = tv_version_name
@@ -53,6 +54,7 @@ android {
     }
 
     buildFeatures {
+        compose = true
         viewBinding = true
         buildConfig = true
     }
@@ -147,6 +149,14 @@ dependencies {
     implementation libs.androidx.leanback.preference
     implementation libs.google.material
     implementation libs.androidx.constraintlayout
+    implementation platform(libs.androidx.compose.bom)
+    implementation libs.androidx.compose.animation
+    implementation libs.androidx.compose.foundation
+    implementation libs.androidx.compose.material3
+    implementation libs.androidx.compose.runtime
+    implementation libs.androidx.compose.ui
+    implementation libs.androidx.compose.ui.tooling.preview
+    implementation libs.androidx.constraintlayout.compose
 
     implementation libs.cicerone
 
@@ -170,4 +180,7 @@ dependencies {
     androidTestImplementation libs.androidx.runner
     androidTestImplementation libs.androidx.junit
     androidTestImplementation libs.androidx.uiautomator
+
+    debugImplementation platform(libs.androidx.compose.bom)
+    debugImplementation libs.androidx.compose.ui.tooling
 }

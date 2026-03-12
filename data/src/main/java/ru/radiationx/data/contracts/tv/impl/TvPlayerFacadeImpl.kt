@@ -7,12 +7,14 @@ import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.interactors.tv.TvReleaseUseCase
 import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.repository.UserViewsRepository
 import javax.inject.Inject
 
 class TvPlayerFacadeImpl @Inject constructor(
     private val releaseInteractor: ReleaseInteractor,
+    private val tvReleaseUseCase: TvReleaseUseCase,
     private val userViewsRepository: UserViewsRepository,
     private val authRepository: AuthRepository,
 ) : TvPlayerFacade {
@@ -22,7 +24,7 @@ class TvPlayerFacadeImpl @Inject constructor(
     override suspend fun getAuthState(): AuthState = authRepository.getAuthState()
 
     override suspend fun loadWithFranchises(releaseId: ReleaseId): List<Release> {
-        return releaseInteractor.loadWithFranchises(releaseId)
+        return tvReleaseUseCase.loadWithFranchises(releaseId)
     }
 
     override suspend fun getLocalContinueEpisodeId(releaseId: ReleaseId): EpisodeId? {

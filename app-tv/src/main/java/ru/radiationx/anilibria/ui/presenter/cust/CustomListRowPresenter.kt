@@ -10,6 +10,7 @@ import androidx.leanback.widget.RowPresenter
 open class CustomListRowPresenter @JvmOverloads constructor(
     focusZoomFactor: Int = FocusHighlight.ZOOM_FACTOR_MEDIUM,
     useFocusDimmer: Boolean = false,
+    private val onRequestRailFocus: (() -> Boolean)? = null,
 ) : ListRowPresenter(focusZoomFactor, useFocusDimmer) {
 
     override fun onRowViewExpanded(holder: RowPresenter.ViewHolder, expanded: Boolean) {
@@ -29,7 +30,12 @@ open class CustomListRowPresenter @JvmOverloads constructor(
         if (rowHeight != 0) {
             rowView.gridView.setRowHeight(rowHeight)
         }
-        return CustomListRowViewHolder(rowView, rowView.gridView, this)
+        return CustomListRowViewHolder(
+            rootView = rowView,
+            gridView = rowView.gridView,
+            presenter = this,
+            onRequestRailFocus = onRequestRailFocus,
+        )
     }
 
     private fun setupFadingEffect(listRowView: ListRowView) {

@@ -1,5 +1,6 @@
 package ru.radiationx.anilibria.ui.presenter.cust
 
+import android.view.KeyEvent
 import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.leanback.widget.HorizontalGridView
@@ -12,6 +13,7 @@ class CustomListRowViewHolder(
     rootView: ListRowView,
     gridView: HorizontalGridView,
     presenter: ListRowPresenter,
+    onRequestRailFocus: (() -> Boolean)? = null,
 ) : ListRowPresenter.ViewHolder(rootView, gridView, presenter) {
 
     private val cardDescriptionView =
@@ -23,6 +25,21 @@ class CustomListRowViewHolder(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
+
+        if (onRequestRailFocus != null) {
+            gridView.setOnKeyInterceptListener { event ->
+                if (
+                    event.action == KeyEvent.ACTION_DOWN &&
+                    event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+                ) {
+                    val selectedPosition = gridView.selectedPosition
+                    if (selectedPosition >= 0 && !gridView.hasPreviousViewInSameRow(selectedPosition)) {
+                        return@setOnKeyInterceptListener onRequestRailFocus.invoke()
+                    }
+                }
+                false
+            }
+        }
     }
 
     fun setDescription(title: CharSequence, subtitle: CharSequence) {

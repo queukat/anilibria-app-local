@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <item name="player_action_quality" type="id" />
-    <item name="player_action_speed" type="id" />
+    <item name="mainPagesContentContainer" type="id" />
     <item name="player_action_episodes" type="id" />
+    <item name="player_action_quality" type="id" />
+    <item name="title_orb" type="id" />
+    <item name="title_other" type="id" />
+    <item name="title_alert" type="id" />
+    <item name="title_controls" type="id" />
 </resources>

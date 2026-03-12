@@ -1,108 +1,96 @@
 package ru.radiationx.anilibria.screen.update
 
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.core.text.parseAsHtml
-import androidx.core.view.isVisible
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
-import androidx.leanback.app.ProgressBarManager
-import androidx.transition.Fade
-import androidx.transition.TransitionManager
-import dev.androidbroadcast.vbpd.viewBinding
-import kotlinx.coroutines.flow.filterNotNull
-import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.GradientBackgroundManager
-import ru.radiationx.anilibria.databinding.FragmentUpdateBinding
+import ru.radiationx.data.entity.domain.updater.UpdateData
 import ru.radiationx.quill.inject
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
 
-class UpdateFragment : Fragment(R.layout.fragment_update) {
-
-    private val binding by viewBinding<FragmentUpdateBinding>()
-
-    private val progressBarManager by lazy { ProgressBarManager() }
+class UpdateFragment : Fragment() {
 
     private val backgroundManager by inject<GradientBackgroundManager>()
-
     private val viewModel by viewModel<UpdateViewModel>()
+
+    private var updateDataState by mutableStateOf<UpdateData?>(null)
+    private var initialLoadingState by mutableStateOf(true)
+    private var downloadVisibleState by mutableStateOf(false)
+    private var downloadProgressState by mutableIntStateOf(0)
+    private var focusRequestToken by mutableIntStateOf(1)
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View {
+        return ComposeView(requireContext()).apply {
+            isFocusable = true
+            isFocusableInTouchMode = true
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    focusRequestToken++
+                }
+            }
+            setContent {
+                UpdateScreen(
+                    updateData = updateDataState,
+                    isInitialLoading = initialLoadingState,
+                    isDownloading = downloadVisibleState,
+                    downloadProgress = downloadProgressState,
+                    focusRequestToken = focusRequestToken,
+                    onActionClick = viewModel::onActionClick,
+                )
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        focusRequestToken++
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
-
         backgroundManager.clearGradient()
-        progressBarManager.setRootView(binding.updateRoot)
 
-        subscribeTo(viewModel.updateData.filterNotNull()) {
-            val string = StringBuilder().apply {
-                appendParam("Версия", it.name.orEmpty())
-                appendParam("Дата", it.date.orEmpty())
-                appendLine("<br>")
-                appendSection("Важно", it.important)
-                appendSection("Добавлено", it.added)
-                appendSection("Исправлено", it.fixed)
-                appendSection("Изменено", it.changed)
-            }
-            binding.updateDescription.text = string.toString().parseAsHtml()
+        subscribeTo(viewModel.updateData) {
+            updateDataState = it
         }
 
         subscribeTo(viewModel.downloadProgressShowState) {
-            TransitionManager.beginDelayedTransition(view as ViewGroup)
-            binding.progressBar.isVisible = it
-            binding.progressText.isVisible = it
-            binding.updateButton.text = if (it) {
-                "Отмена"
-            } else {
-                "Установить"
+            downloadVisibleState = it
+            if (!it) {
+                focusRequestToken++
             }
         }
 
         subscribeTo(viewModel.downloadProgressData) {
-            binding.progressBar.isIndeterminate = it == 0
-            binding.progressBar.progress = it
-            binding.progressText.text = "$it%"
+            downloadProgressState = it
         }
 
         subscribeTo(viewModel.progressState) {
-            if (it) {
-                progressBarManager.show()
-            } else {
-                progressBarManager.hide()
-                binding.updateButton.requestFocus()
-                TransitionManager.beginDelayedTransition(binding.updateRoot, Fade())
+            initialLoadingState = it
+            if (!it) {
+                focusRequestToken++
             }
-            binding.updateContainer.isVisible = !it
         }
 
         subscribeTo(viewModel.errorMessages) { message ->
             Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
         }
-
-        binding.updateButton.setOnClickListener {
-            viewModel.onActionClick()
-        }
     }
-
-    private fun StringBuilder.appendParam(title: String, value: String) {
-        append("<b>$title:</b> $value<br>")
-    }
-
-    private fun StringBuilder.appendSection(title: String, changes: List<String>) {
-        if (changes.isEmpty()) {
-            return
-        }
-        append("<b>$title</b><br>")
-        changes.forEachIndexed { index, s ->
-            append("— ").append(s)
-            if (index + 1 < changes.size) {
-                append("<br>")
-            }
-        }
-        append("<br>")
-    }
-
 }

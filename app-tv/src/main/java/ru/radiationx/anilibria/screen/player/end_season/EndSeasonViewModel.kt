@@ -10,11 +10,13 @@ import ru.radiationx.anilibria.screen.player.PlayerExtra
 import ru.radiationx.anilibria.screen.player.sortedByEpisodeOrdinalAsc
 import ru.radiationx.data.entity.domain.release.Episode
 import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.interactors.tv.TvReleaseUseCase
 import javax.inject.Inject
 
 class EndSeasonViewModel @Inject constructor(
     private val argExtra: PlayerExtra,
     private val releaseInteractor: ReleaseInteractor,
+    private val tvReleaseUseCase: TvReleaseUseCase,
     private val guidedRouter: GuidedRouter,
     private val playerController: PlayerController,
     private val router: Router,
@@ -26,7 +28,7 @@ class EndSeasonViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            releaseInteractor.getFull(argExtra.releaseId)?.also {
+            runCatching { tvReleaseUseCase.loadRelease(argExtra.releaseId) }.getOrNull()?.also {
                 currentEpisodes.clear()
                 currentEpisodes.addAll(it.episodes.sortedByEpisodeOrdinalAsc())
             }

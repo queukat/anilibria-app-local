@@ -5,13 +5,7 @@
     youtube = 188f / 335f
     height = 370f
     -->
-    <item name="ratio_card_release" format="float" type="dimen">1.423</item>
-    <item name="ratio_card_youtube" format="float" type="dimen">0.561</item>
-    <dimen name="card_height">185dp</dimen>
-    <dimen name="card_release_width">130dp</dimen>
-    <dimen name="card_youtube_width">330dp</dimen>
-    <dimen name="detail_title_ru_line_height">40sp</dimen>
-    <dimen name="detail_title_ru_scroll_height">80sp</dimen>
-    <dimen name="detail_title_en_scroll_height">48dp</dimen>
-    <dimen name="detail_title_spacing">8dp</dimen>
+    <dimen name="main_pages_header_height">96dp</dimen>
+    <dimen name="main_pages_header_spacing">10dp</dimen>
+    <dimen name="main_pages_rail_width">264dp</dimen>
 </resources>

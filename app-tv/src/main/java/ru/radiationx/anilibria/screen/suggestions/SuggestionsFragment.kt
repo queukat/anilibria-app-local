@@ -1,160 +1,218 @@
 package ru.radiationx.anilibria.screen.suggestions
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.os.Bundle
-import android.speech.SpeechRecognizer
+import android.speech.RecognizerIntent
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.leanback.app.SearchSupportFragment
-import androidx.leanback.widget.ArrayObjectAdapter
-import androidx.leanback.widget.HeaderItem
-import androidx.leanback.widget.ListRow
-import androidx.leanback.widget.Row
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.fragment.app.Fragment
 import ru.radiationx.anilibria.common.BaseCardsViewModel
-import ru.radiationx.anilibria.common.CardDiffCallback
+import ru.radiationx.anilibria.common.CardItem
+import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.LibriaCard
-import ru.radiationx.anilibria.common.handleTvCardClick
-import ru.radiationx.anilibria.common.fragment.BaseTvSearchRowsFragment
-import ru.radiationx.anilibria.extension.createCardsRowBy
-import ru.radiationx.anilibria.ui.presenter.CardPresenterSelector
-import ru.radiationx.anilibria.ui.widget.manager.ExternalProgressManager
+import ru.radiationx.anilibria.common.LinkCard
+import ru.radiationx.anilibria.common.LoadingCard
+import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.quill.installModules
 import ru.radiationx.quill.quillModule
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
-import timber.log.Timber
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.Locale
 
-class SuggestionsFragment : BaseTvSearchRowsFragment() {
+class SuggestionsFragment : Fragment() {
 
-    private val progressManager by lazy { ExternalProgressManager() }
+    private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
 
     private val rowsViewModel by viewModel<SuggestionsRowsViewModel>()
     private val resultViewModel by viewModel<SuggestionsResultViewModel>()
     private val recommendsViewModel by viewModel<SuggestionsRecommendsViewModel>()
 
+    private var queryState by mutableStateOf("")
+    private var rowOrderState by mutableStateOf(listOf(SuggestionsRowsViewModel.RECOMMENDS_ROW_ID))
+    private var progressState by mutableStateOf(false)
+    private var resultCardsState by mutableStateOf<List<CardItem>>(emptyList())
+    private var recommendsCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
+    private var focusRequestToken by mutableIntStateOf(1)
+    private var voiceSearchAvailable by mutableStateOf(false)
+
+    private val voiceSearchLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != Activity.RESULT_OK) {
+            return@registerForActivityResult
+        }
+        val voiceQuery = result.data
+            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            ?.firstOrNull()
+            ?.trim()
+            .orEmpty()
+        if (voiceQuery.isNotBlank()) {
+            handleQueryChange(voiceQuery)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Если раньше стояла installModules(ActivityModule(this)) — убрали
         installModules(quillModule {
             single<SuggestionsController>()
         })
         super.onCreate(savedInstanceState)
     }
 
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View {
+        return ComposeView(requireContext()).apply {
+            voiceSearchAvailable = isVoiceSearchAvailable()
+            isFocusable = true
+            isFocusableInTouchMode = true
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    focusRequestToken++
+                }
+            }
+            setContent {
+                SuggestionsScreen(
+                    query = queryState,
+                    sections = buildSections(),
+                    progressVisible = progressState,
+                    voiceSearchAvailable = voiceSearchAvailable,
+                    focusRequestToken = focusRequestToken,
+                    onQueryChange = ::handleQueryChange,
+                    onVoiceSearchClick = ::launchVoiceSearch,
+                    onItemClick = ::handleItemClick,
+                    onItemFocused = { item ->
+                        backgroundManager.applyCard(item)
+                    },
+                )
+            }
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        backgroundManager.clearGradient()
 
         viewLifecycleOwner.lifecycle.addObserver(rowsViewModel)
         viewLifecycleOwner.lifecycle.addObserver(resultViewModel)
         viewLifecycleOwner.lifecycle.addObserver(recommendsViewModel)
 
+        subscribeTo(rowsViewModel.rowListData) {
+            rowOrderState = it
+        }
+
+        subscribeTo(resultViewModel.progressState) {
+            progressState = it
+        }
+
+        subscribeTo(resultViewModel.resultData) {
+            resultCardsState = it
+        }
+
+        subscribeTo(recommendsViewModel.cardsData) {
+            recommendsCardsState = it
+        }
+    }
+
+    override fun onDestroyView() {
         backgroundManager.clearGradient()
+        super.onDestroyView()
+    }
 
-        progressManager.rootView = view as ViewGroup
-        progressManager.initialDelay = 0L
+    private fun handleQueryChange(query: String) {
+        queryState = query
+        resultViewModel.onQueryChange(query)
+    }
 
-        subscribeTo(rowsViewModel.emptyResultState) { isEmpty ->
-            if (isEmpty) {
-                backgroundManager.clearGradient()
+    private fun launchVoiceSearch() {
+        if (!voiceSearchAvailable) {
+            Toast.makeText(requireContext(), "Голосовой ввод недоступен", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            voiceSearchLauncher.launch(createVoiceSearchIntent())
+        } catch (_: ActivityNotFoundException) {
+            voiceSearchAvailable = false
+            Toast.makeText(requireContext(), "Голосовой ввод недоступен", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun isVoiceSearchAvailable(): Boolean {
+        return createVoiceSearchIntent().resolveActivity(requireContext().packageManager) != null
+    }
+
+    private fun createVoiceSearchIntent(): Intent {
+        return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+            )
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Скажите, что искать")
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+        }
+    }
+
+    private fun buildSections(): List<SuggestionsSectionUiModel> {
+        return rowOrderState.mapNotNull { rowId ->
+            when (rowId) {
+                SuggestionsRowsViewModel.RESULT_ROW_ID -> SuggestionsSectionUiModel(
+                    id = rowId,
+                    title = "Результат поиска",
+                    items = resultCardsState,
+                )
+
+                SuggestionsRowsViewModel.RECOMMENDS_ROW_ID -> SuggestionsSectionUiModel(
+                    id = rowId,
+                    title = recommendsViewModel.defaultTitle,
+                    items = recommendsCardsState.ifEmpty { listOf(LoadingCard("Загрузка...")) },
+                )
+
+                else -> null
             }
         }
-
-        subscribeTo(rowsViewModel.rowListData) { rowList ->
-            submitRows(rowList, ::createRowBy)
-        }
     }
 
-    override fun onPause() {
-        avoidSpeechRecognitinCrash()
-        super.onPause()
-    }
-
-    private fun getViewModel(rowId: Long): Any? = when (rowId) {
-        SuggestionsRowsViewModel.RESULT_ROW_ID -> resultViewModel
-        SuggestionsRowsViewModel.RECOMMENDS_ROW_ID -> recommendsViewModel
-        else -> null
-    }
-
-    private fun createRowBy(rowId: Long): Row {
-        return when (rowId) {
+    private fun handleItemClick(
+        rowId: Long,
+        item: CardItem,
+    ) {
+        when (rowId) {
             SuggestionsRowsViewModel.RESULT_ROW_ID -> {
-                // Результат
-                val cardsPresenter = CardPresenterSelector(null)
-                val cardsAdapter = ArrayObjectAdapter(cardsPresenter)
-                val row = ListRow(rowId, HeaderItem("Результат поиска"), cardsAdapter)
-
-                subscribeTo(resultViewModel.resultData) { list ->
-                    cardsAdapter.setItems(list, CardDiffCallback)
+                if (item is LibriaCard) {
+                    resultViewModel.onCardClick(item)
                 }
-                subscribeTo(resultViewModel.progressState) { loading ->
-                    if (loading) progressManager.show() else progressManager.hide()
-                }
-                row
             }
 
             SuggestionsRowsViewModel.RECOMMENDS_ROW_ID -> {
-                // Рекомендации
-                createCardsRowBy(rowId, rowsAdapter, recommendsViewModel)
-            }
-
-            else -> ListRow(rowId, HeaderItem("???"), ArrayObjectAdapter())
-        }
-    }
-
-    override fun onQueryTextSubmit(query: String?): Boolean {
-        resultViewModel.onQueryChange(query.orEmpty())
-        return true
-    }
-
-    override fun onQueryTextChange(newQuery: String?): Boolean {
-        resultViewModel.onQueryChange(newQuery.orEmpty())
-        return true
-    }
-
-    override fun onRowItemClicked(item: Any?, row: Row) {
-        when (val vm = getViewModel((row as ListRow).id)) {
-            is BaseCardsViewModel -> vm.handleTvCardClick(item)
-            is SuggestionsResultViewModel -> if (item is LibriaCard) {
-                vm.onCardClick(item)
+                dispatchItemClick(recommendsViewModel, item)
             }
         }
     }
 
-    private fun avoidSpeechRecognitinCrash() {
-        try {
-            val speechRecField =
-                SearchSupportFragment::class.java.getDeclaredField("mSpeechRecognizer")
-            val searchBarField = SearchSupportFragment::class.java.getDeclaredField("mSearchBar")
-            speechRecField.isAccessible = true
-            searchBarField.isAccessible = true
-
-            val sr = speechRecField.get(this) ?: return
-            val sb = searchBarField.get(this) ?: return
-            val setSpeechRecMethod = sb::class.java.getDeclaredMethod(
-                "setSpeechRecognizer",
-                SpeechRecognizer::class.java
-            )
-            setSpeechRecMethod.isAccessible = true
-            setSpeechRecMethod.invoke(sb, null)
-
-            val destroyMethod = sr::class.java.getDeclaredMethod("destroy")
-            destroyMethod.isAccessible = true
-            destroyMethod.invoke(sr)
-
-            speechRecField.set(this, null)
-        } catch (exception: ReflectiveOperationException) {
-            logSpeechCleanupError(exception)
-        } catch (exception: SecurityException) {
-            logSpeechCleanupError(exception)
+    private fun dispatchItemClick(
+        viewModel: BaseCardsViewModel,
+        item: CardItem,
+    ) {
+        when (item) {
+            is LibriaCard -> viewModel.onLibriaCardClick(item)
+            is LinkCard -> viewModel.onLinkCardClick()
+            is LoadingCard -> viewModel.onLoadingCardClick()
+            else -> Unit
         }
-    }
-
-    private fun logSpeechCleanupError(error: Exception) {
-        if (speechCleanupErrorLogged.compareAndSet(false, true)) {
-            Timber.e(error, "Failed to cleanup SpeechRecognizer workaround")
-        }
-    }
-
-    companion object {
-        private val speechCleanupErrorLogged = AtomicBoolean(false)
     }
 }

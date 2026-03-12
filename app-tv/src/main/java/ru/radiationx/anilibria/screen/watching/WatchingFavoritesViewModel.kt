@@ -7,18 +7,15 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.CardsDataConverter
@@ -28,12 +25,12 @@ import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.release.Release
+import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
 import ru.radiationx.data.repository.AuthRepository
-import ru.radiationx.data.repository.FavoriteRepository
 import javax.inject.Inject
 
 class WatchingFavoritesViewModel @Inject constructor(
-    private val favoriteRepository: FavoriteRepository,
+    private val tvFavoritesUseCase: TvFavoritesUseCase,
     authRepository: AuthRepository,
     private val converter: CardsDataConverter,
     private val cardRouter: LibriaCardRouter,
@@ -41,19 +38,47 @@ class WatchingFavoritesViewModel @Inject constructor(
 
     enum class SortMode { BY_DATE, BY_TITLE }
 
-    sealed interface DialogRequest {
-        data class ChooseYear(val options: List<String>, val selectedIndex: Int) : DialogRequest
-        data class ChooseSeason(val options: List<String>, val selectedIndex: Int) : DialogRequest
-        data class ChooseGenre(val options: List<String>, val selectedIndex: Int) : DialogRequest
+    enum class FilterPickerKind {
+        YEAR,
+        SEASON,
+        GENRE,
     }
+
+    data class FilterPickerState(
+        val kind: FilterPickerKind,
+        val title: String,
+        val options: List<String>,
+        val selectedIndex: Int,
+    )
+
+    data class FilterChipState(
+        val label: String,
+        val emphasized: Boolean,
+    )
+
+    data class FiltersUiState(
+        val year: FilterChipState,
+        val season: FilterChipState,
+        val genre: FilterChipState,
+        val sort: FilterChipState,
+        val onlyCompleted: FilterChipState,
+    )
+
+    private data class FiltersSnapshot(
+        val yearLabel: String,
+        val seasonLabel: String,
+        val genreLabel: String,
+        val sortLabel: String,
+        val onlyCompletedLabel: String,
+    )
 
     val defaultTitle: String = "Избранное"
 
     private val _cardsData = MutableStateFlow<List<CardItem>>(listOf(LoadingCard()))
     val cardsData: StateFlow<List<CardItem>> = _cardsData.asStateFlow()
 
-    private val _dialogRequests = MutableSharedFlow<DialogRequest>(extraBufferCapacity = 1)
-    val dialogRequests: SharedFlow<DialogRequest> = _dialogRequests.asSharedFlow()
+    private val _filterPicker = MutableStateFlow<FilterPickerState?>(null)
+    val filterPicker: StateFlow<FilterPickerState?> = _filterPicker.asStateFlow()
 
     private val _yearLabel = MutableStateFlow("Год: любой")
     val yearLabel: StateFlow<String> = _yearLabel.asStateFlow()
@@ -65,6 +90,16 @@ class WatchingFavoritesViewModel @Inject constructor(
     val sortLabel: StateFlow<String> = _sortLabel.asStateFlow()
     private val _onlyCompletedLabel = MutableStateFlow("Все")
     val onlyCompletedLabel: StateFlow<String> = _onlyCompletedLabel.asStateFlow()
+    private val _filtersUiState = MutableStateFlow(
+        FiltersUiState(
+            year = FilterChipState("Год: любой", emphasized = false),
+            season = FilterChipState("Сезон: любой", emphasized = false),
+            genre = FilterChipState("Жанр: любой", emphasized = false),
+            sort = FilterChipState("По дате выхода", emphasized = false),
+            onlyCompleted = FilterChipState("Все", emphasized = false),
+        )
+    )
+    val filtersUiState: StateFlow<FiltersUiState> = _filtersUiState.asStateFlow()
 
     private var currentSort: SortMode = SortMode.BY_DATE
     private var onlyCompletedFilter: Boolean = false
@@ -81,7 +116,6 @@ class WatchingFavoritesViewModel @Inject constructor(
     private var releasesCache: List<Release> = emptyList()
 
     private var currentAuthState: AuthState? = null
-
     private var lastSuccessfulSyncMs: Long = 0L
 
     private val minRefreshIntervalMs: Long = 2L * 60L * 1000L
@@ -102,6 +136,7 @@ class WatchingFavoritesViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
+        updateLabels()
     }
 
     override fun onResume(owner: LifecycleOwner) {
@@ -125,10 +160,6 @@ class WatchingFavoritesViewModel @Inject constructor(
 
     fun onLibriaCardClick(card: LibriaCard) {
         cardRouter.navigate(card)
-    }
-
-    fun onLinkCardBind() {
-        // No-op for now.
     }
 
     fun onLinkCardClick() {
@@ -164,8 +195,11 @@ class WatchingFavoritesViewModel @Inject constructor(
             addAll(availableYears)
         }
         if (options.size <= 1) return
-        _dialogRequests.tryEmit(
-            DialogRequest.ChooseYear(options, selectedIndex = selectedIndex(options, yearFilter))
+        _filterPicker.value = FilterPickerState(
+            kind = FilterPickerKind.YEAR,
+            title = "Год",
+            options = options,
+            selectedIndex = selectedIndex(options, yearFilter),
         )
     }
 
@@ -175,8 +209,11 @@ class WatchingFavoritesViewModel @Inject constructor(
             addAll(availableSeasons)
         }
         if (options.size <= 1) return
-        _dialogRequests.tryEmit(
-            DialogRequest.ChooseSeason(options, selectedIndex = selectedIndex(options, seasonFilter))
+        _filterPicker.value = FilterPickerState(
+            kind = FilterPickerKind.SEASON,
+            title = "Сезон",
+            options = options,
+            selectedIndex = selectedIndex(options, seasonFilter),
         )
     }
 
@@ -186,27 +223,37 @@ class WatchingFavoritesViewModel @Inject constructor(
             addAll(availableGenres)
         }
         if (options.size <= 1) return
-        _dialogRequests.tryEmit(
-            DialogRequest.ChooseGenre(options, selectedIndex = selectedIndex(options, genreFilter))
+        _filterPicker.value = FilterPickerState(
+            kind = FilterPickerKind.GENRE,
+            title = "Жанр",
+            options = options,
+            selectedIndex = selectedIndex(options, genreFilter),
         )
     }
 
     fun onYearSelected(index: Int) {
         yearFilter = if (index <= 0) null else availableYears.getOrNull(index - 1)
+        dismissFilterPicker()
         updateLabels()
         rebuildFromCache()
     }
 
     fun onSeasonSelected(index: Int) {
         seasonFilter = if (index <= 0) null else availableSeasons.getOrNull(index - 1)
+        dismissFilterPicker()
         updateLabels()
         rebuildFromCache()
     }
 
     fun onGenreSelected(index: Int) {
         genreFilter = if (index <= 0) null else availableGenres.getOrNull(index - 1)
+        dismissFilterPicker()
         updateLabels()
         rebuildFromCache()
+    }
+
+    fun dismissFilterPicker() {
+        _filterPicker.value = null
     }
 
     private fun shouldRefreshNow(): Boolean {
@@ -223,7 +270,7 @@ class WatchingFavoritesViewModel @Inject constructor(
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             if (showLoading) {
-                _cardsData.value = listOf(LoadingCard(title = "Загрузка…"))
+                _cardsData.value = listOf(LoadingCard(title = "Загрузка..."))
             }
 
             try {
@@ -253,7 +300,7 @@ class WatchingFavoritesViewModel @Inject constructor(
                 if (e is CancellationException) {
                     throw e
                 }
-                val is401 = (e is ru.radiationx.data.system.HttpException && e.code == 401)
+                val is401 = e is ru.radiationx.data.system.HttpException && e.code == 401
 
                 if (is401) {
                     showNeedAuth()
@@ -268,7 +315,6 @@ class WatchingFavoritesViewModel @Inject constructor(
                             LinkCard("Повторить")
                         )
                     } else {
-                        // Keep partially loaded cards and provide explicit retry action.
                         _cardsData.value = _cardsData.value
                             .filterNot { it is LinkCard && it.title == "Повторить" } + LinkCard("Повторить")
                     }
@@ -305,12 +351,14 @@ class WatchingFavoritesViewModel @Inject constructor(
         var unchangedPages = 0
 
         while (page <= MAX_FAVORITES_SYNC_PAGES && currentCoroutineContext().isActive) {
-            val response = favoriteRepository.getFavorites(page)
+            val response = tvFavoritesUseCase.loadFavorites(page)
             val data = response.data
             if (data.isEmpty()) break
 
             val before = result.size
-            data.forEach { r -> result[r.id.id] = r }
+            data.forEach { release ->
+                result[release.id.id] = release
+            }
             val after = result.size
 
             if (after > before) {
@@ -360,18 +408,19 @@ class WatchingFavoritesViewModel @Inject constructor(
 
             val sorted = withContext(Dispatchers.Default) {
                 val filtered = src.asSequence()
-                    .filter { r ->
-                        if (!onlyCompleted) true else r.statusCode == Release.STATUS_CODE_COMPLETE
+                    .filter { release ->
+                        if (!onlyCompleted) true else release.isCompletedForFavorites()
                     }
-                    .filter { r -> year?.let { r.year == it } ?: true }
-                    .filter { r -> season?.let { r.season == it } ?: true }
-                    .filter { r ->
-                        genre?.let { g -> r.genres.any { it.equals(g, ignoreCase = true) } } ?: true
+                    .filter { release -> year?.let { release.year == it } ?: true }
+                    .filter { release -> season?.let { release.season == it } ?: true }
+                    .filter { release ->
+                        genre?.let { value ->
+                            release.genres.any { it.equals(value, ignoreCase = true) }
+                        } ?: true
                     }
                     .toList()
 
                 when (sortMode) {
-                    // Preserve API order (newer first from backend sorting) to avoid reordering jumps.
                     SortMode.BY_DATE -> filtered
                     SortMode.BY_TITLE -> filtered.sortedBy { it.title }
                 }
@@ -385,7 +434,7 @@ class WatchingFavoritesViewModel @Inject constructor(
     private data class Filters(
         val years: List<String>,
         val seasons: List<String>,
-        val genres: List<String>
+        val genres: List<String>,
     )
 
     private fun computeAvailableFilters(releases: List<Release>): Filters {
@@ -407,7 +456,7 @@ class WatchingFavoritesViewModel @Inject constructor(
         return Filters(
             years = years,
             seasons = seasons,
-            genres = genres
+            genres = genres,
         )
     }
 
@@ -415,18 +464,51 @@ class WatchingFavoritesViewModel @Inject constructor(
         _yearLabel.value = yearFilter?.let { "Год: $it" } ?: "Год: любой"
         _seasonLabel.value = seasonFilter?.let { "Сезон: $it" } ?: "Сезон: любой"
         _genreLabel.value = genreFilter?.let { "Жанр: $it" } ?: "Жанр: любой"
-
         _sortLabel.value = when (currentSort) {
             SortMode.BY_DATE -> "По дате выхода"
             SortMode.BY_TITLE -> "По названию"
         }
         _onlyCompletedLabel.value = if (onlyCompletedFilter) "Только завершённые" else "Все"
+        _filtersUiState.value = createFiltersUiState(
+            FiltersSnapshot(
+                yearLabel = _yearLabel.value,
+                seasonLabel = _seasonLabel.value,
+                genreLabel = _genreLabel.value,
+                sortLabel = _sortLabel.value,
+                onlyCompletedLabel = _onlyCompletedLabel.value,
+            )
+        )
+    }
+
+    private fun createFiltersUiState(snapshot: FiltersSnapshot): FiltersUiState {
+        return FiltersUiState(
+            year = FilterChipState(
+                label = snapshot.yearLabel,
+                emphasized = !snapshot.yearLabel.endsWith("любой"),
+            ),
+            season = FilterChipState(
+                label = snapshot.seasonLabel,
+                emphasized = !snapshot.seasonLabel.endsWith("любой"),
+            ),
+            genre = FilterChipState(
+                label = snapshot.genreLabel,
+                emphasized = !snapshot.genreLabel.endsWith("любой"),
+            ),
+            sort = FilterChipState(
+                label = snapshot.sortLabel,
+                emphasized = snapshot.sortLabel != "По дате выхода",
+            ),
+            onlyCompleted = FilterChipState(
+                label = snapshot.onlyCompletedLabel,
+                emphasized = snapshot.onlyCompletedLabel != "Все",
+            ),
+        )
     }
 
     private fun selectedIndex(options: List<String>, value: String?): Int {
         if (value == null) return 0
-        val idx = options.indexOf(value)
-        return if (idx >= 0) idx else 0
+        val index = options.indexOf(value)
+        return if (index >= 0) index else 0
     }
 
     private fun parseYear(value: String?): Int {
@@ -436,13 +518,22 @@ class WatchingFavoritesViewModel @Inject constructor(
     }
 
     private fun seasonRank(value: String?): Int {
-        val s = value?.lowercase().orEmpty()
+        val normalized = value?.lowercase().orEmpty()
         return when {
-            "зим" in s || "win" in s -> 1
-            "весн" in s || "spr" in s -> 2
-            "лет" in s || "sum" in s -> 3
-            "осен" in s || "aut" in s || "fall" in s -> 4
+            "зим" in normalized || "win" in normalized -> 1
+            "весн" in normalized || "spr" in normalized -> 2
+            "лет" in normalized || "sum" in normalized -> 3
+            "осен" in normalized || "aut" in normalized || "fall" in normalized -> 4
             else -> Int.MIN_VALUE
+        }
+    }
+
+    private fun Release.isCompletedForFavorites(): Boolean {
+        return when (statusCode) {
+            Release.STATUS_CODE_COMPLETE -> true
+            Release.STATUS_CODE_PROGRESS,
+            Release.STATUS_CODE_NOT_ONGOING -> false
+            else -> days.isEmpty()
         }
     }
 

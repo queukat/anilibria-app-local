@@ -12,12 +12,12 @@ import ru.radiationx.anilibria.screen.player.PlayerExtra
 import ru.radiationx.data.datasource.holders.PreferencesHolder
 import ru.radiationx.data.entity.common.PlayerQuality
 import ru.radiationx.data.entity.domain.release.Release
-import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.interactors.tv.TvReleaseUseCase
 import javax.inject.Inject
 
 class PlayerQualityViewModel @Inject constructor(
     private val argExtra: PlayerExtra,
-    private val releaseInteractor: ReleaseInteractor,
+    private val tvReleaseUseCase: TvReleaseUseCase,
     private val preferencesHolder: PreferencesHolder,
     private val guidedRouter: GuidedRouter,
 ) : LifecycleViewModel() {
@@ -35,7 +35,7 @@ class PlayerQualityViewModel @Inject constructor(
 
     init {
         combine(
-            releaseInteractor.observeFull(argExtra.releaseId),
+            tvReleaseUseCase.observeRelease(argExtra.releaseId),
             preferencesHolder.playerQuality
         ) { release, quality ->
             updateAvailable(release, quality)

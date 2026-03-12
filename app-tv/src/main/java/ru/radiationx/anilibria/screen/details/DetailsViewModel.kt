@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.BaseRowsViewModel
-import ru.radiationx.data.interactors.ReleaseInteractor
+import ru.radiationx.data.interactors.tv.TvReleaseUseCase
 import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.data.repository.HistoryRepository
 import ru.radiationx.shared.ktx.coRunCatching
@@ -22,7 +22,7 @@ import javax.inject.Inject
  */
 class DetailsViewModel @Inject constructor(
     argExtra: DetailExtra,
-    private val releaseInteractor: ReleaseInteractor,
+    private val tvReleaseUseCase: TvReleaseUseCase,
     private val historyRepository: HistoryRepository,
     authRepository: AuthRepository,
 ) : BaseRowsViewModel() {
@@ -62,8 +62,8 @@ class DetailsViewModel @Inject constructor(
             .launchIn(viewModelScope)
 
         // Если у релиза появятся франшизы (или наоборот) → обновим строку RELATED
-        releaseInteractor
-            .observeFull(releaseId)
+        tvReleaseUseCase
+            .observeRelease(releaseId)
             .onEach { release ->
                 val hasFranchises = release.getFranchisesIds().any { it != release.id }
                 updateAvailableRow(RELATED_ROW_ID, hasFranchises)
@@ -78,7 +78,7 @@ class DetailsViewModel @Inject constructor(
     private fun loadRelease() {
         viewModelScope.launch {
             coRunCatching {
-                releaseInteractor.loadRelease(releaseId)
+                tvReleaseUseCase.loadRelease(releaseId)
             }.onSuccess { release ->
                 // Положим в history (чтобы его учитывали в рекомендациях и т.д.)
                 historyRepository.putRelease(release)

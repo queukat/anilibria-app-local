@@ -19,16 +19,12 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.repository.AuthRepository
-import ru.radiationx.data.repository.ReleaseRepository
-import ru.radiationx.data.repository.SearchRepository
 import ru.radiationx.data.system.ApiUtils
 
 class TvContentUseCaseContractTest {
 
     private val aniLibertyApi = mockk<AniLibertyApi>()
     private val authRepository = mockk<AuthRepository>(relaxed = true)
-    private val releaseRepository = mockk<ReleaseRepository>(relaxed = true)
-    private val searchRepository = mockk<SearchRepository>(relaxed = true)
     private val apiUtils = mockk<ApiUtils>()
 
     private lateinit var useCase: TvContentUseCaseImpl
@@ -39,8 +35,6 @@ class TvContentUseCaseContractTest {
         useCase = TvContentUseCaseImpl(
             aniLibertyApi = aniLibertyApi,
             authRepository = authRepository,
-            releaseRepository = releaseRepository,
-            searchRepository = searchRepository,
             apiUtils = apiUtils,
         )
     }
@@ -69,7 +63,7 @@ class TvContentUseCaseContractTest {
     }
 
     @Test
-    fun loadV1Recommendations_usesOnlyLimitAndReleaseIdWithoutFields() = runBlocking {
+    fun loadRecommendations_usesOnlyLimitAndReleaseIdWithoutFields() = runBlocking {
         coEvery {
             aniLibertyApi.getRecommendedReleases(
                 limit = 14,
@@ -78,7 +72,7 @@ class TvContentUseCaseContractTest {
             )
         } returns listOf(release(id = 10097, titleRu = "Solo Leveling"))
 
-        val result = useCase.loadV1Recommendations(seedReleaseId = 10096, limit = 14)
+        val result = useCase.loadRecommendations(seedReleaseId = 10096, limit = 14)
 
         assertEquals(1, result.size)
         assertEquals(10097, result.first().id.id)
@@ -86,27 +80,6 @@ class TvContentUseCaseContractTest {
             aniLibertyApi.getRecommendedReleases(
                 limit = 14,
                 releaseId = AniLibertyReleaseId(10096),
-                fields = null,
-            )
-        }
-    }
-
-    @Test
-    fun loadDetailHeaderRemote_requestsReleaseWithoutExcludeFields() = runBlocking {
-        coEvery {
-            aniLibertyApi.getRelease(
-                key = any(),
-                fields = null,
-            )
-        } returns release(id = 10096, titleRu = "Hell Mode")
-
-        val result = useCase.loadDetailHeaderRemote(ReleaseId(10096))
-
-        assertNotNull(result)
-        assertEquals("Hell Mode", result?.titleRu)
-        coVerify(exactly = 1) {
-            aniLibertyApi.getRelease(
-                key = any(),
                 fields = null,
             )
         }

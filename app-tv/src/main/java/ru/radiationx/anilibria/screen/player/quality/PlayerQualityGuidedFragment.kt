@@ -2,42 +2,25 @@ package ru.radiationx.anilibria.screen.player.quality
 
 import android.os.Bundle
 import android.view.View
-import androidx.leanback.widget.GuidedAction
-import ru.radiationx.anilibria.R
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import ru.radiationx.anilibria.screen.player.BasePlayerGuidedFragment
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceItem
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceList
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceSection
+import ru.radiationx.anilibria.ui.compose.TvOverlayScreen
 import ru.radiationx.quill.viewModel
-import ru.radiationx.shared.ktx.android.getCompatDrawable
 import ru.radiationx.shared.ktx.android.subscribeTo
 
 class PlayerQualityGuidedFragment : BasePlayerGuidedFragment() {
 
     private val viewModel by viewModel<PlayerQualityViewModel> { argExtra }
-
-    private val sdAction by lazy {
-        GuidedAction.Builder(requireContext())
-            .id(PlayerQualityViewModel.SD_ACTION_ID)
-            .title("480p")
-            .icon(requireContext().getCompatDrawable(R.drawable.ic_quality_sd_base))
-            .build()
-    }
-
-    private val hdAction by lazy {
-        GuidedAction.Builder(requireContext())
-            .id(PlayerQualityViewModel.HD_ACTION_ID)
-            .title("720p")
-            .icon(requireContext().getCompatDrawable(R.drawable.ic_quality_hd_base))
-            .build()
-    }
-
-    private val fullHdAction by lazy {
-        GuidedAction.Builder(requireContext())
-            .id(PlayerQualityViewModel.FULL_HD_ACTION_ID)
-            .title("1080p")
-            .icon(requireContext().getCompatDrawable(R.drawable.ic_quality_full_hd_base))
-            .build()
-    }
-
-    override fun onProvideTheme(): Int = R.style.AppTheme_Player_LeanbackWizard
+    private var availableIdsState by mutableStateOf<List<Long>>(emptyList())
+    private var selectedIdState by mutableLongStateOf(-1L)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -45,24 +28,53 @@ class PlayerQualityGuidedFragment : BasePlayerGuidedFragment() {
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
 
         subscribeTo(viewModel.availableData) {
-            actions = it.mapNotNull { id -> getActionById(id) }
+            availableIdsState = it
         }
 
         subscribeTo(viewModel.selectedData) { selectedId ->
-            if (selectedId >= 0L) {
-                selectedActionPosition = findActionPositionById(selectedId)
-            }
+            selectedIdState = selectedId
         }
     }
 
-    override fun onGuidedActionClicked(action: GuidedAction) {
-        viewModel.applyQuality(action.id)
+    @Composable
+    override fun RenderContent() {
+        TvOverlayScreen(
+            title = "Качество воспроизведения",
+            subtitle = "Выберите поток, который будет использовать плеер для текущего эпизода.",
+            panelMaxWidth = 700.dp,
+        ) { _ ->
+            TvOverlayChoiceList(
+                sections = listOf(
+                    TvOverlayChoiceSection(
+                        items = availableIdsState.mapNotNull(::mapChoiceOrNull),
+                    )
+                ),
+                onItemClick = { choice ->
+                    viewModel.applyQuality(choice.id)
+                },
+            )
+        }
     }
 
-    private fun getActionById(id: Long): GuidedAction? = when (id) {
-        PlayerQualityViewModel.SD_ACTION_ID -> sdAction
-        PlayerQualityViewModel.HD_ACTION_ID -> hdAction
-        PlayerQualityViewModel.FULL_HD_ACTION_ID -> fullHdAction
+    private fun mapChoiceOrNull(id: Long): TvOverlayChoiceItem? = when (id) {
+        PlayerQualityViewModel.SD_ACTION_ID -> TvOverlayChoiceItem(
+            id = id,
+            title = "480p",
+            selected = id == selectedIdState,
+        )
+
+        PlayerQualityViewModel.HD_ACTION_ID -> TvOverlayChoiceItem(
+            id = id,
+            title = "720p",
+            selected = id == selectedIdState,
+        )
+
+        PlayerQualityViewModel.FULL_HD_ACTION_ID -> TvOverlayChoiceItem(
+            id = id,
+            title = "1080p",
+            selected = id == selectedIdState,
+        )
+
         else -> null
     }
 }

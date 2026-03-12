@@ -5,7 +5,6 @@ import ru.mintrocket.lib.mintpermissions.MintPermissions
 import ru.mintrocket.lib.mintpermissions.flows.MintPermissionsFlow
 import ru.radiationx.anilibria.AppBuildConfig
 import ru.radiationx.anilibria.TvCheckerSources
-import ru.radiationx.anilibria.common.AniLibertyDetailsOverlay
 import ru.radiationx.data.SharedBuildConfig
 import ru.radiationx.data.analytics.AnalyticsErrorReporter
 import ru.radiationx.data.analytics.AnalyticsSender
@@ -57,6 +56,5 @@ class AppModule(context: Context) : QuillModule() {
         singleImpl<AnalyticsSender, CombinedAnalyticsSender>()
         singleImpl<AnalyticsProfile, CombinedAnalyticsProfile>()
         singleImpl<AnalyticsErrorReporter, CombinedErrorReporter>()
-        single<AniLibertyDetailsOverlay>()
     }
 }

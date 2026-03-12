@@ -1,6 +1,5 @@
 package ru.radiationx.anilibria.common
 
-import androidx.leanback.widget.Row
 import ru.radiationx.data.entity.domain.types.ReleaseId
 
 data class LibriaDetails(
@@ -23,9 +22,3 @@ data class DetailsState(
     val loadingProgress: Boolean = false,
     val updateProgress: Boolean = false
 )
-
-class LibriaDetailsRow(
-    id: Long,
-    var details: LibriaDetails? = null,
-    var state: DetailsState? = null
-) : Row(id, null)

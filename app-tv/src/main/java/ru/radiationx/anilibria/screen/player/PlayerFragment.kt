@@ -90,9 +90,9 @@ class PlayerFragment : BasePlayerFragment() {
             playerGlue?.apply {
                 title = it.title
                 subtitle = it.subtitle
-                seekTo(it.seek)
-                preparePlayer(it.url)
+                syncProgressPosition(it.seek)
             }
+            preparePlayer(it.url, it.seek)
             skipsPart?.setSkips(it.skips)
         }
 
@@ -107,7 +107,7 @@ class PlayerFragment : BasePlayerFragment() {
                 }
 
                 is PlayerCommand.Seek -> {
-                    playerGlue?.seekTo(command.positionMs)
+                    playerGlue?.seekToImmediate(command.positionMs)
                 }
 
                 is PlayerCommand.NextEpisodeSelected -> Unit

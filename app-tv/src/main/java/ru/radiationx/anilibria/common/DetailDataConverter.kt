@@ -14,22 +14,19 @@ class DetailDataConverter @Inject constructor() {
 
     fun toDetail(
         releaseItem: Release,
-        isFull: Boolean,
         accesses: List<EpisodeAccess>,
     ): LibriaDetails = releaseItem.run {
         LibriaDetails(
             id = id,
             titleRu = title.orEmpty(),
             titleEn = titleEng.orEmpty(),
-            extra = listOf(
-                genres.firstOrNull()?.capitalizeDefault()?.trim(),
-                "${year.orEmpty()} ${season.orEmpty()}",
-                types.firstOrNull()?.trim(),
-                "Серии: ${resolveSeriesText()}"
-            ).joinToString(" • "),
-            description = description.orEmpty().parseAsHtml().toString().trim()
-                .trim('"')/*.replace('\n', ' ')*/,
-            announce = getAnnounce(isFull),
+            extra = buildExtra(),
+            description = description.orEmpty()
+                .parseAsHtml()
+                .toString()
+                .trim()
+                .trim('"'),
+            announce = buildAnnounce(),
             image = poster.orEmpty(),
             favoriteCount = NumberFormat.getNumberInstance().format(favoriteInfo.rating),
             hasFullHd = episodes.any { PlayerQuality.FULLHD in it.qualityInfo },
@@ -40,23 +37,20 @@ class DetailDataConverter @Inject constructor() {
         )
     }
 
-    private fun Release.resolveSeriesText(): String {
-        val episodesFromType = types
-            .firstOrNull()
-            ?.let(::extractEpisodesCountFromTypeText)
-        return series?.trim()?.takeIf { it.isNotEmpty() }
-            ?: episodes.size.takeIf { it > 0 }?.toString()
-            ?: episodesFromType
-            ?: "Онгоинг"
+    private fun Release.buildExtra(): String {
+        return buildList {
+            genres.firstOrNull()?.capitalizeDefault()?.trim()?.takeIf(String::isNotEmpty)?.also(::add)
+            listOf(year.orEmpty(), season.orEmpty())
+                .joinToString(" ")
+                .trim()
+                .takeIf(String::isNotEmpty)
+                ?.also(::add)
+            types.firstOrNull()?.trim()?.takeIf(String::isNotEmpty)?.also(::add)
+            "Серии: ${resolveTvSeriesText()}".also(::add)
+        }.joinToString(" • ")
     }
 
-    private fun extractEpisodesCountFromTypeText(typeText: String): String? {
-        val regex = Regex("""\((\d+)\s*эп""", RegexOption.IGNORE_CASE)
-        return regex.find(typeText)?.groupValues?.getOrNull(1)
-    }
-
-    private fun Release.getAnnounce(isFull: Boolean): String {
-        if (!isFull) return ""
+    private fun Release.buildAnnounce(): String {
         val announceText = if (statusCode == Release.STATUS_CODE_COMPLETE) {
             "Релиз завершен"
         } else {
@@ -69,7 +63,9 @@ class DetailDataConverter @Inject constructor() {
         } else {
             null
         }
-        return listOfNotNull(announceText, episodesWarning).joinToString(" • ")
+        return listOfNotNull(announceText.takeIf { it.isNotBlank() }, episodesWarning)
+            .distinct()
+            .joinToString(" • ")
     }
 
     private fun String.toAnnounce2(): String {

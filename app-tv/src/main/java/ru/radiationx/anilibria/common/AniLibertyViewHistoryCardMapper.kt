@@ -2,6 +2,7 @@ package ru.radiationx.anilibria.common
 
 import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import java.math.BigDecimal
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToLong
 
@@ -86,9 +87,9 @@ internal object AniLibertyViewHistoryCardMapper {
         val seconds = totalSeconds % 60
 
         return if (hours > 0) {
-            String.format("%d:%02d:%02d", hours, minutes, seconds)
+            String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
         } else {
-            String.format("%d:%02d", minutes, seconds)
+            String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
         }
     }
 }

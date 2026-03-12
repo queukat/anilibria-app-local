@@ -15,6 +15,7 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseAlias
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseEpisodeId
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertySeason
+import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.system.ApiUtils
 
 class AniLibertyReleaseMapperTest {
@@ -27,6 +28,7 @@ class AniLibertyReleaseMapperTest {
     fun toLegacyReleaseOrNull_mapsKeyFields() {
         val release = buildRelease(
             isOngoing = true,
+            isInProduction = null,
             episodesTotal = 12,
             latestEpisodeOrdinal = 3.0,
         )
@@ -46,6 +48,7 @@ class AniLibertyReleaseMapperTest {
     fun toLegacyReleaseOrNull_series_usesTotalForFinishedRelease() {
         val release = buildRelease(
             isOngoing = false,
+            isInProduction = null,
             episodesTotal = 12,
             latestEpisodeOrdinal = 7.0,
         )
@@ -59,6 +62,7 @@ class AniLibertyReleaseMapperTest {
     fun toLegacyReleaseOrNull_series_usesLatestWhenTotalUnknown() {
         val release = buildRelease(
             isOngoing = true,
+            isInProduction = null,
             episodesTotal = null,
             latestEpisodeOrdinal = 5.0,
         )
@@ -72,6 +76,7 @@ class AniLibertyReleaseMapperTest {
     fun toLegacyReleaseOrNull_series_usesEpisodesAsLatestFallbackForOngoing() {
         val release = buildRelease(
             isOngoing = true,
+            isInProduction = null,
             episodesTotal = 12,
             latestEpisodeOrdinal = null,
             episodeOrdinals = listOf(1.0, 2.0, 4.0),
@@ -86,6 +91,7 @@ class AniLibertyReleaseMapperTest {
     fun toLegacyReleaseOrNull_series_staysNullWhenNoCountsAvailable() {
         val release = buildRelease(
             isOngoing = true,
+            isInProduction = null,
             episodesTotal = null,
             latestEpisodeOrdinal = null,
             episodeOrdinals = emptyList(),
@@ -100,6 +106,7 @@ class AniLibertyReleaseMapperTest {
     fun toLegacyFullReleaseOrNull_sortsBySortOrder_andFallbacksTitleAndId() {
         val release = buildRelease(
             isOngoing = true,
+            isInProduction = null,
             episodesTotal = 2,
             latestEpisodeOrdinal = null,
             episodes = listOf(
@@ -153,6 +160,7 @@ class AniLibertyReleaseMapperTest {
     fun toLegacyFullReleaseOrNull_prefixesOrdinalWhenNameExists() {
         val release = buildRelease(
             isOngoing = true,
+            isInProduction = null,
             episodesTotal = 1,
             latestEpisodeOrdinal = 1.0,
             episodes = listOf(
@@ -185,8 +193,39 @@ class AniLibertyReleaseMapperTest {
         assertEquals("1 • Начало", episodes.first().title)
     }
 
+    @Test
+    fun toLegacyReleaseOrNull_status_usesInProductionFlag_whenOriginIsNotOngoing() {
+        val release = buildRelease(
+            isOngoing = false,
+            isInProduction = true,
+            episodesTotal = 366,
+            latestEpisodeOrdinal = 333.0,
+        )
+
+        val mapped = release.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+
+        assertEquals(Release.STATUS_CODE_PROGRESS, mapped?.statusCode)
+        assertEquals("333 из 366", mapped?.series)
+    }
+
+    @Test
+    fun toLegacyReleaseOrNull_status_marksScheduledWithoutEpisodesAsNotOngoing() {
+        val release = buildRelease(
+            isOngoing = false,
+            isInProduction = false,
+            episodesTotal = null,
+            latestEpisodeOrdinal = null,
+            episodeOrdinals = emptyList(),
+        )
+
+        val mapped = release.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+
+        assertEquals(Release.STATUS_CODE_NOT_ONGOING, mapped?.statusCode)
+    }
+
     private fun buildRelease(
         isOngoing: Boolean?,
+        isInProduction: Boolean?,
         episodesTotal: Int?,
         latestEpisodeOrdinal: Double?,
         episodeOrdinals: List<Double> = emptyList(),
@@ -227,7 +266,7 @@ class AniLibertyReleaseMapperTest {
             notification = null,
             episodesTotal = episodesTotal,
             externalPlayer = null,
-            isInProduction = null,
+            isInProduction = isInProduction,
             isBlockedByGeo = false,
             isBlockedByCopyrights = false,
             addedInUsersFavorites = 5,
