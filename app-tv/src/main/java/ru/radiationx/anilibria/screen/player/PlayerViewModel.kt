@@ -23,6 +23,7 @@ import ru.radiationx.data.entity.domain.release.Episode
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
+import timber.log.Timber
 import javax.inject.Inject
 
 sealed interface PlayerCommand {
@@ -40,6 +41,11 @@ class PlayerViewModel @Inject constructor(
     private val playerController: PlayerController,
 ) : LifecycleViewModel() {
 
+    data class StartupFailure(
+        val message: String,
+        val shouldExitPlayer: Boolean = true,
+    )
+
     private val _videoData = MutableStateFlow<Video?>(null)
     val videoData: StateFlow<Video?> = _videoData.asStateFlow()
     private val _qualityState = MutableStateFlow(preferencesHolder.playerQuality.value)
@@ -55,6 +61,8 @@ class PlayerViewModel @Inject constructor(
         extraBufferCapacity = 16,
     )
     val commands: SharedFlow<PlayerCommand> = _commands.asSharedFlow()
+    private val _startupFailure = MutableStateFlow<StartupFailure?>(null)
+    val startupFailure: StateFlow<StartupFailure?> = _startupFailure.asStateFlow()
 
     private var currentReleases: List<Release> = emptyList()
     private var currentEpisodes: List<Episode> = emptyList()
@@ -113,7 +121,17 @@ class PlayerViewModel @Inject constructor(
 
         // Load initial release(s)
         viewModelScope.launch {
-            val releases = tvPlayerFacade.loadWithFranchises(argExtra.releaseId)
+            val releases = runCatching {
+                tvPlayerFacade.loadWithFranchises(argExtra.releaseId)
+            }.onFailure { error ->
+                Timber.e(error, "Player bootstrap failed for %s", argExtra.releaseId)
+                _startupFailure.value = StartupFailure(
+                    message = "Не удалось открыть серию. Проверьте подключение и попробуйте снова.",
+                )
+            }.getOrElse { emptyList() }
+            if (releases.isEmpty()) {
+                return@launch
+            }
             currentReleases = releases
             playerController.data.value = releases
 
@@ -136,7 +154,14 @@ class PlayerViewModel @Inject constructor(
             val episode = currentEpisodes.firstOrNull { it.id == initialEpisodeId }
                 ?: currentEpisodes.firstOrNull()
 
-            episode?.also { playEpisode(it) }
+            if (episode == null) {
+                _startupFailure.value = StartupFailure(
+                    message = "Эта серия пока недоступна для воспроизведения.",
+                )
+                return@launch
+            }
+
+            playEpisode(episode)
         }
     }
 
@@ -358,6 +383,10 @@ class PlayerViewModel @Inject constructor(
     fun hasNextEpisode(): Boolean = getNextEpisode() != null
 
     fun hasPreviousEpisode(): Boolean = getPrevEpisode() != null
+
+    fun consumeStartupFailure() {
+        _startupFailure.value = null
+    }
 
     private data class EpisodeProgressSnapshot(
         val episodeId: EpisodeId,

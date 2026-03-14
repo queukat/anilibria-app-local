@@ -73,6 +73,7 @@ internal fun ScheduleScreen(
             List(section.items.size) { androidx.compose.ui.focus.FocusRequester() }
         }
     }
+    val statePanelRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     val stateActionRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     var selectedItem by remember(sectionKeys) { mutableStateOf<CardItem?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
@@ -100,12 +101,17 @@ internal fun ScheduleScreen(
         sections.any { section -> section.items.any { it is LibriaCard } } && !showStatePanel
     }
 
-    fun requestStateActionFocus(): Boolean {
-        if (!showStatePanel || stateActionCard == null) {
+    fun requestStatePanelFocus(): Boolean {
+        if (!showStatePanel) {
             return false
         }
         scope.launch {
-            requestWatchingFocusAfterAttach(stateActionRequester)
+            val targetRequester = if (stateActionCard != null) {
+                stateActionRequester
+            } else {
+                statePanelRequester
+            }
+            requestWatchingFocusAfterAttach(targetRequester)
         }
         return true
     }
@@ -222,7 +228,7 @@ internal fun ScheduleScreen(
             return@LaunchedEffect
         }
         if (showStatePanel) {
-            if (requestStateActionFocus()) {
+            if (requestStatePanelFocus()) {
                 handledFocusToken = focusRequestToken
             }
             return@LaunchedEffect
@@ -338,6 +344,9 @@ internal fun ScheduleScreen(
                         palette = palette,
                         accent = stateAccent,
                         loading = stateLoading,
+                        focusRequester = if (stateActionCard == null) statePanelRequester else null,
+                        onUp = { false },
+                        onDown = { true },
                         action = stateActionCard?.let { actionCard ->
                             {
                                 TvContentStateActionButton(

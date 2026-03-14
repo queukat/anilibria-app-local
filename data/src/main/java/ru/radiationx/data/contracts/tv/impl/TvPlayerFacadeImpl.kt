@@ -24,7 +24,11 @@ class TvPlayerFacadeImpl @Inject constructor(
     override suspend fun getAuthState(): AuthState = authRepository.getAuthState()
 
     override suspend fun loadWithFranchises(releaseId: ReleaseId): List<Release> {
-        return tvReleaseUseCase.loadWithFranchises(releaseId)
+        return if (releaseInteractor.getCachedFull(releaseId = releaseId) != null) {
+            releaseInteractor.loadWithFranchises(releaseId)
+        } else {
+            tvReleaseUseCase.loadWithFranchises(releaseId)
+        }
     }
 
     override suspend fun getLocalContinueEpisodeId(releaseId: ReleaseId): EpisodeId? {

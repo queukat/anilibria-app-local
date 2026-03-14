@@ -1,11 +1,14 @@
 package ru.radiationx.data.contracts.tv.impl
 
 import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
+import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
@@ -54,5 +57,51 @@ class TvPlayerFacadeImplTest {
         val result = facade.getRemoteEpisodeSeek(episodeId)
 
         assertEquals(0L, result)
+    }
+
+    @Test
+    fun loadWithFranchises_usesCachedReleasePath_whenFullReleaseAlreadyCached() = runBlocking {
+        val releaseId = ReleaseId(99)
+        val cachedRelease = mockk<Release>()
+        val releaseInteractor = mockk<ReleaseInteractor>()
+        val tvReleaseUseCase = mockk<TvReleaseUseCase>()
+        every { releaseInteractor.getCachedFull(releaseId = releaseId) } returns cachedRelease
+        coEvery { releaseInteractor.loadWithFranchises(releaseId) } returns listOf(cachedRelease)
+
+        val facade = TvPlayerFacadeImpl(
+            releaseInteractor = releaseInteractor,
+            tvReleaseUseCase = tvReleaseUseCase,
+            userViewsRepository = mockk<UserViewsRepository>(relaxed = true),
+            authRepository = mockk<AuthRepository>(relaxed = true),
+        )
+
+        val result = facade.loadWithFranchises(releaseId)
+
+        assertEquals(listOf(cachedRelease), result)
+        coVerify(exactly = 1) { releaseInteractor.loadWithFranchises(releaseId) }
+        coVerify(exactly = 0) { tvReleaseUseCase.loadWithFranchises(any()) }
+    }
+
+    @Test
+    fun loadWithFranchises_usesFreshLoad_whenNoCachedReleaseExists() = runBlocking {
+        val releaseId = ReleaseId(77)
+        val loadedRelease = mockk<Release>()
+        val releaseInteractor = mockk<ReleaseInteractor>()
+        val tvReleaseUseCase = mockk<TvReleaseUseCase>()
+        every { releaseInteractor.getCachedFull(releaseId = releaseId) } returns null
+        coEvery { tvReleaseUseCase.loadWithFranchises(releaseId) } returns listOf(loadedRelease)
+
+        val facade = TvPlayerFacadeImpl(
+            releaseInteractor = releaseInteractor,
+            tvReleaseUseCase = tvReleaseUseCase,
+            userViewsRepository = mockk<UserViewsRepository>(relaxed = true),
+            authRepository = mockk<AuthRepository>(relaxed = true),
+        )
+
+        val result = facade.loadWithFranchises(releaseId)
+
+        assertEquals(listOf(loadedRelease), result)
+        coVerify(exactly = 1) { tvReleaseUseCase.loadWithFranchises(releaseId) }
+        coVerify(exactly = 0) { releaseInteractor.loadWithFranchises(any()) }
     }
 }

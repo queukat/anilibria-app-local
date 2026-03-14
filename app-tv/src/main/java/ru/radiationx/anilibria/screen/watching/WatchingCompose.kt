@@ -39,7 +39,8 @@ import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
-import ru.radiationx.anilibria.screen.watching.WatchingWideMessageCard
+import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
+import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvSectionHeader
 
 internal data class WatchingSectionUiModel(
@@ -363,6 +364,13 @@ private fun WatchingSectionBlock(
     val stateFocusItem = remember(items, stateFocusIndex) {
         stateFocusIndex?.let(items::getOrNull)
     }
+    val stateActionLabel = remember(stateFocusItem) {
+        when (stateFocusItem) {
+            is LinkCard -> stateFocusItem.title
+            is LoadingCard -> if (stateFocusItem.isError) "Повторить" else null
+            else -> null
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -374,7 +382,7 @@ private fun WatchingSectionBlock(
         )
 
         if (items.isTvStateOnlySection() && stateItem != null && stateFocusItem != null) {
-            WatchingWideMessageCard(
+            TvContentStatePanel(
                 title = when (stateItem) {
                     is LoadingCard -> stateItem.title.ifBlank { "Загрузка" }
                     is LinkCard -> stateItem.title
@@ -383,27 +391,45 @@ private fun WatchingSectionBlock(
                 },
                 subtitle = when (stateItem) {
                     is LoadingCard -> stateItem.description.ifBlank {
-                        if (stateItem.isError) "Нажмите, чтобы повторить попытку" else ""
+                        if (stateItem.isError) {
+                            "Не удалось обновить раздел. Попробуйте ещё раз."
+                        } else {
+                            "Раздел обновится автоматически."
+                        }
                     }
-                    is LinkCard -> "Нажмите, чтобы загрузить ещё"
+                    is LinkCard -> "Откройте дополнительные элементы этого раздела."
                     is InfoCard -> stateItem.subtitle
                     else -> ""
                 },
-                palette = if (stateItem is LoadingCard && stateItem.isError) {
-                    palette.copy(accentColor = palette.accentColor)
-                } else if (stateItem is LoadingCard) {
-                    palette.copy(accentColor = palette.textColor.copy(alpha = 0.4f))
-                } else {
-                    palette
-                },
-                focusRequester = requesters.getOrNull(stateFocusIndex ?: -1)
-                    ?: androidx.compose.ui.focus.FocusRequester.Default,
+                palette = palette,
+                accent = stateItem is LoadingCard && stateItem.isError,
                 loading = stateItem is LoadingCard && !stateItem.isError,
-                onClick = { onItemClick(stateFocusItem) },
+                focusRequester = if (stateActionLabel == null) {
+                    requesters.getOrNull(stateFocusIndex ?: -1)
+                } else {
+                    null
+                },
                 onFocused = { onMessageFocused(stateFocusIndex ?: 0, stateFocusItem) },
                 onLeft = onLeftEdge,
                 onUp = { onUp(stateFocusIndex ?: 0) },
                 onDown = { onDown(stateFocusIndex ?: 0) },
+                action = stateActionLabel?.let { actionLabel ->
+                    {
+                        TvContentStateActionButton(
+                            text = actionLabel,
+                            palette = palette,
+                            focusRequester = requesters.getOrNull(stateFocusIndex ?: -1)
+                                ?: androidx.compose.ui.focus.FocusRequester.Default,
+                            onClick = { onItemClick(stateFocusItem) },
+                            onFocused = {
+                                onMessageFocused(stateFocusIndex ?: 0, stateFocusItem)
+                            },
+                            onLeft = onLeftEdge,
+                            onUp = { onUp(stateFocusIndex ?: 0) },
+                            onDown = { onDown(stateFocusIndex ?: 0) },
+                        )
+                    }
+                },
             )
         } else {
             LazyRow(

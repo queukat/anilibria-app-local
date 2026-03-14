@@ -73,9 +73,11 @@ class PlayerEpisodesViewModel @Inject constructor(
             playerController.selectEpisodeRelay.emit(episodeId)
             guidedRouter.close()
         } else {
-            // Плеера нет — открываем экран просмотра
-            router.navigateTo(PlayerScreen(episodeId.releaseId, episodeId))
+            // Picker живёт в том же cicerone-стеке, что и основной экран.
+            // Сначала закрываем guided-экран.
+            // Иначе Back после navigateTo может откатить только что открытый PlayerScreen.
             guidedRouter.close()
+            router.navigateTo(PlayerScreen(episodeId.releaseId, episodeId))
         }
     }
 

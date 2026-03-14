@@ -55,7 +55,6 @@ import ru.radiationx.anilibria.screen.watching.TvRowsScreenVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
-import ru.radiationx.anilibria.screen.watching.WatchingWideMessageCard
 import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
 import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.isTvStateOnlySection
@@ -64,6 +63,8 @@ import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
+import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
+import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvSectionHeader
 
 internal data class MainSectionUiModel(
@@ -395,6 +396,13 @@ internal fun MainSectionBlock(
     val stateFocusItem = remember(items, stateFocusIndex) {
         stateFocusIndex?.let(items::getOrNull)
     }
+    val stateActionLabel = remember(stateFocusItem) {
+        when (stateFocusItem) {
+            is LinkCard -> stateFocusItem.title
+            is LoadingCard -> if (stateFocusItem.isError) "Повторить" else null
+            else -> null
+        }
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -406,7 +414,7 @@ internal fun MainSectionBlock(
         )
 
         if (items.isTvStateOnlySection() && stateItem != null && stateFocusItem != null) {
-            WatchingWideMessageCard(
+            TvContentStatePanel(
                 title = when (stateItem) {
                     is LoadingCard -> stateItem.title.ifBlank { "Загрузка" }
                     is LinkCard -> stateItem.title
@@ -415,29 +423,47 @@ internal fun MainSectionBlock(
                 },
                 subtitle = when (stateItem) {
                     is LoadingCard -> stateItem.description.ifBlank {
-                        if (stateItem.isError) "Нажмите, чтобы повторить попытку" else ""
+                        if (stateItem.isError) {
+                            "Проверьте подключение и повторите попытку."
+                        } else {
+                            "Раздел обновится автоматически."
+                        }
                     }
-                    is LinkCard -> "Нажмите, чтобы выполнить действие"
+                    is LinkCard -> "Откройте полный раздел и продолжайте навигацию оттуда."
                     is InfoCard -> stateItem.subtitle
                     else -> ""
                 },
-                palette = if (stateItem is LoadingCard && stateItem.isError) {
-                    palette.copy(accentColor = palette.accentColor)
-                } else if (stateItem is LoadingCard) {
-                    palette.copy(accentColor = palette.textColor.copy(alpha = 0.4f))
-                } else {
-                    palette
-                },
-                focusRequester = requesters.getOrNull(stateFocusIndex ?: -1)
-                    ?: androidx.compose.ui.focus.FocusRequester.Default,
+                palette = palette,
+                accent = stateItem is LoadingCard && stateItem.isError,
                 loading = stateItem is LoadingCard && !stateItem.isError,
-                onClick = { onItemClick(stateFocusItem) },
+                focusRequester = if (stateActionLabel == null) {
+                    requesters.getOrNull(stateFocusIndex ?: -1)
+                } else {
+                    null
+                },
                 onFocused = {
                     onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
                 },
                 onLeft = onLeftEdge,
                 onUp = { onUp(stateFocusIndex ?: 0) },
                 onDown = { onDown(stateFocusIndex ?: 0) },
+                action = stateActionLabel?.let { actionLabel ->
+                    {
+                        TvContentStateActionButton(
+                            text = actionLabel,
+                            palette = palette,
+                            focusRequester = requesters.getOrNull(stateFocusIndex ?: -1)
+                                ?: androidx.compose.ui.focus.FocusRequester.Default,
+                            onClick = { onItemClick(stateFocusItem) },
+                            onFocused = {
+                                onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
+                            },
+                            onLeft = onLeftEdge,
+                            onUp = { onUp(stateFocusIndex ?: 0) },
+                            onDown = { onDown(stateFocusIndex ?: 0) },
+                        )
+                    }
+                },
             )
         } else {
             LazyRow(

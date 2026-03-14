@@ -34,6 +34,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,6 +61,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
@@ -85,6 +87,7 @@ internal val TvOverlayOuterPadding = PaddingValues(horizontal = 28.dp, vertical 
 private val TvOverlayPanelShape = RoundedCornerShape(24.dp)
 private val TvOverlayPanelPadding = PaddingValues(horizontal = 28.dp, vertical = 24.dp)
 private val TvOverlayPanelSpacing = 18.dp
+private const val TV_OVERLAY_FOCUS_RETRY_DELAY_MS = 120L
 
 @Composable
 internal fun TvOverlayPanelSurface(
@@ -430,16 +433,39 @@ internal fun TvOverlayChoiceList(
         }
     }
     val choices = remember(entries) { entries.filterIsInstance<Choice>() }
-    val focusRequesters = remember(choices) { List(choices.size) { FocusRequester() } }
+    val choiceIds = remember(choices) { choices.map { it.choice.id } }
+    val focusRequesters = remember(choiceIds) { List(choiceIds.size) { FocusRequester() } }
     val listState = rememberLazyListState()
+    var focusedChoiceIndex by remember(choiceIds) { mutableIntStateOf(-1) }
+    val selectedChoiceIndex = remember(choices) {
+        choices.indexOfFirst { it.choice.selected }.takeIf { it >= 0 } ?: 0
+    }
+    val selectedChoiceId = choices.getOrNull(selectedChoiceIndex)?.choice?.id
+    val selectedEntryIndex = remember(entries, selectedChoiceId) {
+        entries.indexOfFirst { entry ->
+            entry is Choice && entry.choice.id == selectedChoiceId
+        }.takeIf { it >= 0 } ?: 0
+    }
 
-    LaunchedEffect(choices) {
+    LaunchedEffect(choiceIds, selectedEntryIndex) {
         if (choices.isEmpty()) {
             return@LaunchedEffect
         }
-        val selectedIndex = choices.indexOfFirst { it.choice.selected }.takeIf { it >= 0 } ?: 0
-        listState.scrollToItem((selectedIndex - 1).coerceAtLeast(0))
-        requestWatchingFocusAfterAttach(focusRequesters.getOrNull(selectedIndex))
+        listState.scrollToItem((selectedEntryIndex - 1).coerceAtLeast(0))
+    }
+
+    LaunchedEffect(choiceIds, selectedChoiceId, focusedChoiceIndex) {
+        if (choices.isEmpty() || focusedChoiceIndex >= 0) {
+            return@LaunchedEffect
+        }
+        val targetRequester = focusRequesters.getOrNull(selectedChoiceIndex) ?: return@LaunchedEffect
+        if (requestWatchingFocusAfterAttach(targetRequester)) {
+            return@LaunchedEffect
+        }
+        delay(TV_OVERLAY_FOCUS_RETRY_DELAY_MS)
+        if (focusedChoiceIndex < 0) {
+            requestWatchingFocusAfterAttach(targetRequester, attempts = 12)
+        }
     }
 
     if (choices.isEmpty()) {
@@ -488,6 +514,13 @@ internal fun TvOverlayChoiceList(
                             ?: FocusRequester.Default,
                         downRequester = focusRequesters.getOrNull(entry.choiceIndex + 1)
                             ?: FocusRequester.Default,
+                        onFocusChanged = { isFocused ->
+                            if (isFocused) {
+                                focusedChoiceIndex = entry.choiceIndex
+                            } else if (focusedChoiceIndex == entry.choiceIndex) {
+                                focusedChoiceIndex = -1
+                            }
+                        },
                         onClick = { onItemClick(entry.choice) },
                     )
                 }
@@ -503,6 +536,7 @@ private fun TvOverlayChoiceButton(
     focusRequester: FocusRequester,
     upRequester: FocusRequester,
     downRequester: FocusRequester,
+    onFocusChanged: (Boolean) -> Unit,
     onClick: () -> Unit,
 ) {
     var isFocused by remember { mutableStateOf(false) }
@@ -531,7 +565,11 @@ private fun TvOverlayChoiceButton(
                 up = upRequester
                 down = downRequester
             }
-            .onFocusChanged { isFocused = it.isFocused }
+            .onFocusChanged {
+                val nowFocused = it.isFocused
+                isFocused = nowFocused
+                onFocusChanged(nowFocused)
+            }
             .clickable(
                 enabled = choice.enabled,
                 interactionSource = remember { MutableInteractionSource() },

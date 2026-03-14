@@ -107,11 +107,13 @@ open class BasePlayerFragment : Fragment() {
         override fun onPlayerError(error: PlaybackException) {
             isLoadingState = false
             isBufferingState = false
-            Toast.makeText(
-                requireContext(),
-                "Ошибка при воспроизведении: ${error.message}",
-                Toast.LENGTH_LONG,
-            ).show()
+            context?.let { safeContext ->
+                Toast.makeText(
+                    safeContext,
+                    "Ошибка при воспроизведении: ${error.message}",
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
         }
     }
 

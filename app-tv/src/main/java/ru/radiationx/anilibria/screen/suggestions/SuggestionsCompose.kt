@@ -68,8 +68,10 @@ import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
+import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvSectionHeader
@@ -133,13 +135,16 @@ internal fun SuggestionsScreen(
         preferredItemIndex: Int,
     ): Pair<Int, Int>? {
         val section = sections.getOrNull(sectionIndex)
-        return if (section == null || isStateOnlySection(section)) {
+        val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
+        return if (section == null || requesters.isEmpty()) {
             null
         } else {
-            val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
-            requesters
-                .takeIf { it.isNotEmpty() }
-                ?.let { sectionIndex to preferredItemIndex.coerceIn(0, it.lastIndex) }
+            val targetItemIndex = if (isStateOnlySection(section)) {
+                section.items.tvStateFocusIndex()
+            } else {
+                preferredItemIndex.coerceIn(0, requesters.lastIndex)
+            }
+            targetItemIndex?.let { sectionIndex to it.coerceIn(0, requesters.lastIndex) }
         }
     }
 
@@ -205,17 +210,15 @@ internal fun SuggestionsScreen(
     ): Boolean {
         var targetSectionIndex = currentSectionIndex + direction
         while (targetSectionIndex in sections.indices) {
-            if (isStateOnlySection(sections[targetSectionIndex])) {
-                targetSectionIndex += direction
-                continue
-            }
-            val requesters = sectionRequesters.getOrNull(targetSectionIndex).orEmpty()
-            if (requesters.isNotEmpty()) {
-                val targetItemIndex = preferredItemIndex.coerceIn(0, requesters.lastIndex)
+            val target = targetInSection(targetSectionIndex, preferredItemIndex)
+            if (target != null) {
+                val targetItemIndex = target.second
                 scope.launch {
                     verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
                     rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
-                    requestWatchingFocusAfterAttach(requesters.getOrNull(targetItemIndex))
+                    requestWatchingFocusAfterAttach(
+                        sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
+                    )
                 }
                 return true
             }
@@ -225,16 +228,20 @@ internal fun SuggestionsScreen(
     }
 
     fun requestFirstSectionFocus(): Boolean {
-        val firstSectionIndex = sections.indexOfFirst { section ->
-            section.items.isNotEmpty() && !isStateOnlySection(section)
-        }
-        if (firstSectionIndex < 0) {
+        val firstSectionTarget = sections.indices
+            .asSequence()
+            .mapNotNull { sectionIndex -> targetInSection(sectionIndex, 0) }
+            .firstOrNull()
+        if (firstSectionTarget == null) {
             return false
         }
+        val (firstSectionIndex, firstItemIndex) = firstSectionTarget
         scope.launch {
             verticalState.scrollItemIntoViewIfNeeded(firstSectionIndex)
-            rowStates.getOrNull(firstSectionIndex)?.scrollItemIntoViewIfNeeded(0)
-            requestWatchingFocusAfterAttach(sectionRequesters.getOrNull(firstSectionIndex)?.firstOrNull())
+            rowStates.getOrNull(firstSectionIndex)?.scrollItemIntoViewIfNeeded(firstItemIndex)
+            requestWatchingFocusAfterAttach(
+                sectionRequesters.getOrNull(firstSectionIndex)?.getOrNull(firstItemIndex)
+            )
         }
         return true
     }
@@ -504,6 +511,11 @@ private fun SuggestionsSectionBlock(
     onDown: (Int) -> Boolean,
 ) {
     val stateItem = remember(items) { items.primaryTvStateItem() }
+    val stateFocusIndex = remember(items) { items.tvStateFocusIndex() }
+    val stateFocusItem = remember(items, stateFocusIndex) {
+        stateFocusIndex?.let(items::getOrNull)
+    }
+    val stateActionItem = remember(items) { items.filterIsInstance<LinkCard>().firstOrNull() }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -514,7 +526,7 @@ private fun SuggestionsSectionBlock(
             palette = palette,
         )
 
-        if (items.isTvStateOnlySection() && stateItem != null) {
+        if (items.isTvStateOnlySection() && stateItem != null && stateFocusItem != null) {
             TvContentStatePanel(
                 title = when (stateItem) {
                     is LoadingCard -> stateItem.title.ifBlank { "Загрузка результатов" }
@@ -537,6 +549,32 @@ private fun SuggestionsSectionBlock(
                 palette = palette,
                 accent = stateItem is LoadingCard && stateItem.isError,
                 loading = stateItem is LoadingCard && !stateItem.isError,
+                focusRequester = if (stateActionItem == null) {
+                    requesters.getOrNull(stateFocusIndex ?: -1)
+                } else {
+                    null
+                },
+                onFocused = {
+                    onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
+                },
+                onUp = { onUp(stateFocusIndex ?: 0) },
+                onDown = { onDown(stateFocusIndex ?: 0) },
+                action = stateActionItem?.let { actionItem ->
+                    {
+                        TvContentStateActionButton(
+                            text = actionItem.title,
+                            palette = palette,
+                            focusRequester = requesters.getOrNull(stateFocusIndex ?: -1)
+                                ?: FocusRequester.Default,
+                            onClick = { onItemClick(actionItem) },
+                            onFocused = {
+                                onItemFocused(stateFocusIndex ?: 0, actionItem)
+                            },
+                            onUp = { onUp(stateFocusIndex ?: 0) },
+                            onDown = { onDown(stateFocusIndex ?: 0) },
+                        )
+                    }
+                },
             )
         } else {
             LazyRow(

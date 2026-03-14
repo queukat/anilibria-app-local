@@ -3,6 +3,7 @@ package ru.radiationx.anilibria.screen.player
 import android.content.Context
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.util.UnstableApi
@@ -102,6 +103,16 @@ class PlayerFragment : BasePlayerFragment() {
 
         subscribeTo(viewModel.availableQualities) { qualities ->
             updateAvailableQualities(qualities)
+        }
+
+        subscribeTo(viewModel.startupFailure.filterNotNull()) { failure ->
+            context?.let { safeContext ->
+                Toast.makeText(safeContext, failure.message, Toast.LENGTH_LONG).show()
+            }
+            viewModel.consumeStartupFailure()
+            if (failure.shouldExitPlayer && player?.currentMediaItem == null && isAdded) {
+                router.exit()
+            }
         }
     }
 

@@ -100,71 +100,76 @@ internal fun ProfileScreen(
                 palette = palette,
             )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(PROFILE_PANEL_WIDTH_FRACTION)
-                    .widthIn(min = 480.dp, max = 760.dp)
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(surfaceColor.copy(alpha = 0.92f))
-                    .border(
-                        width = 1.dp,
-                        color = textColor.copy(alpha = 0.10f),
-                        shape = RoundedCornerShape(32.dp),
-                    )
-                    .padding(horizontal = 28.dp, vertical = 30.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.TopCenter,
             ) {
-                ProfileAvatar(
-                    avatarUrl = profile?.avatarUrl,
-                    accentColor = accentColor,
-                    backgroundColor = surfaceColor,
-                )
-
-                Spacer(modifier = Modifier.height(22.dp))
-
-                Text(
-                    text = profile?.nick ?: "Гость",
-                    color = textColor,
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Text(
-                    text = if (profile != null) {
-                        "Аккаунт подключен. Можно выйти из профиля на этом устройстве."
-                    } else {
-                        "Подключите аккаунт, чтобы продолжать просмотр между устройствами и не терять избранное."
-                    },
-                    color = secondaryTextColor,
-                    fontSize = 17.sp,
-                    lineHeight = 24.sp,
-                    textAlign = TextAlign.Center,
-                )
-
-                Spacer(modifier = Modifier.height(28.dp))
-
-                WatchingFocusableSurface(
-                    focusRequester = primaryButtonRequester,
-                    backgroundColor = actionBackground,
-                    focusedBackgroundColor = actionBackground,
-                    borderColor = accentColor.copy(alpha = 0.9f),
-                    onClick = if (profile != null) onSignOutClick else onSignInClick,
-                    onLeft = onRequestRailFocus,
-                    onUp = onRequestHeaderFocus,
-                    modifier = Modifier.widthIn(min = 240.dp),
-                    paddingValues = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth(PROFILE_PANEL_WIDTH_FRACTION)
+                        .widthIn(min = 480.dp, max = 760.dp)
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(surfaceColor.copy(alpha = 0.92f))
+                        .border(
+                            width = 1.dp,
+                            color = textColor.copy(alpha = 0.10f),
+                            shape = RoundedCornerShape(32.dp),
+                        )
+                        .padding(horizontal = 28.dp, vertical = 30.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    ProfileAvatar(
+                        avatarUrl = profile?.avatarUrl,
+                        accentColor = accentColor,
+                        backgroundColor = surfaceColor,
+                    )
+
+                    Spacer(modifier = Modifier.height(22.dp))
+
                     Text(
-                        text = if (profile != null) "Выйти" else "Авторизоваться",
+                        text = profile?.nick ?: "Гость",
                         color = textColor,
-                        fontSize = 18.sp,
+                        fontSize = 30.sp,
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
                     )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = if (profile != null) {
+                            "Аккаунт подключен. Можно выйти из профиля на этом устройстве."
+                        } else {
+                            "Подключите аккаунт, чтобы продолжать просмотр между устройствами и не терять избранное."
+                        },
+                        color = secondaryTextColor,
+                        fontSize = 17.sp,
+                        lineHeight = 24.sp,
+                        textAlign = TextAlign.Center,
+                    )
+
+                    Spacer(modifier = Modifier.height(28.dp))
+
+                    WatchingFocusableSurface(
+                        focusRequester = primaryButtonRequester,
+                        backgroundColor = actionBackground,
+                        focusedBackgroundColor = actionBackground,
+                        borderColor = accentColor.copy(alpha = 0.9f),
+                        onClick = if (profile != null) onSignOutClick else onSignInClick,
+                        onLeft = onRequestRailFocus,
+                        onUp = onRequestHeaderFocus,
+                        modifier = Modifier.widthIn(min = 240.dp),
+                        paddingValues = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+                    ) {
+                        Text(
+                            text = if (profile != null) "Выйти" else "Авторизоваться",
+                            color = textColor,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
         }

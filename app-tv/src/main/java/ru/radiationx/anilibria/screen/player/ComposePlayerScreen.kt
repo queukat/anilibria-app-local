@@ -608,12 +608,12 @@ private fun PlayerControlsPanel(
 
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.Black.copy(alpha = 0.78f))
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color.Black.copy(alpha = 0.82f))
             .border(
                 width = 1.dp,
-                color = palette.textColor.copy(alpha = 0.10f),
-                shape = RoundedCornerShape(20.dp),
+                color = palette.textColor.copy(alpha = 0.14f),
+                shape = RoundedCornerShape(24.dp),
             ),
     ) {
         PlayerProgressSurface(
@@ -644,18 +644,27 @@ private fun PlayerControlsPanel(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 12.dp),
+                .padding(horizontal = 22.dp, vertical = 16.dp),
         )
 
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 18.dp, end = 18.dp, bottom = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(start = 22.dp, end = 22.dp, bottom = 18.dp),
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(palette.textColor.copy(alpha = 0.08f))
+                    .align(Alignment.TopCenter),
+            )
+
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 PlayerActionButton(
@@ -664,10 +673,10 @@ private fun PlayerControlsPanel(
                     palette = palette,
                     iconRes = R.drawable.ic_player_skip_previous,
                     enabled = canPrevious,
-                    minWidth = 72.dp,
-                    horizontalPadding = 10.dp,
+                    minWidth = 68.dp,
+                    horizontalPadding = 9.dp,
                     verticalPadding = 10.dp,
-                    iconSize = 22.dp,
+                    iconSize = 20.dp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.Previous)
@@ -687,7 +696,7 @@ private fun PlayerControlsPanel(
                     },
                     onDown = {
                         onInteraction()
-                        requestFocus(episodesRequester)
+                        requestSecondaryLeft()
                     },
                 )
                 PlayerActionButton(
@@ -695,9 +704,10 @@ private fun PlayerControlsPanel(
                     contentDescription = stringResource(R.string.player_action_rewind),
                     focusRequester = seekBackRequester,
                     palette = palette,
-                    minWidth = 74.dp,
-                    horizontalPadding = 12.dp,
+                    minWidth = 72.dp,
+                    horizontalPadding = 11.dp,
                     verticalPadding = 10.dp,
+                    textFontSize = 15.sp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.SeekBack)
@@ -724,7 +734,7 @@ private fun PlayerControlsPanel(
                     },
                     onDown = {
                         onInteraction()
-                        requestFocus(episodesRequester)
+                        requestSecondaryLeft()
                     },
                 )
                 PlayerActionButton(
@@ -743,10 +753,10 @@ private fun PlayerControlsPanel(
                         R.drawable.ic_player_play
                     },
                     emphasized = true,
-                    minWidth = 80.dp,
-                    horizontalPadding = 12.dp,
+                    minWidth = 74.dp,
+                    horizontalPadding = 11.dp,
                     verticalPadding = 10.dp,
-                    iconSize = 26.dp,
+                    iconSize = 24.dp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.PlayPause)
@@ -777,9 +787,10 @@ private fun PlayerControlsPanel(
                     contentDescription = stringResource(R.string.player_action_forward),
                     focusRequester = seekForwardRequester,
                     palette = palette,
-                    minWidth = 74.dp,
-                    horizontalPadding = 12.dp,
+                    minWidth = 72.dp,
+                    horizontalPadding = 11.dp,
                     verticalPadding = 10.dp,
+                    textFontSize = 15.sp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.SeekForward)
@@ -797,7 +808,7 @@ private fun PlayerControlsPanel(
                         if (canNext) {
                             requestFocus(nextRequester)
                         } else {
-                            true
+                            requestSecondaryRight()
                         }
                     },
                     onUp = {
@@ -815,10 +826,10 @@ private fun PlayerControlsPanel(
                     palette = palette,
                     iconRes = R.drawable.ic_player_skip_next,
                     enabled = canNext,
-                    minWidth = 72.dp,
-                    horizontalPadding = 10.dp,
+                    minWidth = 68.dp,
+                    horizontalPadding = 9.dp,
                     verticalPadding = 10.dp,
-                    iconSize = 22.dp,
+                    iconSize = 20.dp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.Next)
@@ -832,7 +843,8 @@ private fun PlayerControlsPanel(
                         requestFocus(seekForwardRequester)
                     },
                     onRight = {
-                        true
+                        onInteraction()
+                        requestSecondaryRight()
                     },
                     onUp = {
                         onInteraction()
@@ -846,6 +858,9 @@ private fun PlayerControlsPanel(
             }
 
             Row(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(top = 16.dp, end = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -855,11 +870,11 @@ private fun PlayerControlsPanel(
                     focusRequester = episodesRequester,
                     palette = palette,
                     iconRes = R.drawable.ic_playlist_play_black_24dp,
-                    minWidth = 96.dp,
-                    horizontalPadding = 12.dp,
-                    verticalPadding = 10.dp,
+                    minWidth = 92.dp,
+                    horizontalPadding = 10.dp,
+                    verticalPadding = 9.dp,
                     iconSize = 18.dp,
-                    textFontSize = 16.sp,
+                    textFontSize = 15.sp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.Episodes)
@@ -868,7 +883,10 @@ private fun PlayerControlsPanel(
                         onInteraction()
                         onEpisodesClick()
                     },
-                    onLeft = { true },
+                    onLeft = {
+                        onInteraction()
+                        requestFocus(playPauseRequester)
+                    },
                     onRight = {
                         onInteraction()
                         when {
@@ -891,11 +909,11 @@ private fun PlayerControlsPanel(
                     iconRes = R.drawable.ic_play_speed,
                     enabled = speedEnabled,
                     emphasized = isSpeedPickerOpen,
-                    minWidth = 96.dp,
-                    horizontalPadding = 12.dp,
-                    verticalPadding = 10.dp,
+                    minWidth = 88.dp,
+                    horizontalPadding = 10.dp,
+                    verticalPadding = 9.dp,
                     iconSize = 18.dp,
-                    textFontSize = 16.sp,
+                    textFontSize = 15.sp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.Speed)
@@ -932,10 +950,10 @@ private fun PlayerControlsPanel(
                     palette = palette,
                     enabled = qualityEnabled,
                     emphasized = isQualityPickerOpen,
-                    minWidth = 80.dp,
-                    horizontalPadding = 12.dp,
-                    verticalPadding = 10.dp,
-                    textFontSize = 16.sp,
+                    minWidth = 78.dp,
+                    horizontalPadding = 10.dp,
+                    verticalPadding = 9.dp,
+                    textFontSize = 15.sp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.Quality)
@@ -1129,6 +1147,7 @@ private fun PlayerActionButton(
                     text = text,
                     color = if (enabled) palette.textColor else palette.secondaryTextColor,
                     fontSize = textFontSize,
+                    fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Medium,
                 )
             }
         }

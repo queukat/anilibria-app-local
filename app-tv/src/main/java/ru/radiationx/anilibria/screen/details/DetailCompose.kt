@@ -44,9 +44,11 @@ import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
 import ru.radiationx.anilibria.screen.watching.TvDescriptionBarPadding
 import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
+import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
+import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsCallbacks
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsRowContent
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsRowUiState
@@ -90,7 +92,23 @@ internal fun DetailScreen(
         }
     }
     val firstContentRequester = remember(sectionKeys) {
-        sectionRequesters.firstOrNull()?.firstOrNull() ?: androidx.compose.ui.focus.FocusRequester.Default
+        sections.indices.asSequence()
+            .mapNotNull { sectionIndex ->
+                val items = sections.getOrNull(sectionIndex)?.items.orEmpty()
+                val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
+                if (requesters.isEmpty()) {
+                    null
+                } else {
+                    val targetIndex = if (items.hasTvPosterContent()) {
+                        0
+                    } else {
+                        items.tvStateFocusIndex()
+                    }
+                    targetIndex?.let(requesters::getOrNull)
+                }
+            }
+            .firstOrNull()
+            ?: androidx.compose.ui.focus.FocusRequester.Default
     }
     var selectedItem by remember(sectionKeys) { mutableStateOf<CardItem?>(null) }
     var handledContentRestoreToken by remember { mutableIntStateOf(0) }

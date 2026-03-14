@@ -62,6 +62,10 @@ class ReleaseInteractor @Inject constructor(
         return releaseItems.value.findRelease(releaseId, releaseCode)
     }
 
+    fun getCachedFull(releaseId: ReleaseId? = null, releaseCode: ReleaseCode? = null): Release? {
+        return releases.value.findRelease(releaseId, releaseCode)
+    }
+
     suspend fun getFull(releaseId: ReleaseId? = null, releaseCode: ReleaseCode? = null): Release? {
         return observeFull(releaseId, releaseCode).firstOrNull()
     }
