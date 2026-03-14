@@ -87,6 +87,8 @@ import kotlinx.coroutines.withContext
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.DetailsState
 import ru.radiationx.anilibria.common.LibriaDetails
+import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.shared_app.imageloader.loadImageBitmap
 import kotlin.math.roundToInt
@@ -121,6 +123,7 @@ internal fun ReleaseDetailsRowContent(
     uiState: ReleaseDetailsRowUiState,
     callbacks: ReleaseDetailsCallbacks,
     modifier: Modifier = Modifier,
+    showMoreHint: Boolean = false,
     actionsDownRequester: FocusRequester = FocusRequester.Default,
     onInitialHeaderFocusApplied: () -> Unit = {},
 ) {
@@ -129,8 +132,8 @@ internal fun ReleaseDetailsRowContent(
     val density = LocalDensity.current
     val interactionsEnabled = !progressState.loadingProgress
 
-    val horizontalPadding = 16.dp
-    val topPadding = 16.dp
+    val horizontalPadding = TvScreenHorizontalPadding
+    val topPadding = TvPageVerticalPadding
     val arrowBottomPadding = dimensionResource(androidx.leanback.R.dimen.lb_browse_padding_top)
 
     val textColor = colorResource(R.color.dark_textDefault)
@@ -354,18 +357,20 @@ internal fun ReleaseDetailsRowContent(
                 )
             }
 
-            Icon(
-                painter = painterResource(R.drawable.ic_wide_arrow_down),
-                contentDescription = null,
-                tint = textColor,
-                modifier = Modifier
-                    .alpha(BOTTOM_ARROW_ALPHA)
-                    .constrainAs(bottomArrow) {
-                        bottom.linkTo(parent.bottom, margin = arrowBottomPadding)
-                        start.linkTo(parent.start)
-                        end.linkTo(parent.end)
-                    }
-            )
+            if (showMoreHint) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_wide_arrow_down),
+                    contentDescription = null,
+                    tint = textColor,
+                    modifier = Modifier
+                        .alpha(BOTTOM_ARROW_ALPHA)
+                        .constrainAs(bottomArrow) {
+                            bottom.linkTo(parent.bottom, margin = arrowBottomPadding)
+                            start.linkTo(parent.start)
+                            end.linkTo(parent.end)
+                        }
+                )
+            }
 
             if (progressState.loadingProgress) {
                 CircularProgressIndicator(

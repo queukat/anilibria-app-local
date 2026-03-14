@@ -72,6 +72,7 @@ import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
+import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import kotlin.math.max
 
 private const val SEARCH_CATALOG_WIDTH_FRACTION = 0.62f
@@ -132,7 +133,7 @@ internal fun CatalogScreen(
     val itemRequesters = remember(itemIds) {
         List(cards.size) { androidx.compose.ui.focus.FocusRequester() }
     }
-    var selectedItem by remember(itemIds) { mutableStateOf(cards.firstOrNull()) }
+    var selectedItem by remember(itemIds) { mutableStateOf<CardItem?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var handledRestoreToken by remember { mutableIntStateOf(0) }
     var lastFocusedFilterIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -158,7 +159,7 @@ internal fun CatalogScreen(
         val selectedId = selectedItem?.getId()
         val stillVisible = selectedId != null && cards.any { it.getId() == selectedId }
         if (!stillVisible) {
-            selectedItem = cards.firstOrNull()
+            selectedItem = null
         }
         if (lastFocusedItemId != Int.MIN_VALUE && cards.none { it.getId() == lastFocusedItemId }) {
             when {
@@ -237,6 +238,7 @@ internal fun CatalogScreen(
                     onSearchClick = onSearchClick,
                     onSearchFocused = {
                         lastFocusTarget = CatalogFocusTarget.Search.name
+                        selectedItem = null
                     },
                     onSearchDown = {
                         requestWatchingFocus(
@@ -264,6 +266,7 @@ internal fun CatalogScreen(
                             onFocused = {
                                 lastFocusedFilterIndex = index
                                 lastFocusTarget = CatalogFocusTarget.Filter.name
+                                selectedItem = null
                             },
                             onLeft = if (index == 0) {
                                 { requestWatchingFocus(searchRequester) }
@@ -455,46 +458,33 @@ private fun CatalogHeader(
     onSearchFocused: () -> Unit,
     onSearchDown: () -> Boolean,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = "Каталог",
-                color = palette.textColor,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = "Фильтруйте релизы и переходите в экран поиска",
-                color = palette.secondaryTextColor,
-                fontSize = 15.sp,
-            )
-        }
-
-        WatchingFocusableSurface(
-            focusRequester = searchRequester,
-            enabled = interactionsEnabled,
-            backgroundColor = palette.chipColor.copy(alpha = 0.92f),
-            focusedBackgroundColor = palette.chipColor,
-            borderColor = palette.textColor.copy(alpha = 0.72f),
-            onClick = onSearchClick,
-            onFocused = onSearchFocused,
-            onDown = onSearchDown,
-            paddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-        ) {
-            Text(
-                text = "Поиск",
-                color = palette.textColor,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.width(112.dp),
-            )
-        }
-    }
+    TvPageHeader(
+        title = "Каталог",
+        subtitle = "Фильтруйте релизы и переходите в экран поиска",
+        palette = palette,
+        trailingContent = {
+            WatchingFocusableSurface(
+                focusRequester = searchRequester,
+                enabled = interactionsEnabled,
+                backgroundColor = palette.chipColor.copy(alpha = 0.92f),
+                focusedBackgroundColor = palette.chipColor,
+                borderColor = palette.textColor.copy(alpha = 0.72f),
+                onClick = onSearchClick,
+                onFocused = onSearchFocused,
+                onDown = onSearchDown,
+                paddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+            ) {
+                Text(
+                    text = "Поиск",
+                    color = palette.textColor,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.width(112.dp),
+                )
+            }
+        },
+    )
 }
 
 @Composable

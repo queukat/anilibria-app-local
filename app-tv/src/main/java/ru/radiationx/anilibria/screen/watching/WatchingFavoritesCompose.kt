@@ -108,9 +108,7 @@ internal fun WatchingFavoritesScreen(
     val itemRequesters = remember(itemIds) {
         List(cards.size) { androidx.compose.ui.focus.FocusRequester() }
     }
-    var selectedCard by remember(cards) {
-        mutableStateOf(cards.filterIsInstance<LibriaCard>().firstOrNull())
-    }
+    var selectedCard by remember(cards) { mutableStateOf<LibriaCard?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var handledRestoreToken by remember { mutableIntStateOf(0) }
     var lastFocusedFilterIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -136,7 +134,7 @@ internal fun WatchingFavoritesScreen(
         val selectedId = selectedCard?.getId()
         val visibleCards = cards.filterIsInstance<LibriaCard>()
         if (visibleCards.none { it.getId() == selectedId }) {
-            selectedCard = visibleCards.firstOrNull()
+            selectedCard = null
         }
         if (lastFocusedItemId != Int.MIN_VALUE && cards.none { it.getId() == lastFocusedItemId }) {
             if (cards.isNotEmpty()) {
@@ -231,6 +229,7 @@ internal fun WatchingFavoritesScreen(
                             onFocused = {
                                 lastFocusedFilterIndex = index
                                 lastFocusWasGrid = false
+                                selectedCard = null
                             },
                             onLeft = if (index == 0) onRequestRailFocus else null,
                             onUp = {
@@ -312,6 +311,7 @@ internal fun WatchingFavoritesScreen(
                                     },
                                     onLeft = onRequestRailFocus,
                                     onUp = {
+                                        onContentMovedUp()
                                         requestWatchingFocus(
                                             filterRequesters.getOrNull(lastFocusedFilterIndex)
                                                 ?: filterRequesters.firstOrNull()
@@ -343,6 +343,7 @@ internal fun WatchingFavoritesScreen(
                                     },
                                     onLeft = onRequestRailFocus,
                                     onUp = {
+                                        onContentMovedUp()
                                         requestWatchingFocus(
                                             filterRequesters.getOrNull(lastFocusedFilterIndex)
                                                 ?: filterRequesters.firstOrNull()

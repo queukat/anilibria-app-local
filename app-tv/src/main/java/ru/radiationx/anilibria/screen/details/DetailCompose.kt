@@ -256,6 +256,7 @@ internal fun DetailScreen(
                     ReleaseDetailsRowContent(
                         uiState = headerUiState,
                         callbacks = headerCallbacks,
+                        showMoreHint = hasContent,
                         actionsDownRequester = firstContentRequester,
                         onInitialHeaderFocusApplied = onHeaderFocusSettled,
                         modifier = Modifier

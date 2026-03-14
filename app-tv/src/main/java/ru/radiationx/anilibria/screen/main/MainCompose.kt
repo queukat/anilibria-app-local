@@ -59,6 +59,7 @@ import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
+import ru.radiationx.anilibria.ui.compose.TvSectionHeader
 
 internal data class MainSectionUiModel(
     val id: Long,
@@ -105,15 +106,7 @@ internal fun MainScreen(
             List(section.items.size) { androidx.compose.ui.focus.FocusRequester() }
         }
     }
-    var selectedItem by remember(sectionKeys, contentRestoreState.preferredItemId) {
-        mutableStateOf(
-            sections
-                .asSequence()
-                .flatMap { it.items.asSequence() }
-                .firstOrNull { it.getId() == contentRestoreState.preferredItemId }
-                ?: sections.asSequence().flatMap { it.items.asSequence() }.firstOrNull()
-        )
-    }
+    var selectedItem by remember(sectionKeys) { mutableStateOf<CardItem?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var descriptionTick by remember { mutableIntStateOf(0) }
     val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
@@ -209,7 +202,6 @@ internal fun MainScreen(
         val stillVisible = visibleItems.any { it.getId() == preferredItemId }
         selectedItem = visibleItems.firstOrNull { it.getId() == selectedId }
             ?: visibleItems.firstOrNull { it.getId() == preferredItemId }
-            ?: visibleItems.firstOrNull()
         if (hadFocusedItem && !stillVisible) {
             val restoreTarget = findRestoreTarget(
                 preferredSectionIndex = contentRestoreState.preferredSectionIndex,
@@ -377,24 +369,10 @@ internal fun MainSectionBlock(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(TvSectionHeaderSpacing),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            androidx.compose.material3.Text(
-                text = title,
-                color = palette.textColor,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(1.dp)
-                    .background(palette.textColor.copy(alpha = 0.08f))
-            )
-        }
+        TvSectionHeader(
+            title = title,
+            palette = palette,
+        )
 
         LazyRow(
             state = rowState,

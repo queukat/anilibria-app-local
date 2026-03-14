@@ -160,6 +160,10 @@ class DetailFragment : Fragment() {
         viewLifecycleOwner.lifecycle.addObserver(recommendsViewModel)
         backPressedCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (!isHeaderSelected) {
+                    requestHeaderFocus()
+                    return
+                }
                 router.exit()
             }
         }.also {

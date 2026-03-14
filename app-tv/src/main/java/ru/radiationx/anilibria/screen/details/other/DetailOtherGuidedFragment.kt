@@ -11,6 +11,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.unit.dp
 import ru.radiationx.anilibria.common.fragment.ComposeGuidedFragment
 import ru.radiationx.anilibria.screen.details.DetailExtra
+import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.anilibria.ui.compose.TvOverlayActionButton
 import ru.radiationx.anilibria.ui.compose.TvOverlayInfoBlock
@@ -44,7 +45,7 @@ class DetailOtherGuidedFragment : ComposeGuidedFragment() {
         val markRequester = remember { FocusRequester() }
 
         LaunchedEffect(Unit) {
-            clearRequester.requestFocus()
+            requestWatchingFocusAfterAttach(clearRequester)
         }
 
         TvOverlayScreen(

@@ -9,6 +9,10 @@ import kotlin.system.measureTimeMillis
 
 class SuggestionQueryExecutorTest {
 
+    private companion object {
+        const val AsyncWaitTimeoutMs = 3_000L
+    }
+
     @Test
     fun execute_isCacheFirst_andUsesAsyncRefresh() {
         var now = 1_000L
@@ -112,7 +116,7 @@ class SuggestionQueryExecutorTest {
                 listOf("cached")
             }
 
-            waitUntil { calls.get() == 1 }
+            waitUntil(timeoutMs = AsyncWaitTimeoutMs) { calls.get() == 1 }
             // The first worker call increments `calls` before cache write is committed under lock.
             // Give the async refresh a moment to publish the cached snapshot before advancing virtual time.
             Thread.sleep(50L)
@@ -124,7 +128,7 @@ class SuggestionQueryExecutorTest {
             }
             assertEquals(listOf("cached"), stale)
 
-            waitUntil { calls.get() == 2 }
+            waitUntil(timeoutMs = AsyncWaitTimeoutMs) { calls.get() == 2 }
 
             val afterFailure = executor.execute("bleach") {
                 calls.incrementAndGet()

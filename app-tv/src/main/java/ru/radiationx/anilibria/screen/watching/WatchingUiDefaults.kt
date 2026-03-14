@@ -5,9 +5,10 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.ui.unit.dp
 import ru.radiationx.anilibria.common.CardItem
 
-internal val TvScreenHorizontalPadding = 16.dp
+internal val TvScreenHorizontalPadding = 20.dp
 internal val TvRowsScreenVerticalPadding = 8.dp
 internal val TvPageVerticalPadding = 16.dp
+internal val TvPageHeaderSpacing = 18.dp
 internal val TvBottomDescriptionInset = 124.dp
 internal val TvBottomContentInset = 28.dp
 internal val TvSectionSpacing = 26.dp
@@ -18,7 +19,7 @@ internal val TvDescriptionBarPadding = PaddingValues(
     horizontal = 20.dp,
     vertical = 18.dp,
 )
-internal val TvPlayerOverlayHorizontalPadding = 32.dp
+internal val TvPlayerOverlayHorizontalPadding = 48.dp
 internal val TvPlayerOverlayBottomPadding = 28.dp
 
 internal fun List<CardItem>.indexOfItemId(itemId: Int): Int? {

@@ -70,6 +70,12 @@ internal data class MainShellItem(
     val title: String,
 )
 
+internal enum class MainHeaderAction {
+    Search,
+    Catalog,
+    Update,
+}
+
 @Composable
 internal fun MainPagesRoot(
     items: List<MainShellItem>,
@@ -77,9 +83,10 @@ internal fun MainPagesRoot(
     hasUpdates: Boolean,
     headerVisible: Boolean,
     railExpanded: Boolean,
+    preferredHeaderAction: MainHeaderAction,
     headerFocusRequestToken: Int,
     railFocusRequestToken: Int,
-    onHeaderFocused: () -> Unit,
+    onHeaderFocused: (MainHeaderAction) -> Unit,
     onSearchClick: () -> Unit,
     onCatalogClick: () -> Unit,
     onUpdateClick: () -> Unit,
@@ -120,6 +127,7 @@ internal fun MainPagesRoot(
             MainPagesHeader(
                 selectedPageTitle = MainPagesSpec.titles.getValue(selectedPageId),
                 hasUpdates = hasUpdates,
+                preferredAction = preferredHeaderAction,
                 headerFocusRequestToken = headerFocusRequestToken,
                 onSearchClick = onSearchClick,
                 onCatalogClick = onCatalogClick,
@@ -154,12 +162,13 @@ internal fun MainPagesRoot(
 internal fun MainPagesHeader(
     selectedPageTitle: String,
     hasUpdates: Boolean,
+    preferredAction: MainHeaderAction,
     headerFocusRequestToken: Int,
     onSearchClick: () -> Unit,
     onCatalogClick: () -> Unit,
     onUpdateClick: () -> Unit,
     onRequestContentFocus: () -> Boolean,
-    onFocused: () -> Unit,
+    onFocused: (MainHeaderAction) -> Unit,
 ) {
     val surfaceColor = colorResource(R.color.dark_colorPrimary)
     val textColor = colorResource(R.color.dark_textDefault)
@@ -171,12 +180,17 @@ internal fun MainPagesHeader(
     val catalogRequester = remember { FocusRequester() }
     val updateRequester = remember { FocusRequester() }
 
-    LaunchedEffect(headerFocusRequestToken, hasUpdates) {
+    LaunchedEffect(headerFocusRequestToken, hasUpdates, preferredAction) {
         if (headerFocusRequestToken <= 0) {
             return@LaunchedEffect
         }
         withFrameNanos { }
-        requestFocusSafely(searchRequester)
+        val preferredRequester = when (preferredAction) {
+            MainHeaderAction.Search -> searchRequester
+            MainHeaderAction.Catalog -> catalogRequester
+            MainHeaderAction.Update -> if (hasUpdates) updateRequester else catalogRequester
+        }
+        requestFocusSafely(preferredRequester)
     }
 
     Box(
@@ -233,7 +247,7 @@ internal fun MainPagesHeader(
                     textColor = textColor,
                     onClick = onSearchClick,
                     onDown = onRequestContentFocus,
-                    onFocused = onFocused,
+                    onFocused = { onFocused(MainHeaderAction.Search) },
                 )
                 HeaderActionButton(
                     text = "Каталог",
@@ -243,7 +257,7 @@ internal fun MainPagesHeader(
                     textColor = textColor,
                     onClick = onCatalogClick,
                     onDown = onRequestContentFocus,
-                    onFocused = onFocused,
+                    onFocused = { onFocused(MainHeaderAction.Catalog) },
                 )
                 if (hasUpdates) {
                     HeaderActionButton(
@@ -254,7 +268,7 @@ internal fun MainPagesHeader(
                         textColor = textColor,
                         onClick = onUpdateClick,
                         onDown = onRequestContentFocus,
-                        onFocused = onFocused,
+                        onFocused = { onFocused(MainHeaderAction.Update) },
                     )
                 }
             }
@@ -645,12 +659,13 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
             MainPagesHeader(
                 selectedPageTitle = MainPagesSpec.titles.getValue(selectedPageId),
                 hasUpdates = true,
+                preferredAction = MainHeaderAction.Search,
                 headerFocusRequestToken = 0,
                 onSearchClick = {},
                 onCatalogClick = {},
                 onUpdateClick = {},
                 onRequestContentFocus = { true },
-                onFocused = {},
+                onFocused = { _ -> },
             )
         }
 

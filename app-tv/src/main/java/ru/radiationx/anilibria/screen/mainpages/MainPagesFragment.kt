@@ -49,6 +49,7 @@ class MainPagesFragment : Fragment() {
     private var railFocusRequestToken by mutableIntStateOf(0)
     private var headerFocusRequestToken by mutableIntStateOf(0)
     private var isHeaderVisible by mutableStateOf(true)
+    private var preferredHeaderAction by mutableStateOf(MainHeaderAction.Search)
 
     private var listenerHostView: View? = null
     private var initialFocusRunnable: Runnable? = null
@@ -97,9 +98,11 @@ class MainPagesFragment : Fragment() {
                     hasUpdates = hasUpdates,
                     headerVisible = isHeaderVisible,
                     railExpanded = isRailExpanded,
+                    preferredHeaderAction = preferredHeaderAction,
                     headerFocusRequestToken = headerFocusRequestToken,
                     railFocusRequestToken = railFocusRequestToken,
-                    onHeaderFocused = {
+                    onHeaderFocused = { action ->
+                        preferredHeaderAction = action
                         isRailExpanded = false
                         applyHeaderVisibility(true)
                     },
@@ -138,6 +141,9 @@ class MainPagesFragment : Fragment() {
 
         initialFocusRunnable = object : Runnable {
             override fun run() {
+                if (isRailExpanded) {
+                    return
+                }
                 if (!requestCurrentContentFocus()) {
                     listenerHostView?.post(this)
                     return
@@ -180,6 +186,7 @@ class MainPagesFragment : Fragment() {
     }
 
     private fun showPageFromShell(pageId: Long) {
+        cancelPendingContentFocusRequests()
         isRailExpanded = true
         applyHeaderVisibility(true)
         showPage(pageId)
@@ -194,17 +201,20 @@ class MainPagesFragment : Fragment() {
 
     private fun moveFocusToContent(): Boolean {
         val hostView = listenerHostView ?: return false
+        cancelPendingContentFocusRequests()
         isRailExpanded = false
         applyHeaderVisibility(false)
-        pendingContentFocusRunnable?.also(hostView::removeCallbacks)
         pendingContentFocusRunnable = Runnable {
             if (requestCurrentContentFocus()) {
+                pendingContentFocusRunnable = null
                 return@Runnable
             }
             hostView.post {
                 if (!requestCurrentContentFocus()) {
                     applyHeaderVisibility(true)
                     requestHeaderFocus()
+                } else {
+                    pendingContentFocusRunnable = null
                 }
             }
         }
@@ -213,6 +223,7 @@ class MainPagesFragment : Fragment() {
     }
 
     private fun requestRailFocus(): Boolean {
+        cancelPendingContentFocusRequests()
         applyHeaderVisibility(true)
         isRailExpanded = true
         railFocusRequestToken++
@@ -247,9 +258,17 @@ class MainPagesFragment : Fragment() {
     }
 
     private fun requestHeaderFocus(): Boolean {
+        cancelPendingContentFocusRequests()
         applyHeaderVisibility(true)
         headerFocusRequestToken++
         return true
+    }
+
+    private fun cancelPendingContentFocusRequests() {
+        val hostView = listenerHostView ?: return
+        initialFocusRunnable?.also(hostView::removeCallbacks)
+        pendingContentFocusRunnable?.also(hostView::removeCallbacks)
+        pendingContentFocusRunnable = null
     }
 
     private companion object {

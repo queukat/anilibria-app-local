@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.filterNotNull
 import ru.radiationx.anilibria.screen.DetailsScreen
+import ru.radiationx.data.entity.common.PlayerQuality
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.get
 import ru.radiationx.quill.getViewModel
@@ -90,8 +91,16 @@ class PlayerFragment : BasePlayerFragment() {
             player?.playbackParameters = PlaybackParameters(speedValue)
         }
 
+        subscribeTo(viewModel.availableSpeeds) { speeds ->
+            updateAvailableSpeeds(speeds)
+        }
+
         subscribeTo(viewModel.qualityState) { quality ->
             updatePlayerQuality(quality)
+        }
+
+        subscribeTo(viewModel.availableQualities) { qualities ->
+            updateAvailableQualities(qualities)
         }
     }
 
@@ -138,15 +147,19 @@ class PlayerFragment : BasePlayerFragment() {
         )
     }
 
-    override fun onQualityAction(position: Long) {
-        viewModel.onQualityClick(position)
+    override fun onQualitySelected(
+        position: Long,
+        quality: PlayerQuality,
+    ) {
+        viewModel.setQuality(position, quality)
     }
 
-    override fun onSpeedAction() {
-        viewModel.onSpeedClick()
+    override fun onSpeedSelected(speed: Float) {
+        viewModel.setSpeed(speed)
     }
 
     override fun onEpisodesAction(position: Long) {
+        restoreEpisodesButtonFocusOnNextResume()
         viewModel.onEpisodesClick(position)
     }
 }

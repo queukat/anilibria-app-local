@@ -10,12 +10,15 @@
     <string name="global_search_label">AniLibria TV</string>
     <string name="global_search_settings_description">Аниме на AniLibria TV</string>
     <string name="player_action_previous">Предыдущая</string>
+    <string name="player_action_rewind">Перемотать назад на 10 секунд</string>
     <string name="player_action_play">Воспроизвести</string>
     <string name="player_action_pause">Пауза</string>
+    <string name="player_action_forward">Перемотать вперёд на 10 секунд</string>
     <string name="player_action_next">Следующая</string>
     <string name="player_action_quality">Качество</string>
     <string name="player_action_speed">Скорость</string>
     <string name="player_action_episodes">Серии</string>
+    <string name="player_action_episodes_compact">Сер.</string>
     <string name="player_controls_hint">На шкале прогресса влево и вправо перематывают по 10 секунд.</string>
     <string name="player_loading">Подготовка воспроизведения</string>
     <string name="player_skip">Пропустить</string>

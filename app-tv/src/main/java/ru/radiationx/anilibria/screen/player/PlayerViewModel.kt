@@ -15,8 +15,6 @@ import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.PlayerEndEpisodeGuidedScreen
 import ru.radiationx.anilibria.screen.PlayerEndSeasonGuidedScreen
 import ru.radiationx.anilibria.screen.PlayerEpisodesGuidedScreen
-import ru.radiationx.anilibria.screen.PlayerQualityGuidedScreen
-import ru.radiationx.anilibria.screen.PlayerSpeedGuidedScreen
 import ru.radiationx.data.contracts.tv.TvPlayerFacade
 import ru.radiationx.data.datasource.holders.PreferencesHolder
 import ru.radiationx.data.entity.common.AuthState
@@ -48,6 +46,10 @@ class PlayerViewModel @Inject constructor(
     val qualityState: StateFlow<PlayerQuality> = _qualityState.asStateFlow()
     private val _speedState = MutableStateFlow(preferencesHolder.playSpeed.value)
     val speedState: StateFlow<Float> = _speedState.asStateFlow()
+    private val _availableQualities = MutableStateFlow<List<PlayerQuality>>(emptyList())
+    val availableQualities: StateFlow<List<PlayerQuality>> = _availableQualities.asStateFlow()
+    private val _availableSpeeds = MutableStateFlow(preferencesHolder.availableSpeeds.value)
+    val availableSpeeds: StateFlow<List<Float>> = _availableSpeeds.asStateFlow()
     private val _commands = MutableSharedFlow<PlayerCommand>(
         replay = 0,
         extraBufferCapacity = 16,
@@ -92,6 +94,12 @@ class PlayerViewModel @Inject constructor(
             .onEach { speed ->
                 currentSpeed = speed
                 _speedState.value = speed
+            }
+            .launchIn(viewModelScope)
+
+        preferencesHolder.availableSpeeds
+            .onEach { speeds ->
+                _availableSpeeds.value = speeds
             }
             .launchIn(viewModelScope)
 
@@ -155,16 +163,6 @@ class PlayerViewModel @Inject constructor(
         playerController.unbindPlayer()
     }
 
-    override fun onResume() {
-        super.onResume()
-        emitCommand(PlayerCommand.Play)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        emitCommand(PlayerCommand.Pause)
-    }
-
     fun onPauseClick(
         position: Long,
         syncRemote: Boolean,
@@ -183,14 +181,13 @@ class PlayerViewModel @Inject constructor(
         val episode = currentEpisode ?: return
 
         viewModelScope.launch {
-            // If already completed, open end screens
-            val accessSeek = tvPlayerFacade.getLocalEpisodeSeek(episode.id)
-            currentComplete = accessSeek >= duration
+            val accessSeek = _videoData.value?.seek ?: tvPlayerFacade.getLocalEpisodeSeek(episode.id)
+            val completedSeek = duration > 0L && accessSeek >= duration
+            currentComplete = false
 
-            if (currentComplete) {
-                getCurrentRelease()?.also { release ->
-                    openEndGuidedScreen(release, episode)
-                }
+            if (completedSeek) {
+                emitCommand(PlayerCommand.Seek(0L))
+                emitCommand(PlayerCommand.Pause)
             } else {
                 emitCommand(PlayerCommand.Play)
             }
@@ -230,13 +227,16 @@ class PlayerViewModel @Inject constructor(
         playEpisode(prev)
     }
 
-    fun onQualityClick(position: Long) {
+    fun setQuality(
+        position: Long,
+        quality: PlayerQuality,
+    ) {
         saveEpisodePosition(position, syncRemote = false)
-        guidedRouter.open(PlayerQualityGuidedScreen(getCurrentReleaseId() ?: return, currentEpisode?.id))
+        preferencesHolder.playerQuality.value = quality
     }
 
-    fun onSpeedClick() {
-        guidedRouter.open(PlayerSpeedGuidedScreen(getCurrentReleaseId() ?: return, currentEpisode?.id))
+    fun setSpeed(speed: Float) {
+        preferencesHolder.playSpeed.value = speed
     }
 
     fun onEpisodesClick(position: Long) {
@@ -316,6 +316,8 @@ class PlayerViewModel @Inject constructor(
         val release = getCurrentRelease() ?: return
         val episode = currentEpisode ?: return
         val quality = currentQuality
+        _availableQualities.value = episode.qualityInfo.available.toList()
+        _qualityState.value = episode.qualityInfo.getActualFor(quality) ?: quality
 
         viewModelScope.launch {
             val newUrl = episode.qualityInfo.getSafeUrlFor(quality)

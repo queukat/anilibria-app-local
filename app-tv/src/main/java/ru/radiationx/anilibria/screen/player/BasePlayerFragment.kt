@@ -50,11 +50,15 @@ open class BasePlayerFragment : Fragment() {
     private var controlsFocusTargetState by mutableStateOf(PlayerOverlayFocusTarget.PlayPause)
     private var controlsFocusTokenState by mutableIntStateOf(1)
     private var lastFocusedControlState by mutableStateOf(PlayerOverlayFocusTarget.PlayPause)
+    private var resumeFocusRestoreTargetState by mutableStateOf<PlayerOverlayFocusTarget?>(null)
+    private var resumePlaybackAfterPauseState by mutableStateOf(false)
 
     private var titleState by mutableStateOf("")
     private var subtitleState by mutableStateOf("")
     private var qualityState by mutableStateOf(PlayerQuality.HD)
     private var speedState by mutableFloatStateOf(1f)
+    private var availableQualitiesState by mutableStateOf<List<PlayerQuality>>(emptyList())
+    private var availableSpeedsState by mutableStateOf<List<Float>>(emptyList())
     private var canPreviousState by mutableStateOf(false)
     private var canNextState by mutableStateOf(false)
 
@@ -79,7 +83,7 @@ open class BasePlayerFragment : Fragment() {
 
                 Player.STATE_ENDED -> {
                     isLoadingState = false
-                    showControls(PlayerOverlayFocusTarget.PlayPause)
+                    showControls()
                     onCompletePlaying()
                 }
 
@@ -96,7 +100,7 @@ open class BasePlayerFragment : Fragment() {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             isPlayingState = isPlaying
             if (!isPlaying && playerState?.currentMediaItem != null) {
-                showControls(PlayerOverlayFocusTarget.PlayPause)
+                showControls()
             }
         }
 
@@ -136,6 +140,8 @@ open class BasePlayerFragment : Fragment() {
                     bufferedPositionMs = bufferedPositionState,
                     qualityLabel = qualityState.toPlayerLabel(),
                     speedLabel = speedState.toPlayerLabel(),
+                    availableQualities = availableQualitiesState,
+                    availableSpeeds = availableSpeedsState,
                     canPrevious = canPreviousState,
                     canNext = canNextState,
                     skipsPart = skipsPartState,
@@ -148,8 +154,13 @@ open class BasePlayerFragment : Fragment() {
                     onSeekForward = { seekBy(SEEK_DELTA_MS) },
                     onPreviousClick = { onPreviousAction(getCurrentPosition()) },
                     onNextClick = { onNextAction(getCurrentPosition()) },
-                    onQualityClick = { onQualityAction(getCurrentPosition()) },
-                    onSpeedClick = ::onSpeedAction,
+                    onQualitySelected = { quality ->
+                        onQualitySelected(
+                            position = getCurrentPosition(),
+                            quality = quality,
+                        )
+                    },
+                    onSpeedSelected = ::onSpeedSelected,
                     onEpisodesClick = { onEpisodesAction(getCurrentPosition()) },
                 )
             }
@@ -165,8 +176,22 @@ open class BasePlayerFragment : Fragment() {
         installBackHandler()
     }
 
+    override fun onResume() {
+        super.onResume()
+        val restoreTarget = resumeFocusRestoreTargetState
+        if (controlsVisibleState && restoreTarget != null) {
+            showControls(restoreTarget)
+        }
+        if (resumePlaybackAfterPauseState && playerState?.currentMediaItem != null) {
+            playerState?.play()
+        }
+        resumeFocusRestoreTargetState = null
+        resumePlaybackAfterPauseState = false
+    }
+
     override fun onPause() {
         super.onPause()
+        resumePlaybackAfterPauseState = isPlayingState
         pausePlayback()
     }
 
@@ -187,11 +212,18 @@ open class BasePlayerFragment : Fragment() {
 
     protected open fun onNextAction(position: Long) {}
 
-    protected open fun onQualityAction(position: Long) {}
+    protected open fun onQualitySelected(
+        position: Long,
+        quality: PlayerQuality,
+    ) {}
 
-    protected open fun onSpeedAction() {}
+    protected open fun onSpeedSelected(speed: Float) {}
 
     protected open fun onEpisodesAction(position: Long) {}
+
+    protected fun restoreEpisodesButtonFocusOnNextResume() {
+        resumeFocusRestoreTargetState = PlayerOverlayFocusTarget.Episodes
+    }
 
     protected fun updatePlayerInfo(
         title: String,
@@ -217,6 +249,14 @@ open class BasePlayerFragment : Fragment() {
         speedState = speed
     }
 
+    protected fun updateAvailableQualities(qualities: List<PlayerQuality>) {
+        availableQualitiesState = qualities
+    }
+
+    protected fun updateAvailableSpeeds(speeds: List<Float>) {
+        availableSpeedsState = speeds
+    }
+
     protected fun setPlayerLoading(loading: Boolean) {
         isLoadingState = loading
     }
@@ -229,7 +269,7 @@ open class BasePlayerFragment : Fragment() {
         val safeStartPosition = startPositionMs.coerceAtLeast(0L)
         isLoadingState = true
         isBufferingState = true
-        showControls(PlayerOverlayFocusTarget.PlayPause)
+        showControls()
         player.setMediaItem(
             MediaItem.fromUri(url),
             safeStartPosition,
@@ -240,7 +280,7 @@ open class BasePlayerFragment : Fragment() {
 
     protected fun playPlayback() {
         playerState?.play()
-        showControls(PlayerOverlayFocusTarget.PlayPause)
+        showControls()
     }
 
     protected fun pausePlayback() {
@@ -299,6 +339,7 @@ open class BasePlayerFragment : Fragment() {
         positionState = 0L
         durationState = 0L
         bufferedPositionState = 0L
+        resumePlaybackAfterPauseState = false
     }
 
     private fun installBackHandler() {
@@ -361,9 +402,9 @@ open class BasePlayerFragment : Fragment() {
         skipsPartState?.update(positionState)
     }
 
-    private fun showControls(target: PlayerOverlayFocusTarget = lastFocusedControlState) {
+    private fun showControls(target: PlayerOverlayFocusTarget? = null) {
         controlsVisibleState = true
-        controlsFocusTargetState = target
+        controlsFocusTargetState = target ?: lastFocusedControlState
         controlsFocusTokenState += 1
     }
 
@@ -385,9 +426,9 @@ open class BasePlayerFragment : Fragment() {
     }
 
     private fun PlayerQuality.toPlayerLabel(): String = when (this) {
-        PlayerQuality.SD -> "480p"
-        PlayerQuality.HD -> "720p"
-        PlayerQuality.FULLHD -> "1080p"
+        PlayerQuality.SD -> "SD"
+        PlayerQuality.HD -> "HD"
+        PlayerQuality.FULLHD -> "FHD"
     }
 
     private fun Float.toPlayerLabel(): String {

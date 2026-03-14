@@ -1,42 +1,33 @@
 package ru.radiationx.anilibria.screen.profile
 
+import android.widget.ImageView
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -46,9 +37,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import ru.radiationx.anilibria.R
+import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
+import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
+import ru.radiationx.anilibria.screen.watching.WatchingPalette
+import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
+import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.data.entity.domain.other.ProfileItem
 import ru.radiationx.shared_app.imageloader.showImageUrl
-import android.widget.ImageView
+
+private const val PROFILE_PANEL_WIDTH_FRACTION = 0.42f
 
 @Composable
 internal fun ProfileScreen(
@@ -64,68 +63,117 @@ internal fun ProfileScreen(
     val secondaryTextColor = colorResource(R.color.dark_textSecond)
     val accentColor = colorResource(R.color.dark_colorAccent)
     val actionBackground = colorResource(R.color.dark_release_day_btn).copy(alpha = 0.94f)
+    val palette = remember(surfaceColor, textColor, secondaryTextColor, accentColor, actionBackground) {
+        WatchingPalette(
+            surfaceColor = surfaceColor,
+            textColor = textColor,
+            secondaryTextColor = secondaryTextColor,
+            accentColor = accentColor,
+            chipColor = actionBackground,
+        )
+    }
     val primaryButtonRequester = remember { FocusRequester() }
 
-    LaunchedEffect(focusRequestToken, profile?.id) {
+    LaunchedEffect(focusRequestToken) {
         if (focusRequestToken > 0) {
-            primaryButtonRequester.requestFocus()
+            requestWatchingFocusAfterAttach(primaryButtonRequester)
         }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent)
-            .padding(horizontal = 48.dp, vertical = 28.dp),
-        contentAlignment = Alignment.Center,
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        surfaceColor.copy(alpha = 0.18f),
+                        Color.Transparent,
+                    )
+                )
+            )
+            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         Column(
-            modifier = Modifier.width(420.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(TvPageHeaderSpacing),
         ) {
-            ProfileAvatar(
-                avatarUrl = profile?.avatarUrl,
-                accentColor = accentColor,
-                backgroundColor = surfaceColor,
-            )
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            Text(
-                text = profile?.nick ?: "Гость",
-                color = textColor,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = if (profile != null) {
-                    "Аккаунт подключен. Можно выйти из профиля на этом устройстве."
+            TvPageHeader(
+                title = "Профиль",
+                subtitle = if (profile != null) {
+                    "Управляйте аккаунтом и быстрыми действиями для этого устройства."
                 } else {
-                    "Авторизуйтесь, чтобы синхронизировать историю, избранное и персональные данные."
+                    "Войдите, чтобы синхронизировать историю, избранное и персональные данные."
                 },
-                color = secondaryTextColor,
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-                textAlign = TextAlign.Center,
+                palette = palette,
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(PROFILE_PANEL_WIDTH_FRACTION)
+                    .widthIn(max = 520.dp)
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(surfaceColor.copy(alpha = 0.92f))
+                    .border(
+                        width = 1.dp,
+                        color = textColor.copy(alpha = 0.10f),
+                        shape = RoundedCornerShape(32.dp),
+                    )
+                    .padding(horizontal = 28.dp, vertical = 30.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                ProfileAvatar(
+                    avatarUrl = profile?.avatarUrl,
+                    accentColor = accentColor,
+                    backgroundColor = surfaceColor,
+                )
 
-            ProfileActionButton(
-                text = if (profile != null) "Выйти" else "Авторизоваться",
-                focusRequester = primaryButtonRequester,
-                backgroundColor = actionBackground,
-                borderColor = accentColor.copy(alpha = 0.9f),
-                textColor = textColor,
-                onClick = if (profile != null) onSignOutClick else onSignInClick,
-                onLeft = onRequestRailFocus,
-                onUp = onRequestHeaderFocus,
-            )
+                Spacer(modifier = Modifier.height(22.dp))
+
+                Text(
+                    text = profile?.nick ?: "Гость",
+                    color = textColor,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = if (profile != null) {
+                        "Аккаунт подключен. Можно выйти из профиля на этом устройстве."
+                    } else {
+                        "Подключите аккаунт, чтобы продолжать просмотр между устройствами и не терять избранное."
+                    },
+                    color = secondaryTextColor,
+                    fontSize = 16.sp,
+                    lineHeight = 22.sp,
+                    textAlign = TextAlign.Center,
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                WatchingFocusableSurface(
+                    focusRequester = primaryButtonRequester,
+                    backgroundColor = actionBackground,
+                    focusedBackgroundColor = actionBackground,
+                    borderColor = accentColor.copy(alpha = 0.9f),
+                    onClick = if (profile != null) onSignOutClick else onSignInClick,
+                    onLeft = onRequestRailFocus,
+                    onUp = onRequestHeaderFocus,
+                    modifier = Modifier.widthIn(min = 240.dp),
+                    paddingValues = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+                ) {
+                    Text(
+                        text = if (profile != null) "Выйти" else "Авторизоваться",
+                        color = textColor,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
         }
     }
 }
@@ -168,59 +216,5 @@ private fun ProfileAvatar(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-    }
-}
-
-@Composable
-private fun ProfileActionButton(
-    text: String,
-    focusRequester: FocusRequester,
-    backgroundColor: Color,
-    borderColor: Color,
-    textColor: Color,
-    onClick: () -> Unit,
-    onLeft: () -> Boolean,
-    onUp: () -> Boolean,
-) {
-    var isFocused by remember { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
-
-    Box(
-        modifier = Modifier
-            .width(240.dp)
-            .clip(RoundedCornerShape(26.dp))
-            .background(backgroundColor)
-            .border(
-                width = if (isFocused) 2.dp else 1.dp,
-                color = if (isFocused) borderColor else textColor.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(26.dp),
-            )
-            .focusRequester(focusRequester)
-            .onFocusChanged { isFocused = it.isFocused }
-            .onPreviewKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) {
-                    return@onPreviewKeyEvent false
-                }
-                when (event.key) {
-                    Key.DirectionLeft -> onLeft()
-                    Key.DirectionUp -> onUp()
-                    else -> false
-                }
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            )
-            .focusable()
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            color = textColor,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
     }
 }

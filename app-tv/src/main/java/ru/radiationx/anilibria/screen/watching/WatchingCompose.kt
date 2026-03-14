@@ -38,6 +38,7 @@ import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
+import ru.radiationx.anilibria.ui.compose.TvSectionHeader
 
 internal data class WatchingSectionUiModel(
     val id: Long,
@@ -74,15 +75,7 @@ internal fun WatchingScreen(
             List(section.items.size) { androidx.compose.ui.focus.FocusRequester() }
         }
     }
-    var selectedCard by remember(sectionKeys) {
-        mutableStateOf(
-            sections
-                .asSequence()
-                .flatMap { it.items.asSequence() }
-                .filterIsInstance<LibriaCard>()
-                .firstOrNull()
-        )
-    }
+    var selectedCard by remember(sectionKeys) { mutableStateOf<LibriaCard?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by rememberSaveable { mutableIntStateOf(0) }
     var lastFocusedItemIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -190,7 +183,7 @@ internal fun WatchingScreen(
         val hadFocusedItem = lastFocusedItemId != Int.MIN_VALUE
         val stillVisible = visibleItems.any { it.getId() == lastFocusedItemId }
         if (visibleCards.none { it.getId() == selectedId }) {
-            selectedCard = visibleCards.firstOrNull()
+            selectedCard = null
         }
         if (hadFocusedItem && !stillVisible) {
             val restoreTarget = findRestoreTarget(
@@ -355,24 +348,10 @@ private fun WatchingSectionBlock(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(TvSectionHeaderSpacing),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            androidx.compose.material3.Text(
-                text = title,
-                color = palette.textColor,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(1.dp)
-                    .background(palette.textColor.copy(alpha = 0.08f))
-            )
-        }
+        TvSectionHeader(
+            title = title,
+            palette = palette,
+        )
 
         LazyRow(
             state = rowState,

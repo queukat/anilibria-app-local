@@ -42,7 +42,7 @@ internal class WatchingPageContent(
     private var continueCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
     private var historyCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
     private var recommendsCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
-    private var focusRequestToken by mutableIntStateOf(1)
+    private var focusRequestToken by mutableIntStateOf(0)
     private var visibilityRestoreToken by mutableIntStateOf(0)
     private var selectedItemState by mutableStateOf<CardItem?>(null)
 

@@ -65,15 +65,18 @@ import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import ru.radiationx.anilibria.ui.compose.TvPageHeader
+import ru.radiationx.anilibria.ui.compose.TvSectionHeader
+import ru.radiationx.anilibria.ui.compose.TvOverlayTextField
 
 internal data class SuggestionsSectionUiModel(
     val id: Long,
     val title: String,
     val items: List<CardItem>,
 )
+
+private const val SuggestionsQueryMinLength = 3
 
 @Composable
 internal fun SuggestionsScreen(
@@ -92,6 +95,7 @@ internal fun SuggestionsScreen(
     val scope = rememberCoroutineScope()
     val verticalState = remember { LazyListState() }
     val searchRequester = remember { FocusRequester() }
+    val voiceRequester = remember { FocusRequester() }
     val sectionKeys = remember(sections) {
         sections.map { section ->
             section.id to section.items.map(CardItem::getId)
@@ -103,13 +107,12 @@ internal fun SuggestionsScreen(
             List(section.items.size) { FocusRequester() }
         }
     }
-    var selectedItem by remember(sectionKeys) {
-        mutableStateOf<CardItem?>(sections.asSequence().flatMap { it.items.asSequence() }.firstOrNull())
-    }
+    var selectedItem by remember(sectionKeys) { mutableStateOf<CardItem?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemId by remember { mutableIntStateOf(Int.MIN_VALUE) }
+    var lastFocusArea by remember { mutableStateOf(SuggestionsFocusArea.Field) }
     val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
 
     fun requestTextFieldFocus(): Boolean {
@@ -163,6 +166,24 @@ internal fun SuggestionsScreen(
         return target
     }
 
+    fun requestLastContentFocus(): Boolean {
+        val restoreTarget = findRestoreTarget(
+            preferredSectionIndex = lastFocusedSectionIndex,
+            preferredItemIndex = lastFocusedItemIndex,
+            preferredItemId = lastFocusedItemId,
+        ) ?: return false
+        val targetSectionIndex = restoreTarget.first
+        val targetItemIndex = restoreTarget.second
+        scope.launch {
+            verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+            rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
+            requestWatchingFocusAfterAttach(
+                sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
+            )
+        }
+        return true
+    }
+
     fun requestSectionFocus(
         currentSectionIndex: Int,
         direction: Int,
@@ -206,12 +227,16 @@ internal fun SuggestionsScreen(
     }
 
     LaunchedEffect(sectionKeys) {
-        val selectedId = selectedItem?.getId()
         val visibleItems = sections.asSequence().flatMap { it.items.asSequence() }.toList()
-        val hadSelectedItem = selectedId != null
+        val selectedId = selectedItem?.getId()
         val stillVisible = selectedId != null && visibleItems.any { it.getId() == selectedId }
-        selectedItem = visibleItems.firstOrNull { it.getId() == selectedId } ?: visibleItems.firstOrNull()
-        if (hadSelectedItem && !stillVisible) {
+        if (!stillVisible) {
+            selectedItem = null
+        }
+        if (lastFocusedItemId != Int.MIN_VALUE && visibleItems.none { it.getId() == lastFocusedItemId }) {
+            lastFocusedItemId = Int.MIN_VALUE
+        }
+        if (selectedId != null && !stillVisible) {
             val restoreTarget = findRestoreTarget(
                 preferredSectionIndex = lastFocusedSectionIndex,
                 preferredItemIndex = lastFocusedItemIndex,
@@ -237,7 +262,12 @@ internal fun SuggestionsScreen(
             return@LaunchedEffect
         }
         withFrameNanos { }
-        if (requestTextFieldFocus()) {
+        val focused = when (lastFocusArea) {
+            SuggestionsFocusArea.Results -> requestLastContentFocus()
+            SuggestionsFocusArea.Voice -> voiceSearchAvailable && requestWatchingFocus(voiceRequester)
+            SuggestionsFocusArea.Field -> false
+        }
+        if ((focused || requestTextFieldFocus())) {
             handledFocusToken = focusRequestToken
         }
     }
@@ -259,14 +289,28 @@ internal fun SuggestionsScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(TvPageVerticalPadding + 2.dp),
         ) {
+            TvPageHeader(
+                title = "Поиск",
+                subtitle = "Ищите по названию и переходите к релизам без лишних шагов.",
+                palette = palette,
+            )
             SuggestionsSearchField(
                 value = query,
                 palette = palette,
                 progressVisible = progressVisible,
                 voiceSearchAvailable = voiceSearchAvailable,
                 focusRequester = searchRequester,
+                voiceRequester = voiceRequester,
                 onValueChange = onQueryChange,
                 onVoiceSearchClick = onVoiceSearchClick,
+                onFieldFocused = {
+                    lastFocusArea = SuggestionsFocusArea.Field
+                    selectedItem = null
+                },
+                onVoiceFocused = {
+                    lastFocusArea = SuggestionsFocusArea.Voice
+                    selectedItem = null
+                },
                 onDown = ::requestFirstSectionFocus,
             )
 
@@ -295,6 +339,7 @@ internal fun SuggestionsScreen(
                             lastFocusedSectionIndex = sectionIndex
                             lastFocusedItemIndex = itemIndex
                             lastFocusedItemId = item.getId()
+                            lastFocusArea = SuggestionsFocusArea.Results
                             keepItemVisible(sectionIndex, itemIndex)
                         },
                         onUp = { itemIndex ->
@@ -335,104 +380,94 @@ private fun SuggestionsSearchField(
     progressVisible: Boolean,
     voiceSearchAvailable: Boolean,
     focusRequester: FocusRequester,
+    voiceRequester: FocusRequester,
     onValueChange: (String) -> Unit,
     onVoiceSearchClick: () -> Unit,
+    onFieldFocused: () -> Unit,
+    onVoiceFocused: () -> Unit,
     onDown: () -> Boolean,
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val voiceRequester = remember { FocusRequester() }
+    val helperText = if (value.length < SuggestionsQueryMinLength) {
+        "Введите минимум $SuggestionsQueryMinLength символа, чтобы показать точные результаты."
+    } else {
+        "Результаты обновляются по мере ввода."
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = "Поиск",
-            color = palette.textColor,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.SemiBold,
+        TvOverlayTextField(
+            label = "Запрос",
+            value = value,
+            onValueChange = onValueChange,
+            palette = palette,
+            focusRequester = focusRequester,
+            singleLine = true,
+            minLines = 1,
+            maxLines = 1,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged {
+                    isFocused = it.isFocused
+                    if (it.isFocused) {
+                        onFieldFocused()
+                    }
+                }
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) {
+                        return@onPreviewKeyEvent false
+                    }
+                    when (event.key) {
+                        Key.DirectionRight -> {
+                            voiceSearchAvailable && requestWatchingFocus(voiceRequester)
+                        }
+
+                        Key.DirectionDown -> onDown()
+                        else -> false
+                    }
+                },
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { isFocused = it.isFocused }
-                    .onPreviewKeyEvent { event ->
-                        if (event.type != KeyEventType.KeyDown) {
-                            return@onPreviewKeyEvent false
-                        }
-                        when (event.key) {
-                            Key.DirectionRight -> {
-                                voiceSearchAvailable && requestWatchingFocus(voiceRequester)
-                            }
-
-                            Key.DirectionDown -> onDown()
-                            else -> false
-                        }
-                    },
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    color = palette.textColor,
-                    fontSize = 18.sp,
-                ),
-                singleLine = true,
-                placeholder = {
-                    Text(
-                        text = "Введите минимум 3 символа",
-                        color = palette.secondaryTextColor,
-                        fontSize = 16.sp,
-                    )
-                },
-                trailingIcon = if (progressVisible) {
-                    {
-                        CircularProgressIndicator(
-                            modifier = Modifier.height(20.dp),
-                            strokeWidth = 2.dp,
-                            color = palette.accentColor,
-                            trackColor = palette.textColor.copy(alpha = 0.16f),
-                        )
-                    }
-                } else {
-                    null
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = palette.accentColor,
-                    unfocusedBorderColor = palette.textColor.copy(alpha = 0.2f),
-                    focusedContainerColor = palette.surfaceColor.copy(alpha = 0.92f),
-                    unfocusedContainerColor = palette.surfaceColor.copy(alpha = 0.88f),
-                    focusedTextColor = palette.textColor,
-                    unfocusedTextColor = palette.textColor,
-                    cursorColor = palette.accentColor,
-                ),
+            Text(
+                text = helperText,
+                color = if (isFocused) palette.textColor else palette.secondaryTextColor,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                modifier = Modifier.weight(1f),
             )
-            if (voiceSearchAvailable) {
-                WatchingFilterChip(
-                    text = "Голосом",
-                    palette = palette,
-                    focusRequester = voiceRequester,
-                    minWidth = 132.dp,
-                    emphasized = true,
-                    onClick = onVoiceSearchClick,
-                    onLeft = { requestWatchingFocus(focusRequester) },
-                    onDown = onDown,
-                )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (progressVisible) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.height(20.dp),
+                        strokeWidth = 2.dp,
+                        color = palette.accentColor,
+                        trackColor = palette.textColor.copy(alpha = 0.16f),
+                    )
+                }
+                if (voiceSearchAvailable) {
+                    WatchingFilterChip(
+                        text = "Голосом",
+                        palette = palette,
+                        focusRequester = voiceRequester,
+                        minWidth = 124.dp,
+                        emphasized = false,
+                        onClick = onVoiceSearchClick,
+                        onFocused = onVoiceFocused,
+                        onLeft = { requestWatchingFocus(focusRequester) },
+                        onDown = onDown,
+                    )
+                }
             }
         }
-        Text(
-            text = if (value.length < 3) {
-                "Пока запрос короче 3 символов, показываются рекомендации."
-            } else {
-                "Результаты обновляются по мере ввода."
-            },
-            color = if (isFocused) palette.textColor else palette.secondaryTextColor,
-            fontSize = 14.sp,
-        )
     }
 }
 
@@ -452,24 +487,10 @@ private fun SuggestionsSectionBlock(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(TvSectionHeaderSpacing),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(
-                text = title,
-                color = palette.textColor,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(1.dp)
-                    .background(palette.textColor.copy(alpha = 0.08f))
-            )
-        }
+        TvSectionHeader(
+            title = title,
+            palette = palette,
+        )
 
         LazyRow(
             state = rowState,
@@ -536,4 +557,10 @@ private fun SuggestionsSectionBlock(
             }
         }
     }
+}
+
+private enum class SuggestionsFocusArea {
+    Field,
+    Voice,
+    Results,
 }

@@ -35,7 +35,7 @@ internal class WatchingFavoritesPageContent(
         )
     )
     private var pickerState by mutableStateOf<WatchingFavoritesViewModel.FilterPickerState?>(null)
-    private var focusRequestToken by mutableIntStateOf(1)
+    private var focusRequestToken by mutableIntStateOf(0)
     private var visibilityRestoreToken by mutableIntStateOf(0)
     private var pickerFocusRequestToken by mutableIntStateOf(0)
     private var restoreFilterIndex by mutableIntStateOf(0)
@@ -78,7 +78,7 @@ internal class WatchingFavoritesPageContent(
             return true
         }
         focusRequestToken++
-        return cardsState.isNotEmpty()
+        return true
     }
 
     @Composable

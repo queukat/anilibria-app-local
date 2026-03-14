@@ -22,7 +22,7 @@ internal class ProfilePageContent(
     private val viewModel = fragment.getViewModel(ProfileViewModel::class)
 
     private var profileState by mutableStateOf<ProfileItem?>(null)
-    private var focusRequestToken by mutableIntStateOf(1)
+    private var focusRequestToken by mutableIntStateOf(0)
 
     override fun bind(owner: LifecycleOwner) {
         backgroundManager.clearGradient()
@@ -30,7 +30,6 @@ internal class ProfilePageContent(
         owner.lifecycle.addObserver(viewModel)
         owner.collectStarted(viewModel.profileData) { profile ->
             profileState = profile
-            focusRequestToken++
         }
     }
 

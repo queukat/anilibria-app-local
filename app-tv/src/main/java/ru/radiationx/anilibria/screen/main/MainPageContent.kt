@@ -45,7 +45,7 @@ internal class MainPageContent(
     private var favoritesCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
     private var scheduleCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
     private var youtubeCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
-    private var focusRequestToken by mutableIntStateOf(1)
+    private var focusRequestToken by mutableIntStateOf(0)
     private var visibilityRestoreToken by mutableIntStateOf(0)
     private var restoreSectionIndex by mutableIntStateOf(0)
     private var restoreItemIndex by mutableIntStateOf(0)

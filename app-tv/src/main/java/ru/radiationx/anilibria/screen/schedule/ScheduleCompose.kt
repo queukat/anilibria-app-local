@@ -45,6 +45,7 @@ import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import androidx.compose.material3.Text
+import ru.radiationx.anilibria.ui.compose.TvPageHeader
 
 @Composable
 internal fun ScheduleScreen(
@@ -68,9 +69,7 @@ internal fun ScheduleScreen(
             List(section.items.size) { androidx.compose.ui.focus.FocusRequester() }
         }
     }
-    var selectedItem by remember(sectionKeys) {
-        mutableStateOf<CardItem?>(sections.asSequence().flatMap { it.items.asSequence() }.firstOrNull())
-    }
+    var selectedItem by remember(sectionKeys) { mutableStateOf<CardItem?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
@@ -158,7 +157,9 @@ internal fun ScheduleScreen(
         val visibleItems = sections.asSequence().flatMap { it.items.asSequence() }.toList()
         val hadSelectedItem = selectedId != null
         val stillVisible = selectedId != null && visibleItems.any { it.getId() == selectedId }
-        selectedItem = visibleItems.firstOrNull { it.getId() == selectedId } ?: visibleItems.firstOrNull()
+        if (!stillVisible) {
+            selectedItem = null
+        }
         if (hadSelectedItem && !stillVisible) {
             val restoreTarget = findRestoreTarget(
                 preferredSectionIndex = lastFocusedSectionIndex,
@@ -233,22 +234,11 @@ internal fun ScheduleScreen(
             ),
         ) {
             item(key = "schedule-header") {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = "Расписание",
-                        color = palette.textColor,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = "Свежие и ближайшие релизы по дням недели",
-                        color = palette.secondaryTextColor,
-                        fontSize = 15.sp,
-                    )
-                }
+                TvPageHeader(
+                    title = "Расписание",
+                    subtitle = "Свежие и ближайшие релизы по дням недели",
+                    palette = palette,
+                )
             }
 
             itemsIndexed(
