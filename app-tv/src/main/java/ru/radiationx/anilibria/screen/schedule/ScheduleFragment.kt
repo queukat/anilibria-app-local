@@ -47,7 +47,7 @@ class ScheduleFragment : Fragment() {
                 ScheduleScreen(
                     sections = buildSections(),
                     focusRequestToken = focusRequestToken,
-                    onItemClick = ::handleItemClick,
+                    onItemClick = { _, item -> handleItemClick(item) },
                     onItemFocused = { item ->
                         backgroundManager.applyCard(item)
                     },
@@ -87,10 +87,7 @@ class ScheduleFragment : Fragment() {
         }
     }
 
-    private fun handleItemClick(
-        rowId: Long,
-        item: CardItem,
-    ) {
+    private fun handleItemClick(item: CardItem) {
         when (item) {
             is LibriaCard -> viewModel.onCardClick(item)
             is LinkCard -> viewModel.onRetryClick()

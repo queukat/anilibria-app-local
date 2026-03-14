@@ -312,17 +312,15 @@ class WatchingContinueViewModel @Inject constructor(
 
     private suspend fun resolveLocalEpisodeOrdinal(episodeId: EpisodeId): String? {
         val raw = episodeId.id.trim()
-        if (raw.isEmpty()) return null
-
-        normalizeOrdinalOrNull(raw)?.let { return it }
-
-        return try {
-            userViewsRepository.resolveEpisodeOrdinal(episodeId)
-        } catch (error: Throwable) {
-            if (error is CancellationException) {
-                throw error
+        return raw.takeIf { it.isNotEmpty() }?.let { nonBlankRaw ->
+            normalizeOrdinalOrNull(nonBlankRaw) ?: runCatching {
+                userViewsRepository.resolveEpisodeOrdinal(episodeId)
+            }.getOrElse { error ->
+                if (error is CancellationException) {
+                    throw error
+                }
+                null
             }
-            null
         }
     }
 
@@ -335,8 +333,8 @@ class WatchingContinueViewModel @Inject constructor(
     private fun formatPosition(positionMs: Long): String {
         val totalSeconds = TimeUnit.MILLISECONDS.toSeconds(positionMs).coerceAtLeast(0L)
         val hours = TimeUnit.SECONDS.toHours(totalSeconds)
-        val minutes = TimeUnit.SECONDS.toMinutes(totalSeconds) % 60
-        val seconds = totalSeconds % 60
+        val minutes = TimeUnit.SECONDS.toMinutes(totalSeconds) % SECONDS_IN_MINUTE
+        val seconds = totalSeconds % SECONDS_IN_MINUTE
 
         return if (hours > 0) {
             String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
@@ -390,6 +388,7 @@ class WatchingContinueViewModel @Inject constructor(
         private const val REMOTE_PAGE_LIMIT = 50
         private const val MIN_REMOTE_BATCH_CARDS = 10
         private const val AUTO_REFRESH_DEBOUNCE_MS = 250L
+        private const val SECONDS_IN_MINUTE = 60L
     }
 
     private data class PagingState(

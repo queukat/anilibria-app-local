@@ -122,15 +122,15 @@ class MainFavoritesViewModel @Inject constructor(
 
     private fun hasMoreResponse(response: Paginated<*>): Boolean {
         val limit = response.perPage?.takeIf { it > 0 } ?: FAVORITES_PAGE_LIMIT
-        if (response.data.isEmpty()) return false
-        if (response.data.size < limit) return false
-
+        val pageHasEnoughItems = response.data.isNotEmpty() && response.data.size >= limit
         val page = response.page
         val allPages = response.allPages
-        if (page != null && allPages != null) {
-            return page < allPages
+        val hasNextPageByMeta = if (page != null && allPages != null) {
+            page < allPages
+        } else {
+            true
         }
-        return true
+        return pageHasEnoughItems && hasNextPageByMeta
     }
 
     private data class PagingState(

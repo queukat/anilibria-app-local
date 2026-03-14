@@ -32,6 +32,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -51,6 +56,8 @@ internal fun ProfileScreen(
     focusRequestToken: Int,
     onSignInClick: () -> Unit,
     onSignOutClick: () -> Unit,
+    onRequestRailFocus: () -> Boolean,
+    onRequestHeaderFocus: () -> Boolean,
 ) {
     val surfaceColor = colorResource(R.color.dark_colorPrimary)
     val textColor = colorResource(R.color.dark_textDefault)
@@ -116,6 +123,8 @@ internal fun ProfileScreen(
                 borderColor = accentColor.copy(alpha = 0.9f),
                 textColor = textColor,
                 onClick = if (profile != null) onSignOutClick else onSignInClick,
+                onLeft = onRequestRailFocus,
+                onUp = onRequestHeaderFocus,
             )
         }
     }
@@ -170,6 +179,8 @@ private fun ProfileActionButton(
     borderColor: Color,
     textColor: Color,
     onClick: () -> Unit,
+    onLeft: () -> Boolean,
+    onUp: () -> Boolean,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -186,12 +197,22 @@ private fun ProfileActionButton(
             )
             .focusRequester(focusRequester)
             .onFocusChanged { isFocused = it.isFocused }
-            .focusable()
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) {
+                    return@onPreviewKeyEvent false
+                }
+                when (event.key) {
+                    Key.DirectionLeft -> onLeft()
+                    Key.DirectionUp -> onUp()
+                    else -> false
+                }
+            }
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
             )
+            .focusable()
             .padding(horizontal = 20.dp, vertical = 14.dp),
         contentAlignment = Alignment.Center,
     ) {

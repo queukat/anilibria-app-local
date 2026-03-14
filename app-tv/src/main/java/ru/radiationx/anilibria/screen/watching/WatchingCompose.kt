@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -48,11 +49,13 @@ internal data class WatchingSectionUiModel(
 internal fun WatchingScreen(
     sections: List<WatchingSectionUiModel>,
     focusRequestToken: Int,
+    visibilityRestoreToken: Int,
     onItemClick: (Long, CardItem) -> Unit,
     onRequestRailFocus: () -> Boolean,
     onRequestHeaderFocus: () -> Boolean,
     onContentMovedDown: () -> Unit,
     onContentMovedUp: () -> Unit,
+    onItemFocused: (Int, Int, CardItem) -> Unit,
 ) {
     val palette = rememberWatchingPalette()
     val context = LocalContext.current
@@ -72,29 +75,51 @@ internal fun WatchingScreen(
         }
     }
     var selectedCard by remember(sectionKeys) {
-        mutableStateOf(sections.asSequence().flatMap { it.items.asSequence() }.filterIsInstance<LibriaCard>().firstOrNull())
+        mutableStateOf(
+            sections
+                .asSequence()
+                .flatMap { it.items.asSequence() }
+                .filterIsInstance<LibriaCard>()
+                .firstOrNull()
+        )
     }
     var handledFocusToken by remember { mutableIntStateOf(0) }
-    var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
-    var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
-    var lastFocusedItemId by remember { mutableIntStateOf(Int.MIN_VALUE) }
+    var lastFocusedSectionIndex by rememberSaveable { mutableIntStateOf(0) }
+    var lastFocusedItemIndex by rememberSaveable { mutableIntStateOf(0) }
+    var lastFocusedItemId by rememberSaveable { mutableIntStateOf(Int.MIN_VALUE) }
+
+    fun targetInSection(
+        sectionIndex: Int,
+        preferredItemIndex: Int,
+    ): Pair<Int, Int>? {
+        val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
+        if (requesters.isEmpty()) {
+            return null
+        }
+        return sectionIndex to preferredItemIndex.coerceIn(0, requesters.lastIndex)
+    }
 
     fun findRestoreTarget(
         preferredSectionIndex: Int,
         preferredItemIndex: Int,
     ): Pair<Int, Int>? {
         val clampedSectionIndex = preferredSectionIndex.coerceIn(0, sections.lastIndex.coerceAtLeast(0))
+        var target: Pair<Int, Int>? = null
         for (offset in 0..sections.size) {
-            val downIndex = clampedSectionIndex + offset
-            val downRequesters = sectionRequesters.getOrNull(downIndex).orEmpty()
-            if (downRequesters.isNotEmpty()) {
-                return downIndex to preferredItemIndex.coerceIn(0, downRequesters.lastIndex)
+            if (target == null) {
+                target = targetInSection(
+                    sectionIndex = clampedSectionIndex + offset,
+                    preferredItemIndex = preferredItemIndex,
+                )
             }
-            if (offset == 0) continue
-            val upIndex = clampedSectionIndex - offset
-            val upRequesters = sectionRequesters.getOrNull(upIndex).orEmpty()
-            if (upRequesters.isNotEmpty()) {
-                return upIndex to preferredItemIndex.coerceIn(0, upRequesters.lastIndex)
+            if (target == null && offset > 0) {
+                target = targetInSection(
+                    sectionIndex = clampedSectionIndex - offset,
+                    preferredItemIndex = preferredItemIndex,
+                )
+            }
+            if (target != null) {
+                return target
             }
         }
         return null
@@ -161,6 +186,20 @@ internal fun WatchingScreen(
         }
     }
 
+    LaunchedEffect(visibilityRestoreToken, sectionKeys) {
+        if (visibilityRestoreToken <= 0 || lastFocusedItemId == Int.MIN_VALUE) {
+            return@LaunchedEffect
+        }
+        val restoreTarget = findRestoreTarget(lastFocusedSectionIndex, lastFocusedItemIndex)
+            ?: return@LaunchedEffect
+        val (targetSectionIndex, targetItemIndex) = restoreTarget
+        verticalState.scrollToItem(targetSectionIndex)
+        rowStates.getOrNull(targetSectionIndex)?.scrollToItem(targetItemIndex)
+        selectedCard = sections.getOrNull(targetSectionIndex)
+            ?.items
+            ?.getOrNull(targetItemIndex) as? LibriaCard
+    }
+
     LaunchedEffect(focusRequestToken, sectionKeys) {
         if (focusRequestToken <= handledFocusToken) {
             return@LaunchedEffect
@@ -179,7 +218,10 @@ internal fun WatchingScreen(
         }
         verticalState.scrollToItem(targetSectionIndex)
         rowStates.getOrNull(targetSectionIndex)?.scrollToItem(targetItemIndex)
-        if (requestWatchingFocusAfterAttach(sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex))) {
+        val restoredFocus = requestWatchingFocusAfterAttach(
+            sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
+        )
+        if (restoredFocus) {
             handledFocusToken = focusRequestToken
         }
     }
@@ -226,17 +268,20 @@ internal fun WatchingScreen(
                             lastFocusedItemIndex = itemIndex
                             lastFocusedItemId = card.getId()
                             keepItemVisible(sectionIndex, itemIndex)
+                            onItemFocused(sectionIndex, itemIndex, card)
                         },
-                        onMessageFocused = { itemIndex, itemId ->
+                        onMessageFocused = { itemIndex, item ->
                             selectedCard = null
                             lastFocusedSectionIndex = sectionIndex
                             lastFocusedItemIndex = itemIndex
-                            lastFocusedItemId = itemId
+                            lastFocusedItemId = item.getId()
                             keepItemVisible(sectionIndex, itemIndex)
+                            onItemFocused(sectionIndex, itemIndex, item)
                         },
                         onLeftEdge = onRequestRailFocus,
                         onUp = { itemIndex ->
                             if (sectionIndex == 0) {
+                                onContentMovedUp()
                                 onRequestHeaderFocus()
                             } else {
                                 requestSectionFocus(sectionIndex, -1, itemIndex)
@@ -270,7 +315,7 @@ private fun WatchingSectionBlock(
     requesters: List<androidx.compose.ui.focus.FocusRequester>,
     onItemClick: (CardItem) -> Unit,
     onCardFocused: (Int, LibriaCard) -> Unit,
-    onMessageFocused: (Int, Int) -> Unit,
+    onMessageFocused: (Int, CardItem) -> Unit,
     onLeftEdge: () -> Boolean,
     onUp: (Int) -> Boolean,
     onDown: (Int) -> Boolean,
@@ -330,7 +375,7 @@ private fun WatchingSectionBlock(
                         palette = palette,
                         focusRequester = requesters[index],
                         onClick = { onItemClick(item) },
-                        onFocused = { onMessageFocused(index, item.getId()) },
+                        onFocused = { onMessageFocused(index, item) },
                         onLeft = if (index == 0) onLeftEdge else null,
                         onUp = { onUp(index) },
                         onDown = { onDown(index) },
@@ -350,7 +395,7 @@ private fun WatchingSectionBlock(
                         ),
                         focusRequester = requesters[index],
                         onClick = { onItemClick(item) },
-                        onFocused = { onMessageFocused(index, item.getId()) },
+                        onFocused = { onMessageFocused(index, item) },
                         onLeft = if (index == 0) onLeftEdge else null,
                         onUp = { onUp(index) },
                         onDown = { onDown(index) },

@@ -22,6 +22,9 @@ import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.shared.ktx.android.subscribeTo
 import ru.radiationx.quill.viewModel
 
+private const val FILTER_INDEX_SORT = 3
+private const val FILTER_INDEX_COMPLETED = 4
+
 class SearchFragment : Fragment() {
 
     private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
@@ -169,8 +172,8 @@ class SearchFragment : Fragment() {
             SearchFormViewModel.FilterPickerKind.YEAR -> 0
             SearchFormViewModel.FilterPickerKind.SEASON -> 1
             SearchFormViewModel.FilterPickerKind.GENRE -> 2
-            SearchFormViewModel.FilterPickerKind.SORT -> 3
-            SearchFormViewModel.FilterPickerKind.COMPLETED -> 4
+            SearchFormViewModel.FilterPickerKind.SORT -> FILTER_INDEX_SORT
+            SearchFormViewModel.FilterPickerKind.COMPLETED -> FILTER_INDEX_COMPLETED
         }
     }
 }

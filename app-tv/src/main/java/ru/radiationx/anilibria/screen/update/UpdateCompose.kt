@@ -63,6 +63,8 @@ import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.data.entity.domain.updater.UpdateData
 
+private const val MIN_SCROLLBAR_THUMB_HEIGHT_PX = 18
+
 @Composable
 internal fun UpdateScreen(
     updateData: UpdateData?,
@@ -212,12 +214,12 @@ private fun UpdateActionButton(
             .focusRequester(focusRequester)
             .focusProperties { down = downRequester }
             .onFocusChanged { isFocused = it.isFocused }
-            .focusable()
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
             )
+            .focusable()
     } else {
         Modifier
             .focusRequester(focusRequester)
@@ -423,7 +425,7 @@ private fun UpdateScrollIndicator(
     val contentHeightPx = viewportHeightPx + maxValue
     val thumbHeightPx = ((viewportHeightPx.toFloat() / contentHeightPx) * viewportHeightPx)
         .toInt()
-        .coerceAtLeast(18)
+        .coerceAtLeast(MIN_SCROLLBAR_THUMB_HEIGHT_PX)
         .coerceAtMost(viewportHeightPx)
     val thumbOffsetPx by remember(scrollState, maxValue, viewportHeightPx, thumbHeightPx) {
         derivedStateOf {

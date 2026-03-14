@@ -163,7 +163,7 @@ dependencies {
     compileOnly libs.toothpick
     ksp libs.toothpick.compiler
 
-    implementation libs.media3.ui.leanback
+    implementation "androidx.media3:media3-ui:1.6.0"
     implementation libs.media3.exoplayer
     implementation libs.media3.exoplayer.hls
 

@@ -64,6 +64,8 @@ import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import kotlin.math.max
 
+private const val SEARCH_CATALOG_WIDTH_FRACTION = 0.62f
+
 @Composable
 internal fun CatalogScreen(
     cards: List<CardItem>,
@@ -513,7 +515,7 @@ private fun CatalogFilterPickerDialog(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.62f)
+                .fillMaxWidth(SEARCH_CATALOG_WIDTH_FRACTION)
                 .heightIn(max = 640.dp)
                 .background(palette.surfaceColor.copy(alpha = 0.98f))
                 .padding(horizontal = 24.dp, vertical = 22.dp),

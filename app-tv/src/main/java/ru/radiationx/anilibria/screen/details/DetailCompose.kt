@@ -87,34 +87,55 @@ internal fun DetailScreen(
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
 
+    fun targetInSection(
+        sectionIndex: Int,
+        preferredItemIndex: Int,
+    ): Pair<Int, Int>? {
+        val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
+        return requesters
+            .takeIf { it.isNotEmpty() }
+            ?.let { sectionIndex to preferredItemIndex.coerceIn(0, it.lastIndex) }
+    }
+
+    fun targetByItemId(preferredItemId: Int): Pair<Int, Int>? {
+        var target: Pair<Int, Int>? = null
+        sections.forEachIndexed { sectionIndex, section ->
+            if (target == null) {
+                val itemIndex = section.items.indexOfFirst { it.getId() == preferredItemId }
+                if (itemIndex >= 0) {
+                    target = sectionIndex to itemIndex
+                }
+            }
+        }
+        return target
+    }
+
     fun findRestoreTarget(
         preferredSectionIndex: Int,
         preferredItemIndex: Int,
         preferredItemId: Int = Int.MIN_VALUE,
     ): Pair<Int, Int>? {
-        if (preferredItemId != Int.MIN_VALUE) {
-            sections.forEachIndexed { sectionIndex, section ->
-                val itemIndex = section.items.indexOfFirst { it.getId() == preferredItemId }
-                if (itemIndex >= 0) {
-                    return sectionIndex to itemIndex
-                }
-            }
+        var target = if (preferredItemId != Int.MIN_VALUE) {
+            targetByItemId(preferredItemId)
+        } else {
+            null
         }
         val clampedSectionIndex = preferredSectionIndex.coerceIn(0, sections.lastIndex.coerceAtLeast(0))
         for (offset in 0..sections.size) {
-            val downIndex = clampedSectionIndex + offset
-            val downRequesters = sectionRequesters.getOrNull(downIndex).orEmpty()
-            if (downRequesters.isNotEmpty()) {
-                return downIndex to preferredItemIndex.coerceIn(0, downRequesters.lastIndex)
+            if (target == null) {
+                target = targetInSection(
+                    sectionIndex = clampedSectionIndex + offset,
+                    preferredItemIndex = preferredItemIndex,
+                )
             }
-            if (offset == 0) continue
-            val upIndex = clampedSectionIndex - offset
-            val upRequesters = sectionRequesters.getOrNull(upIndex).orEmpty()
-            if (upRequesters.isNotEmpty()) {
-                return upIndex to preferredItemIndex.coerceIn(0, upRequesters.lastIndex)
+            if (target == null && offset > 0) {
+                target = targetInSection(
+                    sectionIndex = clampedSectionIndex - offset,
+                    preferredItemIndex = preferredItemIndex,
+                )
             }
         }
-        return null
+        return target
     }
 
     fun requestHeaderFocus() {

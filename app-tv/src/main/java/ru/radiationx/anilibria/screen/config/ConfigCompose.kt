@@ -37,6 +37,8 @@ import ru.radiationx.anilibria.ui.compose.TvOverlayActionButton
 import ru.radiationx.anilibria.ui.compose.TvOverlayInfoBlock
 import ru.radiationx.data.entity.common.ConfigScreenState
 
+private const val CONFIG_CONTENT_WIDTH_FRACTION = 0.62f
+
 @Composable
 internal fun ConfigScreenContent(
     screenState: ConfigScreenState?,
@@ -93,7 +95,7 @@ internal fun ConfigScreenContent(
                 exit = fadeOut(),
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth(0.62f),
+                    modifier = Modifier.fillMaxWidth(CONFIG_CONTENT_WIDTH_FRACTION),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {

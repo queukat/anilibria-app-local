@@ -107,6 +107,8 @@ internal data class ReleaseDetailsCallbacks(
     val otherClick: () -> Unit,
 )
 
+private const val BOTTOM_ARROW_ALPHA = 0.75f
+
 private data class ScrollableTextMeasure(
     val viewportHeight: Dp,
     val viewportHeightPx: Int,
@@ -173,7 +175,12 @@ internal fun ReleaseDetailsRowContent(
                 .fillMaxSize()
                 .padding(start = horizontalPadding, end = horizontalPadding)
         ) {
-            val (leftContent, imageCard, actionsRow, updateProgress, bottomArrow, loadingProgress) = createRefs()
+            val leftContent = createRef()
+            val imageCard = createRef()
+            val actionsRow = createRef()
+            val updateProgress = createRef()
+            val bottomArrow = createRef()
+            val loadingProgress = createRef()
 
             BoxWithConstraints(
                 modifier = Modifier.constrainAs(leftContent) {
@@ -352,7 +359,7 @@ internal fun ReleaseDetailsRowContent(
                 contentDescription = null,
                 tint = textColor,
                 modifier = Modifier
-                    .alpha(0.75f)
+                    .alpha(BOTTOM_ARROW_ALPHA)
                     .constrainAs(bottomArrow) {
                         bottom.linkTo(parent.bottom, margin = arrowBottomPadding)
                         start.linkTo(parent.start)
@@ -536,12 +543,12 @@ private fun DescriptionCard(
                     scrollState = scrollState,
                     viewportHeightPx = viewportHeightPx,
                 )
-                .focusable()
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
                 )
+                .focusable()
         } else {
             Modifier
         }
@@ -684,12 +691,12 @@ private fun ActionChipButton(
                 down = downRequester
             }
             .onFocusChanged { isFocused = it.isFocused }
-            .focusable()
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
             )
+            .focusable()
     } else {
         Modifier
     }
@@ -739,12 +746,12 @@ private fun IconChipButton(
                 down = downRequester
             }
             .onFocusChanged { isFocused = it.isFocused }
-            .focusable()
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
             )
+            .focusable()
     } else {
         Modifier
     }
@@ -977,31 +984,10 @@ private fun Modifier.tvScrollKeys(
 }
 
 @Composable
-private fun rememberThemeDimension(@AttrRes attrRes: Int): Dp {
-    val context = LocalContext.current
-    val density = LocalDensity.current
-    return remember(attrRes, density.density, density.fontScale) {
-        with(density) { context.resolveThemeDimensionPx(attrRes).toDp() }
-    }
-}
-
-@Composable
 private fun rememberThemeColor(@AttrRes attrRes: Int): Color {
     val context = LocalContext.current
     return remember(attrRes) {
         Color(context.resolveThemeColor(attrRes))
-    }
-}
-
-private fun Context.resolveThemeDimensionPx(@AttrRes attrRes: Int): Int {
-    val typedValue = TypedValue()
-    check(theme.resolveAttribute(attrRes, typedValue, true)) {
-        "Attribute $attrRes is not defined in the current theme"
-    }
-    return if (typedValue.resourceId != 0) {
-        resources.getDimensionPixelSize(typedValue.resourceId)
-    } else {
-        TypedValue.complexToDimensionPixelSize(typedValue.data, resources.displayMetrics)
     }
 }
 

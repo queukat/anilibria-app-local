@@ -63,10 +63,13 @@ internal data class MainContentRestoreState(
     val preferredItemId: Int = Int.MIN_VALUE,
 )
 
+private const val DESCRIPTION_REFRESH_INTERVAL_MS = 60_000L
+
 @Composable
 internal fun MainScreen(
     sections: List<MainSectionUiModel>,
     focusRequestToken: Int,
+    visibilityRestoreToken: Int,
     contentRestoreState: MainContentRestoreState,
     onItemClick: (Long, CardItem) -> Unit,
     onRequestRailFocus: () -> Boolean,
@@ -104,34 +107,55 @@ internal fun MainScreen(
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var descriptionTick by remember { mutableIntStateOf(0) }
 
+    fun targetInSection(
+        sectionIndex: Int,
+        preferredItemIndex: Int,
+    ): Pair<Int, Int>? {
+        val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
+        return requesters
+            .takeIf { it.isNotEmpty() }
+            ?.let { sectionIndex to preferredItemIndex.coerceIn(0, it.lastIndex) }
+    }
+
+    fun targetByItemId(preferredItemId: Int): Pair<Int, Int>? {
+        var target: Pair<Int, Int>? = null
+        sections.forEachIndexed { sectionIndex, section ->
+            if (target == null) {
+                val itemIndex = section.items.indexOfFirst { it.getId() == preferredItemId }
+                if (itemIndex >= 0) {
+                    target = sectionIndex to itemIndex
+                }
+            }
+        }
+        return target
+    }
+
     fun findRestoreTarget(
         preferredSectionIndex: Int,
         preferredItemIndex: Int,
         preferredItemId: Int = Int.MIN_VALUE,
     ): Pair<Int, Int>? {
-        if (preferredItemId != Int.MIN_VALUE) {
-            sections.forEachIndexed { sectionIndex, section ->
-                val itemIndex = section.items.indexOfFirst { it.getId() == preferredItemId }
-                if (itemIndex >= 0) {
-                    return sectionIndex to itemIndex
-                }
-            }
+        var target = if (preferredItemId != Int.MIN_VALUE) {
+            targetByItemId(preferredItemId)
+        } else {
+            null
         }
         val clampedSectionIndex = preferredSectionIndex.coerceIn(0, sections.lastIndex.coerceAtLeast(0))
         for (offset in 0..sections.size) {
-            val downIndex = clampedSectionIndex + offset
-            val downRequesters = sectionRequesters.getOrNull(downIndex).orEmpty()
-            if (downRequesters.isNotEmpty()) {
-                return downIndex to preferredItemIndex.coerceIn(0, downRequesters.lastIndex)
+            if (target == null) {
+                target = targetInSection(
+                    sectionIndex = clampedSectionIndex + offset,
+                    preferredItemIndex = preferredItemIndex,
+                )
             }
-            if (offset == 0) continue
-            val upIndex = clampedSectionIndex - offset
-            val upRequesters = sectionRequesters.getOrNull(upIndex).orEmpty()
-            if (upRequesters.isNotEmpty()) {
-                return upIndex to preferredItemIndex.coerceIn(0, upRequesters.lastIndex)
+            if (target == null && offset > 0) {
+                target = targetInSection(
+                    sectionIndex = clampedSectionIndex - offset,
+                    preferredItemIndex = preferredItemIndex,
+                )
             }
         }
-        return null
+        return target
     }
 
     fun requestSectionFocus(
@@ -191,9 +215,27 @@ internal fun MainScreen(
         }
     }
 
-    LaunchedEffect(selectedItem) {
+    LaunchedEffect(visibilityRestoreToken, sectionKeys) {
+        if (visibilityRestoreToken <= 0 || contentRestoreState.preferredItemId == Int.MIN_VALUE) {
+            return@LaunchedEffect
+        }
+        val restoreTarget = findRestoreTarget(
+            preferredSectionIndex = contentRestoreState.preferredSectionIndex,
+            preferredItemIndex = contentRestoreState.preferredItemIndex,
+            preferredItemId = contentRestoreState.preferredItemId,
+        ) ?: return@LaunchedEffect
+        val (targetSectionIndex, targetItemIndex) = restoreTarget
+        selectedItem = sections.getOrNull(targetSectionIndex)?.items?.getOrNull(targetItemIndex)
+        verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+        rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
+    }
+
+    LaunchedEffect(selectedItem?.getId()) {
+        if (selectedItem == null) {
+            return@LaunchedEffect
+        }
         while (isActive) {
-            delay(60_000L)
+            delay(DESCRIPTION_REFRESH_INTERVAL_MS)
             descriptionTick++
         }
     }
@@ -220,7 +262,11 @@ internal fun MainScreen(
         }
         verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
         rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
-        if (requestWatchingFocusAfterAttach(sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex))) {
+        if (
+            requestWatchingFocusAfterAttach(
+                sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
+            )
+        ) {
             handledFocusToken = focusRequestToken
         }
     }
@@ -265,6 +311,7 @@ internal fun MainScreen(
                     onLeftEdge = onRequestRailFocus,
                     onUp = { itemIndex ->
                         if (sectionIndex == 0) {
+                            onContentMovedUp()
                             onRequestHeaderFocus()
                         } else {
                             requestSectionFocus(sectionIndex, -1, itemIndex)
@@ -278,9 +325,10 @@ internal fun MainScreen(
         }
 
         selectedItem?.let { item ->
-            val currentDescriptionTick = descriptionTick
-            val description = item.toTvCardDescription { card ->
-                card.resolveDescription(context)
+            val description = remember(item, descriptionTick, context) {
+                item.toTvCardDescription { card ->
+                    card.resolveDescription(context)
+                }
             }
             if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
                 WatchingDescriptionBar(

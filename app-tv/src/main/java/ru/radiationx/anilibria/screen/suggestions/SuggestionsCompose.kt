@@ -103,25 +103,37 @@ internal fun SuggestionsScreen(
         return requestWatchingFocus(searchRequester)
     }
 
+    fun targetInSection(
+        sectionIndex: Int,
+        preferredItemIndex: Int,
+    ): Pair<Int, Int>? {
+        val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
+        return requesters
+            .takeIf { it.isNotEmpty() }
+            ?.let { sectionIndex to preferredItemIndex.coerceIn(0, it.lastIndex) }
+    }
+
     fun findRestoreTarget(
         preferredSectionIndex: Int,
         preferredItemIndex: Int,
     ): Pair<Int, Int>? {
         val clampedSectionIndex = preferredSectionIndex.coerceIn(0, sections.lastIndex.coerceAtLeast(0))
+        var target: Pair<Int, Int>? = null
         for (offset in 0..sections.size) {
-            val downIndex = clampedSectionIndex + offset
-            val downRequesters = sectionRequesters.getOrNull(downIndex).orEmpty()
-            if (downRequesters.isNotEmpty()) {
-                return downIndex to preferredItemIndex.coerceIn(0, downRequesters.lastIndex)
+            if (target == null) {
+                target = targetInSection(
+                    sectionIndex = clampedSectionIndex + offset,
+                    preferredItemIndex = preferredItemIndex,
+                )
             }
-            if (offset == 0) continue
-            val upIndex = clampedSectionIndex - offset
-            val upRequesters = sectionRequesters.getOrNull(upIndex).orEmpty()
-            if (upRequesters.isNotEmpty()) {
-                return upIndex to preferredItemIndex.coerceIn(0, upRequesters.lastIndex)
+            if (target == null && offset > 0) {
+                target = targetInSection(
+                    sectionIndex = clampedSectionIndex - offset,
+                    preferredItemIndex = preferredItemIndex,
+                )
             }
         }
-        return null
+        return target
     }
 
     fun requestSectionFocus(

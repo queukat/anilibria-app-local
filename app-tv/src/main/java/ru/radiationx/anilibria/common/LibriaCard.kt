@@ -22,33 +22,46 @@ data class LibriaCard(
 
     fun resolveDescription(context: Context): String {
         val timestampSec = relativeTimestampSec ?: return description
-        val relativePart = Date(timestampSec * 1000L).relativeDate(context).decapitalizeDefault()
+        val relativePart = Date(timestampSec * MILLIS_IN_SECOND).relativeDate(context).decapitalizeDefault()
         val prefix = relativePrefix.orEmpty().trim()
         val dynamicPart = if (prefix.isEmpty()) {
             relativePart
         } else {
             "$prefix $relativePart"
         }
-        if (description.isBlank()) {
-            return dynamicPart
-        }
-        if (prefix.isNotEmpty()) {
-            val marker = "$prefix "
-            val markerIndex = description.indexOf(marker)
-            if (markerIndex >= 0) {
-                val staticPart = description
-                    .substring(0, markerIndex)
-                    .trim()
-                    .trimEnd('•')
-                    .trim()
-                return if (staticPart.isEmpty()) dynamicPart else "$staticPart • $dynamicPart"
+
+        val mergedDescription = if (description.isBlank()) {
+            dynamicPart
+        } else {
+            val staticPart = prefix
+                .takeIf { it.isNotEmpty() }
+                ?.let { nonBlankPrefix ->
+                    val markerIndex = description.indexOf("$nonBlankPrefix ")
+                    description
+                        .takeIf { markerIndex >= 0 }
+                        ?.substring(0, markerIndex)
+                        ?.trim()
+                        ?.trimEnd('•')
+                        ?.trim()
+                }
+            if (staticPart == null) {
+                "$description • $dynamicPart"
+            } else if (staticPart.isEmpty()) {
+                dynamicPart
+            } else {
+                "$staticPart • $dynamicPart"
             }
         }
-        return "$description • $dynamicPart"
+
+        return mergedDescription
     }
 
     sealed class Type {
         data class Release(val releaseId: ReleaseId) : Type()
         data class Youtube(val link: String) : Type()
+    }
+
+    private companion object {
+        const val MILLIS_IN_SECOND = 1000L
     }
 }

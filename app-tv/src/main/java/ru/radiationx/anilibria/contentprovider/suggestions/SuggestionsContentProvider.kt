@@ -7,6 +7,7 @@ import android.content.UriMatcher
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
+import kotlinx.coroutines.runBlocking
 import ru.radiationx.anilibria.App
 import ru.radiationx.anilibria.contentprovider.SystemSuggestionEntity
 import ru.radiationx.data.entity.domain.search.SuggestionItem
@@ -50,8 +51,12 @@ class SuggestionsContentProvider : ContentProvider() {
             timeoutMs = QUERY_TIMEOUT_MS,
             cacheTtlMs = CACHE_TTL_MS,
             minRequestIntervalMs = MIN_REQUEST_INTERVAL_MS,
-            loadSuggestions = { query -> suggestionsUseCase.loadSuggestions(query) },
-            awaitAppInitialized = { App.appInitialized.await() },
+            loadSuggestionsBlocking = { query ->
+                runBlocking { suggestionsUseCase.loadSuggestions(query) }
+            },
+            awaitAppInitializedBlocking = {
+                runBlocking { App.appInitialized.await() }
+            },
             onRefreshReady = { refreshUri ->
                 context?.contentResolver?.notifyChange(refreshUri, null)
             },

@@ -1,6 +1,5 @@
 package ru.radiationx.anilibria.contentprovider.suggestions
 
-import kotlinx.coroutines.runBlocking
 import ru.radiationx.data.entity.domain.search.SuggestionItem
 import java.util.concurrent.ExecutorService
 import java.util.LinkedHashMap
@@ -13,8 +12,8 @@ internal class SuggestionsContentProviderQueryHandler<Key>(
     cacheTtlMs: Long,
     minRequestIntervalMs: Long,
     private val maxTrackedQueries: Int = DEFAULT_MAX_TRACKED_QUERIES,
-    private val loadSuggestions: suspend (String) -> List<SuggestionItem>,
-    private val awaitAppInitialized: suspend () -> Unit,
+    private val loadSuggestionsBlocking: (String) -> List<SuggestionItem>,
+    private val awaitAppInitializedBlocking: () -> Unit,
     private val onRefreshReady: (Key) -> Unit,
     nowMillis: () -> Long = { System.currentTimeMillis() },
     scheduler: ScheduledExecutorService? = null,
@@ -25,7 +24,7 @@ internal class SuggestionsContentProviderQueryHandler<Key>(
     private val nowMillis = nowMillis
     private val queryKeys = LinkedHashMap<String, QueryKeyEntry<Key>>(
         maxTrackedQueries,
-        0.75f,
+        QUERY_CACHE_LOAD_FACTOR,
         true,
     )
     private val executor = SuggestionQueryExecutor<SuggestionItem>(
@@ -58,10 +57,8 @@ internal class SuggestionsContentProviderQueryHandler<Key>(
             }
         }
         return executor.execute(query) { normalizedQuery ->
-            runBlocking {
-                awaitAppInitialized()
-                loadSuggestions(normalizedQuery)
-            }
+            awaitAppInitializedBlocking()
+            loadSuggestionsBlocking(normalizedQuery)
         }
     }
 
@@ -114,6 +111,7 @@ internal class SuggestionsContentProviderQueryHandler<Key>(
     private companion object {
         const val DEFAULT_MAX_TRACKED_QUERIES = 32
         const val QUERY_KEY_TTL_MS = 30_000L
+        const val QUERY_CACHE_LOAD_FACTOR = 0.75f
     }
 }
 

@@ -236,69 +236,90 @@ class SearchFormViewModel @Inject constructor(
     }
 
     fun selectSinglePicker(index: Int) {
-        val current = _filterPicker.value ?: return
-        if (current.multiSelect || index !in current.options.indices) {
-            return
-        }
-        when (current.kind) {
-            FilterPickerKind.SORT -> {
-                val sort = when (index) {
-                    0 -> SearchForm.Sort.RATING
-                    1 -> SearchForm.Sort.DATE
-                    else -> return
+        val current = _filterPicker.value
+        val wasApplied = if (current != null && !current.multiSelect && index in current.options.indices) {
+            when (current.kind) {
+                FilterPickerKind.SORT -> {
+                    resolveSortOption(index)?.let { sort ->
+                        searchController.sortEvent.emit(sort)
+                        true
+                    } ?: false
                 }
-                searchController.sortEvent.emit(sort)
-            }
 
-            FilterPickerKind.COMPLETED -> {
-                val onlyCompleted = when (index) {
-                    0 -> false
-                    1 -> true
-                    else -> return
+                FilterPickerKind.COMPLETED -> {
+                    resolveCompletedOption(index)?.let { onlyCompleted ->
+                        searchController.completedEvent.emit(onlyCompleted)
+                        true
+                    } ?: false
                 }
-                searchController.completedEvent.emit(onlyCompleted)
-            }
 
-            else -> return
+                else -> false
+            }
+        } else {
+            false
         }
-        dismissFilterPicker()
+        if (wasApplied) {
+            dismissFilterPicker()
+        }
     }
 
     fun applyFilterPicker() {
-        val current = _filterPicker.value ?: return
-        if (!current.multiSelect) {
-            return
+        val current = _filterPicker.value
+        val wasApplied = if (current != null && current.multiSelect) {
+            when (current.kind) {
+                FilterPickerKind.YEAR -> {
+                    searchController.yearsEvent.emit(
+                        current.selectedIndices
+                            .mapNotNull { availableYears.getOrNull(it) }
+                            .toSet()
+                    )
+                    true
+                }
+
+                FilterPickerKind.SEASON -> {
+                    searchController.seasonsEvent.emit(
+                        current.selectedIndices
+                            .mapNotNull { availableSeasons.getOrNull(it) }
+                            .toSet()
+                    )
+                    true
+                }
+
+                FilterPickerKind.GENRE -> {
+                    searchController.genresEvent.emit(
+                        current.selectedIndices
+                            .mapNotNull { availableGenres.getOrNull(it) }
+                            .toSet()
+                    )
+                    true
+                }
+
+                FilterPickerKind.SORT,
+                FilterPickerKind.COMPLETED,
+                -> false
+            }
+        } else {
+            false
         }
-        when (current.kind) {
-            FilterPickerKind.YEAR -> {
-                searchController.yearsEvent.emit(
-                    current.selectedIndices
-                        .mapNotNull { availableYears.getOrNull(it) }
-                        .toSet()
-                )
-            }
-
-            FilterPickerKind.SEASON -> {
-                searchController.seasonsEvent.emit(
-                    current.selectedIndices
-                        .mapNotNull { availableSeasons.getOrNull(it) }
-                        .toSet()
-                )
-            }
-
-            FilterPickerKind.GENRE -> {
-                searchController.genresEvent.emit(
-                    current.selectedIndices
-                        .mapNotNull { availableGenres.getOrNull(it) }
-                        .toSet()
-                )
-            }
-
-            FilterPickerKind.SORT,
-            FilterPickerKind.COMPLETED,
-            -> return
+        if (wasApplied) {
+            dismissFilterPicker()
         }
-        dismissFilterPicker()
+    }
+
+    private fun resolveSortOption(index: Int): SearchForm.Sort? {
+        return when (index) {
+            0 -> SearchForm.Sort.RATING
+            1 -> SearchForm.Sort.DATE
+            else -> null
+        }
+    }
+
+    private fun resolveCompletedOption(index: Int): Boolean? {
+        return when (index) {
+            0 -> false
+            1 -> true
+            else -> null
+        }
     }
 
     fun resetFilterPicker() {

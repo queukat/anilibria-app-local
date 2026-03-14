@@ -161,13 +161,13 @@ internal fun TvOverlayActionButton(
                 down = downRequester
             }
             .onFocusChanged { isFocused = it.isFocused }
-            .focusable()
             .clickable(
                 enabled = enabled && !loading,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
-            ),
+            )
+            .focusable(),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
@@ -259,7 +259,11 @@ internal fun TvOverlayInfoBlock(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                color = if (accent) palette.accentColor.copy(alpha = 0.12f) else palette.surfaceColor.copy(alpha = 0.52f),
+                color = if (accent) {
+                    palette.accentColor.copy(alpha = 0.12f)
+                } else {
+                    palette.surfaceColor.copy(alpha = 0.52f)
+                },
                 shape = RoundedCornerShape(14.dp),
             )
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -406,13 +410,13 @@ private fun TvOverlayChoiceButton(
                 down = downRequester
             }
             .onFocusChanged { isFocused = it.isFocused }
-            .focusable(enabled = choice.enabled)
             .clickable(
                 enabled = choice.enabled,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
-            ),
+            )
+            .focusable(enabled = choice.enabled),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),

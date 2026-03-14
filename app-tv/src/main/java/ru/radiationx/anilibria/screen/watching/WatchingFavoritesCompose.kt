@@ -26,6 +26,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -48,6 +49,7 @@ internal fun WatchingFavoritesScreen(
     cards: List<CardItem>,
     filters: WatchingFavoritesViewModel.FiltersUiState,
     focusRequestToken: Int,
+    visibilityRestoreToken: Int,
     restoreFilterIndex: Int,
     restoreFilterToken: Int,
     pickerState: WatchingChoiceDialogUiState?,
@@ -111,10 +113,10 @@ internal fun WatchingFavoritesScreen(
     }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var handledRestoreToken by remember { mutableIntStateOf(0) }
-    var lastFocusedFilterIndex by remember { mutableIntStateOf(0) }
-    var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
-    var lastFocusedItemId by remember { mutableIntStateOf(Int.MIN_VALUE) }
-    var lastFocusWasGrid by remember { mutableStateOf(false) }
+    var lastFocusedFilterIndex by rememberSaveable { mutableIntStateOf(0) }
+    var lastFocusedItemIndex by rememberSaveable { mutableIntStateOf(0) }
+    var lastFocusedItemId by rememberSaveable { mutableIntStateOf(Int.MIN_VALUE) }
+    var lastFocusWasGrid by rememberSaveable { mutableStateOf(false) }
     val interactionsEnabled = pickerState == null
 
     fun requestGridFocus(index: Int): Boolean {
@@ -141,6 +143,20 @@ internal fun WatchingFavoritesScreen(
             } else {
                 requestWatchingFocus(filterRequesters.firstOrNull())
             }
+        }
+    }
+
+    LaunchedEffect(visibilityRestoreToken, cards, pickerState) {
+        if (visibilityRestoreToken <= 0 || pickerState != null) {
+            return@LaunchedEffect
+        }
+        if (lastFocusWasGrid && cards.isNotEmpty()) {
+            val targetIndex = lastFocusedItemIndex.coerceIn(0, cards.lastIndex)
+            gridState.scrollToItem(targetIndex)
+            selectedCard = cards.getOrNull(targetIndex) as? LibriaCard
+        } else {
+            filtersScrollState.scrollTo(0)
+            selectedCard = null
         }
     }
 
@@ -213,7 +229,10 @@ internal fun WatchingFavoritesScreen(
                                 lastFocusWasGrid = false
                             },
                             onLeft = if (index == 0) onRequestRailFocus else null,
-                            onUp = onRequestHeaderFocus,
+                            onUp = {
+                                onContentMovedUp()
+                                onRequestHeaderFocus()
+                            },
                             onDown = {
                                 val moved = requestGridFocus(lastFocusedItemIndex)
                                 if (moved) {
@@ -260,6 +279,7 @@ internal fun WatchingFavoritesScreen(
                                     onLeft = if (index % columnsCount == 0) onRequestRailFocus else null,
                                     onUp = if (index < columnsCount) {
                                         {
+                                            onContentMovedUp()
                                             requestWatchingFocus(
                                                 filterRequesters.getOrNull(lastFocusedFilterIndex)
                                                     ?: filterRequesters.firstOrNull()

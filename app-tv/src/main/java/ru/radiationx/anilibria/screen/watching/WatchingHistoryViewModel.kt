@@ -60,78 +60,12 @@ class WatchingHistoryViewModel @Inject constructor(
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
         return try {
             if (remoteMode) {
-                val response = userViewsRepository.getViewsHistory(
-                    page = requestPage,
-                    limit = REMOTE_PAGE_LIMIT,
-                )
-                val remoteCards = mapRemoteHistory(response, pagingState.items)
-
-                if (remoteCards.isEmpty() && requestPage == firstPage) {
-                    remoteMode = false
-                    val localCards = loadLocalHistory()
-                    pagingState = pagingState.copy(
-                        items = localCards,
-                        page = firstPage,
-                        hasMore = false,
-                        error = null,
-                    )
-                    return localCards
-                }
-
-                val allItems = if (requestPage == firstPage) remoteCards else pagingState.items + remoteCards
-                pagingState = pagingState.copy(
-                    items = allItems,
-                    page = requestPage,
-                    hasMore = hasMoreResponse(response),
-                    error = null,
-                )
-                return remoteCards
-            }
-
-            if (requestPage == firstPage) {
-                val localCards = loadLocalHistory()
-                pagingState = pagingState.copy(
-                    items = localCards,
-                    page = firstPage,
-                    hasMore = false,
-                    error = null,
-                )
-                localCards
+                loadRemoteHistoryPage(requestPage)
             } else {
-                pagingState = pagingState.copy(
-                    hasMore = false,
-                    error = null,
-                )
-                emptyList()
+                loadLocalHistoryPage(requestPage)
             }
         } catch (error: Throwable) {
-            if (error is CancellationException) {
-                throw error
-            }
-            if (remoteMode) {
-                remoteMode = false
-                pagingState = pagingState.copy(hasMore = false)
-                if (requestPage == firstPage) {
-                    return try {
-                        val localCards = loadLocalHistory()
-                        pagingState = pagingState.copy(
-                            items = localCards,
-                            page = firstPage,
-                            hasMore = false,
-                            error = null,
-                        )
-                        localCards
-                    } catch (localError: Throwable) {
-                        if (localError is CancellationException) {
-                            throw localError
-                        }
-                        pagingState = pagingState.copy(error = localError)
-                        throw localError
-                    }
-                }
-            }
-            pagingState = pagingState.copy(error = error)
-            throw error
+            handleLoadError(error, requestPage)
         } finally {
             pagingState = pagingState.copy(isLoading = false)
         }
@@ -207,6 +141,81 @@ class WatchingHistoryViewModel @Inject constructor(
         val releases = historyRepository.getReleases().items
 
         return releases.map { converter.toCard(it) }
+    }
+
+    private suspend fun loadRemoteHistoryPage(requestPage: Int): List<LibriaCard> {
+        val response = userViewsRepository.getViewsHistory(
+            page = requestPage,
+            limit = REMOTE_PAGE_LIMIT,
+        )
+        val remoteCards = mapRemoteHistory(response, pagingState.items)
+
+        return if (remoteCards.isEmpty() && requestPage == firstPage) {
+            remoteMode = false
+            loadAndStoreLocalHistory()
+        } else {
+            val allItems = if (requestPage == firstPage) {
+                remoteCards
+            } else {
+                pagingState.items + remoteCards
+            }
+            pagingState = pagingState.copy(
+                items = allItems,
+                page = requestPage,
+                hasMore = hasMoreResponse(response),
+                error = null,
+            )
+            remoteCards
+        }
+    }
+
+    private suspend fun loadLocalHistoryPage(requestPage: Int): List<LibriaCard> {
+        return if (requestPage == firstPage) {
+            loadAndStoreLocalHistory()
+        } else {
+            pagingState = pagingState.copy(
+                hasMore = false,
+                error = null,
+            )
+            emptyList()
+        }
+    }
+
+    private suspend fun loadAndStoreLocalHistory(): List<LibriaCard> {
+        val localCards = loadLocalHistory()
+        pagingState = pagingState.copy(
+            items = localCards,
+            page = firstPage,
+            hasMore = false,
+            error = null,
+        )
+        return localCards
+    }
+
+    private suspend fun handleLoadError(
+        error: Throwable,
+        requestPage: Int,
+    ): List<LibriaCard> {
+        error.throwIfCancellation()
+        if (remoteMode && requestPage == firstPage) {
+            remoteMode = false
+            pagingState = pagingState.copy(hasMore = false)
+            return try {
+                loadAndStoreLocalHistory()
+            } catch (localError: Throwable) {
+                localError.throwIfCancellation()
+                pagingState = pagingState.copy(error = localError)
+                throw localError
+            }
+        }
+        pagingState = pagingState.copy(error = error)
+        throw error
+    }
+
+    private fun Throwable.throwIfCancellation() {
+        if (this is CancellationException) {
+            throw this
+        }
     }
 
     private fun hasMoreResponse(response: PaginatedResponse<*>): Boolean {

@@ -20,28 +20,21 @@ class LoadMoreCardsComposer(
 
     fun compose(state: PaginatorState<LibriaCard>): List<CardItem> {
         if (state.items.isEmpty()) {
-            if (state.isLoading) {
-                return listOf(loadingCard)
+            val emptyStateCard = when {
+                state.isLoading -> loadingCard
+                state.error != null -> errorCardFactory(state.error)
+                else -> emptyCardFactory?.invoke()
             }
-            if (state.error != null) {
-                return listOf(errorCardFactory(state.error))
-            }
-            val emptyCard = emptyCardFactory?.invoke()
-            if (emptyCard != null) {
-                return listOf(emptyCard)
-            }
-            return emptyList()
+            return emptyStateCard?.let(::listOf).orEmpty()
         }
 
-        val result = mutableListOf<CardItem>()
-        result.addAll(state.items)
-
-        when {
-            state.isLoading -> result += loadingCard
-            state.error != null -> result += errorCardFactory(state.error)
-            state.canLoadMore -> result += loadMoreCard
+        return buildList {
+            addAll(state.items)
+            when {
+                state.isLoading -> add(loadingCard)
+                state.error != null -> add(errorCardFactory(state.error))
+                state.canLoadMore -> add(loadMoreCard)
+            }
         }
-
-        return result
     }
 }

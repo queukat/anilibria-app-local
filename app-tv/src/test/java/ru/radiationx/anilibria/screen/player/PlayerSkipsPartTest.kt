@@ -1,0 +1,62 @@
+package ru.radiationx.anilibria.screen.player
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Test
+import ru.radiationx.data.entity.domain.release.PlayerSkips
+
+class PlayerSkipsPartTest {
+
+    @Test
+    fun update_showsOverlayWhenPositionEntersSkipWindow() {
+        val skipsPart = PlayerSkipsPart(onSeek = {})
+
+        skipsPart.setSkips(
+            PlayerSkips(
+                opening = PlayerSkips.Skip(start = 1_000L, end = 5_000L),
+                ending = null,
+            )
+        )
+
+        skipsPart.update(2_000L)
+
+        assertNotNull(skipsPart.visibleSkip)
+        assertEquals(1, skipsPart.focusRequestToken)
+    }
+
+    @Test
+    fun skipCurrent_seeksToSkipEndAndHidesOverlay() {
+        var seekTarget = -1L
+        val skipsPart = PlayerSkipsPart(onSeek = { seekTarget = it })
+        skipsPart.setSkips(
+            PlayerSkips(
+                opening = PlayerSkips.Skip(start = 1_000L, end = 5_000L),
+                ending = null,
+            )
+        )
+        skipsPart.update(2_000L)
+
+        skipsPart.skipCurrent()
+
+        assertEquals(5_000L, seekTarget)
+        assertFalse(skipsPart.isVisible)
+    }
+
+    @Test
+    fun cancelCurrent_marksSkipConsumedForCurrentWindow() {
+        val skipsPart = PlayerSkipsPart(onSeek = {})
+        skipsPart.setSkips(
+            PlayerSkips(
+                opening = PlayerSkips.Skip(start = 1_000L, end = 5_000L),
+                ending = null,
+            )
+        )
+        skipsPart.update(2_000L)
+
+        skipsPart.cancelCurrent()
+        skipsPart.update(3_000L)
+
+        assertFalse(skipsPart.isVisible)
+    }
+}

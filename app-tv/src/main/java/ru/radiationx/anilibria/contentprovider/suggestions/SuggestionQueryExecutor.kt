@@ -36,12 +36,12 @@ internal class SuggestionQueryExecutor<T>(
     private var requestSequence: Long = 0L
     private val lastAppliedRequestByQuery = LinkedHashMap<String, AppliedRequestEntry>(
         maxCacheEntries,
-        0.75f,
+        CACHE_LOAD_FACTOR,
         true,
     )
     private val cache = LinkedHashMap<String, CacheEntry<T>>(
         maxCacheEntries,
-        0.75f,
+        CACHE_LOAD_FACTOR,
         true,
     )
 
@@ -227,6 +227,7 @@ internal class SuggestionQueryExecutor<T>(
 
     private companion object {
         const val DEFAULT_MAX_CACHE_ENTRIES = 32
+        const val CACHE_LOAD_FACTOR = 0.75f
     }
 }
 

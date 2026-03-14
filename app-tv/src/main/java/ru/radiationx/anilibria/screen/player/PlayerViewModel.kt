@@ -353,6 +353,10 @@ class PlayerViewModel @Inject constructor(
         return currentEpisode?.id?.releaseId ?: argExtra.releaseId
     }
 
+    fun hasNextEpisode(): Boolean = getNextEpisode() != null
+
+    fun hasPreviousEpisode(): Boolean = getPrevEpisode() != null
+
     private data class EpisodeProgressSnapshot(
         val episodeId: EpisodeId,
         val position: Long,

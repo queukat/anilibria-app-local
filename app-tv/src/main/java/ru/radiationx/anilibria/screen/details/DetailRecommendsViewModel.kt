@@ -25,16 +25,17 @@ class DetailRecommendsViewModel @Inject constructor(
     )
 
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
-        if (requestPage != firstPage) {
-            return emptyList()
+        val cards = if (requestPage == firstPage) {
+            val seededCards = loadRecommendationCards(seedReleaseId = extra.id.id)
+            if (seededCards.isNotEmpty()) {
+                seededCards
+            } else {
+                loadRecommendationCards(seedReleaseId = null)
+            }
+        } else {
+            emptyList()
         }
-
-        val seededCards = loadRecommendationCards(seedReleaseId = extra.id.id)
-        if (seededCards.isNotEmpty()) {
-            return seededCards
-        }
-
-        return loadRecommendationCards(seedReleaseId = null)
+        return cards
     }
 
     override fun onLibriaCardClick(card: LibriaCard) {

@@ -1,7 +1,5 @@
 package ru.radiationx.anilibria.screen.mainpages
 
-import android.view.ViewGroup
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
@@ -57,8 +55,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.fragment.app.FragmentContainerView
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
@@ -83,7 +79,6 @@ internal fun MainPagesRoot(
     railExpanded: Boolean,
     headerFocusRequestToken: Int,
     railFocusRequestToken: Int,
-    onContentContainerReady: (FragmentContainerView) -> Unit,
     onHeaderFocused: () -> Unit,
     onSearchClick: () -> Unit,
     onCatalogClick: () -> Unit,
@@ -91,6 +86,7 @@ internal fun MainPagesRoot(
     onPageFocused: (Long) -> Unit,
     onRequestHeaderFocus: () -> Boolean,
     onRequestContentFocus: () -> Boolean,
+    content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
 ) {
     val headerHeight = dimensionResource(R.dimen.main_pages_header_height)
     val headerSpacing = dimensionResource(R.dimen.main_pages_header_spacing)
@@ -102,21 +98,7 @@ internal fun MainPagesRoot(
             .fillMaxSize()
             .background(colorResource(R.color.dark_windowBackground))
     ) {
-        AndroidView(
-            factory = { context ->
-                FragmentContainerView(context).apply {
-                    id = R.id.mainPagesContentContainer
-                    layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                }
-            },
-            update = { containerView ->
-                containerView.post {
-                    onContentContainerReady(containerView)
-                }
-            },
-            modifier = Modifier
-                .fillMaxSize(),
-        )
+        content()
 
         AnimatedVisibility(
             visible = headerVisible,
@@ -126,7 +108,7 @@ internal fun MainPagesRoot(
                 .height(headerHeight),
         ) {
             MainPagesHeader(
-                selectedPageTitle = MainPagesFragmentFactory.variant1.getValue(selectedPageId),
+                selectedPageTitle = MainPagesSpec.titles.getValue(selectedPageId),
                 hasUpdates = hasUpdates,
                 headerFocusRequestToken = headerFocusRequestToken,
                 onSearchClick = onSearchClick,
@@ -556,7 +538,6 @@ private fun ShellFocusableButton(
                     else -> false
                 }
             }
-            .then(if (enabled) Modifier.focusable() else Modifier)
             .then(
                 if (enabled) {
                     Modifier.clickable(
@@ -568,6 +549,7 @@ private fun ShellFocusableButton(
                     Modifier
                 }
             )
+            .then(if (enabled) Modifier.focusable() else Modifier)
             .padding(horizontal = horizontalPadding, vertical = verticalPadding)
     ) {
         Text(
@@ -589,7 +571,7 @@ private fun ShellFocusableButton(
     backgroundColor = 0xFF0E131A,
 )
 @Composable
-private fun MainPagesHomePreview() {
+internal fun MainPagesHomePreview() {
     MainPagesPreviewScene(railExpanded = false)
 }
 
@@ -601,21 +583,21 @@ private fun MainPagesHomePreview() {
     backgroundColor = 0xFF0E131A,
 )
 @Composable
-private fun MainPagesHomeRailPreview() {
+internal fun MainPagesHomeRailPreview() {
     MainPagesPreviewScene(railExpanded = true)
 }
 
 @Composable
 private fun MainPagesPreviewScene(railExpanded: Boolean) {
     val shellItems = remember {
-        MainPagesFragmentFactory.ids.map { pageId ->
+        MainPagesSpec.ids.map { pageId ->
             MainShellItem(
                 id = pageId,
-                title = MainPagesFragmentFactory.variant1.getValue(pageId),
+                title = MainPagesSpec.titles.getValue(pageId),
             )
         }
     }
-    val selectedPageId = MainPagesFragmentFactory.ID_MAIN
+    val selectedPageId = MainPagesSpec.ID_MAIN
     // Preview should not depend on generated R.dimen fields because layoutlib can lag behind resource stubs.
     val headerHeight = 96.dp
     val headerSpacing = 10.dp
@@ -630,6 +612,7 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
         MainScreen(
             sections = previewMainSections(),
             focusRequestToken = 0,
+            visibilityRestoreToken = 0,
             contentRestoreState = MainContentRestoreState(
                 preferredSectionIndex = 0,
                 preferredItemIndex = 1,
@@ -650,7 +633,7 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
                 .height(headerHeight),
         ) {
             MainPagesHeader(
-                selectedPageTitle = MainPagesFragmentFactory.variant1.getValue(selectedPageId),
+                selectedPageTitle = MainPagesSpec.titles.getValue(selectedPageId),
                 hasUpdates = true,
                 headerFocusRequestToken = 0,
                 onSearchClick = {},
@@ -685,33 +668,33 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
 private fun previewMainSections(): List<MainSectionUiModel> {
     return listOf(
         MainSectionUiModel(
-            id = 1L,
+            id = PREVIEW_MAIN_SECTION_ID,
             title = "Самое актуальное",
             items = listOf(
-                previewReleaseCard(1001, "Врата Штейна", "На неделе вышла 7 серия"),
-                previewReleaseCard(1002, "Frieren", "Новый эпизод сегодня в 20:00"),
-                previewReleaseCard(1003, "Провожающая в последний путь", "Перевод завершен"),
-                previewReleaseCard(1004, "Blue Box", "Онгоинг • обновлено 2 часа назад"),
+                previewReleaseCard(PREVIEW_RELEASE_ID_1, "Врата Штейна", "На неделе вышла 7 серия"),
+                previewReleaseCard(PREVIEW_RELEASE_ID_2, "Frieren", "Новый эпизод сегодня в 20:00"),
+                previewReleaseCard(PREVIEW_RELEASE_ID_3, "Провожающая в последний путь", "Перевод завершен"),
+                previewReleaseCard(PREVIEW_RELEASE_ID_4, "Blue Box", "Онгоинг • обновлено 2 часа назад"),
                 LinkCard("Открыть весь список"),
             ),
         ),
         MainSectionUiModel(
-            id = 2L,
+            id = PREVIEW_FAVORITES_SECTION_ID,
             title = "Обновления в избранном",
             items = listOf(
-                previewReleaseCard(2001, "Solo Leveling", "Добавлена 10 серия"),
-                previewReleaseCard(2002, "Kaiju No. 8", "Вышла новая озвучка"),
-                previewReleaseCard(2003, "Dandadan", "Новый релиз уже доступен"),
-                previewReleaseCard(2004, "Re:Zero", "Следующая серия завтра"),
+                previewReleaseCard(PREVIEW_FAVORITE_ID_1, "Solo Leveling", "Добавлена 10 серия"),
+                previewReleaseCard(PREVIEW_FAVORITE_ID_2, "Kaiju No. 8", "Вышла новая озвучка"),
+                previewReleaseCard(PREVIEW_FAVORITE_ID_3, "Dandadan", "Новый релиз уже доступен"),
+                previewReleaseCard(PREVIEW_FAVORITE_ID_4, "Re:Zero", "Следующая серия завтра"),
             ),
         ),
         MainSectionUiModel(
-            id = 3L,
+            id = PREVIEW_SCHEDULE_SECTION_ID,
             title = "Ожидается сегодня",
             items = listOf(
-                previewReleaseCard(3001, "Dr. Stone", "Премьера в 18:30"),
-                previewReleaseCard(3002, "Wind Breaker", "Сегодня вечером"),
-                previewReleaseCard(3003, "Made in Abyss", "Пока без точного времени"),
+                previewReleaseCard(PREVIEW_SCHEDULE_ID_1, "Dr. Stone", "Премьера в 18:30"),
+                previewReleaseCard(PREVIEW_SCHEDULE_ID_2, "Wind Breaker", "Сегодня вечером"),
+                previewReleaseCard(PREVIEW_SCHEDULE_ID_3, "Made in Abyss", "Пока без точного времени"),
                 InfoCard(
                     title = "Ещё несколько релизов позже вечером",
                     subtitle = "Откройте расписание, чтобы посмотреть весь список на сегодня.",
@@ -719,12 +702,12 @@ private fun previewMainSections(): List<MainSectionUiModel> {
             ),
         ),
         MainSectionUiModel(
-            id = 4L,
+            id = PREVIEW_YOUTUBE_SECTION_ID,
             title = "Обновления на YouTube",
             items = listOf(
-                previewYoutubeCard(4001, "Итоги недели AniLibria"),
-                previewYoutubeCard(4002, "Разбор сезона и ожидания"),
-                previewYoutubeCard(4003, "Новости студий и лицензий"),
+                previewYoutubeCard(PREVIEW_YOUTUBE_ID_1, "Итоги недели AniLibria"),
+                previewYoutubeCard(PREVIEW_YOUTUBE_ID_2, "Разбор сезона и ожидания"),
+                previewYoutubeCard(PREVIEW_YOUTUBE_ID_3, "Новости студий и лицензий"),
                 LoadingCard("Следующий ролик уже подгружается"),
             ),
         ),
@@ -755,3 +738,23 @@ private fun previewYoutubeCard(
         type = LibriaCard.Type.Youtube("https://youtube.com/watch?v=preview-$id"),
     )
 }
+
+private const val PREVIEW_MAIN_SECTION_ID = 1L
+private const val PREVIEW_FAVORITES_SECTION_ID = 2L
+private const val PREVIEW_SCHEDULE_SECTION_ID = 3L
+private const val PREVIEW_YOUTUBE_SECTION_ID = 4L
+
+private const val PREVIEW_RELEASE_ID_1 = 1001
+private const val PREVIEW_RELEASE_ID_2 = 1002
+private const val PREVIEW_RELEASE_ID_3 = 1003
+private const val PREVIEW_RELEASE_ID_4 = 1004
+private const val PREVIEW_FAVORITE_ID_1 = 2001
+private const val PREVIEW_FAVORITE_ID_2 = 2002
+private const val PREVIEW_FAVORITE_ID_3 = 2003
+private const val PREVIEW_FAVORITE_ID_4 = 2004
+private const val PREVIEW_SCHEDULE_ID_1 = 3001
+private const val PREVIEW_SCHEDULE_ID_2 = 3002
+private const val PREVIEW_SCHEDULE_ID_3 = 3003
+private const val PREVIEW_YOUTUBE_ID_1 = 4001
+private const val PREVIEW_YOUTUBE_ID_2 = 4002
+private const val PREVIEW_YOUTUBE_ID_3 = 4003

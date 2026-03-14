@@ -2,7 +2,6 @@ package ru.radiationx.anilibria.common
 
 import android.animation.ValueAnimator
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import androidx.annotation.ColorInt
 import androidx.core.graphics.drawable.toDrawable
@@ -43,13 +42,6 @@ class GradientBackgroundManager @Inject constructor(
 
     private val backgroundDrawable = defaultColor.toDrawable()
     private val foregroundDrawable = foregroundColor.toDrawable()
-    private val classicGradientDrawable = GradientDrawable(
-        GradientDrawable.Orientation.BL_TR,
-        intArrayOf(
-            "#ee000000".toColorInt(),
-            "#55000000".toColorInt()
-        )
-    )
     private val customGradientDrawable = LinearGradientDrawable(
         190f,
         intArrayOf(
@@ -71,7 +63,7 @@ class GradientBackgroundManager @Inject constructor(
     private val colorEvaluator = ArgbEvaluatorCompat()
     private val urlColorMap = LinkedHashMap<String, Int>(
         MAX_COLOR_CACHE_SIZE,
-        0.75f,
+        CACHE_LOAD_FACTOR,
         true,
     )
 
@@ -220,5 +212,6 @@ class GradientBackgroundManager @Inject constructor(
 
     private companion object {
         const val MAX_COLOR_CACHE_SIZE = 48
+        const val CACHE_LOAD_FACTOR = 0.75f
     }
 }

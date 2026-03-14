@@ -53,7 +53,8 @@ class DetailOtherGuidedFragment : ComposeGuidedFragment() {
             panelMaxWidth = 700.dp,
         ) { palette ->
             TvOverlayInfoBlock(
-                text = "Используйте их только если хотите быстро очистить прогресс или отметить весь релиз как просмотренный.",
+                text = "Используйте их только если хотите быстро очистить прогресс " +
+                    "или отметить весь релиз как просмотренный.",
                 palette = palette,
             )
             TvOverlayActionButton(

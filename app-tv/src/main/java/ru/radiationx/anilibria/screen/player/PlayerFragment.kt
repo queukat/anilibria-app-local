@@ -1,10 +1,10 @@
 package ru.radiationx.anilibria.screen.player
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import android.view.View
 import androidx.annotation.OptIn
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.util.UnstableApi
 import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.filterNotNull
@@ -33,131 +33,120 @@ class PlayerFragment : BasePlayerFragment() {
         }
     }
 
-    /**
-     * ID «исходного» релиза (сезона), с которым открыли плеер.
-     * Если в плеере переключились на другой сезон (releaseId),
-     * и хотим при выходе вернуться к новому сезону — сравниваем с этим значением.
-     */
     private val argumentsReleaseId by lazy { getExtraNotNull<ReleaseId>(ARG_RELEASE_ID) }
 
-    // 1) Router нужно получить после onAttach().
-    // Поэтому делаем lateinit- переменную, а инициализацию в onAttach()
     private lateinit var router: Router
-
-    // 2) ViewModel тоже нельзя получать в момент объявления,
-    //    лучше инициализировать в onCreate() (уже attach’d).
     private lateinit var viewModel: PlayerViewModel
 
-    /**
-     * Вызывается до onCreate(). Здесь фрагмент уже «прикреплён» к Activity,
-     * так что можно безопасно вызывать get<Router>().
-     */
     override fun onAttach(context: Context) {
         super.onAttach(context)
-        router = get() // import ru.radiationx.quill.get
+        router = get()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Здесь Fragment уже attach’d к Activity, и можно безопасно получить ViewModel
         viewModel = getViewModel(PlayerViewModel::class) {
             PlayerExtra(
                 releaseId = argumentsReleaseId,
-                episodeId = getExtra(ARG_EPISODE_ID)
+                episodeId = getExtra(ARG_EPISODE_ID),
             )
         }
     }
 
-    @SuppressLint("RestrictedApi")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
+        updateNavigationState(
+            canPrevious = viewModel.hasPreviousEpisode(),
+            canNext = viewModel.hasNextEpisode(),
+        )
 
-        playerGlue?.actionListener = object : VideoPlayerGlue.OnActionClickedListener {
-            override fun onPrevious() = viewModel.onPrevClick(getPosition())
-            override fun onNext() = viewModel.onNextClick(getPosition())
-            override fun onQualityClick() = viewModel.onQualityClick(getPosition())
-            override fun onSpeedClick() = viewModel.onSpeedClick()
-            override fun onEpisodesClick() = viewModel.onEpisodesClick(getPosition())
-        }
-        progressBarManager.initialDelay = 0
-        progressBarManager.show()
-
-        // Подписываемся на обновления данных для видео
-        subscribeTo(viewModel.videoData.filterNotNull()) {
-            progressBarManager.hide()
-            playerGlue?.apply {
-                title = it.title
-                subtitle = it.subtitle
-                syncProgressPosition(it.seek)
-            }
-            preparePlayer(it.url, it.seek)
-            skipsPart?.setSkips(it.skips)
+        subscribeTo(viewModel.videoData.filterNotNull()) { video ->
+            updatePlayerInfo(
+                title = video.title,
+                subtitle = video.subtitle,
+            )
+            updateNavigationState(
+                canPrevious = viewModel.hasPreviousEpisode(),
+                canNext = viewModel.hasNextEpisode(),
+            )
+            preparePlayer(video.url, video.seek)
+            skipsPart?.setSkips(video.skips)
+            skipsPart?.update(video.seek)
         }
 
         subscribeTo(viewModel.commands) { command ->
             when (command) {
-                PlayerCommand.Play -> {
-                    playerGlue?.play()
-                }
-
-                PlayerCommand.Pause -> {
-                    playerGlue?.pause()
-                }
-
-                is PlayerCommand.Seek -> {
-                    playerGlue?.seekToImmediate(command.positionMs)
-                }
-
+                PlayerCommand.Play -> playPlayback()
+                PlayerCommand.Pause -> pausePlayback()
+                is PlayerCommand.Seek -> seekToPosition(command.positionMs)
                 is PlayerCommand.NextEpisodeSelected -> Unit
             }
         }
 
-        // Скорость воспроизведения
         subscribeTo(viewModel.speedState) { speedValue ->
-            player?.playbackParameters =
-                androidx.media3.common.PlaybackParameters(speedValue)
+            updatePlayerSpeed(speedValue)
+            player?.playbackParameters = PlaybackParameters(speedValue)
         }
 
-        // Качество (меняем иконку в управлении)
-        subscribeTo(viewModel.qualityState) {
-            playerGlue?.setQuality(it)
+        subscribeTo(viewModel.qualityState) { quality ->
+            updatePlayerQuality(quality)
         }
     }
 
     override fun onPause() {
         super.onPause()
-        viewModel.onPauseClick(getPosition(), syncRemote = false)
-    }
-
-    /**
-     * Событие окончания воспроизведения серии
-     */
-    override fun onCompletePlaying() {
-        viewModel.onComplete(getPosition())
+        viewModel.onPauseClick(getCurrentPosition(), syncRemote = false)
     }
 
     override fun onStop() {
         super.onStop()
-        viewModel.onExit(getPosition())
+        viewModel.onExit(getCurrentPosition())
 
-        // Узнаём, на каком releaseId (сезоне) мы закончили.
-        // Если он отличается от исходного — возвращаем пользователя в текущий сезон.
         val newReleaseId = viewModel.getCurrentReleaseId() ?: return
         if (newReleaseId != argumentsReleaseId) {
             router.replaceScreen(DetailsScreen(newReleaseId))
         }
     }
 
-    /**
-     * Событие «плеер готов воспроизводить» (получили реальную длительность и т.д.)
-     */
-    override fun onPreparePlaying() {
-        viewModel.onPrepare(getDuration())
+    override fun onCompletePlaying() {
+        viewModel.onComplete(getCurrentPosition())
+        updateNavigationState(
+            canPrevious = viewModel.hasPreviousEpisode(),
+            canNext = viewModel.hasNextEpisode(),
+        )
     }
 
-    private fun getPosition(): Long = player?.currentPosition ?: 0
+    override fun onPreparePlaying() {
+        viewModel.onPrepare(getDurationValue())
+    }
 
-    private fun getDuration(): Long = player?.duration ?: 0
+    override fun onPreviousAction(position: Long) {
+        viewModel.onPrevClick(position)
+        updateNavigationState(
+            canPrevious = viewModel.hasPreviousEpisode(),
+            canNext = viewModel.hasNextEpisode(),
+        )
+    }
+
+    override fun onNextAction(position: Long) {
+        viewModel.onNextClick(position)
+        updateNavigationState(
+            canPrevious = viewModel.hasPreviousEpisode(),
+            canNext = viewModel.hasNextEpisode(),
+        )
+    }
+
+    override fun onQualityAction(position: Long) {
+        viewModel.onQualityClick(position)
+    }
+
+    override fun onSpeedAction() {
+        viewModel.onSpeedClick()
+    }
+
+    override fun onEpisodesAction(position: Long) {
+        viewModel.onEpisodesClick(position)
+    }
 }

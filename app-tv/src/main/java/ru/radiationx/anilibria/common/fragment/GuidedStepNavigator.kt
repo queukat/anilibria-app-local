@@ -84,28 +84,23 @@ class GuidedStepNavigator(
     private fun guidedBackTo(command: BackTo) {
         if (guidedStack.isEmpty()) {
             backTo(command)
-            return
-        }
-
-        val targetKey = command.screen?.screenKey
-        if (targetKey == null) {
-            while (guidedStack.isNotEmpty()) {
-                guidedStack.removeLast()
-                fragmentManager.popBackStackImmediate()
+        } else {
+            val targetKey = command.screen?.screenKey
+            when {
+                targetKey == null -> clearGuidedStack()
+                targetKey !in guidedStack -> clearGuidedStack()
+                else -> {
+                    while (guidedStack.lastOrNull() != targetKey) {
+                        guidedStack.removeLast()
+                        fragmentManager.popBackStackImmediate()
+                    }
+                }
             }
-            return
         }
+    }
 
-        val targetIndex = guidedStack.indexOf(targetKey)
-        if (targetIndex < 0) {
-            while (guidedStack.isNotEmpty()) {
-                guidedStack.removeLast()
-                fragmentManager.popBackStackImmediate()
-            }
-            return
-        }
-
-        while (guidedStack.lastOrNull() != targetKey) {
+    private fun clearGuidedStack() {
+        while (guidedStack.isNotEmpty()) {
             guidedStack.removeLast()
             fragmentManager.popBackStackImmediate()
         }

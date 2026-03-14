@@ -62,6 +62,9 @@ import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
 import ru.radiationx.shared_app.imageloader.showImageUrl
 
+private const val WATCHING_CARD_ASPECT_RATIO = 130f / 185f
+private const val WATCHING_DIALOG_WIDTH_FRACTION = 0.56f
+
 internal data class WatchingPalette(
     val surfaceColor: Color,
     val textColor: Color,
@@ -185,7 +188,7 @@ internal fun WatchingPosterCard(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     cardWidth: Dp = 152.dp,
-    contentAspectRatio: Float = 130f / 185f,
+    contentAspectRatio: Float = WATCHING_CARD_ASPECT_RATIO,
     focusedBackgroundColor: Color = palette.accentColor.copy(alpha = 0.12f),
     focusedBorderColor: Color = palette.accentColor.copy(alpha = 0.92f),
     focusedBorderWidth: Dp = 2.dp,
@@ -404,7 +407,7 @@ internal fun WatchingChoiceDialog(
         Box(
             modifier = Modifier
                 .widthIn(max = 560.dp)
-                .fillMaxWidth(0.56f)
+                .fillMaxWidth(WATCHING_DIALOG_WIDTH_FRACTION)
                 .clip(RoundedCornerShape(28.dp))
                 .background(palette.surfaceColor.copy(alpha = 0.98f))
                 .border(
@@ -602,7 +605,6 @@ internal fun WatchingFocusableSurface(
                     else -> false
                 }
             }
-            .then(if (enabled) Modifier.focusable() else Modifier)
             .then(
                 if (enabled) {
                     Modifier.clickable(
@@ -614,6 +616,7 @@ internal fun WatchingFocusableSurface(
                     Modifier
                 }
             )
+            .then(if (enabled) Modifier.focusable() else Modifier)
             .padding(paddingValues),
     ) {
         content()
