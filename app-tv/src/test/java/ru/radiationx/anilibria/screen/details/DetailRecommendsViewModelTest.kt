@@ -1,5 +1,6 @@
 package ru.radiationx.anilibria.screen.details
 
+import androidx.lifecycle.ViewModel
 import com.github.terrakok.cicerone.Router
 import io.mockk.every
 import io.mockk.mockk
@@ -23,11 +24,13 @@ import ru.radiationx.data.interactors.tv.MainSchedulePayload
 import ru.radiationx.data.interactors.tv.TvContentUseCase
 import ru.radiationx.data.interactors.tv.WeekSchedulePayload
 import ru.radiationx.shared_app.common.SystemUtils
+import java.util.concurrent.CopyOnWriteArrayList
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DetailRecommendsViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
+    private val createdViewModels = mutableListOf<ViewModel>()
 
     @Before
     fun setUp() {
@@ -36,7 +39,21 @@ class DetailRecommendsViewModelTest {
 
     @After
     fun tearDown() {
+        createdViewModels.forEach { viewModel ->
+            clearViewModel(viewModel)
+        }
+        createdViewModels.clear()
         Dispatchers.resetMain()
+    }
+
+    private fun <T : ViewModel> track(viewModel: T): T {
+        createdViewModels += viewModel
+        return viewModel
+    }
+
+    private fun clearViewModel(viewModel: ViewModel) {
+        val clearMethod = ViewModel::class.java.getMethod("clear\$lifecycle_viewmodel_release")
+        clearMethod.invoke(viewModel)
     }
 
     @Test
@@ -55,7 +72,7 @@ class DetailRecommendsViewModelTest {
             )
         }
 
-        val viewModel = DetailRecommendsViewModel(
+        val viewModel = track(DetailRecommendsViewModel(
             tvContentUseCase = fakeUseCase,
             converter = converter,
             cardRouter = LibriaCardRouter(
@@ -63,7 +80,7 @@ class DetailRecommendsViewModelTest {
                 systemUtils = mockk<SystemUtils>(relaxed = true),
             ),
             extra = DetailExtra(id = ReleaseId(9600)),
-        )
+        ))
 
         viewModel.onRefreshClick()
         waitUntil { fakeUseCase.recommendationCalls == listOf(9600) }
@@ -88,7 +105,7 @@ class DetailRecommendsViewModelTest {
             )
         }
 
-        val viewModel = DetailRecommendsViewModel(
+        val viewModel = track(DetailRecommendsViewModel(
             tvContentUseCase = fakeUseCase,
             converter = converter,
             cardRouter = LibriaCardRouter(
@@ -96,7 +113,7 @@ class DetailRecommendsViewModelTest {
                 systemUtils = mockk<SystemUtils>(relaxed = true),
             ),
             extra = DetailExtra(id = ReleaseId(9600)),
-        )
+        ))
 
         viewModel.onRefreshClick()
         waitUntil { fakeUseCase.recommendationCalls == listOf(9600, null) }
@@ -121,7 +138,7 @@ class DetailRecommendsViewModelTest {
 
 private class FakeTvContentUseCaseForDetails : TvContentUseCase {
     val recommendationsBySeed = mutableMapOf<Int?, List<Release>>()
-    val recommendationCalls = mutableListOf<Int?>()
+    val recommendationCalls = CopyOnWriteArrayList<Int?>()
 
     override suspend fun loadMainFeed(requestPage: Int, pageLimit: Int): List<Release> = emptyList()
 

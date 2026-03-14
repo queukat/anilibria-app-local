@@ -45,6 +45,16 @@ import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.WatchingMessageCard
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
+import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
+import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
+import ru.radiationx.anilibria.screen.watching.TvDescriptionBarPadding
+import ru.radiationx.anilibria.screen.watching.TvRowEndPadding
+import ru.radiationx.anilibria.screen.watching.TvRowSpacing
+import ru.radiationx.anilibria.screen.watching.TvRowsScreenVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
+import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
+import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
@@ -106,6 +116,7 @@ internal fun MainScreen(
     }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var descriptionTick by remember { mutableIntStateOf(0) }
+    val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
 
     fun targetInSection(
         sectionIndex: Int,
@@ -121,8 +132,8 @@ internal fun MainScreen(
         var target: Pair<Int, Int>? = null
         sections.forEachIndexed { sectionIndex, section ->
             if (target == null) {
-                val itemIndex = section.items.indexOfFirst { it.getId() == preferredItemId }
-                if (itemIndex >= 0) {
+                val itemIndex = section.items.indexOfItemId(preferredItemId)
+                if (itemIndex != null) {
                     target = sectionIndex to itemIndex
                 }
             }
@@ -281,15 +292,16 @@ internal fun MainScreen(
                         Color.Transparent,
                     )
                 )
-            ),
+            )
+            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
     ) {
         LazyColumn(
             state = verticalState,
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(26.dp),
+            verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
             contentPadding = PaddingValues(
-                top = 8.dp,
-                bottom = if (selectedItem != null) 96.dp else 20.dp,
+                top = 6.dp,
+                bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset,
             ),
         ) {
             itemsIndexed(
@@ -335,7 +347,7 @@ internal fun MainScreen(
                     title = description.title.toString(),
                     subtitle = description.subtitle.toString(),
                     palette = palette,
-                    contentPadding = PaddingValues(vertical = 18.dp),
+                    contentPadding = TvDescriptionBarPadding,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -363,7 +375,7 @@ internal fun MainSectionBlock(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(TvSectionHeaderSpacing),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -387,7 +399,8 @@ internal fun MainSectionBlock(
         LazyRow(
             state = rowState,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
+            contentPadding = PaddingValues(end = TvRowEndPadding),
         ) {
             itemsIndexed(
                 items = items,

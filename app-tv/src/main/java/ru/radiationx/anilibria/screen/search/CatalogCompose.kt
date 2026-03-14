@@ -1,6 +1,7 @@
 package ru.radiationx.anilibria.screen.search
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +34,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -60,11 +62,25 @@ import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.WatchingMessageCard
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
+import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
+import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
+import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvRowSpacing
+import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
+import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
+import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import kotlin.math.max
 
 private const val SEARCH_CATALOG_WIDTH_FRACTION = 0.62f
+
+private enum class CatalogFocusTarget {
+    Search,
+    Filter,
+    Grid,
+}
 
 @Composable
 internal fun CatalogScreen(
@@ -119,9 +135,12 @@ internal fun CatalogScreen(
     var selectedItem by remember(itemIds) { mutableStateOf(cards.firstOrNull()) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var handledRestoreToken by remember { mutableIntStateOf(0) }
-    var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
-    var lastFocusedItemId by remember { mutableIntStateOf(Int.MIN_VALUE) }
+    var lastFocusedFilterIndex by rememberSaveable { mutableIntStateOf(0) }
+    var lastFocusedItemIndex by rememberSaveable { mutableIntStateOf(0) }
+    var lastFocusedItemId by rememberSaveable { mutableIntStateOf(Int.MIN_VALUE) }
+    var lastFocusTarget by rememberSaveable { mutableStateOf(CatalogFocusTarget.Search.name) }
     val interactionsEnabled = pickerState == null
+    val hasContent = remember(itemIds) { cards.isNotEmpty() }
 
     fun requestGridFocus(index: Int): Boolean {
         if (itemRequesters.isEmpty()) {
@@ -129,9 +148,8 @@ internal fun CatalogScreen(
         }
         val targetIndex = index.coerceIn(0, itemRequesters.lastIndex)
         scope.launch {
-            gridState.scrollToItem(targetIndex)
-            withFrameNanos { }
-            requestWatchingFocus(itemRequesters.getOrNull(targetIndex))
+            gridState.scrollItemIntoViewIfNeeded(targetIndex)
+            requestWatchingFocusAfterAttach(itemRequesters.getOrNull(targetIndex))
         }
         return true
     }
@@ -145,7 +163,9 @@ internal fun CatalogScreen(
         if (lastFocusedItemId != Int.MIN_VALUE && cards.none { it.getId() == lastFocusedItemId }) {
             when {
                 cards.isNotEmpty() -> requestGridFocus(lastFocusedItemIndex)
-                filterRequesters.isNotEmpty() -> requestWatchingFocus(filterRequesters.firstOrNull())
+                filterRequesters.isNotEmpty() -> requestWatchingFocus(
+                    filterRequesters.getOrNull(lastFocusedFilterIndex) ?: filterRequesters.firstOrNull()
+                )
                 else -> requestWatchingFocus(searchRequester)
             }
         }
@@ -158,9 +178,18 @@ internal fun CatalogScreen(
         filtersScrollState.scrollTo(0)
         withFrameNanos { }
         val focused = when {
-            filterRequesters.isNotEmpty() -> requestWatchingFocus(filterRequesters.firstOrNull())
-            itemRequesters.isNotEmpty() -> requestGridFocus(0)
-            else -> requestWatchingFocus(searchRequester)
+            lastFocusTarget == CatalogFocusTarget.Grid.name && lastFocusedItemId != Int.MIN_VALUE -> {
+                requestGridFocus(cards.indexOfItemId(lastFocusedItemId) ?: lastFocusedItemIndex)
+            }
+
+            lastFocusTarget == CatalogFocusTarget.Filter.name && filterRequesters.isNotEmpty() -> {
+                requestWatchingFocusAfterAttach(
+                    filterRequesters.getOrNull(lastFocusedFilterIndex)
+                        ?: filterRequesters.firstOrNull()
+                )
+            }
+
+            else -> requestWatchingFocusAfterAttach(searchRequester)
         }
         if (focused) {
             handledFocusToken = focusRequestToken
@@ -192,22 +221,28 @@ internal fun CatalogScreen(
                     )
                 )
             )
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         val columnsCount = max(1, (maxWidth / 168.dp).toInt())
 
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+                verticalArrangement = Arrangement.spacedBy(TvPageVerticalPadding + 2.dp),
             ) {
                 CatalogHeader(
                     palette = palette,
                     searchRequester = searchRequester,
                     interactionsEnabled = interactionsEnabled,
                     onSearchClick = onSearchClick,
+                    onSearchFocused = {
+                        lastFocusTarget = CatalogFocusTarget.Search.name
+                    },
                     onSearchDown = {
-                        requestWatchingFocus(filterRequesters.firstOrNull()) || requestGridFocus(0)
+                        requestWatchingFocus(
+                            filterRequesters.getOrNull(lastFocusedFilterIndex)
+                                ?: filterRequesters.firstOrNull()
+                        ) || requestGridFocus(lastFocusedItemIndex)
                     },
                 )
 
@@ -226,13 +261,17 @@ internal fun CatalogScreen(
                             enabled = interactionsEnabled,
                             emphasized = filter.emphasized,
                             onClick = filter.onClick,
+                            onFocused = {
+                                lastFocusedFilterIndex = index
+                                lastFocusTarget = CatalogFocusTarget.Filter.name
+                            },
                             onLeft = if (index == 0) {
                                 { requestWatchingFocus(searchRequester) }
                             } else {
                                 null
                             },
                             onDown = {
-                                requestGridFocus(0)
+                                requestGridFocus(lastFocusedItemIndex)
                             },
                         )
                     }
@@ -244,10 +283,10 @@ internal fun CatalogScreen(
                         state = gridState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
-                            bottom = if (selectedItem != null) 120.dp else 24.dp
+                            bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset
                         ),
                         verticalArrangement = Arrangement.spacedBy(18.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
                     ) {
                         itemsIndexed(
                             items = cards,
@@ -265,12 +304,18 @@ internal fun CatalogScreen(
                                         selectedItem = item
                                         lastFocusedItemIndex = index
                                         lastFocusedItemId = item.getId()
+                                        lastFocusTarget = CatalogFocusTarget.Grid.name
                                         scope.launch {
-                                            gridState.scrollToItem(index)
+                                            gridState.scrollItemIntoViewIfNeeded(index)
                                         }
                                     },
                                     onUp = if (index < columnsCount) {
-                                        { requestWatchingFocus(filterRequesters.firstOrNull()) }
+                                        {
+                                            requestWatchingFocus(
+                                                filterRequesters.getOrNull(lastFocusedFilterIndex)
+                                                    ?: filterRequesters.firstOrNull()
+                                            )
+                                        }
                                     } else {
                                         null
                                     },
@@ -287,12 +332,16 @@ internal fun CatalogScreen(
                                         selectedItem = item
                                         lastFocusedItemIndex = index
                                         lastFocusedItemId = item.getId()
+                                        lastFocusTarget = CatalogFocusTarget.Grid.name
                                         scope.launch {
-                                            gridState.scrollToItem(index)
+                                            gridState.scrollItemIntoViewIfNeeded(index)
                                         }
                                     },
                                     onUp = {
-                                        requestWatchingFocus(filterRequesters.firstOrNull())
+                                        requestWatchingFocus(
+                                            filterRequesters.getOrNull(lastFocusedFilterIndex)
+                                                ?: filterRequesters.firstOrNull()
+                                        )
                                     },
                                 )
 
@@ -307,12 +356,16 @@ internal fun CatalogScreen(
                                         selectedItem = item
                                         lastFocusedItemIndex = index
                                         lastFocusedItemId = item.getId()
+                                        lastFocusTarget = CatalogFocusTarget.Grid.name
                                         scope.launch {
-                                            gridState.scrollToItem(index)
+                                            gridState.scrollItemIntoViewIfNeeded(index)
                                         }
                                     },
                                     onUp = {
-                                        requestWatchingFocus(filterRequesters.firstOrNull())
+                                        requestWatchingFocus(
+                                            filterRequesters.getOrNull(lastFocusedFilterIndex)
+                                                ?: filterRequesters.firstOrNull()
+                                        )
                                     },
                                 )
 
@@ -335,19 +388,23 @@ internal fun CatalogScreen(
                                         selectedItem = item
                                         lastFocusedItemIndex = index
                                         lastFocusedItemId = item.getId()
+                                        lastFocusTarget = CatalogFocusTarget.Grid.name
                                         scope.launch {
-                                            gridState.scrollToItem(index)
+                                            gridState.scrollItemIntoViewIfNeeded(index)
                                         }
                                     },
                                     onUp = {
-                                        requestWatchingFocus(filterRequesters.firstOrNull())
+                                        requestWatchingFocus(
+                                            filterRequesters.getOrNull(lastFocusedFilterIndex)
+                                                ?: filterRequesters.firstOrNull()
+                                        )
                                     },
                                 )
                             }
                         }
                     }
 
-                    if (progressVisible) {
+                    if (progressVisible && cards.isNotEmpty()) {
                         CircularProgressIndicator(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
@@ -395,6 +452,7 @@ private fun CatalogHeader(
     searchRequester: androidx.compose.ui.focus.FocusRequester,
     interactionsEnabled: Boolean,
     onSearchClick: () -> Unit,
+    onSearchFocused: () -> Unit,
     onSearchDown: () -> Boolean,
 ) {
     Row(
@@ -423,6 +481,7 @@ private fun CatalogHeader(
             focusedBackgroundColor = palette.chipColor,
             borderColor = palette.textColor.copy(alpha = 0.72f),
             onClick = onSearchClick,
+            onFocused = onSearchFocused,
             onDown = onSearchDown,
             paddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
         ) {
@@ -517,7 +576,15 @@ private fun CatalogFilterPickerDialog(
             modifier = Modifier
                 .fillMaxWidth(SEARCH_CATALOG_WIDTH_FRACTION)
                 .heightIn(max = 640.dp)
-                .background(palette.surfaceColor.copy(alpha = 0.98f))
+                .border(
+                    width = 1.dp,
+                    color = palette.textColor.copy(alpha = 0.08f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                )
+                .background(
+                    color = palette.surfaceColor.copy(alpha = 0.98f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                )
                 .padding(horizontal = 24.dp, vertical = 22.dp),
         ) {
             Column(

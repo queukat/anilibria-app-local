@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -35,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,15 +46,23 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 
 internal data class TvOverlayChoiceItem(
@@ -98,10 +108,17 @@ internal fun TvOverlayScreen(
             modifier = Modifier
                 .align(Alignment.Center)
                 .widthIn(max = minOf(maxWidth - 24.dp, panelMaxWidth))
+                .heightIn(max = maxHeight - 24.dp)
                 .fillMaxWidth(),
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
+                modifier = Modifier
+                    .border(
+                        width = 1.dp,
+                        color = palette.textColor.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(24.dp),
+                    )
+                    .padding(horizontal = 28.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -140,6 +157,7 @@ internal fun TvOverlayActionButton(
     onClick: () -> Unit,
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    val interactiveEnabled = enabled && !loading
     val backgroundColor = if (destructive) {
         palette.accentColor.copy(alpha = 0.18f)
     } else {
@@ -155,19 +173,25 @@ internal fun TvOverlayActionButton(
                 color = if (isFocused) palette.textColor.copy(alpha = 0.75f) else Color.Transparent,
                 shape = RoundedCornerShape(24.dp),
             )
-            .focusRequester(focusRequester)
-            .focusProperties {
-                up = upRequester
-                down = downRequester
-            }
-            .onFocusChanged { isFocused = it.isFocused }
-            .clickable(
-                enabled = enabled && !loading,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-            .focusable(),
+            .then(
+                if (interactiveEnabled) {
+                    Modifier
+                        .focusRequester(focusRequester)
+                        .focusProperties {
+                            up = upRequester
+                            down = downRequester
+                        }
+                        .onFocusChanged { isFocused = it.isFocused }
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onClick,
+                        )
+                        .focusable()
+                } else {
+                    Modifier
+                }
+            ),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
@@ -282,12 +306,53 @@ internal fun TvOverlayScrollableText(
     text: String,
     palette: WatchingPalette,
     modifier: Modifier = Modifier,
+    focusRequester: FocusRequester = FocusRequester.Default,
+    upRequester: FocusRequester = FocusRequester.Default,
+    downRequester: FocusRequester = FocusRequester.Default,
 ) {
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    var viewportHeightPx by remember { mutableStateOf(0) }
+    var isFocused by remember { mutableStateOf(false) }
     Box(
         modifier = modifier
             .fillMaxWidth()
             .background(palette.surfaceColor.copy(alpha = 0.42f), RoundedCornerShape(14.dp))
+            .border(
+                width = if (isFocused) 2.dp else 1.dp,
+                color = if (isFocused) {
+                    palette.textColor.copy(alpha = 0.76f)
+                } else {
+                    palette.textColor.copy(alpha = 0.08f)
+                },
+                shape = RoundedCornerShape(14.dp),
+            )
+            .focusRequester(focusRequester)
+            .focusProperties {
+                up = upRequester
+                down = downRequester
+            }
+            .onFocusChanged { isFocused = it.isFocused }
+            .onSizeChanged { viewportHeightPx = it.height }
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown || viewportHeightPx <= 0) {
+                    return@onPreviewKeyEvent false
+                }
+                val target = when (event.key) {
+                    Key.DirectionDown -> (scrollState.value + viewportHeightPx).coerceAtMost(scrollState.maxValue)
+                    Key.DirectionUp -> (scrollState.value - viewportHeightPx).coerceAtLeast(0)
+                    else -> return@onPreviewKeyEvent false
+                }
+                if (target == scrollState.value) {
+                    false
+                } else {
+                    scope.launch {
+                        scrollState.animateScrollTo(target)
+                    }
+                    true
+                }
+            }
+            .focusable()
             .padding(18.dp),
     ) {
         Text(
@@ -326,14 +391,31 @@ internal fun TvOverlayChoiceList(
     }
     val choices = remember(entries) { entries.filterIsInstance<Choice>() }
     val focusRequesters = remember(choices) { List(choices.size) { FocusRequester() } }
+    val listState = rememberLazyListState()
 
     LaunchedEffect(choices) {
+        if (choices.isEmpty()) {
+            return@LaunchedEffect
+        }
         val selectedIndex = choices.indexOfFirst { it.choice.selected }.takeIf { it >= 0 } ?: 0
+        listState.scrollToItem((selectedIndex - 1).coerceAtLeast(0))
         requestWatchingFocusAfterAttach(focusRequesters.getOrNull(selectedIndex))
     }
 
+    if (choices.isEmpty()) {
+        TvOverlayInfoBlock(
+            text = "Список пока недоступен.",
+            palette = palette,
+            modifier = modifier,
+        )
+        return
+    }
+
     LazyColumn(
-        modifier = modifier.fillMaxWidth(),
+        state = listState,
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(max = 440.dp),
         contentPadding = PaddingValues(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -351,7 +433,7 @@ internal fun TvOverlayChoiceList(
                     Text(
                         text = entry.title,
                         color = palette.secondaryTextColor,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(top = 4.dp, start = 4.dp),
                     )
@@ -446,8 +528,8 @@ private fun TvOverlayChoiceButton(
                         Text(
                             text = subtitle,
                             color = palette.secondaryTextColor,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
+                            fontSize = 14.sp,
+                            lineHeight = 19.sp,
                         )
                     }
             }

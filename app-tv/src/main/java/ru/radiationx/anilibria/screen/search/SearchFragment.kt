@@ -68,7 +68,12 @@ class SearchFragment : Fragment() {
                 CatalogScreen(
                     cards = cardsState.ifEmpty {
                         if (progressState) {
-                            emptyList()
+                            listOf(
+                                LoadingCard(
+                                    title = "Ищем релизы",
+                                    description = "Подождите, результаты обновляются",
+                                )
+                            )
                         } else {
                             listOf(
                                 InfoCard(

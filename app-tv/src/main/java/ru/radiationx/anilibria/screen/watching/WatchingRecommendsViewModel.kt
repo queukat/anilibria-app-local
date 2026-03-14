@@ -1,73 +1,100 @@
 package ru.radiationx.anilibria.screen.watching
 
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
+import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
-import ru.radiationx.data.entity.domain.search.SearchForm
+import ru.radiationx.data.interactors.tv.TvContentUseCase
 import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
-import ru.radiationx.data.interactors.tv.TvSearchUseCase
+import ru.radiationx.data.repository.HistoryRepository
 import timber.log.Timber
 import javax.inject.Inject
 
 /**
- * «Глобальные» рекомендации на экране "Я смотрю":
- * - Извлекаем "любимые жанры" из жанров избранных релизов пользователя,
- * - Подмешиваем немного случайных тайтлов для разнообразия.
+ * Рекомендации на экране "Я смотрю":
+ * - если есть локальная история, берём самый свежий тайтл как seed,
+ * - если истории нет, пробуем избранное,
+ * - если персональный seed недоступен, используем глобальные рекомендации.
  */
 class WatchingRecommendsViewModel @Inject constructor(
-    private val tvSearchUseCase: TvSearchUseCase,
+    private val tvContentUseCase: TvContentUseCase,
     private val converter: CardsDataConverter,
     private val cardRouter: LibriaCardRouter,
     private val tvFavoritesUseCase: TvFavoritesUseCase,
+    private val historyRepository: HistoryRepository,
 ) : BaseCardsViewModel() {
 
     override val defaultTitle: String = "Рекомендации"
 
+    override fun hasMoreCards(
+        newCards: List<LibriaCard>,
+        allCards: List<LibriaCard>,
+    ): Boolean = false
+
+    override fun getEmptyStateCard() = InfoCard(
+        title = "Рекомендации пока недоступны",
+        subtitle = "Сервис не вернул релевантные тайтлы для этой страницы.",
+    )
+
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
-        val userFavGenres = loadUserFavoriteGenres()
-        val topRated = loadTopRated(requestPage)
+        if (requestPage != firstPage) return emptyList()
 
-        if (userFavGenres.isEmpty()) {
-            return topRated.map { converter.toCard(it) }
-        }
-
-        val matchedByGenres = topRated.filter { release ->
-            release.genres.any { g -> userFavGenres.contains(g) }
-        }
-
-        val randomSubset = topRated.shuffled().take(3)
-
-        val finalList = matchedByGenres.union(randomSubset).toList()
-
-        return finalList.map { converter.toCard(it) }
-    }
-
-    override fun onLibriaCardClick(card: LibriaCard) {
-        // Переход на детальный экран
-        cardRouter.navigate(card)
-    }
-
-    private suspend fun loadUserFavoriteGenres(): Set<String> {
-        return try {
-            withContext(Dispatchers.IO) {
-                tvFavoritesUseCase.loadFavorites(page = 1).data
-            }.flatMap { it.genres }.toSet()
+        val seedReleaseId = resolveSeedReleaseId()
+        val releases = try {
+            tvContentUseCase.loadRecommendations(seedReleaseId = seedReleaseId, limit = RECOMMEND_LIMIT)
         } catch (error: Throwable) {
             if (error is CancellationException) {
                 throw error
             }
-            Timber.w(error, "Failed to load favorite genres for TV recommendations, fallback to top rated")
-            emptySet()
+            Timber.w(error, "Failed to load TV Watching recommendations")
+            emptyList()
         }
+
+        return releases
+            .asSequence()
+            .map(converter::toCard)
+            .filterNot { card ->
+                (card.type as? LibriaCard.Type.Release)?.releaseId?.id == null
+            }
+            .distinctBy { card ->
+                (card.type as? LibriaCard.Type.Release)?.releaseId?.id
+            }
+            .toList()
     }
 
-    private suspend fun loadTopRated(requestPage: Int): List<ru.radiationx.data.entity.domain.release.Release> {
-        return withContext(Dispatchers.IO) {
-            tvSearchUseCase.searchReleases(SearchForm(sort = SearchForm.Sort.RATING), requestPage)
+    override fun onLibriaCardClick(card: LibriaCard) {
+        cardRouter.navigate(card)
+    }
+
+    private suspend fun resolveSeedReleaseId(): Int? {
+        val historySeed = runCatching {
+            historyRepository
+                .getReleases(count = 1)
+                .items
+                .firstOrNull()
+                ?.id
+                ?.id
+        }.getOrNull()
+
+        if (historySeed != null && historySeed > 0) {
+            return historySeed
         }
+
+        val favoriteSeed = runCatching {
+            tvFavoritesUseCase
+                .loadFavorites(page = 1)
+                .data
+                .firstOrNull()
+                ?.id
+                ?.id
+        }.getOrNull()
+
+        return favoriteSeed?.takeIf { it > 0 }
+    }
+
+    private companion object {
+        const val RECOMMEND_LIMIT = 14
     }
 }

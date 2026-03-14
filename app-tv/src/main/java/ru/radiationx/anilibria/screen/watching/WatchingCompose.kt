@@ -87,6 +87,7 @@ internal fun WatchingScreen(
     var lastFocusedSectionIndex by rememberSaveable { mutableIntStateOf(0) }
     var lastFocusedItemIndex by rememberSaveable { mutableIntStateOf(0) }
     var lastFocusedItemId by rememberSaveable { mutableIntStateOf(Int.MIN_VALUE) }
+    val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
 
     fun targetInSection(
         sectionIndex: Int,
@@ -99,12 +100,30 @@ internal fun WatchingScreen(
         return sectionIndex to preferredItemIndex.coerceIn(0, requesters.lastIndex)
     }
 
+    fun targetByItemId(preferredItemId: Int): Pair<Int, Int>? {
+        var target: Pair<Int, Int>? = null
+        sections.forEachIndexed { sectionIndex, section ->
+            if (target == null) {
+                val itemIndex = section.items.indexOfItemId(preferredItemId)
+                if (itemIndex != null) {
+                    target = sectionIndex to itemIndex
+                }
+            }
+        }
+        return target
+    }
+
     fun findRestoreTarget(
         preferredSectionIndex: Int,
         preferredItemIndex: Int,
+        preferredItemId: Int = Int.MIN_VALUE,
     ): Pair<Int, Int>? {
+        var target = if (preferredItemId != Int.MIN_VALUE) {
+            targetByItemId(preferredItemId)
+        } else {
+            null
+        }
         val clampedSectionIndex = preferredSectionIndex.coerceIn(0, sections.lastIndex.coerceAtLeast(0))
-        var target: Pair<Int, Int>? = null
         for (offset in 0..sections.size) {
             if (target == null) {
                 target = targetInSection(
@@ -139,8 +158,8 @@ internal fun WatchingScreen(
                     onContentMovedDown()
                 }
                 scope.launch {
-                    verticalState.scrollToItem(targetSectionIndex)
-                    rowStates.getOrNull(targetSectionIndex)?.scrollToItem(targetItemIndex)
+                    verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+                    rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
                     requestWatchingFocusAfterAttach(requesters.getOrNull(targetItemIndex))
                 }
                 return true
@@ -152,8 +171,8 @@ internal fun WatchingScreen(
 
     fun keepItemVisible(sectionIndex: Int, itemIndex: Int) {
         scope.launch {
-            verticalState.scrollToItem(sectionIndex)
-            rowStates.getOrNull(sectionIndex)?.scrollToItem(itemIndex)
+            verticalState.scrollItemIntoViewIfNeeded(sectionIndex)
+            rowStates.getOrNull(sectionIndex)?.scrollItemIntoViewIfNeeded(itemIndex)
         }
     }
 
@@ -174,11 +193,15 @@ internal fun WatchingScreen(
             selectedCard = visibleCards.firstOrNull()
         }
         if (hadFocusedItem && !stillVisible) {
-            val restoreTarget = findRestoreTarget(lastFocusedSectionIndex, lastFocusedItemIndex)
+            val restoreTarget = findRestoreTarget(
+                preferredSectionIndex = lastFocusedSectionIndex,
+                preferredItemIndex = lastFocusedItemIndex,
+                preferredItemId = lastFocusedItemId,
+            )
             if (restoreTarget != null) {
                 val (targetSectionIndex, targetItemIndex) = restoreTarget
-                verticalState.scrollToItem(targetSectionIndex)
-                rowStates.getOrNull(targetSectionIndex)?.scrollToItem(targetItemIndex)
+                verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+                rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
                 requestWatchingFocusAfterAttach(
                     sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
                 )
@@ -190,11 +213,15 @@ internal fun WatchingScreen(
         if (visibilityRestoreToken <= 0 || lastFocusedItemId == Int.MIN_VALUE) {
             return@LaunchedEffect
         }
-        val restoreTarget = findRestoreTarget(lastFocusedSectionIndex, lastFocusedItemIndex)
+        val restoreTarget = findRestoreTarget(
+            preferredSectionIndex = lastFocusedSectionIndex,
+            preferredItemIndex = lastFocusedItemIndex,
+            preferredItemId = lastFocusedItemId,
+        )
             ?: return@LaunchedEffect
         val (targetSectionIndex, targetItemIndex) = restoreTarget
-        verticalState.scrollToItem(targetSectionIndex)
-        rowStates.getOrNull(targetSectionIndex)?.scrollToItem(targetItemIndex)
+        verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+        rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
         selectedCard = sections.getOrNull(targetSectionIndex)
             ?.items
             ?.getOrNull(targetItemIndex) as? LibriaCard
@@ -205,7 +232,11 @@ internal fun WatchingScreen(
             return@LaunchedEffect
         }
         val restoreTarget = if (lastFocusedItemId != Int.MIN_VALUE) {
-            findRestoreTarget(lastFocusedSectionIndex, lastFocusedItemIndex)
+            findRestoreTarget(
+                preferredSectionIndex = lastFocusedSectionIndex,
+                preferredItemIndex = lastFocusedItemIndex,
+                preferredItemId = lastFocusedItemId,
+            )
         } else {
             null
         }
@@ -216,8 +247,8 @@ internal fun WatchingScreen(
             }
             firstSectionIndex to 0
         }
-        verticalState.scrollToItem(targetSectionIndex)
-        rowStates.getOrNull(targetSectionIndex)?.scrollToItem(targetItemIndex)
+        verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+        rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
         val restoredFocus = requestWatchingFocusAfterAttach(
             sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
         )
@@ -237,16 +268,16 @@ internal fun WatchingScreen(
                     )
                 )
             )
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 state = verticalState,
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(26.dp),
+                verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
                 contentPadding = PaddingValues(
                     top = 6.dp,
-                    bottom = if (selectedCard != null) 124.dp else 28.dp,
+                    bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset,
                 ),
             ) {
                 itemsIndexed(
@@ -322,7 +353,7 @@ private fun WatchingSectionBlock(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(TvSectionHeaderSpacing),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -346,8 +377,8 @@ private fun WatchingSectionBlock(
         LazyRow(
             state = rowState,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(end = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
+            contentPadding = PaddingValues(end = TvRowEndPadding),
         ) {
             itemsIndexed(
                 items = items,

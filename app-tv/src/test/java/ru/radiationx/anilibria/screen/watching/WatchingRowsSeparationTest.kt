@@ -1,5 +1,6 @@
 package ru.radiationx.anilibria.screen.watching
 
+import androidx.lifecycle.ViewModel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -48,6 +49,7 @@ class WatchingRowsSeparationTest {
 
     private val sharedScheduler = TestCoroutineScheduler()
     private val testDispatcher = UnconfinedTestDispatcher(sharedScheduler)
+    private val createdViewModels = mutableListOf<ViewModel>()
 
     @Before
     fun setUp() {
@@ -56,7 +58,21 @@ class WatchingRowsSeparationTest {
 
     @After
     fun tearDown() {
-        // Watching VMs keep background collectors on Main; resetting it between tests races with those jobs on CI.
+        createdViewModels.forEach { viewModel ->
+            clearViewModel(viewModel)
+        }
+        createdViewModels.clear()
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    private fun <T : ViewModel> track(viewModel: T): T {
+        createdViewModels += viewModel
+        return viewModel
+    }
+
+    private fun clearViewModel(viewModel: ViewModel) {
+        val clearMethod = ViewModel::class.java.getMethod("clear\$lifecycle_viewmodel_release")
+        clearMethod.invoke(viewModel)
     }
 
     @Test
@@ -104,7 +120,7 @@ class WatchingRowsSeparationTest {
         coEvery { userViewsRepository.getViewsHistory(any(), any()) } throws RuntimeException("offline")
         val authRepository = mockAuthRepository(AuthState.NO_AUTH)
 
-        val continueVm = WatchingContinueViewModel(
+        val continueVm = track(WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
             authRepository = authRepository,
@@ -112,15 +128,15 @@ class WatchingRowsSeparationTest {
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
-        val historyVm = WatchingHistoryViewModel(
+        val historyVm = track(WatchingHistoryViewModel(
             converter = converter,
             authRepository = authRepository,
             historyRepository = historyRepository,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         historyVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
@@ -203,7 +219,7 @@ class WatchingRowsSeparationTest {
         }
         val authRepository = mockAuthRepository(AuthState.AUTH)
 
-        val continueVm = WatchingContinueViewModel(
+        val continueVm = track(WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
             authRepository = authRepository,
@@ -211,7 +227,7 @@ class WatchingRowsSeparationTest {
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
@@ -251,13 +267,13 @@ class WatchingRowsSeparationTest {
         coEvery { userViewsRepository.getViewsHistory(any(), any()) } throws RuntimeException("offline")
         val authRepository = mockAuthRepository(AuthState.NO_AUTH)
 
-        val historyVm = WatchingHistoryViewModel(
+        val historyVm = track(WatchingHistoryViewModel(
             converter = converter,
             authRepository = authRepository,
             historyRepository = historyRepository,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         historyVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         // Simulate "open" action by writing card id into opened history storage.
@@ -326,7 +342,7 @@ class WatchingRowsSeparationTest {
         }
         val authRepository = mockAuthRepository(AuthState.AUTH)
 
-        val continueVmFirst = WatchingContinueViewModel(
+        val continueVmFirst = track(WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
             authRepository = authRepository,
@@ -334,7 +350,7 @@ class WatchingRowsSeparationTest {
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         continueVmFirst.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVmFirst.onRefreshClick()
@@ -346,7 +362,7 @@ class WatchingRowsSeparationTest {
         advanceUntilIdle()
         assertTrue("First VM should keep remote continue items after watch progress clear", continueVmFirst.cardsData.value.isNotEmpty())
 
-        val continueVmSecond = WatchingContinueViewModel(
+        val continueVmSecond = track(WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
             authRepository = authRepository,
@@ -354,7 +370,7 @@ class WatchingRowsSeparationTest {
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         continueVmSecond.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVmSecond.onRefreshClick()
@@ -406,7 +422,7 @@ class WatchingRowsSeparationTest {
         }
         val authRepository = mockAuthRepository(AuthState.AUTH)
 
-        val continueVm = WatchingContinueViewModel(
+        val continueVm = track(WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
             authRepository = authRepository,
@@ -414,7 +430,7 @@ class WatchingRowsSeparationTest {
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
@@ -472,7 +488,7 @@ class WatchingRowsSeparationTest {
         }
         val authRepository = mockAuthRepository(AuthState.AUTH)
 
-        val continueVm = WatchingContinueViewModel(
+        val continueVm = track(WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
             authRepository = authRepository,
@@ -480,7 +496,7 @@ class WatchingRowsSeparationTest {
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
@@ -530,7 +546,7 @@ class WatchingRowsSeparationTest {
         coEvery { userViewsRepository.resolveEpisodeOrdinal(localAccess.id) } returns "9"
         val authRepository = mockAuthRepository(AuthState.NO_AUTH)
 
-        val continueVm = WatchingContinueViewModel(
+        val continueVm = track(WatchingContinueViewModel(
             converter = converter,
             releaseInteractor = releaseInteractor,
             authRepository = authRepository,
@@ -538,7 +554,7 @@ class WatchingRowsSeparationTest {
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
@@ -580,13 +596,13 @@ class WatchingRowsSeparationTest {
         )
         val authRepository = mockAuthRepository(AuthState.AUTH)
 
-        val historyVm = WatchingHistoryViewModel(
+        val historyVm = track(WatchingHistoryViewModel(
             converter = mockk<CardsDataConverter>(relaxed = true),
             authRepository = authRepository,
             historyRepository = historyRepository,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         historyVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         historyVm.onRefreshClick()
@@ -649,7 +665,7 @@ class WatchingRowsSeparationTest {
         }
         val authRepository = mockAuthRepository(AuthState.AUTH)
 
-        val continueVm = WatchingContinueViewModel(
+        val continueVm = track(WatchingContinueViewModel(
             converter = mockk<CardsDataConverter>(relaxed = true),
             releaseInteractor = releaseInteractor,
             authRepository = authRepository,
@@ -657,7 +673,7 @@ class WatchingRowsSeparationTest {
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
@@ -691,7 +707,7 @@ class WatchingRowsSeparationTest {
             meta = PaginatedResponse.PaginationResponse(1, 1, 50, 0),
         )
 
-        val continueVm = WatchingContinueViewModel(
+        val continueVm = track(WatchingContinueViewModel(
             converter = mockk<CardsDataConverter>(relaxed = true),
             releaseInteractor = releaseInteractor,
             authRepository = authRepository,
@@ -699,7 +715,7 @@ class WatchingRowsSeparationTest {
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         runCurrent()
@@ -761,7 +777,7 @@ class WatchingRowsSeparationTest {
             }
         }
 
-        val continueVm = WatchingContinueViewModel(
+        val continueVm = track(WatchingContinueViewModel(
             converter = mockk<CardsDataConverter>(relaxed = true),
             releaseInteractor = releaseInteractor,
             authRepository = mockAuthRepository(AuthState.AUTH),
@@ -769,7 +785,7 @@ class WatchingRowsSeparationTest {
             episodesCheckerHolder = episodesHolder,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         continueVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         continueVm.onRefreshClick()
@@ -825,13 +841,13 @@ class WatchingRowsSeparationTest {
             }
         }
 
-        val historyVm = WatchingHistoryViewModel(
+        val historyVm = track(WatchingHistoryViewModel(
             converter = mockk<CardsDataConverter>(relaxed = true),
             authRepository = mockAuthRepository(AuthState.AUTH),
             historyRepository = historyRepository,
             userViewsRepository = userViewsRepository,
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
+        ))
         historyVm.setLoaderDispatcherForTests(deterministicDispatcher)
 
         historyVm.onRefreshClick()

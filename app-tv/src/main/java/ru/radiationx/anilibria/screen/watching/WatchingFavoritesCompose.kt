@@ -118,6 +118,7 @@ internal fun WatchingFavoritesScreen(
     var lastFocusedItemId by rememberSaveable { mutableIntStateOf(Int.MIN_VALUE) }
     var lastFocusWasGrid by rememberSaveable { mutableStateOf(false) }
     val interactionsEnabled = pickerState == null
+    val hasContent = remember(itemIds) { cards.isNotEmpty() }
 
     fun requestGridFocus(index: Int): Boolean {
         if (itemRequesters.isEmpty()) {
@@ -125,7 +126,7 @@ internal fun WatchingFavoritesScreen(
         }
         val targetIndex = index.coerceIn(0, itemRequesters.lastIndex)
         scope.launch {
-            gridState.scrollToItem(targetIndex)
+            gridState.scrollItemIntoViewIfNeeded(targetIndex)
             requestWatchingFocusAfterAttach(itemRequesters.getOrNull(targetIndex))
         }
         return true
@@ -151,8 +152,9 @@ internal fun WatchingFavoritesScreen(
             return@LaunchedEffect
         }
         if (lastFocusWasGrid && cards.isNotEmpty()) {
-            val targetIndex = lastFocusedItemIndex.coerceIn(0, cards.lastIndex)
-            gridState.scrollToItem(targetIndex)
+            val targetIndex = cards.indexOfItemId(lastFocusedItemId)
+                ?: lastFocusedItemIndex.coerceIn(0, cards.lastIndex)
+            gridState.scrollItemIntoViewIfNeeded(targetIndex)
             selectedCard = cards.getOrNull(targetIndex) as? LibriaCard
         } else {
             filtersScrollState.scrollTo(0)
@@ -166,7 +168,9 @@ internal fun WatchingFavoritesScreen(
         }
         filtersScrollState.scrollTo(0)
         val focused = when {
-            lastFocusWasGrid && lastFocusedItemId != Int.MIN_VALUE -> requestGridFocus(lastFocusedItemIndex)
+            lastFocusWasGrid && lastFocusedItemId != Int.MIN_VALUE -> {
+                requestGridFocus(cards.indexOfItemId(lastFocusedItemId) ?: lastFocusedItemIndex)
+            }
             filterRequesters.isNotEmpty() -> requestWatchingFocusAfterAttach(
                 filterRequesters.getOrNull(lastFocusedFilterIndex)
                     ?: filterRequesters.firstOrNull()
@@ -199,14 +203,14 @@ internal fun WatchingFavoritesScreen(
                     )
                 )
             )
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
     ) {
         val columnsCount = max(1, (maxWidth / 168.dp).toInt())
 
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(TvPageVerticalPadding),
             ) {
                 Row(
                     modifier = Modifier
@@ -250,10 +254,10 @@ internal fun WatchingFavoritesScreen(
                         state = gridState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
-                            bottom = if (selectedCard != null) 120.dp else 24.dp
+                            bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset
                         ),
                         verticalArrangement = Arrangement.spacedBy(18.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
                     ) {
                         itemsIndexed(
                             items = cards,
@@ -273,7 +277,7 @@ internal fun WatchingFavoritesScreen(
                                         lastFocusedItemId = item.getId()
                                         lastFocusWasGrid = true
                                         scope.launch {
-                                            gridState.scrollToItem(index)
+                                            gridState.scrollItemIntoViewIfNeeded(index)
                                         }
                                     },
                                     onLeft = if (index % columnsCount == 0) onRequestRailFocus else null,
@@ -303,7 +307,7 @@ internal fun WatchingFavoritesScreen(
                                         lastFocusedItemId = item.getId()
                                         lastFocusWasGrid = true
                                         scope.launch {
-                                            gridState.scrollToItem(index)
+                                            gridState.scrollItemIntoViewIfNeeded(index)
                                         }
                                     },
                                     onLeft = onRequestRailFocus,
@@ -334,7 +338,7 @@ internal fun WatchingFavoritesScreen(
                                         lastFocusedItemId = item.getId()
                                         lastFocusWasGrid = true
                                         scope.launch {
-                                            gridState.scrollToItem(index)
+                                            gridState.scrollItemIntoViewIfNeeded(index)
                                         }
                                     },
                                     onLeft = onRequestRailFocus,

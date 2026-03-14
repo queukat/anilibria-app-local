@@ -182,6 +182,7 @@ internal fun AuthOtpOverlay(
         subtitle = otpInfo?.description ?: "Запросите код в приложении или на сайте и подтвердите вход.",
         panelMaxWidth = 760.dp,
     ) { palette ->
+        val textRequester = remember { FocusRequester() }
         val buttonRequester = remember { FocusRequester() }
 
         LaunchedEffect(Unit) {
@@ -200,6 +201,8 @@ internal fun AuthOtpOverlay(
                 TvOverlayScrollableText(
                     text = it.description,
                     palette = palette,
+                    focusRequester = textRequester,
+                    downRequester = buttonRequester,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -207,6 +210,11 @@ internal fun AuthOtpOverlay(
                 text = primaryTitle,
                 palette = palette,
                 focusRequester = buttonRequester,
+                upRequester = if (otpInfo?.description.isNullOrBlank()) {
+                    FocusRequester.Default
+                } else {
+                    textRequester
+                },
                 loading = state.progress,
                 onClick = onPrimaryClick,
                 modifier = Modifier.fillMaxWidth(),

@@ -92,13 +92,23 @@ internal fun MainPagesRoot(
     val headerSpacing = dimensionResource(R.dimen.main_pages_header_spacing)
     val railWidth = dimensionResource(R.dimen.main_pages_rail_width)
     val shellTopOffset = if (headerVisible) headerHeight + headerSpacing else 0.dp
+    val contentTopOffset by animateDpAsState(
+        targetValue = shellTopOffset,
+        label = "mainPagesContentOffset",
+    )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(colorResource(R.color.dark_windowBackground))
     ) {
-        content()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = contentTopOffset),
+        ) {
+            content()
+        }
 
         AnimatedVisibility(
             visible = headerVisible,

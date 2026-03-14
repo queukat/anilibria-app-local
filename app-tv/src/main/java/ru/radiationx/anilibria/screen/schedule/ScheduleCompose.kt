@@ -34,8 +34,16 @@ import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.screen.main.MainSectionBlock
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
+import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
+import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
+import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
+import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
+import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
+import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import androidx.compose.material3.Text
 
 @Composable
@@ -66,6 +74,8 @@ internal fun ScheduleScreen(
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
+    var lastFocusedItemId by remember { mutableIntStateOf(Int.MIN_VALUE) }
+    val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
 
     fun targetInSection(
         sectionIndex: Int,
@@ -80,9 +90,23 @@ internal fun ScheduleScreen(
     fun findRestoreTarget(
         preferredSectionIndex: Int,
         preferredItemIndex: Int,
+        preferredItemId: Int = Int.MIN_VALUE,
     ): Pair<Int, Int>? {
+        var target = if (preferredItemId != Int.MIN_VALUE) {
+            var targetById: Pair<Int, Int>? = null
+            sections.forEachIndexed { sectionIndex, section ->
+                if (targetById == null) {
+                    val itemIndex = section.items.indexOfItemId(preferredItemId)
+                    if (itemIndex != null) {
+                        targetById = sectionIndex to itemIndex
+                    }
+                }
+            }
+            targetById
+        } else {
+            null
+        }
         val clampedSectionIndex = preferredSectionIndex.coerceIn(0, sections.lastIndex.coerceAtLeast(0))
-        var target: Pair<Int, Int>? = null
         for (offset in 0..sections.size) {
             if (target == null) {
                 target = targetInSection(
@@ -111,10 +135,9 @@ internal fun ScheduleScreen(
             if (requesters.isNotEmpty()) {
                 val targetItemIndex = preferredItemIndex.coerceIn(0, requesters.lastIndex)
                 scope.launch {
-                    verticalState.scrollToItem(targetSectionIndex)
-                    rowStates.getOrNull(targetSectionIndex)?.scrollToItem(targetItemIndex)
-                    withFrameNanos { }
-                    requestWatchingFocus(requesters.getOrNull(targetItemIndex))
+                    verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+                    rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
+                    requestWatchingFocusAfterAttach(requesters.getOrNull(targetItemIndex))
                 }
                 return true
             }
@@ -125,8 +148,8 @@ internal fun ScheduleScreen(
 
     fun keepItemVisible(sectionIndex: Int, itemIndex: Int) {
         scope.launch {
-            verticalState.scrollToItem(sectionIndex)
-            rowStates.getOrNull(sectionIndex)?.scrollToItem(itemIndex)
+            verticalState.scrollItemIntoViewIfNeeded(sectionIndex)
+            rowStates.getOrNull(sectionIndex)?.scrollItemIntoViewIfNeeded(itemIndex)
         }
     }
 
@@ -137,13 +160,16 @@ internal fun ScheduleScreen(
         val stillVisible = selectedId != null && visibleItems.any { it.getId() == selectedId }
         selectedItem = visibleItems.firstOrNull { it.getId() == selectedId } ?: visibleItems.firstOrNull()
         if (hadSelectedItem && !stillVisible) {
-            val restoreTarget = findRestoreTarget(lastFocusedSectionIndex, lastFocusedItemIndex)
+            val restoreTarget = findRestoreTarget(
+                preferredSectionIndex = lastFocusedSectionIndex,
+                preferredItemIndex = lastFocusedItemIndex,
+                preferredItemId = lastFocusedItemId,
+            )
             if (restoreTarget != null) {
                 val (targetSectionIndex, targetItemIndex) = restoreTarget
-                verticalState.scrollToItem(targetSectionIndex)
-                rowStates.getOrNull(targetSectionIndex)?.scrollToItem(targetItemIndex)
-                withFrameNanos { }
-                requestWatchingFocus(
+                verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+                rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
+                requestWatchingFocusAfterAttach(
                     sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
                 )
             }
@@ -158,14 +184,28 @@ internal fun ScheduleScreen(
         if (focusRequestToken <= handledFocusToken) {
             return@LaunchedEffect
         }
-        val firstSectionIndex = sections.indexOfFirst { it.items.isNotEmpty() }
-        if (firstSectionIndex < 0) {
-            return@LaunchedEffect
+        val restoreTarget = if (lastFocusedItemId != Int.MIN_VALUE) {
+            findRestoreTarget(
+                preferredSectionIndex = lastFocusedSectionIndex,
+                preferredItemIndex = lastFocusedItemIndex,
+                preferredItemId = lastFocusedItemId,
+            )
+        } else {
+            null
         }
-        verticalState.scrollToItem(firstSectionIndex)
-        rowStates.getOrNull(firstSectionIndex)?.scrollToItem(0)
-        withFrameNanos { }
-        if (requestWatchingFocus(sectionRequesters.getOrNull(firstSectionIndex)?.firstOrNull())) {
+        val (targetSectionIndex, targetItemIndex) = restoreTarget ?: run {
+            val firstSectionIndex = sections.indexOfFirst { it.items.isNotEmpty() }
+            if (firstSectionIndex < 0) {
+                return@LaunchedEffect
+            }
+            firstSectionIndex to 0
+        }
+        verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+        rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
+        if (requestWatchingFocusAfterAttach(
+                sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
+            )
+        ) {
             handledFocusToken = focusRequestToken
         }
     }
@@ -181,15 +221,15 @@ internal fun ScheduleScreen(
                     )
                 )
             )
-            .padding(horizontal = 16.dp, vertical = 18.dp),
+            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         LazyColumn(
             state = verticalState,
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(26.dp),
+            verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
             contentPadding = PaddingValues(
                 top = 4.dp,
-                bottom = if (selectedItem != null) 124.dp else 28.dp,
+                bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset,
             ),
         ) {
             item(key = "schedule-header") {
@@ -226,6 +266,7 @@ internal fun ScheduleScreen(
                         selectedItem = item
                         lastFocusedSectionIndex = sectionIndex
                         lastFocusedItemIndex = itemIndex
+                        lastFocusedItemId = item.getId()
                         keepItemVisible(sectionIndex, itemIndex)
                     },
                     onLeftEdge = { false },

@@ -51,8 +51,19 @@ import ru.radiationx.anilibria.screen.watching.WatchingFilterChip
 import ru.radiationx.anilibria.screen.watching.WatchingMessageCard
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
+import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
+import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
+import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvRowEndPadding
+import ru.radiationx.anilibria.screen.watching.TvRowSpacing
+import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
+import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
+import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
+import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
+import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -98,6 +109,8 @@ internal fun SuggestionsScreen(
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
+    var lastFocusedItemId by remember { mutableIntStateOf(Int.MIN_VALUE) }
+    val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
 
     fun requestTextFieldFocus(): Boolean {
         return requestWatchingFocus(searchRequester)
@@ -116,9 +129,23 @@ internal fun SuggestionsScreen(
     fun findRestoreTarget(
         preferredSectionIndex: Int,
         preferredItemIndex: Int,
+        preferredItemId: Int = Int.MIN_VALUE,
     ): Pair<Int, Int>? {
+        var target = if (preferredItemId != Int.MIN_VALUE) {
+            var targetById: Pair<Int, Int>? = null
+            sections.forEachIndexed { sectionIndex, section ->
+                if (targetById == null) {
+                    val itemIndex = section.items.indexOfItemId(preferredItemId)
+                    if (itemIndex != null) {
+                        targetById = sectionIndex to itemIndex
+                    }
+                }
+            }
+            targetById
+        } else {
+            null
+        }
         val clampedSectionIndex = preferredSectionIndex.coerceIn(0, sections.lastIndex.coerceAtLeast(0))
-        var target: Pair<Int, Int>? = null
         for (offset in 0..sections.size) {
             if (target == null) {
                 target = targetInSection(
@@ -147,10 +174,9 @@ internal fun SuggestionsScreen(
             if (requesters.isNotEmpty()) {
                 val targetItemIndex = preferredItemIndex.coerceIn(0, requesters.lastIndex)
                 scope.launch {
-                    verticalState.scrollToItem(targetSectionIndex)
-                    rowStates.getOrNull(targetSectionIndex)?.scrollToItem(targetItemIndex)
-                    withFrameNanos { }
-                    requestWatchingFocus(requesters.getOrNull(targetItemIndex))
+                    verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+                    rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
+                    requestWatchingFocusAfterAttach(requesters.getOrNull(targetItemIndex))
                 }
                 return true
             }
@@ -165,18 +191,17 @@ internal fun SuggestionsScreen(
             return false
         }
         scope.launch {
-            verticalState.scrollToItem(firstSectionIndex)
-            rowStates.getOrNull(firstSectionIndex)?.scrollToItem(0)
-            withFrameNanos { }
-            requestWatchingFocus(sectionRequesters.getOrNull(firstSectionIndex)?.firstOrNull())
+            verticalState.scrollItemIntoViewIfNeeded(firstSectionIndex)
+            rowStates.getOrNull(firstSectionIndex)?.scrollItemIntoViewIfNeeded(0)
+            requestWatchingFocusAfterAttach(sectionRequesters.getOrNull(firstSectionIndex)?.firstOrNull())
         }
         return true
     }
 
     fun keepItemVisible(sectionIndex: Int, itemIndex: Int) {
         scope.launch {
-            verticalState.scrollToItem(sectionIndex)
-            rowStates.getOrNull(sectionIndex)?.scrollToItem(itemIndex)
+            verticalState.scrollItemIntoViewIfNeeded(sectionIndex)
+            rowStates.getOrNull(sectionIndex)?.scrollItemIntoViewIfNeeded(itemIndex)
         }
     }
 
@@ -187,13 +212,16 @@ internal fun SuggestionsScreen(
         val stillVisible = selectedId != null && visibleItems.any { it.getId() == selectedId }
         selectedItem = visibleItems.firstOrNull { it.getId() == selectedId } ?: visibleItems.firstOrNull()
         if (hadSelectedItem && !stillVisible) {
-            val restoreTarget = findRestoreTarget(lastFocusedSectionIndex, lastFocusedItemIndex)
+            val restoreTarget = findRestoreTarget(
+                preferredSectionIndex = lastFocusedSectionIndex,
+                preferredItemIndex = lastFocusedItemIndex,
+                preferredItemId = lastFocusedItemId,
+            )
             if (restoreTarget != null) {
                 val (targetSectionIndex, targetItemIndex) = restoreTarget
-                verticalState.scrollToItem(targetSectionIndex)
-                rowStates.getOrNull(targetSectionIndex)?.scrollToItem(targetItemIndex)
-                withFrameNanos { }
-                requestWatchingFocus(
+                verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+                rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
+                requestWatchingFocusAfterAttach(
                     sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
                 )
             }
@@ -225,11 +253,11 @@ internal fun SuggestionsScreen(
                     )
                 )
             )
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            verticalArrangement = Arrangement.spacedBy(TvPageVerticalPadding + 2.dp),
         ) {
             SuggestionsSearchField(
                 value = query,
@@ -245,10 +273,10 @@ internal fun SuggestionsScreen(
             LazyColumn(
                 state = verticalState,
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(26.dp),
+                verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
                 contentPadding = PaddingValues(
                     top = 4.dp,
-                    bottom = if (selectedItem != null) 124.dp else 28.dp,
+                    bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset,
                 ),
             ) {
                 itemsIndexed(
@@ -266,6 +294,7 @@ internal fun SuggestionsScreen(
                             selectedItem = item
                             lastFocusedSectionIndex = sectionIndex
                             lastFocusedItemIndex = itemIndex
+                            lastFocusedItemId = item.getId()
                             keepItemVisible(sectionIndex, itemIndex)
                         },
                         onUp = { itemIndex ->
@@ -326,7 +355,7 @@ private fun SuggestionsSearchField(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
                 value = value,
@@ -392,7 +421,6 @@ private fun SuggestionsSearchField(
                     onClick = onVoiceSearchClick,
                     onLeft = { requestWatchingFocus(focusRequester) },
                     onDown = onDown,
-                    modifier = Modifier.padding(top = 6.dp),
                 )
             }
         }
@@ -403,7 +431,7 @@ private fun SuggestionsSearchField(
                 "Результаты обновляются по мере ввода."
             },
             color = if (isFocused) palette.textColor else palette.secondaryTextColor,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
         )
     }
 }
@@ -422,7 +450,7 @@ private fun SuggestionsSectionBlock(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(TvSectionHeaderSpacing),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -446,8 +474,8 @@ private fun SuggestionsSectionBlock(
         LazyRow(
             state = rowState,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(end = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
+            contentPadding = PaddingValues(end = TvRowEndPadding),
         ) {
             itemsIndexed(
                 items = items,

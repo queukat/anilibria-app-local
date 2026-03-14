@@ -1,6 +1,7 @@
 package ru.radiationx.anilibria.screen.details
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,9 +36,12 @@ import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.screen.main.MainSectionBlock
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
+import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
+import ru.radiationx.anilibria.screen.watching.TvDescriptionBarPadding
+import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
-import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsCallbacks
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsRowContent
@@ -86,6 +90,7 @@ internal fun DetailScreen(
     var handledContentRestoreToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
+    val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
 
     fun targetInSection(
         sectionIndex: Int,
@@ -215,7 +220,7 @@ internal fun DetailScreen(
             preferredItemId = contentRestoreState.preferredItemId,
         ) ?: return@LaunchedEffect
         val (targetSectionIndex, targetItemIndex) = restoreTarget
-        verticalState.scrollToItem(targetSectionIndex + 1)
+        verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex + 1)
         rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
         if (requestWatchingFocusAfterAttach(
             sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
@@ -242,7 +247,10 @@ internal fun DetailScreen(
             LazyColumn(
                 state = verticalState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = if (selectedItem != null) 124.dp else 0.dp),
+                verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
+                contentPadding = PaddingValues(
+                    bottom = if (hasContent) TvBottomDescriptionInset else 0.dp
+                ),
             ) {
                 item(key = "detail-header") {
                     ReleaseDetailsRowContent(
@@ -289,11 +297,11 @@ internal fun DetailScreen(
                         onDown = { itemIndex ->
                             requestSectionFocus(sectionIndex, 1, itemIndex)
                         },
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = TvScreenHorizontalPadding),
                         posterFocusedBackgroundColor = detailCardBackground,
-                        posterBorderColor = palette.textColor.copy(alpha = 0.22f),
-                        posterFocusedBorderWidth = 1.dp,
-                        posterUnfocusedBorderWidth = 0.dp,
+                        posterBorderColor = palette.textColor.copy(alpha = 0.58f),
+                        posterFocusedBorderWidth = 2.dp,
+                        posterUnfocusedBorderWidth = 1.dp,
                     )
                 }
             }
@@ -307,9 +315,8 @@ internal fun DetailScreen(
                             title = description.title.toString(),
                             subtitle = description.subtitle.toString(),
                             palette = palette,
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(horizontal = 16.dp, vertical = 20.dp),
+                            contentPadding = TvDescriptionBarPadding,
+                            modifier = Modifier.align(Alignment.BottomCenter),
                         )
                     }
                 }

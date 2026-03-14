@@ -203,7 +203,7 @@ internal fun ReleaseDetailsRowContent(
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
                 )
                 val enTitleStyle = TextStyle(
-                    fontSize = 16.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Normal,
                     color = textColor,
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -397,7 +397,7 @@ private fun MetadataRow(
         Text(
             text = details.extra,
             color = textColor,
-            fontSize = 16.sp,
+            fontSize = 17.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -416,7 +416,7 @@ private fun MetadataRow(
                 Text(
                     text = details.favoriteCount,
                     color = secondaryTextColor,
-                    fontSize = 16.sp,
+                    fontSize = 17.sp,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
@@ -444,14 +444,14 @@ private fun AnnounceChip(
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(
             text = text,
             color = textColor,
-            fontSize = 14.sp,
+            fontSize = 15.sp,
         )
     }
 }
@@ -555,22 +555,22 @@ private fun DescriptionCard(
 
         Box(
             modifier = modifier
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(backgroundColor)
                 .border(
                     width = if (isFocused) 2.dp else 0.dp,
                     color = if (isFocused) textColor.copy(alpha = 0.75f) else Color.Transparent,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(12.dp),
                 )
                 .onSizeChanged { viewportHeightPx = it.height }
                 .then(interactiveModifier)
-                .padding(8.dp)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
         ) {
             Text(
                 text = text,
                 color = textColor.copy(alpha = 0.8f),
-                fontSize = 14.sp,
-                lineHeight = 19.sp,
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(end = if (scrollState.maxValue > 0) 10.dp else 0.dp)
@@ -582,7 +582,7 @@ private fun DescriptionCard(
                 color = textColor,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(vertical = 8.dp, horizontal = 2.dp),
+                    .padding(vertical = 12.dp, horizontal = 2.dp),
                 minThumbHeight = 18.dp,
             )
         }
@@ -719,7 +719,7 @@ private fun ActionChipButton(
         Text(
             text = text,
             color = textColor,
-            fontSize = 16.sp,
+            fontSize = 17.sp,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
         )
     }

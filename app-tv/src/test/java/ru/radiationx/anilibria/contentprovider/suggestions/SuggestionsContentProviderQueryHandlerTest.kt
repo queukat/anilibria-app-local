@@ -23,7 +23,7 @@ class SuggestionsContentProviderQueryHandlerTest {
             timeoutMs = 200L,
             cacheTtlMs = 1_000L,
             minRequestIntervalMs = 0L,
-            loadSuggestions = {
+            loadSuggestionsBlocking = { _ ->
                 calls.incrementAndGet()
                 listOf(
                     suggestion(1, "Naruto"),
@@ -31,7 +31,7 @@ class SuggestionsContentProviderQueryHandlerTest {
                     suggestion(3, "Boruto"),
                 )
             },
-            awaitAppInitialized = {},
+            awaitAppInitializedBlocking = {},
             onRefreshReady = { key: String -> refreshKeys += key },
             scheduler = scheduler,
             workerExecutor = worker,
@@ -65,14 +65,14 @@ class SuggestionsContentProviderQueryHandlerTest {
             cacheTtlMs = 100L,
             minRequestIntervalMs = 0L,
             nowMillis = { now },
-            loadSuggestions = { query ->
+            loadSuggestionsBlocking = { query ->
                 if (query == "bleach" && refreshKeys.isEmpty()) {
                     listOf(suggestion(1, "Bleach"))
                 } else {
                     listOf(suggestion(2, "Bleach: Thousand-Year Blood War"))
                 }
             },
-            awaitAppInitialized = {},
+            awaitAppInitializedBlocking = {},
             onRefreshReady = { key: String -> refreshKeys += key },
             scheduler = scheduler,
             workerExecutor = worker,
@@ -117,13 +117,13 @@ class SuggestionsContentProviderQueryHandlerTest {
             cacheTtlMs = 1_000L,
             minRequestIntervalMs = 0L,
             maxTrackedQueries = 1,
-            loadSuggestions = { query ->
+            loadSuggestionsBlocking = { query ->
                 if (query == "naruto") {
                     Thread.sleep(150L)
                 }
                 listOf(suggestion(query.hashCode(), query))
             },
-            awaitAppInitialized = {},
+            awaitAppInitializedBlocking = {},
             onRefreshReady = { key: String -> refreshKeys += key },
             scheduler = scheduler,
             workerExecutor = worker,

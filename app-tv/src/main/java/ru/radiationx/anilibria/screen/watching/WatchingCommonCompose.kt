@@ -278,7 +278,7 @@ internal fun WatchingMessageCard(
             Text(
                 text = title,
                 color = palette.textColor,
-                fontSize = 20.sp,
+                fontSize = 21.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
             )
@@ -286,8 +286,8 @@ internal fun WatchingMessageCard(
                 Text(
                     text = subtitle,
                     color = palette.secondaryTextColor,
-                    fontSize = 15.sp,
-                    lineHeight = 21.sp,
+                    fontSize = 16.sp,
+                    lineHeight = 22.sp,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -300,7 +300,7 @@ internal fun WatchingDescriptionBar(
     title: String,
     subtitle: String,
     palette: WatchingPalette,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 18.dp),
+    contentPadding: PaddingValues = TvDescriptionBarPadding,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -323,7 +323,7 @@ internal fun WatchingDescriptionBar(
             Text(
                 text = title,
                 color = palette.textColor,
-                fontSize = 20.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             if (subtitle.isNotBlank()) {
@@ -331,6 +331,7 @@ internal fun WatchingDescriptionBar(
                     text = subtitle,
                     color = palette.secondaryTextColor,
                     fontSize = 16.sp,
+                    lineHeight = 22.sp,
                     maxLines = 2,
                 )
             }
@@ -541,7 +542,7 @@ internal fun WatchingChoiceDialog(
                 Text(
                     text = "Назад или влево: закрыть",
                     color = palette.secondaryTextColor,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                 )
             }
         }

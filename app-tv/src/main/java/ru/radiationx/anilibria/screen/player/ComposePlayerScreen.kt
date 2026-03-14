@@ -40,6 +40,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,6 +52,8 @@ import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
+import ru.radiationx.anilibria.screen.watching.TvPlayerOverlayBottomPadding
+import ru.radiationx.anilibria.screen.watching.TvPlayerOverlayHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 
@@ -100,6 +103,7 @@ internal fun PlayerScreenContent(
     val palette = rememberWatchingPalette()
     val skipVisible = skipsPart?.isVisible == true
     var autoHideToken by remember { mutableIntStateOf(0) }
+    var controlsPanelHeightPx by remember { mutableIntStateOf(0) }
 
     fun registerInteraction() {
         autoHideToken += 1
@@ -281,7 +285,13 @@ internal fun PlayerScreenContent(
             visible = controlsVisible,
             enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(
+                    start = TvPlayerOverlayHorizontalPadding,
+                    end = TvPlayerOverlayHorizontalPadding,
+                    bottom = TvPlayerOverlayBottomPadding,
+                ),
         ) {
             PlayerControlsPanel(
                 isPlaying = isPlaying,
@@ -312,7 +322,8 @@ internal fun PlayerScreenContent(
                 onEpisodesClick = onEpisodesClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 1320.dp),
+                    .widthIn(max = 1320.dp)
+                    .onSizeChanged { controlsPanelHeightPx = it.height },
             )
         }
 
@@ -320,7 +331,13 @@ internal fun PlayerScreenContent(
             skipsPart = skipsPart,
             onInteraction = ::registerInteraction,
             modifier = Modifier.align(Alignment.BottomEnd),
-            bottomPadding = if (controlsVisible) 248.dp else 52.dp,
+            bottomPadding = if (controlsVisible) {
+                with(androidx.compose.ui.platform.LocalDensity.current) {
+                    controlsPanelHeightPx.toDp() + 52.dp
+                }
+            } else {
+                52.dp
+            },
         )
 
         if (isLoading || isBuffering) {
@@ -614,7 +631,7 @@ private fun PlayerControlsPanel(
             Text(
                 text = stringResource(R.string.player_controls_hint),
                 color = palette.secondaryTextColor.copy(alpha = 0.92f),
-                fontSize = 12.sp,
+                fontSize = 14.sp,
             )
         }
     }

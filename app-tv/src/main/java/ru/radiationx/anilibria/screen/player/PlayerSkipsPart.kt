@@ -1,5 +1,6 @@
 package ru.radiationx.anilibria.screen.player
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
+import ru.radiationx.anilibria.screen.watching.TvPlayerOverlayBottomPadding
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.data.entity.domain.release.PlayerSkips
@@ -104,10 +106,14 @@ internal fun PlayerSkipsOverlay(
     skipsPart: PlayerSkipsPart?,
     onInteraction: () -> Unit,
     modifier: Modifier = Modifier,
-    bottomPadding: Dp = 52.dp,
+    bottomPadding: Dp = TvPlayerOverlayBottomPadding,
 ) {
     val visible = skipsPart?.isVisible == true
     val palette = rememberWatchingPalette()
+    val animatedBottomPadding by animateDpAsState(
+        targetValue = bottomPadding,
+        label = "playerSkipsBottomPadding",
+    )
 
     AnimatedVisibility(
         visible = visible,
@@ -127,7 +133,7 @@ internal fun PlayerSkipsOverlay(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(end = 28.dp, bottom = bottomPadding),
+                .padding(end = 28.dp, bottom = animatedBottomPadding),
             contentAlignment = Alignment.BottomEnd,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {

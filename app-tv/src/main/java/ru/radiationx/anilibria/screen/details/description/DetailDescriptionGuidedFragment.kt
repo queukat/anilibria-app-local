@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.unit.dp
 import ru.radiationx.anilibria.common.fragment.ComposeGuidedFragment
+import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvOverlayActionButton
 import ru.radiationx.anilibria.ui.compose.TvOverlayScreen
 import ru.radiationx.anilibria.ui.compose.TvOverlayScrollableText
@@ -32,10 +33,11 @@ class DetailDescriptionGuidedFragment : ComposeGuidedFragment() {
 
     @Composable
     override fun RenderContent() {
+        val textRequester = remember { FocusRequester() }
         val closeRequester = remember { FocusRequester() }
 
         LaunchedEffect(Unit) {
-            closeRequester.requestFocus()
+            requestWatchingFocusAfterAttach(textRequester)
         }
 
         TvOverlayScreen(
@@ -46,12 +48,15 @@ class DetailDescriptionGuidedFragment : ComposeGuidedFragment() {
             TvOverlayScrollableText(
                 text = getExtraNotNull(ARG_MESSAGE),
                 palette = palette,
+                focusRequester = textRequester,
+                downRequester = closeRequester,
                 modifier = androidx.compose.ui.Modifier.heightIn(min = 180.dp, max = 420.dp),
             )
             TvOverlayActionButton(
                 text = "Закрыть",
                 palette = palette,
                 focusRequester = closeRequester,
+                upRequester = textRequester,
                 onClick = { guidedRouter.close() },
                 modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
             )
