@@ -89,15 +89,26 @@ import ru.radiationx.anilibria.common.DetailsState
 import ru.radiationx.anilibria.common.LibriaDetails
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.shared_app.imageloader.loadImageBitmap
 import kotlin.math.roundToInt
+
+internal enum class ReleaseDetailsFocusTarget {
+    StartAction,
+    Continue,
+    Play,
+    Favorite,
+    Description,
+    Other,
+}
 
 @Stable
 internal data class ReleaseDetailsRowUiState(
     val details: LibriaDetails? = null,
     val progressState: DetailsState = DetailsState(loadingProgress = true),
     val initialFocusToken: Int = 0,
+    val initialFocusTarget: ReleaseDetailsFocusTarget = ReleaseDetailsFocusTarget.StartAction,
 )
 
 @Stable
@@ -158,12 +169,36 @@ internal fun ReleaseDetailsRowContent(
             else -> descriptionRequester
         }
     }
+    val initialFocusRequester = remember(
+        details,
+        uiState.initialFocusTarget,
+    ) {
+        fun fallback(): FocusRequester = startActionRequester
+        when (uiState.initialFocusTarget) {
+            ReleaseDetailsFocusTarget.StartAction -> fallback()
+            ReleaseDetailsFocusTarget.Continue -> {
+                if (details?.hasViewed == true) continueRequester else fallback()
+            }
+            ReleaseDetailsFocusTarget.Play -> {
+                if (details?.hasEpisodes == true) playRequester else fallback()
+            }
+            ReleaseDetailsFocusTarget.Favorite -> favoriteRequester
+            ReleaseDetailsFocusTarget.Description -> descriptionRequester
+            ReleaseDetailsFocusTarget.Other -> {
+                if (details?.let { it.hasEpisodes || it.hasViewed } == true) {
+                    otherRequester
+                } else {
+                    fallback()
+                }
+            }
+        }
+    }
 
     LaunchedEffect(uiState.initialFocusToken, progressState.loadingProgress) {
         if (uiState.initialFocusToken == 0 || progressState.loadingProgress) {
             return@LaunchedEffect
         }
-        if (requestWatchingFocusAfterAttach(startActionRequester)) {
+        if (requestWatchingFocusAfterAttach(initialFocusRequester)) {
             onInitialHeaderFocusApplied()
         }
     }
@@ -686,46 +721,28 @@ private fun ActionChipButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    var isFocused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(targetValue = if (isFocused) 1.04f else 1f, label = "actionScale")
-    val interactiveModifier = if (enabled) {
-        Modifier
-            .focusRequester(focusRequester)
-            .focusProperties {
-                up = upRequester
-                down = downRequester
-            }
-            .onFocusChanged { isFocused = it.isFocused }
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-            .focusable()
-    } else {
-        Modifier
-    }
-
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = backgroundColor,
-        modifier = Modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) textColor.copy(alpha = 0.75f) else Color.Transparent,
-                shape = RoundedCornerShape(24.dp),
-            )
-            .then(interactiveModifier),
+    WatchingFocusableSurface(
+        focusRequester = focusRequester,
+        enabled = enabled,
+        backgroundColor = backgroundColor.copy(alpha = 0.88f),
+        focusedBackgroundColor = backgroundColor,
+        borderColor = textColor.copy(alpha = 0.8f),
+        onClick = onClick,
+        onUp = {
+            requestFocus(upRequester)
+        },
+        onDown = {
+            requestFocus(downRequester)
+        },
+        paddingValues = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = 20.dp,
+            vertical = 14.dp,
+        ),
     ) {
         Text(
             text = text,
             color = textColor,
             fontSize = 17.sp,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
         )
     }
 }
@@ -741,45 +758,27 @@ private fun IconChipButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    var isFocused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(targetValue = if (isFocused) 1.04f else 1f, label = "iconScale")
-    val interactiveModifier = if (enabled) {
-        Modifier
-            .focusRequester(focusRequester)
-            .focusProperties {
-                up = upRequester
-                down = downRequester
-            }
-            .onFocusChanged { isFocused = it.isFocused }
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-            .focusable()
-    } else {
-        Modifier
-    }
-
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = backgroundColor,
-        modifier = Modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .heightIn(min = 48.dp)
-            .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) contentColor.copy(alpha = 0.75f) else Color.Transparent,
-                shape = RoundedCornerShape(24.dp),
-            )
-            .then(interactiveModifier),
+    WatchingFocusableSurface(
+        focusRequester = focusRequester,
+        enabled = enabled,
+        backgroundColor = backgroundColor.copy(alpha = 0.88f),
+        focusedBackgroundColor = backgroundColor,
+        borderColor = contentColor.copy(alpha = 0.8f),
+        onClick = onClick,
+        onUp = {
+            requestFocus(upRequester)
+        },
+        onDown = {
+            requestFocus(downRequester)
+        },
+        modifier = Modifier.heightIn(min = 48.dp),
+        paddingValues = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = 18.dp,
+            vertical = 12.dp,
+        ),
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
         ) {
             Icon(
                 painter = painterResource(iconRes),
@@ -1006,6 +1005,13 @@ private fun Context.resolveThemeColor(@AttrRes attrRes: Int): Int {
     } else {
         typedValue.data
     }
+}
+
+private fun requestFocus(focusRequester: FocusRequester): Boolean {
+    return runCatching {
+        focusRequester.requestFocus()
+        true
+    }.getOrDefault(false)
 }
 
 private fun String.normalizeTitleText(): String {

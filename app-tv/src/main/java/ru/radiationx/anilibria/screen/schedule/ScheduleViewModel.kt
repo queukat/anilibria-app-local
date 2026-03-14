@@ -26,6 +26,8 @@ class ScheduleViewModel @Inject constructor(
 
     private val _scheduleRows = MutableStateFlow<List<Pair<String, List<CardItem>>>>(emptyList())
     val scheduleRows: StateFlow<List<Pair<String, List<CardItem>>>> = _scheduleRows.asStateFlow()
+    private val _loadingState = MutableStateFlow(true)
+    val loadingState: StateFlow<Boolean> = _loadingState.asStateFlow()
 
     override fun onColdCreate() {
         super.onColdCreate()
@@ -33,6 +35,7 @@ class ScheduleViewModel @Inject constructor(
     }
 
     private fun loadSchedule() {
+        _loadingState.value = true
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
                 tvContentUseCase.loadWeekSchedule()
@@ -64,8 +67,10 @@ class ScheduleViewModel @Inject constructor(
                 } else {
                     rows
                 }
+                _loadingState.value = false
             }.onFailure {
                 _scheduleRows.value = errorRows()
+                _loadingState.value = false
             }
         }
     }

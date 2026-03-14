@@ -24,6 +24,7 @@ import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsCallbacks
+import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsFocusTarget
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsRowUiState
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.QuillExtra
@@ -76,6 +77,7 @@ class DetailFragment : Fragment() {
     private var restoreItemState by mutableStateOf<CardItem?>(null)
     private var allowContentSelectionCapture by mutableStateOf(false)
     private var pendingContentRestoreAfterLoad by mutableStateOf(false)
+    private var headerFocusTargetState by mutableStateOf(ReleaseDetailsFocusTarget.StartAction)
     private var backPressedCallback: OnBackPressedCallback? = null
 
     override fun onCreateView(
@@ -98,13 +100,29 @@ class DetailFragment : Fragment() {
                         details = detailsState,
                         progressState = progressState,
                         initialFocusToken = headerFocusToken,
+                        initialFocusTarget = headerFocusTargetState,
                     ),
                     headerCallbacks = ReleaseDetailsCallbacks(
-                        continueClick = { headerViewModel.onContinueClick() },
-                        playClick = { headerViewModel.onPlayClick() },
-                        favoriteClick = { headerViewModel.onFavoriteClick() },
-                        descriptionClick = { headerViewModel.onDescriptionClick() },
-                        otherClick = { headerViewModel.onOtherClick() },
+                        continueClick = {
+                            headerFocusTargetState = ReleaseDetailsFocusTarget.Continue
+                            headerViewModel.onContinueClick()
+                        },
+                        playClick = {
+                            headerFocusTargetState = ReleaseDetailsFocusTarget.Play
+                            headerViewModel.onPlayClick()
+                        },
+                        favoriteClick = {
+                            headerFocusTargetState = ReleaseDetailsFocusTarget.Favorite
+                            headerViewModel.onFavoriteClick()
+                        },
+                        descriptionClick = {
+                            headerFocusTargetState = ReleaseDetailsFocusTarget.Description
+                            headerViewModel.onDescriptionClick()
+                        },
+                        otherClick = {
+                            headerFocusTargetState = ReleaseDetailsFocusTarget.Other
+                            headerViewModel.onOtherClick()
+                        },
                     ),
                     sections = buildSections(),
                     contentRestoreState = DetailContentRestoreState(

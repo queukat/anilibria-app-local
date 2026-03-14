@@ -8,6 +8,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.util.UnstableApi
 import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.filterNotNull
+import ru.radiationx.anilibria.common.fragment.ComposeGuidedFragment
 import ru.radiationx.anilibria.screen.DetailsScreen
 import ru.radiationx.data.entity.common.PlayerQuality
 import ru.radiationx.data.entity.domain.types.ReleaseId
@@ -111,6 +112,9 @@ class PlayerFragment : BasePlayerFragment() {
 
     override fun onStop() {
         super.onStop()
+        if (hasTemporaryGuidedOverlay()) {
+            return
+        }
         viewModel.onExit(getCurrentPosition())
 
         val newReleaseId = viewModel.getCurrentReleaseId() ?: return
@@ -161,5 +165,11 @@ class PlayerFragment : BasePlayerFragment() {
     override fun onEpisodesAction(position: Long) {
         restoreEpisodesButtonFocusOnNextResume()
         viewModel.onEpisodesClick(position)
+    }
+
+    private fun hasTemporaryGuidedOverlay(): Boolean {
+        return parentFragmentManager.fragments.any { fragment ->
+            fragment !== this && fragment is ComposeGuidedFragment && fragment.isVisible
+        }
     }
 }

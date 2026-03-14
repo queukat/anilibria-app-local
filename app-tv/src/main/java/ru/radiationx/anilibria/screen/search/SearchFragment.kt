@@ -66,23 +66,7 @@ class SearchFragment : Fragment() {
             }
             setContent {
                 CatalogScreen(
-                    cards = cardsState.ifEmpty {
-                        if (progressState) {
-                            listOf(
-                                LoadingCard(
-                                    title = "Ищем релизы",
-                                    description = "Подождите, результаты обновляются",
-                                )
-                            )
-                        } else {
-                            listOf(
-                                InfoCard(
-                                    title = "Ничего не найдено",
-                                    subtitle = "По данным параметрам ничего не найдено",
-                                )
-                            )
-                        }
-                    },
+                    cards = cardsState,
                     filters = filtersState,
                     progressVisible = progressState,
                     pickerState = pickerState,

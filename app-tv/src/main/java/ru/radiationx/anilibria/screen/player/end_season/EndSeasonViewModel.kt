@@ -45,9 +45,9 @@ class EndSeasonViewModel @Inject constructor(
     }
 
     fun onReplaySeasonClick() {
-        guidedRouter.close()
         currentEpisodes.firstOrNull()?.also { firstEpisode ->
             playerController.selectEpisodeRelay.emit(firstEpisode.id)
+            guidedRouter.close()
         }
     }
 

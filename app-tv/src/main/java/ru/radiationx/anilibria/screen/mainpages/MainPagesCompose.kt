@@ -35,6 +35,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -142,6 +143,7 @@ internal fun MainPagesRoot(
                 .align(Alignment.TopStart)
                 .fillMaxHeight()
                 .width(railWidth)
+                .clipToBounds()
                 .padding(top = shellTopOffset),
         ) {
             MainPagesShell(
@@ -300,7 +302,7 @@ internal fun MainPagesShell(
     val requesters = remember(items.size) { List(items.size) { FocusRequester() } }
 
     val panelOffset by animateDpAsState(
-        targetValue = if (expanded) 0.dp else -railWidth,
+        targetValue = if (expanded) 0.dp else -(railWidth + 12.dp),
         label = "mainPagesRailOffset",
     )
 
@@ -418,8 +420,8 @@ internal fun MainPagesShell(
             Text(
                 text = "Влево: навигация\nВправо: контент",
                 color = secondaryTextColor,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
                 modifier = Modifier.padding(start = 6.dp),
             )
         }
@@ -525,6 +527,7 @@ private fun ShellFocusableButton(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(22.dp)
 
     Box(
         modifier = modifier
@@ -536,12 +539,15 @@ private fun ShellFocusableButton(
                     Modifier
                 }
             )
-            .clip(RoundedCornerShape(24.dp))
+            .clip(shape)
             .background(if (isFocused) focusedBackgroundColor else backgroundColor)
             .border(
                 width = if (isFocused || selected) 2.dp else 1.dp,
-                color = if (isFocused || selected) borderColor else textColor.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(24.dp),
+                color = when {
+                    isFocused || selected -> borderColor
+                    else -> Color.Transparent
+                },
+                shape = shape,
             )
             .onFocusChanged {
                 val nowFocused = it.isFocused

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,17 +38,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import ru.radiationx.anilibria.R
-import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
-import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvRowsScreenVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
-import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
-import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.data.entity.domain.other.ProfileItem
 import ru.radiationx.shared_app.imageloader.showImageUrl
 
-private const val PROFILE_PANEL_WIDTH_FRACTION = 0.42f
+private const val PROFILE_PANEL_WIDTH_FRACTION = 0.5f
 
 @Composable
 internal fun ProfileScreen(
@@ -63,15 +61,6 @@ internal fun ProfileScreen(
     val secondaryTextColor = colorResource(R.color.dark_textSecond)
     val accentColor = colorResource(R.color.dark_colorAccent)
     val actionBackground = colorResource(R.color.dark_release_day_btn).copy(alpha = 0.94f)
-    val palette = remember(surfaceColor, textColor, secondaryTextColor, accentColor, actionBackground) {
-        WatchingPalette(
-            surfaceColor = surfaceColor,
-            textColor = textColor,
-            secondaryTextColor = secondaryTextColor,
-            accentColor = accentColor,
-            chipColor = actionBackground,
-        )
-    }
     val primaryButtonRequester = remember { FocusRequester() }
 
     LaunchedEffect(focusRequestToken) {
@@ -91,26 +80,44 @@ internal fun ProfileScreen(
                     )
                 )
             )
-            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(TvPageHeaderSpacing),
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(PROFILE_PANEL_WIDTH_FRACTION)
+                .widthIn(min = 420.dp, max = 620.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            TvPageHeader(
-                title = "Профиль",
-                subtitle = if (profile != null) {
-                    "Управляйте аккаунтом и быстрыми действиями для этого устройства."
-                } else {
-                    "Войдите, чтобы синхронизировать историю, избранное и персональные данные."
-                },
-                palette = palette,
-            )
+            Column(
+                modifier = Modifier.padding(top = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = if (profile != null) {
+                        "Аккаунт подключен"
+                    } else {
+                        "Войдите в аккаунт"
+                    },
+                    color = textColor,
+                    fontSize = 21.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = if (profile != null) {
+                        "Здесь можно быстро выйти из профиля на этом устройстве."
+                    } else {
+                        "Синхронизируйте историю, избранное и продолжение просмотра между устройствами."
+                    },
+                    color = secondaryTextColor,
+                    fontSize = 16.sp,
+                    lineHeight = 22.sp,
+                )
+            }
 
             Column(
                 modifier = Modifier
-                    .fillMaxWidth(PROFILE_PANEL_WIDTH_FRACTION)
-                    .widthIn(max = 520.dp)
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(32.dp))
                     .background(surfaceColor.copy(alpha = 0.92f))
                     .border(

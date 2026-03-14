@@ -48,6 +48,7 @@ import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
 import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
 import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
 import ru.radiationx.anilibria.screen.watching.TvDescriptionBarPadding
+import ru.radiationx.anilibria.screen.watching.TvPosterCardWidth
 import ru.radiationx.anilibria.screen.watching.TvRowEndPadding
 import ru.radiationx.anilibria.screen.watching.TvRowSpacing
 import ru.radiationx.anilibria.screen.watching.TvRowsScreenVerticalPadding
@@ -391,7 +392,7 @@ internal fun MainSectionBlock(
                             imageUrl = item.image,
                             palette = palette,
                             focusRequester = requesters[index],
-                            cardWidth = if (isYoutube) 346.dp else 152.dp,
+                            cardWidth = if (isYoutube) 346.dp else TvPosterCardWidth,
                             contentAspectRatio = if (isYoutube) 330f / 185f else 130f / 185f,
                             focusedBackgroundColor = posterFocusedBackgroundColor,
                             focusedBorderColor = posterBorderColor,
@@ -407,7 +408,7 @@ internal fun MainSectionBlock(
 
                     is LinkCard -> WatchingMessageCard(
                         title = item.title,
-                        subtitle = "",
+                        subtitle = "Нажмите, чтобы выполнить действие",
                         palette = palette,
                         focusRequester = requesters[index],
                         onClick = { onItemClick(item) },
@@ -430,6 +431,7 @@ internal fun MainSectionBlock(
                             }
                         ),
                         focusRequester = requesters[index],
+                        loading = !item.isError,
                         onClick = { onItemClick(item) },
                         onFocused = { onItemFocused(index, item) },
                         onLeft = if (index == 0) onLeftEdge else null,

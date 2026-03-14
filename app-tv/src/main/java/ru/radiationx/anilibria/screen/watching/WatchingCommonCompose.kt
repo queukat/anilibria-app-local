@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,12 +55,15 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
+import ru.radiationx.anilibria.ui.compose.TvOverlayOuterPadding
+import ru.radiationx.anilibria.ui.compose.TvOverlayPanelSurface
 import ru.radiationx.shared_app.imageloader.showImageUrl
 
 private const val WATCHING_CARD_ASPECT_RATIO = 130f / 185f
@@ -166,7 +170,7 @@ internal fun WatchingFilterChip(
         onUp = onUp,
         onRight = onRight,
         onDown = onDown,
-        modifier = modifier.widthIn(min = minWidth),
+        modifier = modifier.widthIn(min = minWidth, max = 280.dp),
         paddingValues = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
     ) {
         Text(
@@ -174,6 +178,8 @@ internal fun WatchingFilterChip(
             color = palette.textColor,
             fontSize = 15.sp,
             textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -187,7 +193,7 @@ internal fun WatchingPosterCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    cardWidth: Dp = 152.dp,
+    cardWidth: Dp = TvPosterCardWidth,
     contentAspectRatio: Float = WATCHING_CARD_ASPECT_RATIO,
     focusedBackgroundColor: Color = palette.accentColor.copy(alpha = 0.12f),
     focusedBorderColor: Color = palette.accentColor.copy(alpha = 0.92f),
@@ -245,6 +251,7 @@ internal fun WatchingMessageCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    loading: Boolean = false,
     onFocused: (() -> Unit)? = null,
     onLeft: (() -> Boolean)? = null,
     onUp: (() -> Boolean)? = null,
@@ -269,12 +276,21 @@ internal fun WatchingMessageCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Image(
-                painter = painterResource(R.drawable.ic_alert_circle_outline),
-                contentDescription = null,
-                modifier = Modifier.size(44.dp),
-                contentScale = ContentScale.Fit,
-            )
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(36.dp),
+                    strokeWidth = 2.dp,
+                    color = palette.textColor,
+                    trackColor = palette.textColor.copy(alpha = 0.16f),
+                )
+            } else {
+                Image(
+                    painter = painterResource(R.drawable.ic_alert_circle_outline),
+                    contentDescription = null,
+                    modifier = Modifier.size(44.dp),
+                    contentScale = ContentScale.Fit,
+                )
+            }
             Text(
                 text = title,
                 color = palette.textColor,
@@ -292,6 +308,44 @@ internal fun WatchingMessageCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+internal fun WatchingWideMessageCard(
+    title: String,
+    subtitle: String,
+    palette: WatchingPalette,
+    focusRequester: FocusRequester,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    loading: Boolean = false,
+    onFocused: (() -> Unit)? = null,
+    onLeft: (() -> Boolean)? = null,
+    onUp: (() -> Boolean)? = null,
+    onDown: (() -> Boolean)? = null,
+) {
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        WatchingMessageCard(
+            title = title,
+            subtitle = subtitle,
+            palette = palette,
+            focusRequester = focusRequester,
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 720.dp),
+            enabled = enabled,
+            loading = loading,
+            onFocused = onFocused,
+            onLeft = onLeft,
+            onUp = onUp,
+            onDown = onDown,
+        )
     }
 }
 
@@ -405,146 +459,135 @@ internal fun WatchingChoiceDialog(
             },
         contentAlignment = Alignment.Center,
     ) {
-        Box(
+        TvOverlayPanelSurface(
+            palette = palette,
             modifier = Modifier
                 .widthIn(max = 560.dp)
-                .fillMaxWidth(WATCHING_DIALOG_WIDTH_FRACTION)
-                .clip(RoundedCornerShape(28.dp))
-                .background(palette.surfaceColor.copy(alpha = 0.98f))
-                .border(
-                    width = 1.dp,
-                    color = palette.textColor.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(28.dp),
-                )
+                .fillMaxWidth(WATCHING_DIALOG_WIDTH_FRACTION),
+            contentPadding = TvOverlayOuterPadding,
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 22.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = state.title,
-                            color = palette.textColor,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = "Выберите значение фильтра",
-                            color = palette.secondaryTextColor,
-                            fontSize = 14.sp,
-                        )
-                    }
-                    Image(
-                        painter = painterResource(R.drawable.ic_anilibria_splash),
-                        contentDescription = null,
-                        modifier = Modifier.width(20.dp),
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = state.title,
+                        color = palette.textColor,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Выберите значение фильтра",
+                        color = palette.secondaryTextColor,
+                        fontSize = 15.sp,
+                        lineHeight = 21.sp,
                     )
                 }
+                Image(
+                    painter = painterResource(R.drawable.ic_anilibria_splash),
+                    contentDescription = null,
+                    modifier = Modifier.width(20.dp),
+                )
+            }
 
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 420.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    itemsIndexed(
-                        items = state.options,
-                        key = { index, option -> option.hashCode() * 31 + index },
-                    ) { index, option ->
-                        WatchingFocusableSurface(
-                            focusRequester = optionRequesters[index],
-                            backgroundColor = if (index == state.selectedIndex) {
-                                palette.accentColor.copy(alpha = 0.18f)
-                            } else {
-                                palette.chipColor.copy(alpha = 0.74f)
-                            },
-                            focusedBackgroundColor = if (index == state.selectedIndex) {
-                                palette.accentColor.copy(alpha = 0.26f)
-                            } else {
-                                palette.chipColor
-                            },
-                            borderColor = if (index == state.selectedIndex) {
-                                palette.accentColor.copy(alpha = 0.82f)
-                            } else {
-                                palette.textColor.copy(alpha = 0.12f)
-                            },
-                            onClick = { onOptionClick(index) },
-                            onLeft = {
-                                onDismiss()
-                                true
-                            },
-                            onRight = {
-                                onDismiss()
-                                true
-                            },
-                            onUp = if (index > 0) {
-                                { requestOptionFocus(index - 1) }
-                            } else {
-                                { true }
-                            },
-                            onDown = if (index < state.options.lastIndex) {
-                                { requestOptionFocus(index + 1) }
-                            } else {
-                                { true }
-                            },
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                itemsIndexed(
+                    items = state.options,
+                    key = { index, option -> option.hashCode() * 31 + index },
+                ) { index, option ->
+                    WatchingFocusableSurface(
+                        focusRequester = optionRequesters[index],
+                        backgroundColor = if (index == state.selectedIndex) {
+                            palette.accentColor.copy(alpha = 0.18f)
+                        } else {
+                            palette.chipColor.copy(alpha = 0.74f)
+                        },
+                        focusedBackgroundColor = if (index == state.selectedIndex) {
+                            palette.accentColor.copy(alpha = 0.26f)
+                        } else {
+                            palette.chipColor
+                        },
+                        borderColor = if (index == state.selectedIndex) {
+                            palette.accentColor.copy(alpha = 0.82f)
+                        } else {
+                            palette.textColor.copy(alpha = 0.12f)
+                        },
+                        onClick = { onOptionClick(index) },
+                        onLeft = {
+                            onDismiss()
+                            true
+                        },
+                        onRight = {
+                            onDismiss()
+                            true
+                        },
+                        onUp = if (index > 0) {
+                            { requestOptionFocus(index - 1) }
+                        } else {
+                            { true }
+                        },
+                        onDown = if (index < state.options.lastIndex) {
+                            { requestOptionFocus(index + 1) }
+                        } else {
+                            { true }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        paddingValues = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+                    ) {
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            paddingValues = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = option,
-                                    color = palette.textColor,
-                                    fontSize = 17.sp,
-                                    fontWeight = if (index == state.selectedIndex) {
-                                        FontWeight.SemiBold
-                                    } else {
-                                        FontWeight.Normal
-                                    },
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .clip(RoundedCornerShape(999.dp))
-                                        .background(
-                                            if (index == state.selectedIndex) {
-                                                palette.accentColor
-                                            } else {
-                                                Color.Transparent
-                                            }
-                                        )
-                                        .border(
-                                            width = 1.dp,
-                                            color = if (index == state.selectedIndex) {
-                                                palette.accentColor
-                                            } else {
-                                                palette.textColor.copy(alpha = 0.22f)
-                                            },
-                                            shape = RoundedCornerShape(999.dp),
-                                        )
-                                )
-                            }
+                            Text(
+                                text = option,
+                                color = palette.textColor,
+                                fontSize = 17.sp,
+                                fontWeight = if (index == state.selectedIndex) {
+                                    FontWeight.SemiBold
+                                } else {
+                                    FontWeight.Normal
+                                },
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(
+                                        if (index == state.selectedIndex) {
+                                            palette.accentColor
+                                        } else {
+                                            Color.Transparent
+                                        }
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (index == state.selectedIndex) {
+                                            palette.accentColor
+                                        } else {
+                                            palette.textColor.copy(alpha = 0.22f)
+                                        },
+                                        shape = RoundedCornerShape(999.dp),
+                                    )
+                            )
                         }
                     }
                 }
-
-                Text(
-                    text = "Назад или влево: закрыть",
-                    color = palette.secondaryTextColor,
-                    fontSize = 13.sp,
-                )
             }
+
+            Text(
+                text = "Назад или влево: закрыть",
+                color = palette.secondaryTextColor,
+                fontSize = 14.sp,
+            )
         }
     }
 }

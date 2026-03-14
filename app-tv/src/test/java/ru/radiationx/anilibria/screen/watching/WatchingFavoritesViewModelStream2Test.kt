@@ -14,11 +14,11 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.radiationx.anilibria.common.CardsDataConverter
+import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.anilibria.common.LinkCard
@@ -150,16 +150,15 @@ class WatchingFavoritesViewModelStream2Test {
         )
 
         waitUntil {
-            (viewModel.cardsData.value.firstOrNull() as? LoadingCard)?.title == "Избранное пока пусто"
+            (viewModel.cardsData.value.firstOrNull() as? InfoCard)?.title == "Избранное пока пусто"
         }
 
-        val first = viewModel.cardsData.value.single() as LoadingCard
+        val first = viewModel.cardsData.value.single() as InfoCard
         assertEquals("Избранное пока пусто", first.title)
         assertEquals(
             "Добавьте тайтлы в избранное, чтобы они появились здесь",
-            first.description
+            first.subtitle
         )
-        assertFalse(first.isError)
     }
 
     @Test

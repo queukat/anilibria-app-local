@@ -53,6 +53,7 @@ import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
 import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
 import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
+import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvRowEndPadding
 import ru.radiationx.anilibria.screen.watching.TvRowSpacing
@@ -67,6 +68,7 @@ import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
+import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvSectionHeader
 import ru.radiationx.anilibria.ui.compose.TvOverlayTextField
 
@@ -115,6 +117,10 @@ internal fun SuggestionsScreen(
     var lastFocusArea by remember { mutableStateOf(SuggestionsFocusArea.Field) }
     val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
 
+    fun isStateOnlyInfoSection(section: SuggestionsSectionUiModel): Boolean {
+        return section.items.singleOrNull() is InfoCard
+    }
+
     fun requestTextFieldFocus(): Boolean {
         return requestWatchingFocus(searchRequester)
     }
@@ -123,10 +129,15 @@ internal fun SuggestionsScreen(
         sectionIndex: Int,
         preferredItemIndex: Int,
     ): Pair<Int, Int>? {
-        val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
-        return requesters
-            .takeIf { it.isNotEmpty() }
-            ?.let { sectionIndex to preferredItemIndex.coerceIn(0, it.lastIndex) }
+        val section = sections.getOrNull(sectionIndex)
+        return if (section == null || isStateOnlyInfoSection(section)) {
+            null
+        } else {
+            val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
+            requesters
+                .takeIf { it.isNotEmpty() }
+                ?.let { sectionIndex to preferredItemIndex.coerceIn(0, it.lastIndex) }
+        }
     }
 
     fun findRestoreTarget(
@@ -191,6 +202,10 @@ internal fun SuggestionsScreen(
     ): Boolean {
         var targetSectionIndex = currentSectionIndex + direction
         while (targetSectionIndex in sections.indices) {
+            if (isStateOnlyInfoSection(sections[targetSectionIndex])) {
+                targetSectionIndex += direction
+                continue
+            }
             val requesters = sectionRequesters.getOrNull(targetSectionIndex).orEmpty()
             if (requesters.isNotEmpty()) {
                 val targetItemIndex = preferredItemIndex.coerceIn(0, requesters.lastIndex)
@@ -207,7 +222,9 @@ internal fun SuggestionsScreen(
     }
 
     fun requestFirstSectionFocus(): Boolean {
-        val firstSectionIndex = sections.indexOfFirst { it.items.isNotEmpty() }
+        val firstSectionIndex = sections.indexOfFirst { section ->
+            section.items.isNotEmpty() && !isStateOnlyInfoSection(section)
+        }
         if (firstSectionIndex < 0) {
             return false
         }
@@ -287,7 +304,7 @@ internal fun SuggestionsScreen(
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(TvPageVerticalPadding + 2.dp),
+            verticalArrangement = Arrangement.spacedBy(TvPageHeaderSpacing),
         ) {
             TvPageHeader(
                 title = "Поиск",
@@ -437,8 +454,8 @@ private fun SuggestionsSearchField(
             Text(
                 text = helperText,
                 color = if (isFocused) palette.textColor else palette.secondaryTextColor,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
                 modifier = Modifier.weight(1f),
             )
             Row(
@@ -483,6 +500,8 @@ private fun SuggestionsSectionBlock(
     onUp: (Int) -> Boolean,
     onDown: (Int) -> Boolean,
 ) {
+    val stateInfoCard = items.singleOrNull() as? InfoCard
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(TvSectionHeaderSpacing),
@@ -492,67 +511,76 @@ private fun SuggestionsSectionBlock(
             palette = palette,
         )
 
-        LazyRow(
-            state = rowState,
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
-            contentPadding = PaddingValues(end = TvRowEndPadding),
-        ) {
-            itemsIndexed(
-                items = items,
-                key = { _, item -> item.getId() },
-            ) { index, item ->
-                when (item) {
-                    is LibriaCard -> WatchingPosterCard(
-                        imageUrl = item.image,
-                        palette = palette,
-                        focusRequester = requesters[index],
-                        onClick = { onItemClick(item) },
-                        onFocused = { onItemFocused(index, item) },
-                        onUp = { onUp(index) },
-                        onDown = { onDown(index) },
-                    )
+        if (stateInfoCard != null) {
+            TvContentStatePanel(
+                title = stateInfoCard.title,
+                subtitle = stateInfoCard.subtitle,
+                palette = palette,
+            )
+        } else {
+            LazyRow(
+                state = rowState,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
+                contentPadding = PaddingValues(end = TvRowEndPadding),
+            ) {
+                itemsIndexed(
+                    items = items,
+                    key = { _, item -> item.getId() },
+                ) { index, item ->
+                    when (item) {
+                        is LibriaCard -> WatchingPosterCard(
+                            imageUrl = item.image,
+                            palette = palette,
+                            focusRequester = requesters[index],
+                            onClick = { onItemClick(item) },
+                            onFocused = { onItemFocused(index, item) },
+                            onUp = { onUp(index) },
+                            onDown = { onDown(index) },
+                        )
 
-                    is InfoCard -> WatchingMessageCard(
-                        title = item.title,
-                        subtitle = item.subtitle,
-                        palette = palette,
-                        focusRequester = requesters[index],
-                        onClick = { onItemClick(item) },
-                        onFocused = { onItemFocused(index, item) },
-                        onUp = { onUp(index) },
-                        onDown = { onDown(index) },
-                    )
+                        is InfoCard -> WatchingMessageCard(
+                            title = item.title,
+                            subtitle = item.subtitle,
+                            palette = palette,
+                            focusRequester = requesters[index],
+                            onClick = { onItemClick(item) },
+                            onFocused = { onItemFocused(index, item) },
+                            onUp = { onUp(index) },
+                            onDown = { onDown(index) },
+                        )
 
-                    is LinkCard -> WatchingMessageCard(
-                        title = item.title,
-                        subtitle = "Нажмите, чтобы выполнить действие",
-                        palette = palette,
-                        focusRequester = requesters[index],
-                        onClick = { onItemClick(item) },
-                        onFocused = { onItemFocused(index, item) },
-                        onUp = { onUp(index) },
-                        onDown = { onDown(index) },
-                    )
+                        is LinkCard -> WatchingMessageCard(
+                            title = item.title,
+                            subtitle = "Нажмите, чтобы выполнить действие",
+                            palette = palette,
+                            focusRequester = requesters[index],
+                            onClick = { onItemClick(item) },
+                            onFocused = { onItemFocused(index, item) },
+                            onUp = { onUp(index) },
+                            onDown = { onDown(index) },
+                        )
 
-                    is LoadingCard -> WatchingMessageCard(
-                        title = item.title.ifBlank { "Загрузка" },
-                        subtitle = item.description.ifBlank {
-                            if (item.isError) "Нажмите, чтобы повторить попытку" else ""
-                        },
-                        palette = palette.copy(
-                            accentColor = if (item.isError) {
-                                palette.accentColor
-                            } else {
-                                palette.textColor.copy(alpha = 0.4f)
-                            }
-                        ),
-                        focusRequester = requesters[index],
-                        onClick = { onItemClick(item) },
-                        onFocused = { onItemFocused(index, item) },
-                        onUp = { onUp(index) },
-                        onDown = { onDown(index) },
-                    )
+                        is LoadingCard -> WatchingMessageCard(
+                            title = item.title.ifBlank { "Загрузка" },
+                            subtitle = item.description.ifBlank {
+                                if (item.isError) "Нажмите, чтобы повторить попытку" else ""
+                            },
+                            palette = palette.copy(
+                                accentColor = if (item.isError) {
+                                    palette.accentColor
+                                } else {
+                                    palette.textColor.copy(alpha = 0.4f)
+                                }
+                            ),
+                            focusRequester = requesters[index],
+                            loading = !item.isError,
+                            onClick = { onItemClick(item) },
+                            onFocused = { onItemFocused(index, item) },
+                            onUp = { onUp(index) },
+                            onDown = { onDown(index) },
+                        )
+                    }
                 }
             }
         }

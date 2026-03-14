@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.CardsDataConverter
+import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.anilibria.common.LinkCard
@@ -325,21 +326,19 @@ class WatchingFavoritesViewModel @Inject constructor(
 
     private fun showNeedAuth() {
         _cardsData.value = listOf(
-            LoadingCard(
+            InfoCard(
                 title = "Нужно войти",
-                description = "Избранное доступно после авторизации",
-                isError = true
-            ),
-            LinkCard("Открой профиль и войди")
+                subtitle = "Откройте профиль и авторизуйтесь, чтобы видеть избранное на этом устройстве",
+            )
         )
     }
 
     private fun showAuthenticatedEmptyState() {
         _cardsData.value = listOf(
-            LoadingCard(
+            InfoCard(
                 title = "Избранное пока пусто",
-                description = "Добавьте тайтлы в избранное, чтобы они появились здесь",
-            )
+                subtitle = "Добавьте тайтлы в избранное, чтобы они появились здесь",
+            ),
         )
     }
 
@@ -427,7 +426,14 @@ class WatchingFavoritesViewModel @Inject constructor(
             }
 
             _cardsData.value = sorted.map { converter.toCard(it) }
-                .ifEmpty { listOf(LinkCard("Ничего не найдено")) }
+                .ifEmpty {
+                    listOf(
+                        InfoCard(
+                            title = "Ничего не найдено",
+                            subtitle = "Попробуйте изменить фильтры или сбросить часть условий",
+                        )
+                    )
+                }
         }
     }
 

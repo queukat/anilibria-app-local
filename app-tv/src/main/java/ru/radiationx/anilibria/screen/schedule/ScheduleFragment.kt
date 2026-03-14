@@ -27,6 +27,7 @@ class ScheduleFragment : Fragment() {
     private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
 
     private var rowsState by mutableStateOf<List<Pair<String, List<CardItem>>>>(emptyList())
+    private var loadingState by mutableStateOf(true)
     private var focusRequestToken by mutableIntStateOf(1)
 
     override fun onCreateView(
@@ -46,6 +47,7 @@ class ScheduleFragment : Fragment() {
             setContent {
                 ScheduleScreen(
                     sections = buildSections(),
+                    loadingVisible = loadingState,
                     focusRequestToken = focusRequestToken,
                     onItemClick = { _, item -> handleItemClick(item) },
                     onItemFocused = { item ->
@@ -69,6 +71,10 @@ class ScheduleFragment : Fragment() {
 
         subscribeTo(viewModel.scheduleRows) {
             rowsState = it
+        }
+
+        subscribeTo(viewModel.loadingState) {
+            loadingState = it
         }
     }
 

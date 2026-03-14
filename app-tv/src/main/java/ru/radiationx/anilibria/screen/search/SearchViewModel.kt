@@ -14,6 +14,7 @@ import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.anilibria.screen.SuggestionsScreen
 import ru.radiationx.data.entity.domain.search.SearchForm
 import ru.radiationx.data.interactors.tv.TvSearchUseCase
+import ru.radiationx.data.repository.SearchRepository
 import javax.inject.Inject
 
 class SearchViewModel @Inject constructor(
@@ -21,6 +22,7 @@ class SearchViewModel @Inject constructor(
     private val converter: CardsDataConverter,
     private val router: Router,
     private val cardRouter: LibriaCardRouter,
+    private val searchRepository: SearchRepository,
     searchController: SearchController,
 ) : BaseCardsViewModel() {
 
@@ -46,9 +48,14 @@ class SearchViewModel @Inject constructor(
             _progressState.value = true
         }
         return try {
-            tvSearchUseCase
+            val primaryResult = tvSearchUseCase
                 .searchReleases(searchForm, requestPage)
-                .map { converter.toCard(it) }
+            val resolvedResult = if (primaryResult.isNotEmpty()) {
+                primaryResult
+            } else {
+                searchRepository.searchReleases(searchForm, requestPage).data
+            }
+            resolvedResult.map { converter.toCard(it) }
         } finally {
             if (needProgress) {
                 _progressState.value = false

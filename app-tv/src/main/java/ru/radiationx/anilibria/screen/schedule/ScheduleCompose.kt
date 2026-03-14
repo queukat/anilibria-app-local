@@ -25,11 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.CardItem
+import ru.radiationx.anilibria.common.InfoCard
+import ru.radiationx.anilibria.common.LibriaCard
+import ru.radiationx.anilibria.common.LinkCard
+import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.screen.main.MainSectionBlock
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
@@ -44,12 +46,14 @@ import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
-import androidx.compose.material3.Text
+import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
+import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
 
 @Composable
 internal fun ScheduleScreen(
     sections: List<MainSectionUiModel>,
+    loadingVisible: Boolean,
     focusRequestToken: Int,
     onItemClick: (Long, CardItem) -> Unit,
     onItemFocused: (CardItem?) -> Unit,
@@ -69,12 +73,44 @@ internal fun ScheduleScreen(
             List(section.items.size) { androidx.compose.ui.focus.FocusRequester() }
         }
     }
+    val stateActionRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     var selectedItem by remember(sectionKeys) { mutableStateOf<CardItem?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemId by remember { mutableIntStateOf(Int.MIN_VALUE) }
-    val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
+    val nonContentItems = remember(sectionKeys) {
+        sections.flatMap { section -> section.items }.filter { it !is LibriaCard }
+    }
+    val stateCard = remember(nonContentItems) {
+        nonContentItems.firstOrNull { it is LoadingCard && it.isError }
+            ?: nonContentItems.firstOrNull { it is LoadingCard }
+            ?: nonContentItems.firstOrNull { it is InfoCard }
+            ?: nonContentItems.firstOrNull()
+    }
+    val stateActionCard = remember(nonContentItems) {
+        nonContentItems.filterIsInstance<LinkCard>().firstOrNull()
+    }
+    val showStatePanel = sections.isEmpty() || (
+        sections.isNotEmpty() && sections.all { section ->
+            section.items.none { it is LibriaCard }
+        }
+    )
+    val hasContent = remember(sectionKeys, showStatePanel) {
+        sections.any { section -> section.items.any { it is LibriaCard } } && !showStatePanel
+    }
+
+    fun requestStateActionFocus(): Boolean {
+        if (!showStatePanel || stateActionCard == null) {
+            return false
+        }
+        scope.launch {
+            requestWatchingFocusAfterAttach(stateActionRequester)
+        }
+        return true
+    }
+
+    fun sectionListIndex(sectionIndex: Int): Int = sectionIndex + 1
 
     fun targetInSection(
         sectionIndex: Int,
@@ -134,7 +170,7 @@ internal fun ScheduleScreen(
             if (requesters.isNotEmpty()) {
                 val targetItemIndex = preferredItemIndex.coerceIn(0, requesters.lastIndex)
                 scope.launch {
-                    verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+                    verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(targetSectionIndex))
                     rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
                     requestWatchingFocusAfterAttach(requesters.getOrNull(targetItemIndex))
                 }
@@ -147,7 +183,7 @@ internal fun ScheduleScreen(
 
     fun keepItemVisible(sectionIndex: Int, itemIndex: Int) {
         scope.launch {
-            verticalState.scrollItemIntoViewIfNeeded(sectionIndex)
+            verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(sectionIndex))
             rowStates.getOrNull(sectionIndex)?.scrollItemIntoViewIfNeeded(itemIndex)
         }
     }
@@ -168,7 +204,7 @@ internal fun ScheduleScreen(
             )
             if (restoreTarget != null) {
                 val (targetSectionIndex, targetItemIndex) = restoreTarget
-                verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+                verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(targetSectionIndex))
                 rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
                 requestWatchingFocusAfterAttach(
                     sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
@@ -183,6 +219,12 @@ internal fun ScheduleScreen(
 
     LaunchedEffect(focusRequestToken, sectionKeys) {
         if (focusRequestToken <= handledFocusToken) {
+            return@LaunchedEffect
+        }
+        if (showStatePanel) {
+            if (requestStateActionFocus()) {
+                handledFocusToken = focusRequestToken
+            }
             return@LaunchedEffect
         }
         val restoreTarget = if (lastFocusedItemId != Int.MIN_VALUE) {
@@ -201,7 +243,7 @@ internal fun ScheduleScreen(
             }
             firstSectionIndex to 0
         }
-        verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
+        verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(targetSectionIndex))
         rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
         if (requestWatchingFocusAfterAttach(
                 sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
@@ -241,42 +283,117 @@ internal fun ScheduleScreen(
                 )
             }
 
-            itemsIndexed(
-                items = sections,
-                key = { _, section -> section.id },
-            ) { sectionIndex, section ->
-                MainSectionBlock(
-                    title = section.title,
-                    items = section.items,
-                    palette = palette,
-                    rowState = rowStates.getOrNull(sectionIndex) ?: LazyListState(),
-                    requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty(),
-                    onItemClick = { item -> onItemClick(section.id, item) },
-                    onItemFocused = { itemIndex, item ->
-                        selectedItem = item
-                        lastFocusedSectionIndex = sectionIndex
-                        lastFocusedItemIndex = itemIndex
-                        lastFocusedItemId = item.getId()
-                        keepItemVisible(sectionIndex, itemIndex)
-                    },
-                    onLeftEdge = { false },
-                    onUp = { itemIndex -> requestSectionFocus(sectionIndex, -1, itemIndex) },
-                    onDown = { itemIndex -> requestSectionFocus(sectionIndex, 1, itemIndex) },
-                )
+            if (showStatePanel) {
+                item(key = "schedule-state") {
+                    val stateTitle: String
+                    val stateSubtitle: String
+                    val stateAccent: Boolean
+                    val stateLoading: Boolean
+                    when (val item = stateCard) {
+                        is LoadingCard -> {
+                            stateTitle = item.title.ifBlank { "Загружаем расписание" }
+                            stateSubtitle = item.description.ifBlank {
+                                if (item.isError) {
+                                    "Проверьте подключение и попробуйте снова."
+                                } else {
+                                    "Подождите немного, экран обновится автоматически."
+                                }
+                            }
+                            stateAccent = item.isError
+                            stateLoading = !item.isError
+                        }
+
+                        is InfoCard -> {
+                            stateTitle = item.title
+                            stateSubtitle = item.subtitle
+                            stateAccent = false
+                            stateLoading = false
+                        }
+
+                        is LinkCard -> {
+                            stateTitle = "Расписание временно недоступно"
+                            stateSubtitle = "Попробуйте обновить экран ещё раз."
+                            stateAccent = false
+                            stateLoading = false
+                        }
+
+                        else -> {
+                            stateTitle = if (loadingVisible) {
+                                "Загружаем расписание"
+                            } else {
+                                "На ближайшие дни пока пусто"
+                            }
+                            stateSubtitle = if (loadingVisible) {
+                                "Подождите немного, экран обновится автоматически."
+                            } else {
+                                "Проверьте экран позже: новые релизы появятся здесь, как только расписание обновится."
+                            }
+                            stateAccent = false
+                            stateLoading = loadingVisible
+                        }
+                    }
+                    TvContentStatePanel(
+                        title = stateTitle,
+                        subtitle = stateSubtitle,
+                        palette = palette,
+                        accent = stateAccent,
+                        loading = stateLoading,
+                        action = stateActionCard?.let { actionCard ->
+                            {
+                                TvContentStateActionButton(
+                                    text = actionCard.title,
+                                    palette = palette,
+                                    focusRequester = stateActionRequester,
+                                    onClick = { onItemClick(-1L, actionCard) },
+                                    onUp = { false },
+                                    onDown = { true },
+                                )
+                            }
+                        },
+                    )
+                }
+            }
+
+            if (!showStatePanel) {
+                itemsIndexed(
+                    items = sections,
+                    key = { _, section -> section.id },
+                ) { sectionIndex, section ->
+                    MainSectionBlock(
+                        title = section.title,
+                        items = section.items,
+                        palette = palette,
+                        rowState = rowStates.getOrNull(sectionIndex) ?: LazyListState(),
+                        requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty(),
+                        onItemClick = { item -> onItemClick(section.id, item) },
+                        onItemFocused = { itemIndex, item ->
+                            selectedItem = item
+                            lastFocusedSectionIndex = sectionIndex
+                            lastFocusedItemIndex = itemIndex
+                            lastFocusedItemId = item.getId()
+                            keepItemVisible(sectionIndex, itemIndex)
+                        },
+                        onLeftEdge = { false },
+                        onUp = { itemIndex -> requestSectionFocus(sectionIndex, -1, itemIndex) },
+                        onDown = { itemIndex -> requestSectionFocus(sectionIndex, 1, itemIndex) },
+                    )
+                }
             }
         }
 
-        selectedItem?.let { item ->
-            val description = item.toTvCardDescription { card ->
-                card.resolveDescription(context)
-            }
-            if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
-                WatchingDescriptionBar(
-                    title = description.title.toString(),
-                    subtitle = description.subtitle.toString(),
-                    palette = palette,
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
+        if (!showStatePanel) {
+            selectedItem?.let { item ->
+                val description = item.toTvCardDescription { card ->
+                    card.resolveDescription(context)
+                }
+                if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
+                    WatchingDescriptionBar(
+                        title = description.title.toString(),
+                        subtitle = description.subtitle.toString(),
+                        palette = palette,
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
+                }
             }
         }
     }

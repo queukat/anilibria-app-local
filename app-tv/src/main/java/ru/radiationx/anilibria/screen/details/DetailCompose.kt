@@ -1,13 +1,15 @@
 package ru.radiationx.anilibria.screen.details
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -24,10 +26,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
@@ -72,6 +76,8 @@ internal fun DetailScreen(
     val scope = rememberCoroutineScope()
     val verticalState = remember { LazyListState() }
     val detailCardBackground = colorResource(R.color.dark_cardBackground).copy(alpha = 0.86f)
+    val contentPageStartColor = colorResource(R.color.dark_windowBackground)
+    val contentPageEndColor = colorResource(R.color.dark_colorPrimary)
     val sectionKeys = remember(sections) {
         sections.map { section ->
             section.id to section.items.map(CardItem::getId)
@@ -91,6 +97,7 @@ internal fun DetailScreen(
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
     val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
+    var isContentPageActive by remember { mutableStateOf(false) }
 
     fun targetInSection(
         sectionIndex: Int,
@@ -145,9 +152,7 @@ internal fun DetailScreen(
 
     fun requestHeaderFocus() {
         selectedItem = null
-        scope.launch {
-            verticalState.scrollToItem(0)
-        }
+        isContentPageActive = false
         onRequestHeaderFocus()
     }
 
@@ -162,7 +167,7 @@ internal fun DetailScreen(
             if (requesters.isNotEmpty()) {
                 val targetItemIndex = preferredItemIndex.coerceIn(0, requesters.lastIndex)
                 scope.launch {
-                    verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex + 1)
+                    verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
                     rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
                     requestWatchingFocusAfterAttach(requesters.getOrNull(targetItemIndex))
                 }
@@ -175,14 +180,14 @@ internal fun DetailScreen(
 
     fun keepItemVisible(sectionIndex: Int, itemIndex: Int) {
         scope.launch {
-            verticalState.scrollItemIntoViewIfNeeded(sectionIndex + 1)
+            verticalState.scrollItemIntoViewIfNeeded(sectionIndex)
             rowStates.getOrNull(sectionIndex)?.scrollItemIntoViewIfNeeded(itemIndex)
         }
     }
 
     LaunchedEffect(headerUiState.initialFocusToken) {
         selectedItem = null
-        verticalState.scrollToItem(0)
+        isContentPageActive = false
     }
 
     LaunchedEffect(sectionKeys) {
@@ -195,7 +200,8 @@ internal fun DetailScreen(
             val restoreTarget = findRestoreTarget(lastFocusedSectionIndex, lastFocusedItemIndex)
             if (restoreTarget != null) {
                 val (targetSectionIndex, targetItemIndex) = restoreTarget
-                verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex + 1)
+                isContentPageActive = true
+                verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
                 rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
                 requestWatchingFocusAfterAttach(
                     sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
@@ -220,7 +226,8 @@ internal fun DetailScreen(
             preferredItemId = contentRestoreState.preferredItemId,
         ) ?: return@LaunchedEffect
         val (targetSectionIndex, targetItemIndex) = restoreTarget
-        verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex + 1)
+        isContentPageActive = true
+        verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
         rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
         if (requestWatchingFocusAfterAttach(
             sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
@@ -242,85 +249,119 @@ internal fun DetailScreen(
             )
     ) {
         val headerHeight = maxHeight
+        val headerOffsetY by animateDpAsState(
+            targetValue = if (hasContent && isContentPageActive) -headerHeight else 0.dp,
+            label = "detailHeaderPageOffset",
+        )
+        val contentOffsetY by animateDpAsState(
+            targetValue = if (hasContent && isContentPageActive) 0.dp else headerHeight,
+            label = "detailContentPageOffset",
+        )
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                state = verticalState,
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
-                contentPadding = PaddingValues(
-                    bottom = if (hasContent) TvBottomDescriptionInset else 0.dp
-                ),
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clipToBounds(),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .offset { IntOffset(x = 0, y = headerOffsetY.roundToPx()) },
             ) {
-                item(key = "detail-header") {
-                    ReleaseDetailsRowContent(
-                        uiState = headerUiState,
-                        callbacks = headerCallbacks,
-                        showMoreHint = hasContent,
-                        actionsDownRequester = firstContentRequester,
-                        onInitialHeaderFocusApplied = onHeaderFocusSettled,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(headerHeight),
-                    )
-                }
+                ReleaseDetailsRowContent(
+                    uiState = headerUiState,
+                    callbacks = headerCallbacks,
+                    showMoreHint = hasContent && !isContentPageActive,
+                    actionsDownRequester = firstContentRequester,
+                    onInitialHeaderFocusApplied = onHeaderFocusSettled,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(headerHeight),
+                )
+            }
 
-                itemsIndexed(
-                    items = sections,
-                    key = { _, section -> section.id },
-                ) { sectionIndex, section ->
-                    MainSectionBlock(
-                        title = section.title,
-                        items = section.items,
-                        palette = palette,
-                        rowState = rowStates.getOrNull(sectionIndex) ?: LazyListState(),
-                        requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty(),
-                        onItemClick = { item -> onSectionItemClick(section.id, item) },
-                        onItemFocused = itemFocus@{ itemIndex, item ->
-                            if (!contentSelectionEnabled) {
-                                return@itemFocus
-                            }
-                            selectedItem = item
-                            lastFocusedSectionIndex = sectionIndex
-                            lastFocusedItemIndex = itemIndex
-                            keepItemVisible(sectionIndex, itemIndex)
-                            onContentItemFocused(sectionIndex, itemIndex, item)
-                        },
-                        onLeftEdge = { false },
-                        onUp = { itemIndex ->
-                            if (sectionIndex == 0) {
-                                requestHeaderFocus()
-                                true
-                            } else {
-                                requestSectionFocus(sectionIndex, -1, itemIndex)
-                            }
-                        },
-                        onDown = { itemIndex ->
-                            requestSectionFocus(sectionIndex, 1, itemIndex)
-                        },
-                        modifier = Modifier.padding(horizontal = TvScreenHorizontalPadding),
-                        posterFocusedBackgroundColor = detailCardBackground,
-                        posterBorderColor = palette.textColor.copy(alpha = 0.58f),
-                        posterFocusedBorderWidth = 2.dp,
-                        posterUnfocusedBorderWidth = 1.dp,
-                    )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .offset { IntOffset(x = 0, y = contentOffsetY.roundToPx()) }
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                contentPageStartColor.copy(alpha = 0.98f),
+                                contentPageEndColor.copy(alpha = 0.94f),
+                            )
+                        )
+                    ),
+            ) {
+                LazyColumn(
+                    state = verticalState,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
+                    contentPadding = PaddingValues(
+                        top = 36.dp,
+                        bottom = if (hasContent) TvBottomDescriptionInset else 0.dp,
+                    ),
+                ) {
+                    itemsIndexed(
+                        items = sections,
+                        key = { _, section -> section.id },
+                    ) { sectionIndex, section ->
+                        MainSectionBlock(
+                            title = section.title,
+                            items = section.items,
+                            palette = palette,
+                            rowState = rowStates.getOrNull(sectionIndex) ?: LazyListState(),
+                            requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty(),
+                            onItemClick = { item -> onSectionItemClick(section.id, item) },
+                            onItemFocused = itemFocus@{ itemIndex, item ->
+                                if (!contentSelectionEnabled) {
+                                    return@itemFocus
+                                }
+                                isContentPageActive = true
+                                selectedItem = item
+                                lastFocusedSectionIndex = sectionIndex
+                                lastFocusedItemIndex = itemIndex
+                                keepItemVisible(sectionIndex, itemIndex)
+                                onContentItemFocused(sectionIndex, itemIndex, item)
+                            },
+                            onLeftEdge = { false },
+                            onUp = { itemIndex ->
+                                if (sectionIndex == 0) {
+                                    requestHeaderFocus()
+                                    true
+                                } else {
+                                    requestSectionFocus(sectionIndex, -1, itemIndex)
+                                }
+                            },
+                            onDown = { itemIndex ->
+                                requestSectionFocus(sectionIndex, 1, itemIndex)
+                            },
+                            modifier = Modifier.padding(horizontal = TvScreenHorizontalPadding),
+                            posterFocusedBackgroundColor = detailCardBackground,
+                            posterBorderColor = palette.textColor.copy(alpha = 0.58f),
+                            posterFocusedBorderWidth = 2.dp,
+                            posterUnfocusedBorderWidth = 1.dp,
+                        )
+                    }
                 }
             }
 
-            selectedItem?.let { item ->
+            if (isContentPageActive) {
+                selectedItem?.let { item ->
                 val description = item.toTvCardDescription { card ->
                     card.resolveDescription(context)
                 }
                 if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
-                        WatchingDescriptionBar(
-                            title = description.title.toString(),
-                            subtitle = description.subtitle.toString(),
-                            palette = palette,
-                            contentPadding = TvDescriptionBarPadding,
-                            modifier = Modifier.align(Alignment.BottomCenter),
-                        )
-                    }
+                    WatchingDescriptionBar(
+                        title = description.title.toString(),
+                        subtitle = description.subtitle.toString(),
+                        palette = palette,
+                        contentPadding = TvDescriptionBarPadding,
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
                 }
+            }
+            }
         }
     }
 }

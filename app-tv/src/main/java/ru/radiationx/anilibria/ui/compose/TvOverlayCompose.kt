@@ -54,12 +54,14 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
+import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
@@ -78,6 +80,37 @@ internal data class TvOverlayChoiceSection(
     val title: String? = null,
     val items: List<TvOverlayChoiceItem>,
 )
+
+internal val TvOverlayOuterPadding = PaddingValues(horizontal = 28.dp, vertical = 24.dp)
+private val TvOverlayPanelShape = RoundedCornerShape(24.dp)
+private val TvOverlayPanelPadding = PaddingValues(horizontal = 28.dp, vertical = 24.dp)
+private val TvOverlayPanelSpacing = 18.dp
+
+@Composable
+internal fun TvOverlayPanelSurface(
+    palette: WatchingPalette,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = TvOverlayPanelPadding,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        shape = TvOverlayPanelShape,
+        color = palette.surfaceColor.copy(alpha = 0.98f),
+        modifier = modifier,
+    ) {
+        Column(
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    color = palette.textColor.copy(alpha = 0.08f),
+                    shape = TvOverlayPanelShape,
+                )
+                .padding(contentPadding),
+            verticalArrangement = Arrangement.spacedBy(TvOverlayPanelSpacing),
+            content = content,
+        )
+    }
+}
 
 @Composable
 internal fun TvOverlayScreen(
@@ -100,45 +133,33 @@ internal fun TvOverlayScreen(
                     )
                 )
             )
-            .padding(horizontal = 28.dp, vertical = 24.dp),
+            .padding(TvOverlayOuterPadding),
     ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = palette.surfaceColor.copy(alpha = 0.98f),
+        TvOverlayPanelSurface(
+            palette = palette,
             modifier = Modifier
                 .align(Alignment.Center)
                 .widthIn(max = minOf(maxWidth - 24.dp, panelMaxWidth))
                 .heightIn(max = maxHeight - 24.dp)
                 .fillMaxWidth(),
         ) {
-            Column(
-                modifier = Modifier
-                    .border(
-                        width = 1.dp,
-                        color = palette.textColor.copy(alpha = 0.08f),
-                        shape = RoundedCornerShape(24.dp),
-                    )
-                    .padding(horizontal = 28.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = title,
+                    color = palette.textColor,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                subtitle?.takeIf { it.isNotBlank() }?.also {
                     Text(
-                        text = title,
-                        color = palette.textColor,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = it,
+                        color = palette.secondaryTextColor,
+                        fontSize = 16.sp,
+                        lineHeight = 22.sp,
                     )
-                    subtitle?.takeIf { it.isNotBlank() }?.also {
-                        Text(
-                            text = it,
-                            color = palette.secondaryTextColor,
-                            fontSize = 15.sp,
-                            lineHeight = 22.sp,
-                        )
-                    }
                 }
-                content(palette)
             }
+            content(palette)
         }
     }
 }
@@ -156,7 +177,6 @@ internal fun TvOverlayActionButton(
     loading: Boolean = false,
     onClick: () -> Unit,
 ) {
-    var isFocused by remember { mutableStateOf(false) }
     val interactiveEnabled = enabled && !loading
     val backgroundColor = if (destructive) {
         palette.accentColor.copy(alpha = 0.18f)
@@ -164,37 +184,31 @@ internal fun TvOverlayActionButton(
         androidx.compose.ui.res.colorResource(R.color.dark_release_day_btn)
     }
 
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = backgroundColor,
-        modifier = modifier
-            .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) palette.textColor.copy(alpha = 0.75f) else Color.Transparent,
-                shape = RoundedCornerShape(24.dp),
-            )
-            .then(
-                if (interactiveEnabled) {
-                    Modifier
-                        .focusRequester(focusRequester)
-                        .focusProperties {
-                            up = upRequester
-                            down = downRequester
-                        }
-                        .onFocusChanged { isFocused = it.isFocused }
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onClick,
-                        )
-                        .focusable()
-                } else {
-                    Modifier
-                }
-            ),
+    WatchingFocusableSurface(
+        focusRequester = focusRequester,
+        enabled = interactiveEnabled,
+        backgroundColor = backgroundColor,
+        focusedBackgroundColor = if (destructive) {
+            palette.accentColor.copy(alpha = 0.24f)
+        } else {
+            backgroundColor
+        },
+        borderColor = if (destructive) {
+            palette.accentColor.copy(alpha = 0.9f)
+        } else {
+            palette.textColor.copy(alpha = 0.75f)
+        },
+        onClick = onClick,
+        onUp = {
+            requestWatchingFocus(upRequester)
+        },
+        onDown = {
+            requestWatchingFocus(downRequester)
+        },
+        modifier = modifier,
+        paddingValues = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -208,7 +222,7 @@ internal fun TvOverlayActionButton(
             Text(
                 text = text,
                 color = if (enabled) palette.textColor else palette.secondaryTextColor,
-                fontSize = 16.sp,
+                fontSize = 17.sp,
             )
         }
     }
@@ -234,21 +248,35 @@ internal fun TvOverlayTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    val fieldShape = RoundedCornerShape(24.dp)
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        label = { Text(label) },
-        supportingText = supportingText?.let { { Text(it) } },
+        label = { Text(text = label, fontSize = 15.sp) },
+        supportingText = supportingText?.let {
+            {
+                Text(
+                    text = it,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+            }
+        },
         singleLine = singleLine,
         minLines = minLines,
         maxLines = maxLines,
         isError = isError,
         keyboardOptions = keyboardOptions,
         visualTransformation = visualTransformation,
+        shape = fieldShape,
+        textStyle = TextStyle(
+            fontSize = 18.sp,
+            lineHeight = 24.sp,
+        ),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = palette.surfaceColor.copy(alpha = 0.40f),
-            unfocusedContainerColor = palette.surfaceColor.copy(alpha = 0.24f),
+            focusedContainerColor = palette.surfaceColor.copy(alpha = 0.48f),
+            unfocusedContainerColor = palette.surfaceColor.copy(alpha = 0.30f),
             disabledContainerColor = palette.surfaceColor.copy(alpha = 0.16f),
             focusedTextColor = palette.textColor,
             unfocusedTextColor = palette.textColor,
@@ -259,13 +287,22 @@ internal fun TvOverlayTextField(
             unfocusedSupportingTextColor = palette.secondaryTextColor,
             errorSupportingTextColor = palette.accentColor,
             errorLabelColor = palette.accentColor,
-            focusedIndicatorColor = if (isFocused) palette.textColor.copy(alpha = 0.7f) else palette.secondaryTextColor,
-            unfocusedIndicatorColor = palette.textColor.copy(alpha = 0.2f),
-            errorIndicatorColor = palette.accentColor,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            errorIndicatorColor = Color.Transparent,
             cursorColor = palette.textColor,
         ),
         modifier = modifier
             .fillMaxWidth()
+            .border(
+                width = if (isFocused) 2.dp else 1.dp,
+                color = when {
+                    isError -> palette.accentColor.copy(alpha = 0.92f)
+                    isFocused -> palette.textColor.copy(alpha = 0.78f)
+                    else -> palette.textColor.copy(alpha = 0.16f)
+                },
+                shape = fieldShape,
+            )
             .focusRequester(focusRequester)
             .focusProperties {
                 up = upRequester

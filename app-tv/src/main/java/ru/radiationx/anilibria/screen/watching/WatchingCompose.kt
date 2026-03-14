@@ -404,6 +404,7 @@ private fun WatchingSectionBlock(
                             }
                         ),
                         focusRequester = requesters[index],
+                        loading = !item.isError,
                         onClick = { onItemClick(item) },
                         onFocused = { onMessageFocused(index, item) },
                         onLeft = if (index == 0) onLeftEdge else null,

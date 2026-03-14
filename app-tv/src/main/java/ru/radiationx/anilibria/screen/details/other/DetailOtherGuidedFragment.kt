@@ -45,7 +45,7 @@ class DetailOtherGuidedFragment : ComposeGuidedFragment() {
         val markRequester = remember { FocusRequester() }
 
         LaunchedEffect(Unit) {
-            requestWatchingFocusAfterAttach(clearRequester)
+            requestWatchingFocusAfterAttach(markRequester)
         }
 
         TvOverlayScreen(
@@ -62,7 +62,7 @@ class DetailOtherGuidedFragment : ComposeGuidedFragment() {
                 text = "Сбросить историю просмотров",
                 palette = palette,
                 focusRequester = clearRequester,
-                downRequester = markRequester,
+                upRequester = markRequester,
                 destructive = true,
                 onClick = viewModel::onClearClick,
                 modifier = Modifier.fillMaxWidth(),
@@ -71,7 +71,7 @@ class DetailOtherGuidedFragment : ComposeGuidedFragment() {
                 text = "Отметить всё как просмотренные",
                 palette = palette,
                 focusRequester = markRequester,
-                upRequester = clearRequester,
+                downRequester = clearRequester,
                 onClick = viewModel::onMarkClick,
                 modifier = Modifier.fillMaxWidth(),
             )

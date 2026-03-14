@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -35,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -42,12 +44,17 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,6 +71,7 @@ import ru.radiationx.anilibria.screen.watching.TvPlayerOverlayHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.data.entity.common.PlayerQuality
+import kotlin.math.roundToInt
 
 internal enum class PlayerOverlayFocusTarget {
     Root,
@@ -123,6 +131,9 @@ internal fun PlayerScreenContent(
     var controlsPanelHeightPx by remember { mutableIntStateOf(0) }
     var activePicker by remember { mutableStateOf<PlayerInlinePicker?>(null) }
     var pendingFocusRestoreTarget by remember { mutableStateOf<PlayerOverlayFocusTarget?>(null) }
+    var rootSizePx by remember { mutableStateOf(IntSize.Zero) }
+    var qualityButtonBounds by remember { mutableStateOf<Rect?>(null) }
+    var speedButtonBounds by remember { mutableStateOf<Rect?>(null) }
 
     fun registerInteraction() {
         autoHideToken += 1
@@ -212,6 +223,7 @@ internal fun PlayerScreenContent(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .onSizeChanged { rootSizePx = it }
             .focusRequester(rootRequester)
             .focusable()
             .onPreviewKeyEvent { event ->
@@ -371,6 +383,8 @@ internal fun PlayerScreenContent(
                 qualityRequester = qualityRequester,
                 speedRequester = speedRequester,
                 episodesRequester = episodesRequester,
+                onQualityButtonPositioned = { qualityButtonBounds = it },
+                onSpeedButtonPositioned = { speedButtonBounds = it },
                 onControlFocused = onControlFocused,
                 onInteraction = ::registerInteraction,
                 onTogglePlayback = onTogglePlayback,
@@ -397,8 +411,13 @@ internal fun PlayerScreenContent(
             val pickerBottomPadding = with(LocalDensity.current) {
                 controlsPanelHeightPx.toDp() + TvPlayerOverlayBottomPadding + 12.dp
             }
+            val pickerBottomPaddingPx = with(LocalDensity.current) { pickerBottomPadding.roundToPx() }
+            val pickerHorizontalPaddingPx = with(LocalDensity.current) { TvPlayerOverlayHorizontalPadding.roundToPx() }
+            val pickerTopPaddingPx = with(LocalDensity.current) { 24.dp.roundToPx() }
+            val pickerGapPx = with(LocalDensity.current) { 12.dp.roundToPx() }
             when (activePicker) {
                 PlayerInlinePicker.Quality -> {
+                    var pickerSizePx by remember { mutableStateOf(IntSize.Zero) }
                     PlayerInlinePickerPanel(
                         title = stringResource(R.string.player_action_quality),
                         options = availableQualities.map { quality ->
@@ -414,9 +433,22 @@ internal fun PlayerScreenContent(
                         },
                         palette = palette,
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
+                            .onSizeChanged { pickerSizePx = it }
+                            .offset {
+                                calculateAnchoredPickerOffset(
+                                    rootSizePx = rootSizePx,
+                                    pickerSizePx = pickerSizePx,
+                                    anchorBounds = qualityButtonBounds,
+                                    fallbackBottomPaddingPx = pickerBottomPaddingPx,
+                                    horizontalPaddingPx = pickerHorizontalPaddingPx,
+                                    topPaddingPx = pickerTopPaddingPx,
+                                    gapPx = pickerGapPx,
+                                )
+                            }
+                            .align(Alignment.TopStart)
                             .padding(
-                                bottom = pickerBottomPadding,
+                                start = TvPlayerOverlayHorizontalPadding,
+                                end = TvPlayerOverlayHorizontalPadding,
                             ),
                         onDismiss = {
                             registerInteraction()
@@ -426,6 +458,7 @@ internal fun PlayerScreenContent(
                 }
 
                 PlayerInlinePicker.Speed -> {
+                    var pickerSizePx by remember { mutableStateOf(IntSize.Zero) }
                     PlayerInlinePickerPanel(
                         title = stringResource(R.string.player_action_speed),
                         options = availableSpeeds.map { speed ->
@@ -441,9 +474,22 @@ internal fun PlayerScreenContent(
                         },
                         palette = palette,
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
+                            .onSizeChanged { pickerSizePx = it }
+                            .offset {
+                                calculateAnchoredPickerOffset(
+                                    rootSizePx = rootSizePx,
+                                    pickerSizePx = pickerSizePx,
+                                    anchorBounds = speedButtonBounds,
+                                    fallbackBottomPaddingPx = pickerBottomPaddingPx,
+                                    horizontalPaddingPx = pickerHorizontalPaddingPx,
+                                    topPaddingPx = pickerTopPaddingPx,
+                                    gapPx = pickerGapPx,
+                                )
+                            }
+                            .align(Alignment.TopStart)
                             .padding(
-                                bottom = pickerBottomPadding,
+                                start = TvPlayerOverlayHorizontalPadding,
+                                end = TvPlayerOverlayHorizontalPadding,
                             ),
                         onDismiss = {
                             registerInteraction()
@@ -524,6 +570,8 @@ private fun PlayerControlsPanel(
     qualityRequester: FocusRequester,
     speedRequester: FocusRequester,
     episodesRequester: FocusRequester,
+    onQualityButtonPositioned: (Rect) -> Unit,
+    onSpeedButtonPositioned: (Rect) -> Unit,
     onControlFocused: (PlayerOverlayFocusTarget) -> Unit,
     onInteraction: () -> Unit,
     onTogglePlayback: () -> Unit,
@@ -807,11 +855,11 @@ private fun PlayerControlsPanel(
                     focusRequester = episodesRequester,
                     palette = palette,
                     iconRes = R.drawable.ic_playlist_play_black_24dp,
-                    minWidth = 84.dp,
-                    horizontalPadding = 10.dp,
-                    verticalPadding = 8.dp,
+                    minWidth = 96.dp,
+                    horizontalPadding = 12.dp,
+                    verticalPadding = 10.dp,
                     iconSize = 18.dp,
-                    textFontSize = 13.sp,
+                    textFontSize = 15.sp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.Episodes)
@@ -843,11 +891,11 @@ private fun PlayerControlsPanel(
                     iconRes = R.drawable.ic_play_speed,
                     enabled = speedEnabled,
                     emphasized = isSpeedPickerOpen,
-                    minWidth = 88.dp,
-                    horizontalPadding = 10.dp,
-                    verticalPadding = 8.dp,
+                    minWidth = 96.dp,
+                    horizontalPadding = 12.dp,
+                    verticalPadding = 10.dp,
                     iconSize = 18.dp,
-                    textFontSize = 13.sp,
+                    textFontSize = 15.sp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.Speed)
@@ -873,6 +921,9 @@ private fun PlayerControlsPanel(
                         requestFocus(playPauseRequester)
                     },
                     onDown = { true },
+                    modifier = Modifier.onGloballyPositioned {
+                        onSpeedButtonPositioned(it.boundsInRoot())
+                    },
                 )
                 PlayerActionButton(
                     text = qualityLabel,
@@ -881,10 +932,10 @@ private fun PlayerControlsPanel(
                     palette = palette,
                     enabled = qualityEnabled,
                     emphasized = isQualityPickerOpen,
-                    minWidth = 64.dp,
-                    horizontalPadding = 10.dp,
-                    verticalPadding = 8.dp,
-                    textFontSize = 13.sp,
+                    minWidth = 80.dp,
+                    horizontalPadding = 12.dp,
+                    verticalPadding = 10.dp,
+                    textFontSize = 15.sp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.Quality)
@@ -907,6 +958,9 @@ private fun PlayerControlsPanel(
                         requestFocus(seekForwardRequester)
                     },
                     onDown = { true },
+                    modifier = Modifier.onGloballyPositioned {
+                        onQualityButtonPositioned(it.boundsInRoot())
+                    },
                 )
             }
         }
@@ -966,12 +1020,12 @@ private fun PlayerProgressSurface(
                 Text(
                     text = currentPositionMs.toPlaybackTime(),
                     color = palette.textColor,
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                 )
                 Text(
                     text = safeDuration.toPlaybackTime(),
                     color = palette.secondaryTextColor,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                 )
             }
             Box(
@@ -1106,23 +1160,24 @@ private fun PlayerInlinePickerPanel(
 
     Box(
         modifier = modifier
-            .widthIn(min = 220.dp, max = 260.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.Black.copy(alpha = 0.90f))
+            .widthIn(min = 240.dp, max = 300.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(palette.surfaceColor.copy(alpha = 0.96f))
             .border(
                 width = 1.dp,
-                color = palette.textColor.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(18.dp),
+                color = palette.textColor.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(24.dp),
             )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 18.dp, vertical = 16.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
                 text = title,
                 color = palette.secondaryTextColor,
-                fontSize = 13.sp,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
             )
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 options.forEachIndexed { index, option ->
                     PlayerInlinePickerButton(
                         title = option.title,
@@ -1180,7 +1235,7 @@ private fun PlayerInlinePickerButton(
         onRight = { true },
         onUp = onUp,
         onDown = onDown,
-        paddingValues = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+        paddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1206,7 +1261,7 @@ private fun PlayerInlinePickerButton(
             Text(
                 text = title,
                 color = palette.textColor,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
             )
         }
     }
@@ -1217,6 +1272,38 @@ private fun requestFocus(focusRequester: FocusRequester): Boolean {
         focusRequester.requestFocus()
         true
     }.getOrDefault(false)
+}
+
+private fun calculateAnchoredPickerOffset(
+    rootSizePx: IntSize,
+    pickerSizePx: IntSize,
+    anchorBounds: Rect?,
+    fallbackBottomPaddingPx: Int,
+    horizontalPaddingPx: Int,
+    topPaddingPx: Int,
+    gapPx: Int,
+): IntOffset {
+    val pickerWidth = pickerSizePx.width
+    val pickerHeight = pickerSizePx.height
+    return if (rootSizePx == IntSize.Zero || pickerWidth == 0 || pickerHeight == 0) {
+        IntOffset.Zero
+    } else {
+        val minX = horizontalPaddingPx
+        val maxX = (rootSizePx.width - horizontalPaddingPx - pickerWidth).coerceAtLeast(minX)
+        val fallbackX = ((rootSizePx.width - pickerWidth) / 2).coerceIn(minX, maxX)
+        val fallbackY = (rootSizePx.height - fallbackBottomPaddingPx - pickerHeight)
+            .coerceAtLeast(topPaddingPx)
+
+        val anchor = anchorBounds
+        if (anchor == null) {
+            IntOffset(fallbackX, fallbackY)
+        } else {
+            val anchoredX = (anchor.center.x - pickerWidth / 2f).roundToInt().coerceIn(minX, maxX)
+            val maxY = (rootSizePx.height - pickerHeight - topPaddingPx).coerceAtLeast(topPaddingPx)
+            val anchoredY = (anchor.top - gapPx - pickerHeight).roundToInt().coerceIn(topPaddingPx, maxY)
+            IntOffset(anchoredX, anchoredY)
+        }
+    }
 }
 
 private fun Long.toPlaybackTime(): String {

@@ -47,11 +47,10 @@ class EndEpisodeViewModel @Inject constructor(
 
     fun onNextClick() {
         val episode = currentEpisode ?: return
-        guidedRouter.close()
-
         val currentIndex = currentEpisodes.indexOfFirst { it.id == episode.id }
         currentEpisodes.getOrNull(currentIndex + 1)?.also { nextEpisode ->
             playerController.selectEpisodeRelay.emit(nextEpisode.id)
+            guidedRouter.close()
         }
     }
 }

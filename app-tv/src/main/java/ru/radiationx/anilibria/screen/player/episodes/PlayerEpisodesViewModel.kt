@@ -68,14 +68,14 @@ class PlayerEpisodesViewModel @Inject constructor(
         val action = _episodesData.value.findAction { it.id == actionId } ?: return
         val episodeId = action.episodeId
 
-        guidedRouter.close()
-
         if (playerController.isPlayerActive) {
             // Плеер уже открыт — просто переключаем серию
             playerController.selectEpisodeRelay.emit(episodeId)
+            guidedRouter.close()
         } else {
             // Плеера нет — открываем экран просмотра
             router.navigateTo(PlayerScreen(episodeId.releaseId, episodeId))
+            guidedRouter.close()
         }
     }
 
