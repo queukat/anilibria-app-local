@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,14 +37,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import ru.radiationx.anilibria.R
-import ru.radiationx.anilibria.screen.watching.TvRowsScreenVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
+import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
+import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
+import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.data.entity.domain.other.ProfileItem
 import ru.radiationx.shared_app.imageloader.showImageUrl
 
-private const val PROFILE_PANEL_WIDTH_FRACTION = 0.5f
+private const val PROFILE_PANEL_WIDTH_FRACTION = 0.62f
 
 @Composable
 internal fun ProfileScreen(
@@ -56,6 +58,7 @@ internal fun ProfileScreen(
     onRequestRailFocus: () -> Boolean,
     onRequestHeaderFocus: () -> Boolean,
 ) {
+    val palette = rememberWatchingPalette()
     val surfaceColor = colorResource(R.color.dark_colorPrimary)
     val textColor = colorResource(R.color.dark_textDefault)
     val secondaryTextColor = colorResource(R.color.dark_textSecond)
@@ -80,44 +83,27 @@ internal fun ProfileScreen(
                     )
                 )
             )
-            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
+            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(PROFILE_PANEL_WIDTH_FRACTION)
-                .widthIn(min = 420.dp, max = 620.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(TvPageHeaderSpacing),
         ) {
-            Column(
-                modifier = Modifier.padding(top = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = if (profile != null) {
-                        "Аккаунт подключен"
-                    } else {
-                        "Войдите в аккаунт"
-                    },
-                    color = textColor,
-                    fontSize = 21.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = if (profile != null) {
-                        "Здесь можно быстро выйти из профиля на этом устройстве."
-                    } else {
-                        "Синхронизируйте историю, избранное и продолжение просмотра между устройствами."
-                    },
-                    color = secondaryTextColor,
-                    fontSize = 16.sp,
-                    lineHeight = 22.sp,
-                )
-            }
+            TvPageHeader(
+                title = "Профиль",
+                subtitle = if (profile != null) {
+                    "Управляйте аккаунтом на этом устройстве и быстро выходите из профиля без лишних шагов."
+                } else {
+                    "Подключите аккаунт, чтобы синхронизировать историю, избранное " +
+                        "и продолжение просмотра между устройствами."
+                },
+                palette = palette,
+            )
 
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(PROFILE_PANEL_WIDTH_FRACTION)
+                    .widthIn(min = 480.dp, max = 760.dp)
                     .clip(RoundedCornerShape(32.dp))
                     .background(surfaceColor.copy(alpha = 0.92f))
                     .border(
@@ -139,7 +125,7 @@ internal fun ProfileScreen(
                 Text(
                     text = profile?.nick ?: "Гость",
                     color = textColor,
-                    fontSize = 28.sp,
+                    fontSize = 30.sp,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                 )
@@ -153,8 +139,8 @@ internal fun ProfileScreen(
                         "Подключите аккаунт, чтобы продолжать просмотр между устройствами и не терять избранное."
                     },
                     color = secondaryTextColor,
-                    fontSize = 16.sp,
-                    lineHeight = 22.sp,
+                    fontSize = 17.sp,
+                    lineHeight = 24.sp,
                     textAlign = TextAlign.Center,
                 )
 

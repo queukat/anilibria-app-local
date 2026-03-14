@@ -112,7 +112,7 @@ class PlayerFragment : BasePlayerFragment() {
 
     override fun onStop() {
         super.onStop()
-        if (hasTemporaryGuidedOverlay()) {
+        if (hasTemporaryGuidedOverlay() && !isRemoving && !requireActivity().isFinishing) {
             return
         }
         viewModel.onExit(getCurrentPosition())

@@ -60,7 +60,10 @@ import ru.radiationx.anilibria.screen.watching.TvRowSpacing
 import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
+import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
 import ru.radiationx.anilibria.screen.watching.indexOfItemId
+import ru.radiationx.anilibria.screen.watching.isTvStateOnlySection
+import ru.radiationx.anilibria.screen.watching.primaryTvStateItem
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
@@ -109,16 +112,16 @@ internal fun SuggestionsScreen(
             List(section.items.size) { FocusRequester() }
         }
     }
-    var selectedItem by remember(sectionKeys) { mutableStateOf<CardItem?>(null) }
+    var selectedItem by remember(sectionKeys) { mutableStateOf<LibriaCard?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemId by remember { mutableIntStateOf(Int.MIN_VALUE) }
     var lastFocusArea by remember { mutableStateOf(SuggestionsFocusArea.Field) }
-    val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
+    val hasContent = remember(sectionKeys) { sections.any { section -> section.items.hasTvPosterContent() } }
 
-    fun isStateOnlyInfoSection(section: SuggestionsSectionUiModel): Boolean {
-        return section.items.singleOrNull() is InfoCard
+    fun isStateOnlySection(section: SuggestionsSectionUiModel): Boolean {
+        return section.items.isTvStateOnlySection()
     }
 
     fun requestTextFieldFocus(): Boolean {
@@ -130,7 +133,7 @@ internal fun SuggestionsScreen(
         preferredItemIndex: Int,
     ): Pair<Int, Int>? {
         val section = sections.getOrNull(sectionIndex)
-        return if (section == null || isStateOnlyInfoSection(section)) {
+        return if (section == null || isStateOnlySection(section)) {
             null
         } else {
             val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
@@ -202,7 +205,7 @@ internal fun SuggestionsScreen(
     ): Boolean {
         var targetSectionIndex = currentSectionIndex + direction
         while (targetSectionIndex in sections.indices) {
-            if (isStateOnlyInfoSection(sections[targetSectionIndex])) {
+            if (isStateOnlySection(sections[targetSectionIndex])) {
                 targetSectionIndex += direction
                 continue
             }
@@ -223,7 +226,7 @@ internal fun SuggestionsScreen(
 
     fun requestFirstSectionFocus(): Boolean {
         val firstSectionIndex = sections.indexOfFirst { section ->
-            section.items.isNotEmpty() && !isStateOnlyInfoSection(section)
+            section.items.isNotEmpty() && !isStateOnlySection(section)
         }
         if (firstSectionIndex < 0) {
             return false
@@ -352,7 +355,7 @@ internal fun SuggestionsScreen(
                         requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty(),
                         onItemClick = { item -> onItemClick(section.id, item) },
                         onItemFocused = { itemIndex, item ->
-                            selectedItem = item
+                            selectedItem = item as? LibriaCard
                             lastFocusedSectionIndex = sectionIndex
                             lastFocusedItemIndex = itemIndex
                             lastFocusedItemId = item.getId()
@@ -500,7 +503,7 @@ private fun SuggestionsSectionBlock(
     onUp: (Int) -> Boolean,
     onDown: (Int) -> Boolean,
 ) {
-    val stateInfoCard = items.singleOrNull() as? InfoCard
+    val stateItem = remember(items) { items.primaryTvStateItem() }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -511,11 +514,29 @@ private fun SuggestionsSectionBlock(
             palette = palette,
         )
 
-        if (stateInfoCard != null) {
+        if (items.isTvStateOnlySection() && stateItem != null) {
             TvContentStatePanel(
-                title = stateInfoCard.title,
-                subtitle = stateInfoCard.subtitle,
+                title = when (stateItem) {
+                    is LoadingCard -> stateItem.title.ifBlank { "Загрузка результатов" }
+                    is LinkCard -> stateItem.title
+                    is InfoCard -> stateItem.title
+                    else -> title
+                },
+                subtitle = when (stateItem) {
+                    is LoadingCard -> stateItem.description.ifBlank {
+                        if (stateItem.isError) {
+                            "Проверьте подключение и попробуйте ещё раз."
+                        } else {
+                            "Результаты обновятся автоматически."
+                        }
+                    }
+                    is LinkCard -> "Уточните запрос или повторите действие позже."
+                    is InfoCard -> stateItem.subtitle
+                    else -> ""
+                },
                 palette = palette,
+                accent = stateItem is LoadingCard && stateItem.isError,
+                loading = stateItem is LoadingCard && !stateItem.isError,
             )
         } else {
             LazyRow(

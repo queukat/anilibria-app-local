@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
@@ -63,9 +64,11 @@ import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
 import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
 import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
+import ru.radiationx.anilibria.screen.watching.TvFilterRowSpacing
 import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvPosterCardSlotWidth
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvPickerTopInset
 import ru.radiationx.anilibria.screen.watching.TvRowSpacing
 import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.WatchingWideMessageCard
@@ -140,7 +143,7 @@ internal fun CatalogScreen(
     val itemRequesters = remember(itemIds) {
         List(cards.size) { androidx.compose.ui.focus.FocusRequester() }
     }
-    var selectedItem by remember(itemIds) { mutableStateOf<CardItem?>(null) }
+    var selectedItem by remember(itemIds) { mutableStateOf<LibriaCard?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var handledRestoreToken by remember { mutableIntStateOf(0) }
     var lastFocusedFilterIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -292,7 +295,7 @@ internal fun CatalogScreen(
                     modifier = Modifier
                         .fillMaxWidth(),
                     state = filtersRowState,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(TvFilterRowSpacing),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     lazyItemsIndexed(filterItems) { index, filter ->
@@ -419,7 +422,7 @@ internal fun CatalogScreen(
                                         enabled = interactionsEnabled,
                                         onClick = { onItemClick(item) },
                                         onFocused = {
-                                            selectedItem = null
+                                            selectedItem = item
                                             lastFocusedItemIndex = index
                                             lastFocusedItemId = item.getId()
                                             lastFocusTarget = CatalogFocusTarget.Grid.name
@@ -686,11 +689,12 @@ private fun CatalogFilterPickerDialog(
                     else -> false
                 }
             },
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.TopCenter,
     ) {
         TvOverlayPanelSurface(
             palette = palette,
             modifier = Modifier
+                .padding(top = TvPickerTopInset)
                 .fillMaxWidth(SEARCH_CATALOG_WIDTH_FRACTION)
                 .heightIn(max = 640.dp),
             contentPadding = TvOverlayOuterPadding,
@@ -805,9 +809,23 @@ private fun CatalogFilterPickerDialog(
                                     )
                                     Box(
                                         modifier = Modifier
-                                            .size(18.dp)
+                                            .size(12.dp)
                                             .background(
-                                                if (isSelected) palette.accentColor else Color.Transparent
+                                                color = if (isSelected) {
+                                                    palette.accentColor
+                                                } else {
+                                                    Color.Transparent
+                                                },
+                                                shape = RoundedCornerShape(percent = 50),
+                                            )
+                                            .border(
+                                                width = 1.dp,
+                                                color = if (isSelected) {
+                                                    palette.accentColor
+                                                } else {
+                                                    palette.textColor.copy(alpha = 0.22f)
+                                                },
+                                                shape = RoundedCornerShape(percent = 50),
                                             )
                                     )
                                 }

@@ -55,11 +55,15 @@ import ru.radiationx.anilibria.screen.watching.TvRowsScreenVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
+import ru.radiationx.anilibria.screen.watching.WatchingWideMessageCard
+import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
 import ru.radiationx.anilibria.screen.watching.indexOfItemId
+import ru.radiationx.anilibria.screen.watching.isTvStateOnlySection
+import ru.radiationx.anilibria.screen.watching.primaryTvStateItem
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
-import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
+import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
 import ru.radiationx.anilibria.ui.compose.TvSectionHeader
 
 internal data class MainSectionUiModel(
@@ -107,19 +111,25 @@ internal fun MainScreen(
             List(section.items.size) { androidx.compose.ui.focus.FocusRequester() }
         }
     }
-    var selectedItem by remember(sectionKeys) { mutableStateOf<CardItem?>(null) }
+    var selectedItem by remember(sectionKeys) { mutableStateOf<LibriaCard?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var descriptionTick by remember { mutableIntStateOf(0) }
-    val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
+    val hasContent = remember(sectionKeys) { sections.any { section -> section.items.hasTvPosterContent() } }
 
     fun targetInSection(
         sectionIndex: Int,
         preferredItemIndex: Int,
     ): Pair<Int, Int>? {
+        val items = sections.getOrNull(sectionIndex)?.items.orEmpty()
         val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
-        return requesters
-            .takeIf { it.isNotEmpty() }
-            ?.let { sectionIndex to preferredItemIndex.coerceIn(0, it.lastIndex) }
+        val targetItemIndex = requesters.takeIf { it.isNotEmpty() }?.let {
+            if (items.hasTvPosterContent()) {
+                preferredItemIndex.coerceIn(0, it.lastIndex)
+            } else {
+                items.tvStateFocusIndex()
+            }
+        }
+        return targetItemIndex?.let { sectionIndex to it.coerceIn(0, requesters.lastIndex) }
     }
 
     fun targetByItemId(preferredItemId: Int): Pair<Int, Int>? {
@@ -197,12 +207,17 @@ internal fun MainScreen(
 
     LaunchedEffect(sectionKeys) {
         val selectedId = selectedItem?.getId()
-        val visibleItems = sections.asSequence().flatMap { it.items.asSequence() }.toList()
+        val visibleCards = sections.asSequence()
+            .flatMap { it.items.asSequence() }
+            .filterIsInstance<LibriaCard>()
+            .toList()
         val preferredItemId = contentRestoreState.preferredItemId
         val hadFocusedItem = preferredItemId != Int.MIN_VALUE
-        val stillVisible = visibleItems.any { it.getId() == preferredItemId }
-        selectedItem = visibleItems.firstOrNull { it.getId() == selectedId }
-            ?: visibleItems.firstOrNull { it.getId() == preferredItemId }
+        val stillVisible = sections.asSequence()
+            .flatMap { it.items.asSequence() }
+            .any { it.getId() == preferredItemId }
+        selectedItem = visibleCards.firstOrNull { it.getId() == selectedId }
+            ?: visibleCards.firstOrNull { it.getId() == preferredItemId }
         if (hadFocusedItem && !stillVisible) {
             val restoreTarget = findRestoreTarget(
                 preferredSectionIndex = contentRestoreState.preferredSectionIndex,
@@ -229,7 +244,9 @@ internal fun MainScreen(
             preferredItemId = contentRestoreState.preferredItemId,
         ) ?: return@LaunchedEffect
         val (targetSectionIndex, targetItemIndex) = restoreTarget
-        selectedItem = sections.getOrNull(targetSectionIndex)?.items?.getOrNull(targetItemIndex)
+        selectedItem = sections.getOrNull(targetSectionIndex)
+            ?.items
+            ?.getOrNull(targetItemIndex) as? LibriaCard
         verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
         rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
     }
@@ -258,11 +275,18 @@ internal fun MainScreen(
             null
         }
         val (targetSectionIndex, targetItemIndex) = restoreTarget ?: run {
-            val firstSectionIndex = sections.indexOfFirst { it.items.isNotEmpty() }
+            val firstSectionIndex = sections.indexOfFirst { section ->
+                section.items.hasTvPosterContent() || section.items.tvStateFocusIndex() != null
+            }
             if (firstSectionIndex < 0) {
                 return@LaunchedEffect
             }
-            firstSectionIndex to 0
+            val firstTargetIndex = if (sections[firstSectionIndex].items.hasTvPosterContent()) {
+                0
+            } else {
+                sections[firstSectionIndex].items.tvStateFocusIndex() ?: 0
+            }
+            firstSectionIndex to firstTargetIndex
         }
         verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
         rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
@@ -309,7 +333,7 @@ internal fun MainScreen(
                     requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty(),
                     onItemClick = { item -> onItemClick(section.id, item) },
                     onItemFocused = { itemIndex, item ->
-                        selectedItem = item
+                        selectedItem = item as? LibriaCard
                         keepItemVisible(sectionIndex, itemIndex)
                         onItemFocused(sectionIndex, itemIndex, item)
                     },
@@ -366,6 +390,12 @@ internal fun MainSectionBlock(
     posterFocusedBorderWidth: androidx.compose.ui.unit.Dp = 2.dp,
     posterUnfocusedBorderWidth: androidx.compose.ui.unit.Dp = 1.dp,
 ) {
+    val stateItem = remember(items) { items.primaryTvStateItem() }
+    val stateFocusIndex = remember(items) { items.tvStateFocusIndex() }
+    val stateFocusItem = remember(items, stateFocusIndex) {
+        stateFocusIndex?.let(items::getOrNull)
+    }
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(TvSectionHeaderSpacing),
@@ -375,29 +405,110 @@ internal fun MainSectionBlock(
             palette = palette,
         )
 
-        LazyRow(
-            state = rowState,
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
-            contentPadding = PaddingValues(end = TvRowEndPadding),
-        ) {
-            itemsIndexed(
-                items = items,
-                key = { _, item -> item.getId() },
-            ) { index, item ->
-                when (item) {
-                    is LibriaCard -> {
-                        val isYoutube = item.type is LibriaCard.Type.Youtube
-                        WatchingPosterCard(
-                            imageUrl = item.image,
+        if (items.isTvStateOnlySection() && stateItem != null && stateFocusItem != null) {
+            WatchingWideMessageCard(
+                title = when (stateItem) {
+                    is LoadingCard -> stateItem.title.ifBlank { "Загрузка" }
+                    is LinkCard -> stateItem.title
+                    is InfoCard -> stateItem.title
+                    else -> title
+                },
+                subtitle = when (stateItem) {
+                    is LoadingCard -> stateItem.description.ifBlank {
+                        if (stateItem.isError) "Нажмите, чтобы повторить попытку" else ""
+                    }
+                    is LinkCard -> "Нажмите, чтобы выполнить действие"
+                    is InfoCard -> stateItem.subtitle
+                    else -> ""
+                },
+                palette = if (stateItem is LoadingCard && stateItem.isError) {
+                    palette.copy(accentColor = palette.accentColor)
+                } else if (stateItem is LoadingCard) {
+                    palette.copy(accentColor = palette.textColor.copy(alpha = 0.4f))
+                } else {
+                    palette
+                },
+                focusRequester = requesters.getOrNull(stateFocusIndex ?: -1)
+                    ?: androidx.compose.ui.focus.FocusRequester.Default,
+                loading = stateItem is LoadingCard && !stateItem.isError,
+                onClick = { onItemClick(stateFocusItem) },
+                onFocused = {
+                    onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
+                },
+                onLeft = onLeftEdge,
+                onUp = { onUp(stateFocusIndex ?: 0) },
+                onDown = { onDown(stateFocusIndex ?: 0) },
+            )
+        } else {
+            LazyRow(
+                state = rowState,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
+                contentPadding = PaddingValues(end = TvRowEndPadding),
+            ) {
+                itemsIndexed(
+                    items = items,
+                    key = { _, item -> item.getId() },
+                ) { index, item ->
+                    when (item) {
+                        is LibriaCard -> {
+                            val isYoutube = item.type is LibriaCard.Type.Youtube
+                            WatchingPosterCard(
+                                imageUrl = item.image,
+                                palette = palette,
+                                focusRequester = requesters[index],
+                                cardWidth = if (isYoutube) 346.dp else TvPosterCardWidth,
+                                contentAspectRatio = if (isYoutube) 330f / 185f else 130f / 185f,
+                                focusedBackgroundColor = posterFocusedBackgroundColor,
+                                focusedBorderColor = posterBorderColor,
+                                focusedBorderWidth = posterFocusedBorderWidth,
+                                unfocusedBorderWidth = posterUnfocusedBorderWidth,
+                                onClick = { onItemClick(item) },
+                                onFocused = { onItemFocused(index, item) },
+                                onLeft = if (index == 0) onLeftEdge else null,
+                                onUp = { onUp(index) },
+                                onDown = { onDown(index) },
+                            )
+                        }
+
+                        is LinkCard -> WatchingMessageCard(
+                            title = item.title,
+                            subtitle = "Нажмите, чтобы выполнить действие",
                             palette = palette,
                             focusRequester = requesters[index],
-                            cardWidth = if (isYoutube) 346.dp else TvPosterCardWidth,
-                            contentAspectRatio = if (isYoutube) 330f / 185f else 130f / 185f,
-                            focusedBackgroundColor = posterFocusedBackgroundColor,
-                            focusedBorderColor = posterBorderColor,
-                            focusedBorderWidth = posterFocusedBorderWidth,
-                            unfocusedBorderWidth = posterUnfocusedBorderWidth,
+                            onClick = { onItemClick(item) },
+                            onFocused = { onItemFocused(index, item) },
+                            onLeft = if (index == 0) onLeftEdge else null,
+                            onUp = { onUp(index) },
+                            onDown = { onDown(index) },
+                        )
+
+                        is LoadingCard -> WatchingMessageCard(
+                            title = item.title.ifBlank { "Загрузка" },
+                            subtitle = item.description.ifBlank {
+                                if (item.isError) "Нажмите, чтобы повторить попытку" else ""
+                            },
+                            palette = palette.copy(
+                                accentColor = if (item.isError) {
+                                    palette.accentColor
+                                } else {
+                                    palette.textColor.copy(alpha = 0.4f)
+                                }
+                            ),
+                            focusRequester = requesters[index],
+                            loading = !item.isError,
+                            onClick = { onItemClick(item) },
+                            onFocused = { onItemFocused(index, item) },
+                            onLeft = if (index == 0) onLeftEdge else null,
+                            onUp = { onUp(index) },
+                            onDown = { onDown(index) },
+                        )
+
+                        is InfoCard -> WatchingMessageCard(
+                            title = item.title,
+                            subtitle = item.subtitle,
+                            palette = palette,
+                            focusRequester = requesters[index],
                             onClick = { onItemClick(item) },
                             onFocused = { onItemFocused(index, item) },
                             onLeft = if (index == 0) onLeftEdge else null,
@@ -405,51 +516,6 @@ internal fun MainSectionBlock(
                             onDown = { onDown(index) },
                         )
                     }
-
-                    is LinkCard -> WatchingMessageCard(
-                        title = item.title,
-                        subtitle = "Нажмите, чтобы выполнить действие",
-                        palette = palette,
-                        focusRequester = requesters[index],
-                        onClick = { onItemClick(item) },
-                        onFocused = { onItemFocused(index, item) },
-                        onLeft = if (index == 0) onLeftEdge else null,
-                        onUp = { onUp(index) },
-                        onDown = { onDown(index) },
-                    )
-
-                    is LoadingCard -> WatchingMessageCard(
-                        title = item.title.ifBlank { "Загрузка" },
-                        subtitle = item.description.ifBlank {
-                            if (item.isError) "Нажмите, чтобы повторить попытку" else ""
-                        },
-                        palette = palette.copy(
-                            accentColor = if (item.isError) {
-                                palette.accentColor
-                            } else {
-                                palette.textColor.copy(alpha = 0.4f)
-                            }
-                        ),
-                        focusRequester = requesters[index],
-                        loading = !item.isError,
-                        onClick = { onItemClick(item) },
-                        onFocused = { onItemFocused(index, item) },
-                        onLeft = if (index == 0) onLeftEdge else null,
-                        onUp = { onUp(index) },
-                        onDown = { onDown(index) },
-                    )
-
-                    is InfoCard -> WatchingMessageCard(
-                        title = item.title,
-                        subtitle = item.subtitle,
-                        palette = palette,
-                        focusRequester = requesters[index],
-                        onClick = { onItemClick(item) },
-                        onFocused = { onItemFocused(index, item) },
-                        onLeft = if (index == 0) onLeftEdge else null,
-                        onUp = { onUp(index) },
-                        onDown = { onDown(index) },
-                    )
                 }
             }
         }

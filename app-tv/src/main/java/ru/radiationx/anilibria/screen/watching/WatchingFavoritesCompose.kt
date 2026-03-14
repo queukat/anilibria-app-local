@@ -193,7 +193,7 @@ internal fun WatchingFavoritesScreen(
             gridState.scrollItemIntoViewIfNeeded(targetIndex)
             selectedCard = cards.getOrNull(targetIndex) as? LibriaCard
         } else {
-            filtersRowState.scrollToItem(0)
+            filtersRowState.scrollItemIntoViewIfNeeded(lastFocusedFilterIndex)
             selectedCard = null
         }
     }
@@ -248,7 +248,7 @@ internal fun WatchingFavoritesScreen(
                     modifier = Modifier
                         .fillMaxWidth(),
                     state = filtersRowState,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(TvFilterRowSpacing),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     lazyItemsIndexed(filterItems) { index, filter ->

@@ -43,6 +43,7 @@ class EndEpisodeGuidedFragment : BasePlayerGuidedFragment() {
                             TvOverlayChoiceItem(
                                 id = NEXT_ACTION_ID,
                                 title = "Включить следующую серию",
+                                selected = true,
                             ),
                         )
                     )

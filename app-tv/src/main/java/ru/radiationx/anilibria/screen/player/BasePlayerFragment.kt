@@ -191,6 +191,9 @@ open class BasePlayerFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
+        if (controlsVisibleState) {
+            resumeFocusRestoreTargetState = resumeFocusRestoreTargetState ?: lastFocusedControlState
+        }
         resumePlaybackAfterPauseState = isPlayingState
         pausePlayback()
     }
@@ -222,7 +225,11 @@ open class BasePlayerFragment : Fragment() {
     protected open fun onEpisodesAction(position: Long) {}
 
     protected fun restoreEpisodesButtonFocusOnNextResume() {
-        resumeFocusRestoreTargetState = PlayerOverlayFocusTarget.Episodes
+        restoreControlsFocusOnNextResume(PlayerOverlayFocusTarget.Episodes)
+    }
+
+    private fun restoreControlsFocusOnNextResume(target: PlayerOverlayFocusTarget) {
+        resumeFocusRestoreTargetState = target
     }
 
     protected fun updatePlayerInfo(

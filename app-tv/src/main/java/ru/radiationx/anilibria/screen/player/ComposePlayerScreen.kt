@@ -540,7 +540,7 @@ internal fun PlayerScreenContent(
                     Text(
                         text = stringResource(R.string.player_loading),
                         color = palette.textColor,
-                        fontSize = 16.sp,
+                        fontSize = 17.sp,
                     )
                 }
             }
@@ -859,7 +859,7 @@ private fun PlayerControlsPanel(
                     horizontalPadding = 12.dp,
                     verticalPadding = 10.dp,
                     iconSize = 18.dp,
-                    textFontSize = 15.sp,
+                    textFontSize = 16.sp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.Episodes)
@@ -895,7 +895,7 @@ private fun PlayerControlsPanel(
                     horizontalPadding = 12.dp,
                     verticalPadding = 10.dp,
                     iconSize = 18.dp,
-                    textFontSize = 15.sp,
+                    textFontSize = 16.sp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.Speed)
@@ -935,7 +935,7 @@ private fun PlayerControlsPanel(
                     minWidth = 80.dp,
                     horizontalPadding = 12.dp,
                     verticalPadding = 10.dp,
-                    textFontSize = 15.sp,
+                    textFontSize = 16.sp,
                     onFocused = {
                         onInteraction()
                         onControlFocused(PlayerOverlayFocusTarget.Quality)
@@ -1020,12 +1020,12 @@ private fun PlayerProgressSurface(
                 Text(
                     text = currentPositionMs.toPlaybackTime(),
                     color = palette.textColor,
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                 )
                 Text(
                     text = safeDuration.toPlaybackTime(),
                     color = palette.secondaryTextColor,
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                 )
             }
             Box(
@@ -1075,7 +1075,7 @@ private fun PlayerActionButton(
     horizontalPadding: androidx.compose.ui.unit.Dp = 18.dp,
     verticalPadding: androidx.compose.ui.unit.Dp = 14.dp,
     iconSize: androidx.compose.ui.unit.Dp = 24.dp,
-    textFontSize: TextUnit = 15.sp,
+    textFontSize: TextUnit = 16.sp,
     onFocused: () -> Unit,
     onClick: () -> Unit,
     onLeft: (() -> Boolean)? = null,
@@ -1174,7 +1174,7 @@ private fun PlayerInlinePickerPanel(
             Text(
                 text = title,
                 color = palette.secondaryTextColor,
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
             )
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1261,7 +1261,7 @@ private fun PlayerInlinePickerButton(
             Text(
                 text = title,
                 color = palette.textColor,
-                fontSize = 15.sp,
+                fontSize = 16.sp,
             )
         }
     }

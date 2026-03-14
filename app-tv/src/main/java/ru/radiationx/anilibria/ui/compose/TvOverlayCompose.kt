@@ -335,8 +335,8 @@ internal fun TvOverlayInfoBlock(
         Text(
             text = text,
             color = if (accent) palette.textColor else palette.secondaryTextColor,
-            fontSize = 15.sp,
-            lineHeight = 22.sp,
+            fontSize = 16.sp,
+            lineHeight = 23.sp,
         )
     }
 }
@@ -398,8 +398,8 @@ internal fun TvOverlayScrollableText(
         Text(
             text = text,
             color = palette.secondaryTextColor,
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
+            fontSize = 17.sp,
+            lineHeight = 25.sp,
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(scrollState),
@@ -473,7 +473,7 @@ internal fun TvOverlayChoiceList(
                     Text(
                         text = entry.title,
                         color = palette.secondaryTextColor,
-                        fontSize = 15.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(top = 4.dp, start = 4.dp),
                     )
@@ -559,7 +559,7 @@ private fun TvOverlayChoiceButton(
                 Text(
                     text = choice.title,
                     color = palette.textColor,
-                    fontSize = 16.sp,
+                    fontSize = 17.sp,
                     fontWeight = if (choice.selected) FontWeight.SemiBold else FontWeight.Normal,
                 )
                 choice.subtitle
@@ -568,8 +568,8 @@ private fun TvOverlayChoiceButton(
                         Text(
                             text = subtitle,
                             color = palette.secondaryTextColor,
-                            fontSize = 14.sp,
-                            lineHeight = 19.sp,
+                            fontSize = 15.sp,
+                            lineHeight = 21.sp,
                         )
                     }
             }

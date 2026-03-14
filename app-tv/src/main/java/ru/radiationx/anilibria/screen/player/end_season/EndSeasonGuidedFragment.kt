@@ -48,6 +48,7 @@ class EndSeasonGuidedFragment : BasePlayerGuidedFragment() {
                             TvOverlayChoiceItem(
                                 id = CLOSE_ACTION_ID,
                                 title = "Закрыть плеер",
+                                selected = true,
                             ),
                         )
                     )
