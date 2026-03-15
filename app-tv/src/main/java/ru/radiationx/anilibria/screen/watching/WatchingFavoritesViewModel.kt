@@ -24,8 +24,20 @@ import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
+import ru.radiationx.anilibria.common.TvCollectionFilterLabels
+import ru.radiationx.anilibria.common.TvCollectionFilterPickerKind
+import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
+import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
+import ru.radiationx.anilibria.common.buildTvCollectionFiltersUiState
+import ru.radiationx.anilibria.common.buildTvCollectionListLabel
+import ru.radiationx.anilibria.common.isCompletedForTvCollectionFilters
+import ru.radiationx.anilibria.common.selectedIndices
+import ru.radiationx.anilibria.common.toTvCollectionCompletedLabel
+import ru.radiationx.anilibria.common.toTvCollectionSortLabel
+import ru.radiationx.anilibria.common.tvCollectionRecencyComparator
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.release.Release
+import ru.radiationx.data.entity.domain.search.SearchForm
 import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
 import ru.radiationx.data.repository.AuthRepository
 import javax.inject.Inject
@@ -37,76 +49,35 @@ class WatchingFavoritesViewModel @Inject constructor(
     private val cardRouter: LibriaCardRouter,
 ) : ViewModel(), DefaultLifecycleObserver {
 
-    enum class SortMode { BY_DATE, BY_TITLE }
-
-    enum class FilterPickerKind {
-        YEAR,
-        SEASON,
-        GENRE,
-    }
-
-    data class FilterPickerState(
-        val kind: FilterPickerKind,
-        val title: String,
-        val options: List<String>,
-        val selectedIndex: Int,
-    )
-
-    data class FilterChipState(
-        val label: String,
-        val emphasized: Boolean,
-    )
-
-    data class FiltersUiState(
-        val year: FilterChipState,
-        val season: FilterChipState,
-        val genre: FilterChipState,
-        val sort: FilterChipState,
-        val onlyCompleted: FilterChipState,
-    )
-
-    private data class FiltersSnapshot(
-        val yearLabel: String,
-        val seasonLabel: String,
-        val genreLabel: String,
-        val sortLabel: String,
-        val onlyCompletedLabel: String,
-    )
-
     val defaultTitle: String = "Избранное"
 
     private val _cardsData = MutableStateFlow<List<CardItem>>(listOf(LoadingCard()))
     val cardsData: StateFlow<List<CardItem>> = _cardsData.asStateFlow()
 
-    private val _filterPicker = MutableStateFlow<FilterPickerState?>(null)
-    val filterPicker: StateFlow<FilterPickerState?> = _filterPicker.asStateFlow()
+    private val _filterPicker = MutableStateFlow<TvCollectionFilterPickerState?>(null)
+    internal val filterPicker: StateFlow<TvCollectionFilterPickerState?> = _filterPicker.asStateFlow()
 
-    private val _yearLabel = MutableStateFlow("Год: любой")
-    val yearLabel: StateFlow<String> = _yearLabel.asStateFlow()
-    private val _seasonLabel = MutableStateFlow("Сезон: любой")
-    val seasonLabel: StateFlow<String> = _seasonLabel.asStateFlow()
-    private val _genreLabel = MutableStateFlow("Жанр: любой")
-    val genreLabel: StateFlow<String> = _genreLabel.asStateFlow()
-    private val _sortLabel = MutableStateFlow("По дате выхода")
-    val sortLabel: StateFlow<String> = _sortLabel.asStateFlow()
-    private val _onlyCompletedLabel = MutableStateFlow("Все")
-    val onlyCompletedLabel: StateFlow<String> = _onlyCompletedLabel.asStateFlow()
     private val _filtersUiState = MutableStateFlow(
-        FiltersUiState(
-            year = FilterChipState("Год: любой", emphasized = false),
-            season = FilterChipState("Сезон: любой", emphasized = false),
-            genre = FilterChipState("Жанр: любой", emphasized = false),
-            sort = FilterChipState("По дате выхода", emphasized = false),
-            onlyCompleted = FilterChipState("Все", emphasized = false),
+        buildTvCollectionFiltersUiState(
+            yearLabel = TvCollectionFilterLabels.ALL_YEARS,
+            yearEmphasized = false,
+            seasonLabel = TvCollectionFilterLabels.ALL_SEASONS,
+            seasonEmphasized = false,
+            genreLabel = TvCollectionFilterLabels.ALL_GENRES,
+            genreEmphasized = false,
+            sortLabel = SearchForm.Sort.RATING.toTvCollectionSortLabel(),
+            sortEmphasized = false,
+            onlyCompletedLabel = false.toTvCollectionCompletedLabel(),
+            onlyCompletedEmphasized = false,
         )
     )
-    val filtersUiState: StateFlow<FiltersUiState> = _filtersUiState.asStateFlow()
+    internal val filtersUiState: StateFlow<TvCollectionFiltersUiState> = _filtersUiState.asStateFlow()
 
-    private var currentSort: SortMode = SortMode.BY_DATE
+    private var currentSort: SearchForm.Sort = SearchForm.Sort.RATING
     private var onlyCompletedFilter: Boolean = false
-    private var yearFilter: String? = null
-    private var seasonFilter: String? = null
-    private var genreFilter: String? = null
+    private var yearFilters: Set<String> = emptySet()
+    private var seasonFilters: Set<String> = emptySet()
+    private var genreFilters: Set<String> = emptySet()
 
     private var availableYears: List<String> = emptyList()
     private var availableSeasons: List<String> = emptyList()
@@ -175,82 +146,157 @@ class WatchingFavoritesViewModel @Inject constructor(
         // No-op for now.
     }
 
-    fun onSortClick() {
-        currentSort = when (currentSort) {
-            SortMode.BY_DATE -> SortMode.BY_TITLE
-            SortMode.BY_TITLE -> SortMode.BY_DATE
-        }
-        updateLabels()
-        rebuildFromCache()
-    }
-
-    fun onOnlyCompletedClick() {
-        onlyCompletedFilter = !onlyCompletedFilter
-        updateLabels()
-        rebuildFromCache()
-    }
-
     fun onYearClick() {
-        val options = buildList {
-            add("Любой")
-            addAll(availableYears)
-        }
-        if (options.size <= 1) return
-        _filterPicker.value = FilterPickerState(
-            kind = FilterPickerKind.YEAR,
-            title = "Год",
-            options = options,
-            selectedIndex = selectedIndex(options, yearFilter),
+        if (availableYears.isEmpty()) return
+        _filterPicker.value = TvCollectionFilterPickerState(
+            kind = TvCollectionFilterPickerKind.YEAR,
+            title = TvCollectionFilterLabels.YEARS_TITLE,
+            options = availableYears,
+            selectedIndices = selectedIndices(availableYears, yearFilters),
+            multiSelect = true,
         )
     }
 
     fun onSeasonClick() {
-        val options = buildList {
-            add("Любой")
-            addAll(availableSeasons)
-        }
-        if (options.size <= 1) return
-        _filterPicker.value = FilterPickerState(
-            kind = FilterPickerKind.SEASON,
-            title = "Сезон",
-            options = options,
-            selectedIndex = selectedIndex(options, seasonFilter),
+        if (availableSeasons.isEmpty()) return
+        _filterPicker.value = TvCollectionFilterPickerState(
+            kind = TvCollectionFilterPickerKind.SEASON,
+            title = TvCollectionFilterLabels.SEASONS_TITLE,
+            options = availableSeasons,
+            selectedIndices = selectedIndices(availableSeasons, seasonFilters),
+            multiSelect = true,
         )
     }
 
     fun onGenreClick() {
-        val options = buildList {
-            add("Любой")
-            addAll(availableGenres)
-        }
-        if (options.size <= 1) return
-        _filterPicker.value = FilterPickerState(
-            kind = FilterPickerKind.GENRE,
-            title = "Жанр",
-            options = options,
-            selectedIndex = selectedIndex(options, genreFilter),
+        if (availableGenres.isEmpty()) return
+        _filterPicker.value = TvCollectionFilterPickerState(
+            kind = TvCollectionFilterPickerKind.GENRE,
+            title = TvCollectionFilterLabels.GENRES_TITLE,
+            options = availableGenres,
+            selectedIndices = selectedIndices(availableGenres, genreFilters),
+            multiSelect = true,
         )
     }
 
-    fun onYearSelected(index: Int) {
-        yearFilter = if (index <= 0) null else availableYears.getOrNull(index - 1)
-        dismissFilterPicker()
-        updateLabels()
-        rebuildFromCache()
+    fun onSortClick() {
+        _filterPicker.value = TvCollectionFilterPickerState(
+            kind = TvCollectionFilterPickerKind.SORT,
+            title = TvCollectionFilterLabels.SORT_TITLE,
+            options = listOf(
+                TvCollectionFilterLabels.SORT_POPULARITY,
+                TvCollectionFilterLabels.SORT_DATE,
+            ),
+            selectedIndices = setOf(
+                when (currentSort) {
+                    SearchForm.Sort.RATING -> 0
+                    SearchForm.Sort.DATE -> 1
+                }
+            ),
+            multiSelect = false,
+        )
     }
 
-    fun onSeasonSelected(index: Int) {
-        seasonFilter = if (index <= 0) null else availableSeasons.getOrNull(index - 1)
-        dismissFilterPicker()
-        updateLabels()
-        rebuildFromCache()
+    fun onOnlyCompletedClick() {
+        _filterPicker.value = TvCollectionFilterPickerState(
+            kind = TvCollectionFilterPickerKind.COMPLETED,
+            title = TvCollectionFilterLabels.STATUS_TITLE,
+            options = listOf(
+                TvCollectionFilterLabels.ALL,
+                TvCollectionFilterLabels.ONLY_COMPLETED,
+            ),
+            selectedIndices = setOf(if (onlyCompletedFilter) 1 else 0),
+            multiSelect = false,
+        )
     }
 
-    fun onGenreSelected(index: Int) {
-        genreFilter = if (index <= 0) null else availableGenres.getOrNull(index - 1)
-        dismissFilterPicker()
-        updateLabels()
-        rebuildFromCache()
+    fun togglePickerSelection(index: Int) {
+        val current = _filterPicker.value ?: return
+        if (!current.multiSelect || index !in current.options.indices) {
+            return
+        }
+        val nextSelection = current.selectedIndices.toMutableSet().apply {
+            if (!add(index)) {
+                remove(index)
+            }
+        }
+        _filterPicker.value = current.copy(selectedIndices = nextSelection)
+    }
+
+    fun selectSinglePicker(index: Int) {
+        val current = _filterPicker.value ?: return
+        if (current.multiSelect || index !in current.options.indices) {
+            return
+        }
+        val applied = when (current.kind) {
+            TvCollectionFilterPickerKind.SORT -> {
+                resolveSortOption(index)?.let { sort ->
+                    currentSort = sort
+                    true
+                } ?: false
+            }
+
+            TvCollectionFilterPickerKind.COMPLETED -> {
+                resolveCompletedOption(index)?.let { onlyCompleted ->
+                    onlyCompletedFilter = onlyCompleted
+                    true
+                } ?: false
+            }
+
+            else -> false
+        }
+        if (applied) {
+            updateLabels()
+            dismissFilterPicker()
+            rebuildFromCache()
+        }
+    }
+
+    fun applyFilterPicker() {
+        val current = _filterPicker.value
+        val wasApplied = if (current != null && current.multiSelect) {
+            when (current.kind) {
+            TvCollectionFilterPickerKind.YEAR -> {
+                yearFilters = current.selectedIndices
+                    .mapNotNull { availableYears.getOrNull(it) }
+                    .toSet()
+                true
+            }
+
+            TvCollectionFilterPickerKind.SEASON -> {
+                seasonFilters = current.selectedIndices
+                    .mapNotNull { availableSeasons.getOrNull(it) }
+                    .toSet()
+                true
+            }
+
+            TvCollectionFilterPickerKind.GENRE -> {
+                genreFilters = current.selectedIndices
+                    .mapNotNull { availableGenres.getOrNull(it) }
+                    .toSet()
+                true
+            }
+
+            TvCollectionFilterPickerKind.SORT,
+            TvCollectionFilterPickerKind.COMPLETED,
+            -> false
+        }
+        } else {
+            false
+        }
+        if (wasApplied) {
+            updateLabels()
+            dismissFilterPicker()
+            rebuildFromCache()
+        }
+    }
+
+    fun resetFilterPicker() {
+        val current = _filterPicker.value ?: return
+        if (!current.multiSelect) {
+            return
+        }
+        _filterPicker.value = current.copy(selectedIndices = emptySet())
     }
 
     fun dismissFilterPicker() {
@@ -280,9 +326,7 @@ class WatchingFavoritesViewModel @Inject constructor(
                     val filters = withContext(Dispatchers.Default) {
                         computeAvailableFilters(partial)
                     }
-                    availableYears = filters.years
-                    availableSeasons = filters.seasons
-                    availableGenres = filters.genres
+                    updateAvailableFilters(filters)
                     rebuildFromCache()
                 }
 
@@ -292,10 +336,7 @@ class WatchingFavoritesViewModel @Inject constructor(
                 val filters = withContext(Dispatchers.Default) {
                     computeAvailableFilters(all)
                 }
-                availableYears = filters.years
-                availableSeasons = filters.seasons
-                availableGenres = filters.genres
-
+                updateAvailableFilters(filters)
                 rebuildFromCache()
             } catch (e: Throwable) {
                 if (e is CancellationException) {
@@ -311,9 +352,9 @@ class WatchingFavoritesViewModel @Inject constructor(
                             LoadingCard(
                                 title = "Ошибка загрузки",
                                 description = e.message ?: "",
-                                isError = true
+                                isError = true,
                             ),
-                            LinkCard("Повторить")
+                            LinkCard("Повторить"),
                         )
                     } else {
                         _cardsData.value = _cardsData.value
@@ -322,6 +363,15 @@ class WatchingFavoritesViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun updateAvailableFilters(filters: Filters) {
+        availableYears = filters.years
+        availableSeasons = filters.seasons
+        availableGenres = filters.genres
+        pruneUnavailableFilters()
+        updateLabels()
+        syncFilterPicker()
     }
 
     private fun showNeedAuth() {
@@ -401,27 +451,35 @@ class WatchingFavoritesViewModel @Inject constructor(
 
             val sortMode = currentSort
             val onlyCompleted = onlyCompletedFilter
-            val year = yearFilter
-            val season = seasonFilter
-            val genre = genreFilter
+            val years = yearFilters
+            val seasons = seasonFilters
+            val genres = genreFilters.map(String::lowercase).toSet()
 
             val sorted = withContext(Dispatchers.Default) {
                 val filtered = src.asSequence()
                     .filter { release ->
-                        if (!onlyCompleted) true else release.isCompletedForFavorites()
+                        if (!onlyCompleted) true else release.isCompletedForTvCollectionFilters()
                     }
-                    .filter { release -> year?.let { release.year == it } ?: true }
-                    .filter { release -> season?.let { release.season == it } ?: true }
+                    .filter { release -> years.isEmpty() || release.year in years }
+                    .filter { release -> seasons.isEmpty() || release.season in seasons }
                     .filter { release ->
-                        genre?.let { value ->
-                            release.genres.any { it.equals(value, ignoreCase = true) }
-                        } ?: true
+                        genres.isEmpty() || release.genres.any { genre ->
+                            genre.lowercase() in genres
+                        }
                     }
                     .toList()
 
                 when (sortMode) {
-                    SortMode.BY_DATE -> filtered
-                    SortMode.BY_TITLE -> filtered.sortedBy { it.title }
+                    SearchForm.Sort.RATING -> {
+                        filtered.sortedWith(
+                            compareByDescending<Release> { it.favoriteInfo.rating }
+                                .thenBy { it.title.orEmpty() }
+                        )
+                    }
+
+                    SearchForm.Sort.DATE -> {
+                        filtered.sortedWith(tvCollectionRecencyComparator())
+                    }
                 }
             }
 
@@ -447,12 +505,12 @@ class WatchingFavoritesViewModel @Inject constructor(
         val years = releases
             .mapNotNull { it.year }
             .distinct()
-            .sortedWith(compareByDescending { parseYear(it) })
+            .sortedByDescending(::parseYear)
 
         val seasons = releases
             .mapNotNull { it.season }
             .distinct()
-            .sortedWith(compareBy { seasonRank(it) })
+            .sortedByDescending(::seasonRank)
 
         val genres = releases
             .flatMap { it.genres }
@@ -467,79 +525,117 @@ class WatchingFavoritesViewModel @Inject constructor(
     }
 
     private fun updateLabels() {
-        _yearLabel.value = yearFilter?.let { "Год: $it" } ?: "Год: любой"
-        _seasonLabel.value = seasonFilter?.let { "Сезон: $it" } ?: "Сезон: любой"
-        _genreLabel.value = genreFilter?.let { "Жанр: $it" } ?: "Жанр: любой"
-        _sortLabel.value = when (currentSort) {
-            SortMode.BY_DATE -> "По дате выхода"
-            SortMode.BY_TITLE -> "По названию"
-        }
-        _onlyCompletedLabel.value = if (onlyCompletedFilter) "Только завершённые" else "Все"
-        _filtersUiState.value = createFiltersUiState(
-            FiltersSnapshot(
-                yearLabel = _yearLabel.value,
-                seasonLabel = _seasonLabel.value,
-                genreLabel = _genreLabel.value,
-                sortLabel = _sortLabel.value,
-                onlyCompletedLabel = _onlyCompletedLabel.value,
+        val yearLabel = buildTvCollectionListLabel(
+            values = orderedSelectedValues(availableYears, yearFilters),
+            fallback = TvCollectionFilterLabels.ALL_YEARS,
+        )
+        val seasonLabel = buildTvCollectionListLabel(
+            values = orderedSelectedValues(availableSeasons, seasonFilters),
+            fallback = TvCollectionFilterLabels.ALL_SEASONS,
+        )
+        val genreLabel = buildTvCollectionListLabel(
+            values = orderedSelectedValues(availableGenres, genreFilters),
+            fallback = TvCollectionFilterLabels.ALL_GENRES,
+        )
+        val sortLabel = currentSort.toTvCollectionSortLabel()
+        val onlyCompletedLabel = onlyCompletedFilter.toTvCollectionCompletedLabel()
+
+        _filtersUiState.value = buildTvCollectionFiltersUiState(
+            yearLabel = yearLabel,
+            yearEmphasized = yearFilters.isNotEmpty(),
+            seasonLabel = seasonLabel,
+            seasonEmphasized = seasonFilters.isNotEmpty(),
+            genreLabel = genreLabel,
+            genreEmphasized = genreFilters.isNotEmpty(),
+            sortLabel = sortLabel,
+            sortEmphasized = currentSort != SearchForm.Sort.RATING,
+            onlyCompletedLabel = onlyCompletedLabel,
+            onlyCompletedEmphasized = onlyCompletedFilter,
+        )
+    }
+
+    private fun syncFilterPicker() {
+        val current = _filterPicker.value ?: return
+        _filterPicker.value = when (current.kind) {
+            TvCollectionFilterPickerKind.YEAR -> current.copy(
+                options = availableYears,
+                selectedIndices = selectedIndices(availableYears, yearFilters),
             )
-        )
-    }
 
-    private fun createFiltersUiState(snapshot: FiltersSnapshot): FiltersUiState {
-        return FiltersUiState(
-            year = FilterChipState(
-                label = snapshot.yearLabel,
-                emphasized = !snapshot.yearLabel.endsWith("любой"),
-            ),
-            season = FilterChipState(
-                label = snapshot.seasonLabel,
-                emphasized = !snapshot.seasonLabel.endsWith("любой"),
-            ),
-            genre = FilterChipState(
-                label = snapshot.genreLabel,
-                emphasized = !snapshot.genreLabel.endsWith("любой"),
-            ),
-            sort = FilterChipState(
-                label = snapshot.sortLabel,
-                emphasized = snapshot.sortLabel != "По дате выхода",
-            ),
-            onlyCompleted = FilterChipState(
-                label = snapshot.onlyCompletedLabel,
-                emphasized = snapshot.onlyCompletedLabel != "Все",
-            ),
-        )
-    }
+            TvCollectionFilterPickerKind.SEASON -> current.copy(
+                options = availableSeasons,
+                selectedIndices = selectedIndices(availableSeasons, seasonFilters),
+            )
 
-    private fun selectedIndex(options: List<String>, value: String?): Int {
-        if (value == null) return 0
-        val index = options.indexOf(value)
-        return if (index >= 0) index else 0
-    }
+            TvCollectionFilterPickerKind.GENRE -> current.copy(
+                options = availableGenres,
+                selectedIndices = selectedIndices(availableGenres, genreFilters),
+            )
 
-    private fun parseYear(value: String?): Int {
-        if (value.isNullOrBlank()) return Int.MIN_VALUE
-        val digits = value.filter { it.isDigit() }
-        return digits.toIntOrNull() ?: Int.MIN_VALUE
-    }
+            TvCollectionFilterPickerKind.SORT -> current.copy(
+                selectedIndices = setOf(
+                    when (currentSort) {
+                        SearchForm.Sort.RATING -> 0
+                        SearchForm.Sort.DATE -> 1
+                    }
+                ),
+            )
 
-    private fun seasonRank(value: String?): Int {
-        val normalized = value?.lowercase().orEmpty()
-        return when {
-            "зим" in normalized || "win" in normalized -> 1
-            "весн" in normalized || "spr" in normalized -> 2
-            "лет" in normalized || "sum" in normalized -> 3
-            "осен" in normalized || "aut" in normalized || "fall" in normalized -> 4
-            else -> Int.MIN_VALUE
+            TvCollectionFilterPickerKind.COMPLETED -> current.copy(
+                selectedIndices = setOf(if (onlyCompletedFilter) 1 else 0),
+            )
         }
     }
 
-    private fun Release.isCompletedForFavorites(): Boolean {
-        return when (statusCode) {
-            Release.STATUS_CODE_COMPLETE -> true
-            Release.STATUS_CODE_PROGRESS,
-            Release.STATUS_CODE_NOT_ONGOING -> false
-            else -> days.isEmpty()
+    private fun orderedSelectedValues(
+        availableValues: List<String>,
+        selectedValues: Set<String>,
+    ): List<String> {
+        if (selectedValues.isEmpty()) {
+            return emptyList()
+        }
+        val availableOrder = availableValues.filter { value -> value in selectedValues }
+        return if (availableOrder.isNotEmpty()) {
+            availableOrder
+        } else {
+            selectedValues.sorted()
+        }
+    }
+
+    private fun pruneUnavailableFilters() {
+        yearFilters = yearFilters.intersect(availableYears.toSet())
+        seasonFilters = seasonFilters.intersect(availableSeasons.toSet())
+        genreFilters = genreFilters.intersect(availableGenres.toSet())
+    }
+
+    private fun resolveSortOption(index: Int): SearchForm.Sort? {
+        return when (index) {
+            0 -> SearchForm.Sort.RATING
+            1 -> SearchForm.Sort.DATE
+            else -> null
+        }
+    }
+
+    private fun resolveCompletedOption(index: Int): Boolean? {
+        return when (index) {
+            0 -> false
+            1 -> true
+            else -> null
+        }
+    }
+
+    private fun parseYear(value: String): Int {
+        return value.filter(Char::isDigit).toIntOrNull() ?: Int.MIN_VALUE
+    }
+
+    private fun seasonRank(value: String): Int {
+        val normalized = value.lowercase()
+        return when {
+            "осен" in normalized || "aut" in normalized || "fall" in normalized -> 4
+            "лет" in normalized || "sum" in normalized -> 3
+            "весн" in normalized || "spr" in normalized -> 2
+            "зим" in normalized || "win" in normalized -> 1
+            else -> Int.MIN_VALUE
         }
     }
 

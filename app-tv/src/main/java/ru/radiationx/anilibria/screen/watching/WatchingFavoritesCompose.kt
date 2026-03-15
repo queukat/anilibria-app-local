@@ -43,6 +43,8 @@ import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
+import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
+import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import kotlin.math.max
@@ -50,20 +52,23 @@ import kotlin.math.max
 @Composable
 internal fun WatchingFavoritesScreen(
     cards: List<CardItem>,
-    filters: WatchingFavoritesViewModel.FiltersUiState,
+    filters: TvCollectionFiltersUiState,
     focusRequestToken: Int,
     visibilityRestoreToken: Int,
     restoreFilterIndex: Int,
     restoreFilterToken: Int,
-    pickerState: WatchingChoiceDialogUiState?,
+    pickerState: TvCollectionFilterPickerState?,
     pickerFocusRequestToken: Int,
     onYearClick: () -> Unit,
     onSeasonClick: () -> Unit,
     onGenreClick: () -> Unit,
     onSortClick: () -> Unit,
     onOnlyCompletedClick: () -> Unit,
+    onPickerToggleOption: (Int) -> Unit,
+    onPickerSingleSelect: (Int) -> Unit,
+    onPickerApply: () -> Unit,
+    onPickerReset: () -> Unit,
     onPickerDismiss: () -> Unit,
-    onPickerOptionClick: (Int) -> Unit,
     onItemClick: (CardItem) -> Unit,
     onRequestRailFocus: () -> Boolean,
     onRequestHeaderFocus: () -> Boolean,
@@ -256,7 +261,6 @@ internal fun WatchingFavoritesScreen(
                             text = filter.label,
                             palette = palette,
                             focusRequester = filterRequesters[index],
-                            minWidth = if (index == filterItems.lastIndex) 96.dp else 132.dp,
                             enabled = interactionsEnabled,
                             emphasized = filter.emphasized,
                             onClick = filter.onClick,
@@ -499,11 +503,14 @@ internal fun WatchingFavoritesScreen(
             }
 
             pickerState?.let { dialogState ->
-                WatchingChoiceDialog(
+                WatchingFilterPickerDialog(
                     state = dialogState,
                     palette = palette,
                     focusRequestToken = pickerFocusRequestToken,
-                    onOptionClick = onPickerOptionClick,
+                    onToggleOption = onPickerToggleOption,
+                    onSingleSelect = onPickerSingleSelect,
+                    onApply = onPickerApply,
+                    onReset = onPickerReset,
                     onDismiss = onPickerDismiss,
                 )
             }

@@ -7,11 +7,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import ru.radiationx.anilibria.common.isCompletedForTvCollectionFilters
+import ru.radiationx.anilibria.common.tvCollectionRecencyComparator
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.anilibria.screen.SuggestionsScreen
+import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.search.SearchForm
 import ru.radiationx.data.interactors.tv.TvSearchUseCase
 import ru.radiationx.data.repository.SearchRepository
@@ -50,10 +53,15 @@ class SearchViewModel @Inject constructor(
         return try {
             val primaryResult = tvSearchUseCase
                 .searchReleases(searchForm, requestPage)
+                .sortByTvCollectionMode(searchForm)
+                .filterByCompletedState(searchForm)
             val resolvedResult = if (primaryResult.isNotEmpty()) {
                 primaryResult
             } else {
-                searchRepository.searchReleases(searchForm, requestPage).data
+                searchRepository.searchReleases(searchForm, requestPage)
+                    .data
+                    .sortByTvCollectionMode(searchForm)
+                    .filterByCompletedState(searchForm)
             }
             resolvedResult.map { converter.toCard(it) }
         } finally {
@@ -69,5 +77,19 @@ class SearchViewModel @Inject constructor(
 
     override fun onLibriaCardClick(card: LibriaCard) {
         cardRouter.navigate(card)
+    }
+
+    private fun List<Release>.filterByCompletedState(form: SearchForm): List<Release> {
+        if (!form.onlyCompleted) {
+            return this
+        }
+        return filter { release -> release.isCompletedForTvCollectionFilters() }
+    }
+
+    private fun List<Release>.sortByTvCollectionMode(form: SearchForm): List<Release> {
+        return when (form.sort) {
+            SearchForm.Sort.RATING -> this
+            SearchForm.Sort.DATE -> sortedWith(tvCollectionRecencyComparator())
+        }
     }
 }

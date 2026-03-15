@@ -12,6 +12,11 @@ import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
+import ru.radiationx.anilibria.common.TvCollectionFilterChipState
+import ru.radiationx.anilibria.common.TvCollectionFilterLabels
+import ru.radiationx.anilibria.common.TvCollectionFilterPickerKind
+import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
+import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
 import ru.radiationx.anilibria.screen.mainpages.MainShellCallbacks
 import ru.radiationx.anilibria.screen.mainpages.MainShellPageContent
 import ru.radiationx.anilibria.screen.mainpages.collectStarted
@@ -26,15 +31,15 @@ internal class WatchingFavoritesPageContent(
 
     private var cardsState by mutableStateOf<List<CardItem>>(emptyList())
     private var filtersState by mutableStateOf(
-        WatchingFavoritesViewModel.FiltersUiState(
-            year = WatchingFavoritesViewModel.FilterChipState("Год: любой", emphasized = false),
-            season = WatchingFavoritesViewModel.FilterChipState("Сезон: любой", emphasized = false),
-            genre = WatchingFavoritesViewModel.FilterChipState("Жанр: любой", emphasized = false),
-            sort = WatchingFavoritesViewModel.FilterChipState("По дате выхода", emphasized = false),
-            onlyCompleted = WatchingFavoritesViewModel.FilterChipState("Все", emphasized = false),
+        TvCollectionFiltersUiState(
+            year = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL_YEARS, emphasized = false),
+            season = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL_SEASONS, emphasized = false),
+            genre = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL_GENRES, emphasized = false),
+            sort = TvCollectionFilterChipState(TvCollectionFilterLabels.SORT_POPULARITY, emphasized = false),
+            onlyCompleted = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL, emphasized = false),
         )
     )
-    private var pickerState by mutableStateOf<WatchingFavoritesViewModel.FilterPickerState?>(null)
+    private var pickerState by mutableStateOf<TvCollectionFilterPickerState?>(null)
     private var focusRequestToken by mutableIntStateOf(0)
     private var visibilityRestoreToken by mutableIntStateOf(0)
     private var pickerFocusRequestToken by mutableIntStateOf(0)
@@ -50,7 +55,7 @@ internal class WatchingFavoritesPageContent(
         owner.collectStarted(viewModel.filterPicker) { picker ->
             val previous = pickerState
             pickerState = picker
-            if (picker != null) {
+            if (picker != null && shouldRequestPickerFocus(previous, picker)) {
                 pickerFocusRequestToken++
             } else if (previous != null) {
                 restoreFilterIndex = filterIndexFor(previous.kind)
@@ -90,21 +95,18 @@ internal class WatchingFavoritesPageContent(
             visibilityRestoreToken = visibilityRestoreToken,
             restoreFilterIndex = restoreFilterIndex,
             restoreFilterToken = restoreFilterToken,
-            pickerState = pickerState?.let {
-                WatchingChoiceDialogUiState(
-                    title = it.title,
-                    options = it.options,
-                    selectedIndex = it.selectedIndex,
-                )
-            },
+            pickerState = pickerState,
             pickerFocusRequestToken = pickerFocusRequestToken,
             onYearClick = viewModel::onYearClick,
             onSeasonClick = viewModel::onSeasonClick,
             onGenreClick = viewModel::onGenreClick,
             onSortClick = viewModel::onSortClick,
             onOnlyCompletedClick = viewModel::onOnlyCompletedClick,
+            onPickerToggleOption = viewModel::togglePickerSelection,
+            onPickerSingleSelect = viewModel::selectSinglePicker,
+            onPickerApply = viewModel::applyFilterPicker,
+            onPickerReset = viewModel::resetFilterPicker,
             onPickerDismiss = viewModel::dismissFilterPicker,
-            onPickerOptionClick = ::handlePickerOptionClick,
             onItemClick = ::handleItemClick,
             onRequestRailFocus = callbacks.onRequestRailFocus,
             onRequestHeaderFocus = callbacks.onRequestHeaderFocus,
@@ -121,20 +123,31 @@ internal class WatchingFavoritesPageContent(
         }
     }
 
-    private fun handlePickerOptionClick(index: Int) {
-        when (pickerState?.kind) {
-            WatchingFavoritesViewModel.FilterPickerKind.YEAR -> viewModel.onYearSelected(index)
-            WatchingFavoritesViewModel.FilterPickerKind.SEASON -> viewModel.onSeasonSelected(index)
-            WatchingFavoritesViewModel.FilterPickerKind.GENRE -> viewModel.onGenreSelected(index)
-            null -> Unit
+    private fun filterIndexFor(kind: TvCollectionFilterPickerKind): Int {
+        return when (kind) {
+            TvCollectionFilterPickerKind.YEAR -> YEAR_FILTER_INDEX
+            TvCollectionFilterPickerKind.SEASON -> SEASON_FILTER_INDEX
+            TvCollectionFilterPickerKind.GENRE -> GENRE_FILTER_INDEX
+            TvCollectionFilterPickerKind.SORT -> SORT_FILTER_INDEX
+            TvCollectionFilterPickerKind.COMPLETED -> COMPLETED_FILTER_INDEX
         }
     }
 
-    private fun filterIndexFor(kind: WatchingFavoritesViewModel.FilterPickerKind): Int {
-        return when (kind) {
-            WatchingFavoritesViewModel.FilterPickerKind.YEAR -> 0
-            WatchingFavoritesViewModel.FilterPickerKind.SEASON -> 1
-            WatchingFavoritesViewModel.FilterPickerKind.GENRE -> 2
-        }
+    private fun shouldRequestPickerFocus(
+        previous: TvCollectionFilterPickerState?,
+        next: TvCollectionFilterPickerState,
+    ): Boolean {
+        return previous == null ||
+            previous.kind != next.kind ||
+            previous.options != next.options ||
+            previous.multiSelect != next.multiSelect
+    }
+
+    private companion object {
+        private const val YEAR_FILTER_INDEX = 0
+        private const val SEASON_FILTER_INDEX = 1
+        private const val GENRE_FILTER_INDEX = 2
+        private const val SORT_FILTER_INDEX = 3
+        private const val COMPLETED_FILTER_INDEX = 4
     }
 }

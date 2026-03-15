@@ -57,6 +57,7 @@ open class BasePlayerFragment : Fragment() {
     private var subtitleState by mutableStateOf("")
     private var qualityState by mutableStateOf(PlayerQuality.HD)
     private var speedState by mutableFloatStateOf(1f)
+    private var aspectRatioModeState by mutableStateOf(PlayerAspectRatioMode.FIT)
     private var availableQualitiesState by mutableStateOf<List<PlayerQuality>>(emptyList())
     private var availableSpeedsState by mutableStateOf<List<Float>>(emptyList())
     private var canPreviousState by mutableStateOf(false)
@@ -142,8 +143,10 @@ open class BasePlayerFragment : Fragment() {
                     bufferedPositionMs = bufferedPositionState,
                     qualityLabel = qualityState.toPlayerLabel(),
                     speedLabel = speedState.toPlayerLabel(),
+                    aspectRatioMode = aspectRatioModeState,
                     availableQualities = availableQualitiesState,
                     availableSpeeds = availableSpeedsState,
+                    availableAspectRatios = PlayerAspectRatioMode.entries.toList(),
                     canPrevious = canPreviousState,
                     canNext = canNextState,
                     skipsPart = skipsPartState,
@@ -163,6 +166,7 @@ open class BasePlayerFragment : Fragment() {
                         )
                     },
                     onSpeedSelected = ::onSpeedSelected,
+                    onAspectRatioSelected = ::onAspectRatioSelected,
                     onEpisodesClick = { onEpisodesAction(getCurrentPosition()) },
                 )
             }
@@ -224,6 +228,10 @@ open class BasePlayerFragment : Fragment() {
 
     protected open fun onSpeedSelected(speed: Float) {}
 
+    protected open fun onAspectRatioSelected(mode: PlayerAspectRatioMode) {
+        updatePlayerAspectRatio(mode)
+    }
+
     protected open fun onEpisodesAction(position: Long) {}
 
     protected fun restoreEpisodesButtonFocusOnNextResume() {
@@ -256,6 +264,10 @@ open class BasePlayerFragment : Fragment() {
 
     protected fun updatePlayerSpeed(speed: Float) {
         speedState = speed
+    }
+
+    protected fun updatePlayerAspectRatio(mode: PlayerAspectRatioMode) {
+        aspectRatioModeState = mode
     }
 
     protected fun updateAvailableQualities(qualities: List<PlayerQuality>) {

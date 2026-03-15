@@ -50,6 +50,10 @@ class AuthOtpViewModel @Inject constructor(
         loadOtpInfo()
     }
 
+    fun onBackClick() {
+        guidedRouter.close()
+    }
+
     private fun signIn() {
         val code = _otpInfoData.value?.code ?: return
         signInJob?.cancel()

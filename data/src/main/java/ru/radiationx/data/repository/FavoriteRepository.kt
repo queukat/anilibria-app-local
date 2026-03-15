@@ -8,6 +8,7 @@ import ru.radiationx.data.datasource.holders.CookieHolder
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoriteSorting
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
@@ -44,7 +45,7 @@ class FavoriteRepository @Inject constructor(
             aniLibertyApi.getUserFavoriteReleasesFiltered(
                 page = page,
                 limit = DEFAULT_LIMIT,
-                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                sorting = AniLibertyFavoriteSorting.YearDesc,
                 fields = AniLibertyReleaseFields.FavoritesList,
             )
         )
@@ -73,7 +74,7 @@ class FavoriteRepository @Inject constructor(
                 aniLibertyApi.getUserFavoriteReleasesFiltered(
                     page = page,
                     limit = DEFAULT_LIMIT,
-                    sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                    sorting = AniLibertyFavoriteSorting.YearDesc,
                     fields = AniLibertyReleaseFields.FavoritesList,
                 )
             )
@@ -95,9 +96,11 @@ class FavoriteRepository @Inject constructor(
     }
 
     private suspend fun mapAniLibertyFavorites(
-        response: PaginatedResponse<ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease>,
+        response: PaginatedResponse<AniLibertyRelease>,
     ): Paginated<Release> {
-        val mapped = response.toDomain { it.toLegacyReleaseOrNull(apiUtils, isFavorite = true) }
+        val enrichedData = enrichAmbiguousFavorites(response.data)
+        val enrichedResponse = response.copy(data = enrichedData)
+        val mapped = enrichedResponse.toDomain { it.toLegacyReleaseOrNull(apiUtils, isFavorite = true) }
         val filtered = Paginated(
             data = mapped.data.filterNotNull(),
             page = mapped.page,
@@ -108,6 +111,56 @@ class FavoriteRepository @Inject constructor(
 
         updateMiddleware.handle(filtered.data)
         return filtered
+    }
+
+    private suspend fun enrichAmbiguousFavorites(
+        releases: List<AniLibertyRelease>,
+    ): List<AniLibertyRelease> {
+        val ambiguousIds = releases
+            .mapNotNull { release ->
+                release.id?.takeIf { release.needsStatusResolutionFromFullRelease() }
+            }
+            .distinctBy { it.value }
+
+        if (ambiguousIds.isEmpty()) {
+            return releases
+        }
+
+        val resolvedById = runCatching {
+            aniLibertyApi.getReleasesList(
+                ids = ambiguousIds,
+                aliases = null,
+                page = 1,
+                limit = ambiguousIds.size,
+                fields = null,
+            )
+        }.onFailure { error ->
+            Timber.w(error, "AniLiberty favorites: failed to resolve ambiguous stopped releases")
+        }.getOrNull()
+            ?.data
+            .orEmpty()
+            .mapNotNull { release ->
+                release.id?.value?.let { id -> id to release }
+            }
+            .toMap()
+
+        if (resolvedById.isEmpty()) {
+            return releases
+        }
+
+        return releases.map { release ->
+            val releaseId = release.id?.value ?: return@map release
+            resolvedById[releaseId] ?: release
+        }
+    }
+
+    private fun AniLibertyRelease.needsStatusResolutionFromFullRelease(): Boolean {
+        val hasPublishedEpisodesHint = latestEpisode != null ||
+            episodes.orEmpty().isNotEmpty() ||
+            (episodesTotal ?: 0) > 0
+        val hasExplicitStoppedState = isOngoing == false || isInProduction == false
+        val hasSchedule = publishDay?.value?.value != null
+        return hasExplicitStoppedState && !hasPublishedEpisodesHint && hasSchedule
     }
 
     private fun shouldFallbackToLegacy(

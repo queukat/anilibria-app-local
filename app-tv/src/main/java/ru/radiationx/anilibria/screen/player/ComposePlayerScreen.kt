@@ -59,7 +59,9 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.annotation.OptIn
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
 import ru.radiationx.anilibria.R
@@ -83,14 +85,17 @@ internal enum class PlayerOverlayFocusTarget {
     Next,
     Quality,
     Speed,
+    AspectRatio,
     Episodes,
 }
 
 private enum class PlayerInlinePicker {
     Quality,
     Speed,
+    AspectRatio,
 }
 
+@OptIn(UnstableApi::class)
 @Composable
 internal fun PlayerScreenContent(
     player: Player?,
@@ -107,8 +112,10 @@ internal fun PlayerScreenContent(
     bufferedPositionMs: Long,
     qualityLabel: String,
     speedLabel: String,
+    aspectRatioMode: PlayerAspectRatioMode,
     availableQualities: List<PlayerQuality>,
     availableSpeeds: List<Float>,
+    availableAspectRatios: List<PlayerAspectRatioMode>,
     canPrevious: Boolean,
     canNext: Boolean,
     skipsPart: PlayerSkipsPart?,
@@ -123,6 +130,7 @@ internal fun PlayerScreenContent(
     onNextClick: () -> Unit,
     onQualitySelected: (PlayerQuality) -> Unit,
     onSpeedSelected: (Float) -> Unit,
+    onAspectRatioSelected: (PlayerAspectRatioMode) -> Unit,
     onEpisodesClick: () -> Unit,
 ) {
     val palette = rememberWatchingPalette()
@@ -134,6 +142,7 @@ internal fun PlayerScreenContent(
     var rootSizePx by remember { mutableStateOf(IntSize.Zero) }
     var qualityButtonBounds by remember { mutableStateOf<Rect?>(null) }
     var speedButtonBounds by remember { mutableStateOf<Rect?>(null) }
+    var aspectRatioButtonBounds by remember { mutableStateOf<Rect?>(null) }
 
     fun registerInteraction() {
         autoHideToken += 1
@@ -148,6 +157,7 @@ internal fun PlayerScreenContent(
     val nextRequester = remember { FocusRequester() }
     val qualityRequester = remember { FocusRequester() }
     val speedRequester = remember { FocusRequester() }
+    val aspectRatioRequester = remember { FocusRequester() }
     val episodesRequester = remember { FocusRequester() }
 
     fun requesterFor(target: PlayerOverlayFocusTarget): FocusRequester = when (target) {
@@ -160,6 +170,7 @@ internal fun PlayerScreenContent(
         PlayerOverlayFocusTarget.Next -> nextRequester
         PlayerOverlayFocusTarget.Quality -> qualityRequester
         PlayerOverlayFocusTarget.Speed -> speedRequester
+        PlayerOverlayFocusTarget.AspectRatio -> aspectRatioRequester
         PlayerOverlayFocusTarget.Episodes -> episodesRequester
     }
 
@@ -330,6 +341,7 @@ internal fun PlayerScreenContent(
             },
             update = { view ->
                 view.player = player
+                view.resizeMode = aspectRatioMode.resizeMode
             },
         )
 
@@ -369,10 +381,12 @@ internal fun PlayerScreenContent(
                 bufferedPositionMs = bufferedPositionMs,
                 qualityLabel = qualityLabel,
                 speedLabel = speedLabel,
+                aspectRatioMode = aspectRatioMode,
                 canPrevious = canPrevious,
                 canNext = canNext,
                 qualityEnabled = availableQualities.isNotEmpty(),
                 speedEnabled = availableSpeeds.isNotEmpty(),
+                aspectRatioEnabled = availableAspectRatios.size > 1,
                 palette = palette,
                 progressRequester = progressRequester,
                 previousRequester = previousRequester,
@@ -382,9 +396,11 @@ internal fun PlayerScreenContent(
                 nextRequester = nextRequester,
                 qualityRequester = qualityRequester,
                 speedRequester = speedRequester,
+                aspectRatioRequester = aspectRatioRequester,
                 episodesRequester = episodesRequester,
                 onQualityButtonPositioned = { qualityButtonBounds = it },
                 onSpeedButtonPositioned = { speedButtonBounds = it },
+                onAspectRatioButtonPositioned = { aspectRatioButtonBounds = it },
                 onControlFocused = onControlFocused,
                 onInteraction = ::registerInteraction,
                 onTogglePlayback = onTogglePlayback,
@@ -394,11 +410,15 @@ internal fun PlayerScreenContent(
                 onNextClick = onNextClick,
                 isQualityPickerOpen = activePicker == PlayerInlinePicker.Quality,
                 isSpeedPickerOpen = activePicker == PlayerInlinePicker.Speed,
+                isAspectRatioPickerOpen = activePicker == PlayerInlinePicker.AspectRatio,
                 onOpenQualityPicker = {
                     openPicker(PlayerInlinePicker.Quality, PlayerOverlayFocusTarget.Quality)
                 },
                 onOpenSpeedPicker = {
                     openPicker(PlayerInlinePicker.Speed, PlayerOverlayFocusTarget.Speed)
+                },
+                onOpenAspectRatioPicker = {
+                    openPicker(PlayerInlinePicker.AspectRatio, PlayerOverlayFocusTarget.AspectRatio)
                 },
                 onEpisodesClick = onEpisodesClick,
                 modifier = Modifier
@@ -498,6 +518,47 @@ internal fun PlayerScreenContent(
                     )
                 }
 
+                PlayerInlinePicker.AspectRatio -> {
+                    var pickerSizePx by remember { mutableStateOf(IntSize.Zero) }
+                    PlayerInlinePickerPanel(
+                        title = stringResource(R.string.player_action_aspect_ratio),
+                        options = availableAspectRatios.map { mode ->
+                            PlayerInlinePickerOption(
+                                title = stringResource(mode.titleRes),
+                                selected = aspectRatioMode == mode,
+                                onClick = {
+                                    registerInteraction()
+                                    closePicker(PlayerOverlayFocusTarget.AspectRatio)
+                                    onAspectRatioSelected(mode)
+                                },
+                            )
+                        },
+                        palette = palette,
+                        modifier = Modifier
+                            .onSizeChanged { pickerSizePx = it }
+                            .offset {
+                                calculateAnchoredPickerOffset(
+                                    rootSizePx = rootSizePx,
+                                    pickerSizePx = pickerSizePx,
+                                    anchorBounds = aspectRatioButtonBounds,
+                                    fallbackBottomPaddingPx = pickerBottomPaddingPx,
+                                    horizontalPaddingPx = pickerHorizontalPaddingPx,
+                                    topPaddingPx = pickerTopPaddingPx,
+                                    gapPx = pickerGapPx,
+                                )
+                            }
+                            .align(Alignment.TopStart)
+                            .padding(
+                                start = TvPlayerOverlayHorizontalPadding,
+                                end = TvPlayerOverlayHorizontalPadding,
+                            ),
+                        onDismiss = {
+                            registerInteraction()
+                            closePicker(PlayerOverlayFocusTarget.AspectRatio)
+                        },
+                    )
+                }
+
                 null -> Unit
             }
         }
@@ -556,10 +617,12 @@ private fun PlayerControlsPanel(
     bufferedPositionMs: Long,
     qualityLabel: String,
     speedLabel: String,
+    aspectRatioMode: PlayerAspectRatioMode,
     canPrevious: Boolean,
     canNext: Boolean,
     qualityEnabled: Boolean,
     speedEnabled: Boolean,
+    aspectRatioEnabled: Boolean,
     palette: WatchingPalette,
     progressRequester: FocusRequester,
     previousRequester: FocusRequester,
@@ -569,9 +632,11 @@ private fun PlayerControlsPanel(
     nextRequester: FocusRequester,
     qualityRequester: FocusRequester,
     speedRequester: FocusRequester,
+    aspectRatioRequester: FocusRequester,
     episodesRequester: FocusRequester,
     onQualityButtonPositioned: (Rect) -> Unit,
     onSpeedButtonPositioned: (Rect) -> Unit,
+    onAspectRatioButtonPositioned: (Rect) -> Unit,
     onControlFocused: (PlayerOverlayFocusTarget) -> Unit,
     onInteraction: () -> Unit,
     onTogglePlayback: () -> Unit,
@@ -581,8 +646,10 @@ private fun PlayerControlsPanel(
     onNextClick: () -> Unit,
     isQualityPickerOpen: Boolean,
     isSpeedPickerOpen: Boolean,
+    isAspectRatioPickerOpen: Boolean,
     onOpenQualityPicker: () -> Unit,
     onOpenSpeedPicker: () -> Unit,
+    onOpenAspectRatioPicker: () -> Unit,
     onEpisodesClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -594,12 +661,14 @@ private fun PlayerControlsPanel(
         return when {
             speedEnabled -> requestFocus(speedRequester)
             qualityEnabled -> requestFocus(qualityRequester)
+            aspectRatioEnabled -> requestFocus(aspectRatioRequester)
             else -> requestFocus(episodesRequester)
         }
     }
 
     fun requestSecondaryRight(): Boolean {
         return when {
+            aspectRatioEnabled -> requestFocus(aspectRatioRequester)
             qualityEnabled -> requestFocus(qualityRequester)
             speedEnabled -> requestFocus(speedRequester)
             else -> requestFocus(episodesRequester)
@@ -892,6 +961,7 @@ private fun PlayerControlsPanel(
                         when {
                             speedEnabled -> requestFocus(speedRequester)
                             qualityEnabled -> requestFocus(qualityRequester)
+                            aspectRatioEnabled -> requestFocus(aspectRatioRequester)
                             else -> true
                         }
                     },
@@ -928,10 +998,10 @@ private fun PlayerControlsPanel(
                     },
                     onRight = {
                         onInteraction()
-                        if (qualityEnabled) {
-                            requestFocus(qualityRequester)
-                        } else {
-                            true
+                        when {
+                            qualityEnabled -> requestFocus(qualityRequester)
+                            aspectRatioEnabled -> requestFocus(aspectRatioRequester)
+                            else -> true
                         }
                     },
                     onUp = {
@@ -970,7 +1040,14 @@ private fun PlayerControlsPanel(
                             requestFocus(episodesRequester)
                         }
                     },
-                    onRight = { true },
+                    onRight = {
+                        onInteraction()
+                        if (aspectRatioEnabled) {
+                            requestFocus(aspectRatioRequester)
+                        } else {
+                            true
+                        }
+                    },
                     onUp = {
                         onInteraction()
                         requestFocus(seekForwardRequester)
@@ -978,6 +1055,47 @@ private fun PlayerControlsPanel(
                     onDown = { true },
                     modifier = Modifier.onGloballyPositioned {
                         onQualityButtonPositioned(it.boundsInRoot())
+                    },
+                )
+                PlayerActionButton(
+                    text = stringResource(aspectRatioMode.compactTitleRes),
+                    contentDescription = buildString {
+                        append(stringResource(R.string.player_action_aspect_ratio))
+                        append(' ')
+                        append(stringResource(aspectRatioMode.titleRes))
+                    },
+                    focusRequester = aspectRatioRequester,
+                    palette = palette,
+                    enabled = aspectRatioEnabled,
+                    emphasized = isAspectRatioPickerOpen,
+                    minWidth = 108.dp,
+                    horizontalPadding = 10.dp,
+                    verticalPadding = 9.dp,
+                    textFontSize = 15.sp,
+                    onFocused = {
+                        onInteraction()
+                        onControlFocused(PlayerOverlayFocusTarget.AspectRatio)
+                    },
+                    onClick = {
+                        onInteraction()
+                        onOpenAspectRatioPicker()
+                    },
+                    onLeft = {
+                        onInteraction()
+                        when {
+                            qualityEnabled -> requestFocus(qualityRequester)
+                            speedEnabled -> requestFocus(speedRequester)
+                            else -> requestFocus(episodesRequester)
+                        }
+                    },
+                    onRight = { true },
+                    onUp = {
+                        onInteraction()
+                        requestFocus(seekForwardRequester)
+                    },
+                    onDown = { true },
+                    modifier = Modifier.onGloballyPositioned {
+                        onAspectRatioButtonPositioned(it.boundsInRoot())
                     },
                 )
             }

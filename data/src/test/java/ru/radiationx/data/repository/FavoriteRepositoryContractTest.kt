@@ -15,11 +15,15 @@ import ru.radiationx.data.datasource.holders.CookieHolder
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoriteSorting
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyEpisode
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyPublishDay
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseAlias
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseEpisodeId
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 import ru.radiationx.data.datasource.remote.api.FavoriteApi
+import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.interactors.ReleaseUpdateMiddleware
@@ -63,7 +67,7 @@ class FavoriteRepositoryContractTest {
                 types = null,
                 genres = null,
                 search = null,
-                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                sorting = AniLibertyFavoriteSorting.YearDesc,
                 ageRatings = null,
                 fields = AniLibertyReleaseFields.FavoritesList,
             )
@@ -88,7 +92,7 @@ class FavoriteRepositoryContractTest {
                 types = null,
                 genres = null,
                 search = null,
-                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                sorting = AniLibertyFavoriteSorting.YearDesc,
                 ageRatings = null,
                 fields = AniLibertyReleaseFields.FavoritesList,
             )
@@ -128,7 +132,7 @@ class FavoriteRepositoryContractTest {
                 types = null,
                 genres = null,
                 search = null,
-                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                sorting = AniLibertyFavoriteSorting.YearDesc,
                 ageRatings = null,
                 fields = AniLibertyReleaseFields.FavoritesList,
             )
@@ -140,7 +144,110 @@ class FavoriteRepositoryContractTest {
         coVerify(exactly = 0) { favoriteApi.getFavorites(any()) }
     }
 
-    private fun release(id: Int, titleRu: String): AniLibertyRelease {
+    @Test
+    fun getFavorites_resolvesAmbiguousStoppedReleaseStatusFromFullRelease() = runBlocking {
+        coEvery {
+            aniLibertyApi.getUserFavoriteReleasesFiltered(
+                page = 1,
+                limit = 25,
+                years = null,
+                types = null,
+                genres = null,
+                search = null,
+                sorting = AniLibertyFavoriteSorting.YearDesc,
+                ageRatings = null,
+                fields = AniLibertyReleaseFields.FavoritesList,
+            )
+        } returns PaginatedResponse(
+            data = listOf(
+                release(
+                    id = 10096,
+                    titleRu = "Hell Mode",
+                    isOngoing = false,
+                    isInProduction = false,
+                    episodesTotal = null,
+                    publishDayValue = AniLibertyPublishDay.Monday,
+                    episodes = emptyList(),
+                )
+            ),
+            meta = PaginatedResponse.PaginationResponse(
+                page = 1,
+                allPages = 1,
+                perPage = 25,
+                allItems = 1,
+            ),
+        )
+        coEvery {
+            aniLibertyApi.getReleasesList(
+                ids = listOf(AniLibertyReleaseId(10096)),
+                aliases = null,
+                page = 1,
+                limit = 1,
+                fields = null,
+            )
+        } returns PaginatedResponse(
+            data = listOf(
+                release(
+                    id = 10096,
+                    titleRu = "Hell Mode",
+                    isOngoing = false,
+                    isInProduction = false,
+                    episodesTotal = null,
+                    publishDayValue = AniLibertyPublishDay.Monday,
+                    episodes = listOf(
+                        AniLibertyEpisode(
+                            id = AniLibertyReleaseEpisodeId("episode-1"),
+                            name = "Episode 1",
+                            ordinal = 1.0,
+                            ending = null,
+                            opening = null,
+                            preview = null,
+                            hls480 = null,
+                            hls720 = null,
+                            hls1080 = null,
+                            duration = null,
+                            rutubeId = null,
+                            youtubeId = null,
+                            updatedAt = null,
+                            sortOrder = 1.0,
+                            releaseId = AniLibertyReleaseId(10096),
+                            nameEnglish = null,
+                        )
+                    ),
+                )
+            ),
+            meta = PaginatedResponse.PaginationResponse(
+                page = 1,
+                allPages = 1,
+                perPage = 1,
+                allItems = 1,
+            ),
+        )
+
+        val result = repository.getFavorites(page = 1)
+
+        assertEquals(1, result.data.size)
+        assertEquals(Release.STATUS_CODE_COMPLETE, result.data.first().statusCode)
+        coVerify(exactly = 1) {
+            aniLibertyApi.getReleasesList(
+                ids = listOf(AniLibertyReleaseId(10096)),
+                aliases = null,
+                page = 1,
+                limit = 1,
+                fields = null,
+            )
+        }
+    }
+
+    private fun release(
+        id: Int,
+        titleRu: String,
+        isOngoing: Boolean? = true,
+        isInProduction: Boolean? = true,
+        episodesTotal: Int? = null,
+        publishDayValue: AniLibertyPublishDay? = null,
+        episodes: List<AniLibertyEpisode> = emptyList(),
+    ): AniLibertyRelease {
         return AniLibertyRelease(
             id = AniLibertyReleaseId(id),
             alias = AniLibertyReleaseAlias("release-$id"),
@@ -156,14 +263,19 @@ class FavoriteRepositoryContractTest {
             freshAt = null,
             createdAt = null,
             updatedAt = null,
-            isOngoing = true,
+            isOngoing = isOngoing,
             ageRating = null,
-            publishDay = null,
+            publishDay = publishDayValue?.let {
+                AniLibertyRelease.PublishDay(
+                    value = it,
+                    description = it.value.toString(),
+                )
+            },
             description = null,
             notification = null,
-            episodesTotal = null,
+            episodesTotal = episodesTotal,
             externalPlayer = null,
-            isInProduction = true,
+            isInProduction = isInProduction,
             isBlockedByGeo = false,
             isBlockedByCopyrights = false,
             addedInUsersFavorites = 0,
@@ -175,7 +287,7 @@ class FavoriteRepositoryContractTest {
             abandonedCount = 0,
             genres = emptyList(),
             members = emptyList(),
-            episodes = emptyList(),
+            episodes = episodes,
             torrents = emptyList(),
             sponsor = null,
             latestEpisode = null,

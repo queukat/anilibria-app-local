@@ -12,6 +12,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
+import ru.radiationx.anilibria.common.TvCollectionFilterLabels
+import ru.radiationx.anilibria.common.TvCollectionFilterPickerKind
+import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
+import ru.radiationx.anilibria.common.TvCollectionFilterChipState
+import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.InfoCard
@@ -33,16 +38,16 @@ class SearchFragment : Fragment() {
 
     private var cardsState by mutableStateOf<List<CardItem>>(emptyList())
     private var filtersState by mutableStateOf(
-        SearchFormViewModel.FiltersUiState(
-            year = SearchFormViewModel.FilterChipState("Все годы", emphasized = false),
-            season = SearchFormViewModel.FilterChipState("Все сезоны", emphasized = false),
-            genre = SearchFormViewModel.FilterChipState("Все жанры", emphasized = false),
-            sort = SearchFormViewModel.FilterChipState("По популярности", emphasized = false),
-            onlyCompleted = SearchFormViewModel.FilterChipState("Все", emphasized = false),
+        TvCollectionFiltersUiState(
+            year = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL_YEARS, emphasized = false),
+            season = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL_SEASONS, emphasized = false),
+            genre = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL_GENRES, emphasized = false),
+            sort = TvCollectionFilterChipState(TvCollectionFilterLabels.SORT_POPULARITY, emphasized = false),
+            onlyCompleted = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL, emphasized = false),
         )
     )
     private var progressState by mutableStateOf(false)
-    private var pickerState by mutableStateOf<SearchFormViewModel.FilterPickerState?>(null)
+    private var pickerState by mutableStateOf<TvCollectionFilterPickerState?>(null)
     private var focusRequestToken by mutableIntStateOf(1)
     private var pickerFocusRequestToken by mutableIntStateOf(0)
     private var restoreFilterIndex by mutableIntStateOf(0)
@@ -131,7 +136,7 @@ class SearchFragment : Fragment() {
             val previous = pickerState
             pickerState = picker
             pickerBackCallback?.isEnabled = picker != null
-            if (picker != null) {
+            if (picker != null && shouldRequestPickerFocus(previous, picker)) {
                 pickerFocusRequestToken++
             } else if (previous != null) {
                 restoreFilterIndex = filterIndexFor(previous.kind)
@@ -156,13 +161,23 @@ class SearchFragment : Fragment() {
         }
     }
 
-    private fun filterIndexFor(kind: SearchFormViewModel.FilterPickerKind): Int {
+    private fun filterIndexFor(kind: TvCollectionFilterPickerKind): Int {
         return when (kind) {
-            SearchFormViewModel.FilterPickerKind.YEAR -> 0
-            SearchFormViewModel.FilterPickerKind.SEASON -> 1
-            SearchFormViewModel.FilterPickerKind.GENRE -> 2
-            SearchFormViewModel.FilterPickerKind.SORT -> FILTER_INDEX_SORT
-            SearchFormViewModel.FilterPickerKind.COMPLETED -> FILTER_INDEX_COMPLETED
+            TvCollectionFilterPickerKind.YEAR -> 0
+            TvCollectionFilterPickerKind.SEASON -> 1
+            TvCollectionFilterPickerKind.GENRE -> 2
+            TvCollectionFilterPickerKind.SORT -> FILTER_INDEX_SORT
+            TvCollectionFilterPickerKind.COMPLETED -> FILTER_INDEX_COMPLETED
         }
+    }
+
+    private fun shouldRequestPickerFocus(
+        previous: TvCollectionFilterPickerState?,
+        next: TvCollectionFilterPickerState,
+    ): Boolean {
+        return previous == null ||
+            previous.kind != next.kind ||
+            previous.options != next.options ||
+            previous.multiSelect != next.multiSelect
     }
 }

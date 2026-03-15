@@ -137,7 +137,7 @@ internal fun WatchingFilterChip(
     focusRequester: FocusRequester,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    minWidth: Dp = 132.dp,
+    minWidth: Dp = 92.dp,
     enabled: Boolean = true,
     emphasized: Boolean = false,
     onFocused: (() -> Unit)? = null,
@@ -170,8 +170,8 @@ internal fun WatchingFilterChip(
         onUp = onUp,
         onRight = onRight,
         onDown = onDown,
-        modifier = modifier.widthIn(min = minWidth, max = 280.dp),
-        paddingValues = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+        modifier = modifier.widthIn(min = minWidth, max = 160.dp),
+        paddingValues = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Text(
             text = text,

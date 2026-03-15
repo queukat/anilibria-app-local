@@ -17,8 +17,15 @@
     <string name="player_action_next">Следующая</string>
     <string name="player_action_quality">Качество</string>
     <string name="player_action_speed">Скорость</string>
+    <string name="player_action_aspect_ratio">Формат кадра</string>
     <string name="player_action_episodes">Серии</string>
     <string name="player_action_episodes_compact">Сер.</string>
+    <string name="player_aspect_ratio_fit">Вписать в экран</string>
+    <string name="player_aspect_ratio_fit_short">Вписать</string>
+    <string name="player_aspect_ratio_zoom">Заполнить без полос</string>
+    <string name="player_aspect_ratio_zoom_short">Заполнить</string>
+    <string name="player_aspect_ratio_fill">Растянуть изображение</string>
+    <string name="player_aspect_ratio_fill_short">Растянуть</string>
     <string name="player_controls_hint">На шкале прогресса влево и вправо перематывают по 10 секунд.</string>
     <string name="player_loading">Подготовка воспроизведения</string>
     <string name="player_skip">Пропустить</string>

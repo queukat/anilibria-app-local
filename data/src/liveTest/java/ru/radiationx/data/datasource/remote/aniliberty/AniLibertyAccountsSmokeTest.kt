@@ -17,6 +17,7 @@ import org.junit.Test
 import ru.radiationx.data.datasource.remote.IClient
 import ru.radiationx.data.datasource.remote.NetworkResponse
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTimecodeUpsertBody
+import ru.radiationx.data.entity.domain.release.Release
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
@@ -139,6 +140,21 @@ class AniLibertyAccountsSmokeTest {
     }
 
     @Test
+    fun getUserFavoriteReleases_slimFields_preserveMappedStatusCodes() {
+        runBlocking {
+            verifySlimFieldsPreserveMappedStatusCodes(AniLibertyFavoriteSorting.FreshAtDesc)
+        }
+    }
+
+    @Test
+    fun getUserFavoriteReleases_yearDesc_slimFields_preserveMappedStatusCodes() {
+        runBlocking {
+            val summary = verifySlimFieldsPreserveMappedStatusCodes(AniLibertyFavoriteSorting.YearDesc)
+            println(summary)
+        }
+    }
+
+    @Test
     fun upsertUserViewTimecodes_smokeWriteOptIn() {
         runBlocking {
             val writeEnabled = System.getenv("ANILIBERTY_E2E_WRITE") == "1"
@@ -180,12 +196,170 @@ class AniLibertyAccountsSmokeTest {
         return "$apiRoot/".toHttpUrl()
     }
 
+    private suspend fun verifySlimFieldsPreserveMappedStatusCodes(
+        sorting: AniLibertyFavoriteSorting,
+    ): String {
+        val fullResponse = api.getUserFavoriteReleasesFiltered(
+            page = 1,
+            limit = 25,
+            sorting = sorting,
+            fields = null,
+        )
+        val slimResponse = api.getUserFavoriteReleasesFiltered(
+            page = 1,
+            limit = 25,
+            sorting = sorting,
+            fields = AniLibertyReleaseFields.FavoritesList,
+        )
+        val ambiguousIds = slimResponse.data
+            .mapNotNull { release ->
+                release.id?.takeIf { release.needsStatusResolutionFromFullRelease() }
+            }
+            .distinctBy { it.value }
+        val resolvedSlimById = if (ambiguousIds.isEmpty()) {
+            emptyMap()
+        } else {
+            api.getReleasesList(
+                ids = ambiguousIds,
+                aliases = null,
+                page = 1,
+                limit = ambiguousIds.size,
+                fields = null,
+            ).data
+                .mapNotNull { release ->
+                    release.id?.value?.let { id -> id to release }
+                }
+                .toMap()
+        }
+
+        val fullMapped = fullResponse.data
+            .mapNotNull { release ->
+                release.id?.value?.let { id -> id to (release to deriveLegacyStatusCode(release)) }
+            }
+            .toMap()
+        val slimMapped = slimResponse.data
+            .mapNotNull { release ->
+                val resolvedRelease = release.id?.value?.let { resolvedSlimById[it] } ?: release
+                resolvedRelease.id?.value?.let { id ->
+                    id to (resolvedRelease to deriveLegacyStatusCode(resolvedRelease))
+                }
+            }
+            .toMap()
+
+        val overlappingIds = fullMapped.keys.intersect(slimMapped.keys)
+        assumeTrue(
+            "Need overlapping favorites from full and slim responses to compare mapped statuses.",
+            overlappingIds.isNotEmpty(),
+        )
+
+        val mismatches = overlappingIds.mapNotNull { id ->
+            val (fullRelease, full) = fullMapped.getValue(id)
+            val (slimRelease, slim) = slimMapped.getValue(id)
+            if (full == slim) {
+                null
+            } else {
+                "release#$id full=$full ${describeReleaseStatusInputs(fullRelease)}; slim=$slim ${describeReleaseStatusInputs(slimRelease)}"
+            }
+        }
+
+        assertTrue(
+            "Expected slim favorites fields to preserve mapped statusCode for ${sorting.value}. Mismatches: ${mismatches.joinToString()}",
+            mismatches.isEmpty(),
+        )
+
+        val orderedIds = slimResponse.data
+            .mapNotNull { it.id?.value }
+            .filter { it in overlappingIds }
+        val statusCounts = orderedIds
+            .mapNotNull { slimMapped[it]?.second }
+            .groupingBy { it }
+            .eachCount()
+            .toSortedMap()
+        val samples = orderedIds
+            .take(5)
+            .joinToString(separator = " | ") { id ->
+                val (release, status) = slimMapped.getValue(id)
+                val suffix = if (id in resolvedSlimById.keys) " resolved" else ""
+                "#$id ${release.year ?: "?"}/${release.season?.value?.value ?: release.season?.description ?: "?"} -> $status$suffix ${describeReleaseStatusInputs(release)}"
+            }
+        val completedTitles = orderedIds
+            .filter { slimMapped[it]?.second == Release.STATUS_CODE_COMPLETE }
+            .mapNotNull { id ->
+                slimMapped[id]
+                    ?.first
+                    ?.name
+                    ?.main
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+            }
+            .joinToString(separator = " | ")
+
+        return buildString {
+            append("AniLiberty favorites ")
+            append(sorting.value)
+            append(": items=")
+            append(overlappingIds.size)
+            append(", ambiguous=")
+            append(ambiguousIds.size)
+            append(", statusCounts=")
+            append(statusCounts)
+            if (samples.isNotBlank()) {
+                append(", samples=")
+                append(samples)
+            }
+            if (completedTitles.isNotBlank()) {
+                append(", completedTitles=")
+                append(completedTitles)
+            }
+        }
+    }
+
     private fun parseInstantOrNull(value: String?): Instant? {
         if (value.isNullOrBlank()) return null
         return runCatching { Instant.parse(value) }
             .getOrElse {
                 runCatching { OffsetDateTime.parse(value).toInstant() }.getOrNull()
             }
+    }
+
+    private fun deriveLegacyStatusCode(release: AniLibertyRelease): String {
+        val latest = release.latestEpisode?.sortOrder?.takeIf { it > 0.0 }
+            ?: release.latestEpisode?.ordinal?.takeIf { it > 0.0 }
+        val hasPublishedEpisodes = latest != null ||
+            release.episodes.orEmpty().isNotEmpty() ||
+            (release.episodesTotal ?: 0) > 0
+        val hasSchedule = release.publishDay?.value?.value != null
+
+        if (release.isOngoing == true || release.isInProduction == true) {
+            return Release.STATUS_CODE_PROGRESS
+        }
+
+        val hasExplicitStoppedState = release.isOngoing == false || release.isInProduction == false
+        if (!hasExplicitStoppedState) {
+            return Release.STATUS_CODE_NOTHING
+        }
+
+        return if (!hasPublishedEpisodes && hasSchedule) {
+            Release.STATUS_CODE_NOT_ONGOING
+        } else {
+            Release.STATUS_CODE_COMPLETE
+        }
+    }
+
+    private fun AniLibertyRelease.needsStatusResolutionFromFullRelease(): Boolean {
+        val hasPublishedEpisodesHint = latestEpisode != null ||
+            episodes.orEmpty().isNotEmpty() ||
+            (episodesTotal ?: 0) > 0
+        val hasExplicitStoppedState = isOngoing == false || isInProduction == false
+        val hasSchedule = publishDay?.value?.value != null
+        return hasExplicitStoppedState && !hasPublishedEpisodesHint && hasSchedule
+    }
+
+    private fun describeReleaseStatusInputs(release: AniLibertyRelease): String {
+        val latest = release.latestEpisode?.sortOrder?.takeIf { it > 0.0 }
+            ?: release.latestEpisode?.ordinal?.takeIf { it > 0.0 }
+        val day = release.publishDay?.value?.value
+        return "(ongoing=${release.isOngoing}, inProduction=${release.isInProduction}, total=${release.episodesTotal}, latest=$latest, hasEpisodes=${release.episodes.orEmpty().isNotEmpty()}, day=$day)"
     }
 }
 

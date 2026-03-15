@@ -7,6 +7,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import ru.radiationx.anilibria.common.TvCollectionFilterLabels
+import ru.radiationx.anilibria.common.TvCollectionFilterPickerKind
+import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
+import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
+import ru.radiationx.anilibria.common.buildTvCollectionFiltersUiState
+import ru.radiationx.anilibria.common.buildTvCollectionListLabel
+import ru.radiationx.anilibria.common.selectedIndices
+import ru.radiationx.anilibria.common.toTvCollectionCompletedLabel
+import ru.radiationx.anilibria.common.toTvCollectionSortLabel
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.data.entity.domain.release.GenreItem
 import ru.radiationx.data.entity.domain.release.SeasonItem
@@ -22,35 +31,6 @@ class SearchFormViewModel @Inject constructor(
     private val tvSearchUseCase: TvSearchUseCase,
 ) : LifecycleViewModel() {
 
-    enum class FilterPickerKind {
-        YEAR,
-        SEASON,
-        GENRE,
-        SORT,
-        COMPLETED,
-    }
-
-    data class FilterPickerState(
-        val kind: FilterPickerKind,
-        val title: String,
-        val options: List<String>,
-        val selectedIndices: Set<Int>,
-        val multiSelect: Boolean,
-    )
-
-    data class FilterChipState(
-        val label: String,
-        val emphasized: Boolean,
-    )
-
-    data class FiltersUiState(
-        val year: FilterChipState,
-        val season: FilterChipState,
-        val genre: FilterChipState,
-        val sort: FilterChipState,
-        val onlyCompleted: FilterChipState,
-    )
-
     private val _yearData = MutableStateFlow<String?>(null)
     val yearData: StateFlow<String?> = _yearData.asStateFlow()
     private val _seasonData = MutableStateFlow<String?>(null)
@@ -63,18 +43,23 @@ class SearchFormViewModel @Inject constructor(
     val onlyCompletedData: StateFlow<String?> = _onlyCompletedData.asStateFlow()
 
     private val _filtersUiState = MutableStateFlow(
-        FiltersUiState(
-            year = FilterChipState("Все годы", emphasized = false),
-            season = FilterChipState("Все сезоны", emphasized = false),
-            genre = FilterChipState("Все жанры", emphasized = false),
-            sort = FilterChipState("По популярности", emphasized = false),
-            onlyCompleted = FilterChipState("Все", emphasized = false),
+        buildTvCollectionFiltersUiState(
+            yearLabel = TvCollectionFilterLabels.ALL_YEARS,
+            yearEmphasized = false,
+            seasonLabel = TvCollectionFilterLabels.ALL_SEASONS,
+            seasonEmphasized = false,
+            genreLabel = TvCollectionFilterLabels.ALL_GENRES,
+            genreEmphasized = false,
+            sortLabel = SearchForm.Sort.RATING.toTvCollectionSortLabel(),
+            sortEmphasized = false,
+            onlyCompletedLabel = false.toTvCollectionCompletedLabel(),
+            onlyCompletedEmphasized = false,
         )
     )
-    val filtersUiState: StateFlow<FiltersUiState> = _filtersUiState.asStateFlow()
+    internal val filtersUiState: StateFlow<TvCollectionFiltersUiState> = _filtersUiState.asStateFlow()
 
-    private val _filterPicker = MutableStateFlow<FilterPickerState?>(null)
-    val filterPicker: StateFlow<FilterPickerState?> = _filterPicker.asStateFlow()
+    private val _filterPicker = MutableStateFlow<TvCollectionFilterPickerState?>(null)
+    internal val filterPicker: StateFlow<TvCollectionFilterPickerState?> = _filterPicker.asStateFlow()
 
     private var searchForm = SearchForm()
     private var availableYears: List<YearItem> = emptyList()
@@ -155,9 +140,9 @@ class SearchFormViewModel @Inject constructor(
     fun onYearClick() {
         val options = availableYears.map(YearItem::title)
         if (options.isEmpty()) return
-        _filterPicker.value = FilterPickerState(
-            kind = FilterPickerKind.YEAR,
-            title = "Годы",
+        _filterPicker.value = TvCollectionFilterPickerState(
+            kind = TvCollectionFilterPickerKind.YEAR,
+            title = TvCollectionFilterLabels.YEARS_TITLE,
             options = options,
             selectedIndices = selectedIndices(
                 availableYears.map(YearItem::value),
@@ -170,9 +155,9 @@ class SearchFormViewModel @Inject constructor(
     fun onSeasonClick() {
         val options = availableSeasons.map(SeasonItem::title)
         if (options.isEmpty()) return
-        _filterPicker.value = FilterPickerState(
-            kind = FilterPickerKind.SEASON,
-            title = "Сезоны",
+        _filterPicker.value = TvCollectionFilterPickerState(
+            kind = TvCollectionFilterPickerKind.SEASON,
+            title = TvCollectionFilterLabels.SEASONS_TITLE,
             options = options,
             selectedIndices = selectedIndices(
                 availableSeasons.map(SeasonItem::value),
@@ -185,9 +170,9 @@ class SearchFormViewModel @Inject constructor(
     fun onGenreClick() {
         val options = availableGenres.map(GenreItem::title)
         if (options.isEmpty()) return
-        _filterPicker.value = FilterPickerState(
-            kind = FilterPickerKind.GENRE,
-            title = "Жанры",
+        _filterPicker.value = TvCollectionFilterPickerState(
+            kind = TvCollectionFilterPickerKind.GENRE,
+            title = TvCollectionFilterLabels.GENRES_TITLE,
             options = options,
             selectedIndices = selectedIndices(
                 availableGenres.map(GenreItem::value),
@@ -198,10 +183,13 @@ class SearchFormViewModel @Inject constructor(
     }
 
     fun onSortClick() {
-        _filterPicker.value = FilterPickerState(
-            kind = FilterPickerKind.SORT,
-            title = "Сортировка",
-            options = listOf("По популярности", "По новизне"),
+        _filterPicker.value = TvCollectionFilterPickerState(
+            kind = TvCollectionFilterPickerKind.SORT,
+            title = TvCollectionFilterLabels.SORT_TITLE,
+            options = listOf(
+                TvCollectionFilterLabels.SORT_POPULARITY,
+                TvCollectionFilterLabels.SORT_DATE,
+            ),
             selectedIndices = setOf(
                 when (searchForm.sort) {
                     SearchForm.Sort.RATING -> 0
@@ -213,10 +201,13 @@ class SearchFormViewModel @Inject constructor(
     }
 
     fun onOnlyCompletedClick() {
-        _filterPicker.value = FilterPickerState(
-            kind = FilterPickerKind.COMPLETED,
-            title = "Статус",
-            options = listOf("Все", "Только завершенные"),
+        _filterPicker.value = TvCollectionFilterPickerState(
+            kind = TvCollectionFilterPickerKind.COMPLETED,
+            title = TvCollectionFilterLabels.STATUS_TITLE,
+            options = listOf(
+                TvCollectionFilterLabels.ALL,
+                TvCollectionFilterLabels.ONLY_COMPLETED,
+            ),
             selectedIndices = setOf(if (searchForm.onlyCompleted) 1 else 0),
             multiSelect = false,
         )
@@ -239,14 +230,14 @@ class SearchFormViewModel @Inject constructor(
         val current = _filterPicker.value
         val wasApplied = if (current != null && !current.multiSelect && index in current.options.indices) {
             when (current.kind) {
-                FilterPickerKind.SORT -> {
+                TvCollectionFilterPickerKind.SORT -> {
                     resolveSortOption(index)?.let { sort ->
                         searchController.sortEvent.emit(sort)
                         true
                     } ?: false
                 }
 
-                FilterPickerKind.COMPLETED -> {
+                TvCollectionFilterPickerKind.COMPLETED -> {
                     resolveCompletedOption(index)?.let { onlyCompleted ->
                         searchController.completedEvent.emit(onlyCompleted)
                         true
@@ -267,7 +258,7 @@ class SearchFormViewModel @Inject constructor(
         val current = _filterPicker.value
         val wasApplied = if (current != null && current.multiSelect) {
             when (current.kind) {
-                FilterPickerKind.YEAR -> {
+                TvCollectionFilterPickerKind.YEAR -> {
                     searchController.yearsEvent.emit(
                         current.selectedIndices
                             .mapNotNull { availableYears.getOrNull(it) }
@@ -276,7 +267,7 @@ class SearchFormViewModel @Inject constructor(
                     true
                 }
 
-                FilterPickerKind.SEASON -> {
+                TvCollectionFilterPickerKind.SEASON -> {
                     searchController.seasonsEvent.emit(
                         current.selectedIndices
                             .mapNotNull { availableSeasons.getOrNull(it) }
@@ -285,7 +276,7 @@ class SearchFormViewModel @Inject constructor(
                     true
                 }
 
-                FilterPickerKind.GENRE -> {
+                TvCollectionFilterPickerKind.GENRE -> {
                     searchController.genresEvent.emit(
                         current.selectedIndices
                             .mapNotNull { availableGenres.getOrNull(it) }
@@ -294,8 +285,8 @@ class SearchFormViewModel @Inject constructor(
                     true
                 }
 
-                FilterPickerKind.SORT,
-                FilterPickerKind.COMPLETED,
+                TvCollectionFilterPickerKind.SORT,
+                TvCollectionFilterPickerKind.COMPLETED,
                 -> false
             }
         } else {
@@ -337,7 +328,7 @@ class SearchFormViewModel @Inject constructor(
     private fun syncFilterPicker() {
         val current = _filterPicker.value ?: return
         _filterPicker.value = when (current.kind) {
-            FilterPickerKind.YEAR -> current.copy(
+            TvCollectionFilterPickerKind.YEAR -> current.copy(
                 options = availableYears.map(YearItem::title),
                 selectedIndices = selectedIndices(
                     availableYears.map(YearItem::value),
@@ -345,7 +336,7 @@ class SearchFormViewModel @Inject constructor(
                 ),
             )
 
-            FilterPickerKind.SEASON -> current.copy(
+            TvCollectionFilterPickerKind.SEASON -> current.copy(
                 options = availableSeasons.map(SeasonItem::title),
                 selectedIndices = selectedIndices(
                     availableSeasons.map(SeasonItem::value),
@@ -353,7 +344,7 @@ class SearchFormViewModel @Inject constructor(
                 ),
             )
 
-            FilterPickerKind.GENRE -> current.copy(
+            TvCollectionFilterPickerKind.GENRE -> current.copy(
                 options = availableGenres.map(GenreItem::title),
                 selectedIndices = selectedIndices(
                     availableGenres.map(GenreItem::value),
@@ -361,7 +352,7 @@ class SearchFormViewModel @Inject constructor(
                 ),
             )
 
-            FilterPickerKind.SORT -> current.copy(
+            TvCollectionFilterPickerKind.SORT -> current.copy(
                 selectedIndices = setOf(
                     when (searchForm.sort) {
                         SearchForm.Sort.RATING -> 0
@@ -370,7 +361,7 @@ class SearchFormViewModel @Inject constructor(
                 ),
             )
 
-            FilterPickerKind.COMPLETED -> current.copy(
+            TvCollectionFilterPickerKind.COMPLETED -> current.copy(
                 selectedIndices = setOf(if (searchForm.onlyCompleted) 1 else 0),
             )
         }
@@ -380,64 +371,36 @@ class SearchFormViewModel @Inject constructor(
         val yearLabel = searchForm.years
             .map(YearItem::title)
             .sortedDescending()
-            .generateListTitle("Все годы")
+            .let { buildTvCollectionListLabel(it, TvCollectionFilterLabels.ALL_YEARS) }
         val seasonLabel = searchForm.seasons
             .map(SeasonItem::title)
-            .generateListTitle("Все сезоны")
+            .let { buildTvCollectionListLabel(it, TvCollectionFilterLabels.ALL_SEASONS) }
         val genreLabel = searchForm.genres
             .map(GenreItem::title)
-            .generateListTitle("Все жанры")
-        val sortLabel = when (searchForm.sort) {
-            SearchForm.Sort.RATING -> "По популярности"
-            SearchForm.Sort.DATE -> "По новизне"
-        }
-        val onlyCompletedLabel = if (searchForm.onlyCompleted) {
-            "Только завершенные"
-        } else {
-            "Все"
-        }
+            .let { buildTvCollectionListLabel(it, TvCollectionFilterLabels.ALL_GENRES) }
+        val sortLabel = searchForm.sort.toTvCollectionSortLabel()
+        val onlyCompletedLabel = searchForm.onlyCompleted.toTvCollectionCompletedLabel()
 
         _yearData.value = yearLabel
         _seasonData.value = seasonLabel
         _genreData.value = genreLabel
         _sortData.value = sortLabel
         _onlyCompletedData.value = onlyCompletedLabel
-        _filtersUiState.value = FiltersUiState(
-            year = FilterChipState(yearLabel, emphasized = searchForm.years.isNotEmpty()),
-            season = FilterChipState(seasonLabel, emphasized = searchForm.seasons.isNotEmpty()),
-            genre = FilterChipState(genreLabel, emphasized = searchForm.genres.isNotEmpty()),
-            sort = FilterChipState(
-                sortLabel,
-                emphasized = searchForm.sort != SearchForm.Sort.RATING,
-            ),
-            onlyCompleted = FilterChipState(
-                onlyCompletedLabel,
-                emphasized = searchForm.onlyCompleted,
-            ),
+        _filtersUiState.value = buildTvCollectionFiltersUiState(
+            yearLabel = yearLabel,
+            yearEmphasized = searchForm.years.isNotEmpty(),
+            seasonLabel = seasonLabel,
+            seasonEmphasized = searchForm.seasons.isNotEmpty(),
+            genreLabel = genreLabel,
+            genreEmphasized = searchForm.genres.isNotEmpty(),
+            sortLabel = sortLabel,
+            sortEmphasized = searchForm.sort != SearchForm.Sort.RATING,
+            onlyCompletedLabel = onlyCompletedLabel,
+            onlyCompletedEmphasized = searchForm.onlyCompleted,
         )
 
         if (emitApply) {
             searchController.applyFormEvent.emit(searchForm)
         }
-    }
-
-    private fun selectedIndices(
-        allValues: List<String>,
-        selectedValues: Set<String>,
-    ): Set<Int> {
-        return allValues.mapIndexedNotNull { index, value ->
-            index.takeIf { value in selectedValues }
-        }.toSet()
-    }
-
-    private fun List<String>.generateListTitle(fallback: String, take: Int = 2): String {
-        if (isEmpty()) {
-            return fallback
-        }
-        var result = take(take).joinToString()
-        if (size > take) {
-            result += "… +${size - take}"
-        }
-        return result
     }
 }

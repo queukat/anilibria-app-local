@@ -36,6 +36,7 @@ class AuthCredentialsGuidedFragment : ComposeGuidedFragment() {
             isLoading = isLoadingState,
             errorText = errorState,
             onSubmit = viewModel::onLoginClicked,
+            onBackClick = viewModel::onBackClick,
         )
     }
 }

@@ -39,4 +39,8 @@ class AuthCredentialsViewModel @Inject constructor(
             _progressState.value = false
         }
     }
+
+    fun onBackClick() {
+        guidedRouter.close()
+    }
 }

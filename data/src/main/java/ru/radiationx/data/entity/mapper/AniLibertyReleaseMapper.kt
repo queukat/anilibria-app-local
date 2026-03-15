@@ -84,7 +84,7 @@ fun AniLibertyRelease.toLegacyReleaseOrNull(
             .mapNotNull { it.toDisplayOrder()?.takeIf { order -> order > 0.0 } }
             .maxOrNull()
     val total = episodesTotal?.takeIf { it > 0 }
-    val hasPublishedEpisodes = latest != null || episodes.orEmpty().isNotEmpty()
+    val hasPublishedEpisodes = latest != null || episodes.orEmpty().isNotEmpty() || total != null
     val hasSchedule = publishDay?.value?.value != null
     val statusCode = resolveLegacyStatusCode(
         isOngoing = isOngoing,

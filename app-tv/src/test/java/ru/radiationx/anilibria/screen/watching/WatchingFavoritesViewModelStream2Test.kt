@@ -25,6 +25,7 @@ import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.Paginated
+import ru.radiationx.data.entity.domain.release.FavoriteInfo
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
@@ -70,6 +71,7 @@ class WatchingFavoritesViewModelStream2Test {
         delay(100)
 
         assertEquals("Idle state should not trigger a network request", 1, requests.size)
+        viewModel.dispose()
     }
 
     @Test
@@ -102,6 +104,7 @@ class WatchingFavoritesViewModelStream2Test {
         waitUntil { requests.size == 3 }
 
         assertEquals("Expected one request for each explicit loadMore click", 3, requests.size)
+        viewModel.dispose()
     }
 
     @Test
@@ -118,7 +121,7 @@ class WatchingFavoritesViewModelStream2Test {
             singleItemResponse(page)
         }
 
-        WatchingFavoritesViewModel(
+        val viewModel = WatchingFavoritesViewModel(
             tvFavoritesUseCase = tvFavoritesUseCase,
             authRepository = authRepository,
             converter = mockk<CardsDataConverter>(relaxed = true),
@@ -129,6 +132,7 @@ class WatchingFavoritesViewModelStream2Test {
         delay(100)
 
         assertEquals("Expected sync to stop at 50 pages max", 50, requests.size)
+        viewModel.dispose()
     }
 
     @Test
@@ -159,6 +163,7 @@ class WatchingFavoritesViewModelStream2Test {
             "Добавьте тайтлы в избранное, чтобы они появились здесь",
             first.subtitle
         )
+        viewModel.dispose()
     }
 
     @Test
@@ -201,6 +206,7 @@ class WatchingFavoritesViewModelStream2Test {
         assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
         assertTrue(viewModel.cardsData.value.none { it is LinkCard && it.title == "Повторить" })
         assertTrue(viewModel.cardsData.value.none { it is LoadingCard && it.isError })
+        viewModel.dispose()
     }
 
     @Test
@@ -224,6 +230,171 @@ class WatchingFavoritesViewModelStream2Test {
 
         assertTrue(viewModel.cardsData.value.none { it is LinkCard && it.title == "Повторить" })
         assertTrue(viewModel.cardsData.value.none { it is LoadingCard && it.isError })
+        viewModel.dispose()
+    }
+
+    @Test
+    fun onlyCompletedFilter_keepsOnlyCompletedFavorites() = runBlocking {
+        val authStateFlow = MutableStateFlow(AuthState.AUTH)
+        val authRepository = mockk<AuthRepository>()
+        every { authRepository.observeAuthState() } returns authStateFlow
+
+        val tvFavoritesUseCase = mockk<TvFavoritesUseCase>()
+        coEvery { tvFavoritesUseCase.loadFavorites(any()) } answers {
+            favoritesResponse(
+                page = firstArg(),
+                data = listOf(
+                    fakeRelease(
+                        id = 1,
+                        title = "completed-explicit",
+                        statusCode = Release.STATUS_CODE_COMPLETE,
+                    ),
+                    fakeRelease(
+                        id = 2,
+                        title = "announced",
+                        statusCode = Release.STATUS_CODE_NOT_ONGOING,
+                        status = "Анонс",
+                    ),
+                    fakeRelease(
+                        id = 3,
+                        title = "completed-fallback",
+                        statusCode = null,
+                        status = "Релиз завершен",
+                    ),
+                )
+            )
+        }
+
+        val viewModel = WatchingFavoritesViewModel(
+            tvFavoritesUseCase = tvFavoritesUseCase,
+            authRepository = authRepository,
+            converter = favoriteConverter(),
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        waitUntil { viewModel.cardsData.value.filterIsInstance<LibriaCard>().size == 3 }
+
+        viewModel.onOnlyCompletedClick()
+        viewModel.selectSinglePicker(1)
+
+        waitUntil { viewModel.cardsData.value.filterIsInstance<LibriaCard>().size == 2 }
+
+        val titles = viewModel.cardsData.value
+            .filterIsInstance<LibriaCard>()
+            .map(LibriaCard::title)
+            .toSet()
+        assertEquals(
+            setOf("completed-explicit", "completed-fallback"),
+            titles,
+        )
+        assertEquals(
+            "Только завершенные",
+            viewModel.filtersUiState.value.onlyCompleted.label,
+        )
+        assertTrue(viewModel.filtersUiState.value.onlyCompleted.emphasized)
+        viewModel.dispose()
+    }
+
+    @Test
+    fun yearFilter_supportsMultiSelectAndMatchesCatalogPattern() = runBlocking {
+        val authStateFlow = MutableStateFlow(AuthState.AUTH)
+        val authRepository = mockk<AuthRepository>()
+        every { authRepository.observeAuthState() } returns authStateFlow
+
+        val tvFavoritesUseCase = mockk<TvFavoritesUseCase>()
+        coEvery { tvFavoritesUseCase.loadFavorites(any()) } answers {
+            favoritesResponse(
+                page = firstArg(),
+                data = listOf(
+                    fakeRelease(id = 1, title = "year-2026", year = "2026"),
+                    fakeRelease(id = 2, title = "year-2025", year = "2025"),
+                    fakeRelease(id = 3, title = "year-2024", year = "2024"),
+                )
+            )
+        }
+
+        val viewModel = WatchingFavoritesViewModel(
+            tvFavoritesUseCase = tvFavoritesUseCase,
+            authRepository = authRepository,
+            converter = favoriteConverter(),
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        waitUntil { viewModel.cardsData.value.filterIsInstance<LibriaCard>().size == 3 }
+
+        viewModel.onYearClick()
+        assertTrue(viewModel.filterPicker.value?.multiSelect == true)
+        viewModel.togglePickerSelection(0)
+        viewModel.togglePickerSelection(2)
+        viewModel.applyFilterPicker()
+
+        waitUntil { viewModel.cardsData.value.filterIsInstance<LibriaCard>().size == 2 }
+
+        val titles = viewModel.cardsData.value
+            .filterIsInstance<LibriaCard>()
+            .map(LibriaCard::title)
+            .toSet()
+        assertEquals(setOf("year-2026", "year-2024"), titles)
+        assertEquals("2026, 2024", viewModel.filtersUiState.value.year.label)
+        assertTrue(viewModel.filtersUiState.value.year.emphasized)
+        viewModel.dispose()
+    }
+
+    @Test
+    fun dateSort_prioritizesReleaseYearOverTorrentFreshness() = runBlocking {
+        val authStateFlow = MutableStateFlow(AuthState.AUTH)
+        val authRepository = mockk<AuthRepository>()
+        every { authRepository.observeAuthState() } returns authStateFlow
+
+        val tvFavoritesUseCase = mockk<TvFavoritesUseCase>()
+        coEvery { tvFavoritesUseCase.loadFavorites(any()) } answers {
+            favoritesResponse(
+                page = firstArg(),
+                data = listOf(
+                    fakeRelease(
+                        id = 1,
+                        title = "older-but-fresh",
+                        year = "2025",
+                        season = "Осень",
+                        favoriteRating = 1,
+                        torrentUpdate = 10_000,
+                    ),
+                    fakeRelease(
+                        id = 2,
+                        title = "newer-but-stale",
+                        year = "2026",
+                        season = "Зима",
+                        favoriteRating = 2,
+                        torrentUpdate = 10,
+                    ),
+                )
+            )
+        }
+
+        val viewModel = WatchingFavoritesViewModel(
+            tvFavoritesUseCase = tvFavoritesUseCase,
+            authRepository = authRepository,
+            converter = favoriteConverter(),
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+        )
+
+        waitUntil { viewModel.cardsData.value.filterIsInstance<LibriaCard>().size == 2 }
+
+        viewModel.onSortClick()
+        viewModel.selectSinglePicker(1)
+
+        waitUntil {
+            viewModel.cardsData.value.filterIsInstance<LibriaCard>().map(LibriaCard::title) ==
+                listOf("newer-but-stale", "older-but-fresh")
+        }
+
+        val titles = viewModel.cardsData.value
+            .filterIsInstance<LibriaCard>()
+            .map(LibriaCard::title)
+        assertEquals(listOf("newer-but-stale", "older-but-fresh"), titles)
+        assertEquals("По новизне", viewModel.filtersUiState.value.sort.label)
+        assertTrue(viewModel.filtersUiState.value.sort.emphasized)
+        viewModel.dispose()
     }
 
     private suspend fun waitUntil(predicate: () -> Boolean) {
@@ -234,12 +405,25 @@ class WatchingFavoritesViewModelStream2Test {
         error("Condition was not met in time")
     }
 
+    private suspend fun WatchingFavoritesViewModel.dispose() {
+        onPause(mockk(relaxed = true))
+        delay(20)
+    }
+
     private fun emptyResponse(page: Int): Paginated<Release> = Paginated(
         data = emptyList(),
         page = page,
         allPages = 1,
         perPage = 25,
         allItems = 0,
+    )
+
+    private fun favoritesResponse(page: Int, data: List<Release>): Paginated<Release> = Paginated(
+        data = data,
+        page = page,
+        allPages = 1,
+        perPage = 25,
+        allItems = data.size,
     )
 
     private fun singleItemResponse(page: Int): Paginated<Release> = Paginated(
@@ -250,15 +434,31 @@ class WatchingFavoritesViewModelStream2Test {
         allItems = null,
     )
 
-    private fun fakeRelease(id: Int): Release {
+    private fun fakeRelease(
+        id: Int,
+        title: String = "title-$id",
+        year: String = "2026",
+        season: String = "spring",
+        genres: List<String> = emptyList(),
+        statusCode: String? = Release.STATUS_CODE_COMPLETE,
+        status: String? = null,
+        favoriteRating: Int = id,
+        torrentUpdate: Int = id,
+    ): Release {
+        val favoriteInfo = mockk<FavoriteInfo>()
+        every { favoriteInfo.rating } returns favoriteRating
+        every { favoriteInfo.isAdded } returns true
+
         val release = mockk<Release>(relaxed = true)
         every { release.id } returns ReleaseId(id)
-        every { release.title } returns "title-$id"
-        every { release.year } returns "2026"
-        every { release.season } returns "spring"
-        every { release.genres } returns emptyList()
-        every { release.statusCode } returns Release.STATUS_CODE_COMPLETE
-        every { release.torrentUpdate } returns id
+        every { release.title } returns title
+        every { release.year } returns year
+        every { release.season } returns season
+        every { release.genres } returns genres
+        every { release.favoriteInfo } returns favoriteInfo
+        every { release.statusCode } returns statusCode
+        every { release.status } returns status
+        every { release.torrentUpdate } returns torrentUpdate
         return release
     }
 

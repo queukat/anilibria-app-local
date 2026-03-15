@@ -1,9 +1,13 @@
 package ru.radiationx.anilibria.screen.auth
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -13,17 +17,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ru.radiationx.anilibria.screen.auth.otp.AuthOtpViewModel
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvOverlayActionButton
 import ru.radiationx.anilibria.ui.compose.TvOverlayInfoBlock
 import ru.radiationx.anilibria.ui.compose.TvOverlayScreen
-import ru.radiationx.anilibria.ui.compose.TvOverlayScrollableText
 import ru.radiationx.anilibria.ui.compose.TvOverlayTextField
 import ru.radiationx.data.entity.domain.auth.OtpInfo
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Composable
 internal fun AuthMenuOverlay(
@@ -32,8 +40,11 @@ internal fun AuthMenuOverlay(
     onSkipClick: () -> Unit,
 ) {
     TvOverlayScreen(
-        title = "Авторизация",
-        subtitle = "Войдите в свой аккаунт удобным способом. Для регистрации используйте полную версию сайта.",
+        title = "Вход на телевизоре",
+        subtitle = (
+            "Основной способ для TV — вход по коду. " +
+                "Он быстрее и не требует вводить логин и пароль с пульта."
+            ),
         panelMaxWidth = 680.dp,
     ) { palette ->
         val codeRequester = remember { FocusRequester() }
@@ -45,8 +56,19 @@ internal fun AuthMenuOverlay(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TvOverlayInfoBlock(
+                text = (
+                    "Быстрый вход:\n" +
+                        "1. Откройте AniLibria на телефоне или сайте.\n" +
+                        "2. Выберите вход на устройстве.\n" +
+                        "3. Подтвердите код на экране телевизора."
+                    ),
+                palette = palette,
+                accent = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
             TvOverlayActionButton(
-                text = "Войти по коду",
+                text = "Продолжить по коду",
                 palette = palette,
                 focusRequester = codeRequester,
                 downRequester = classicRequester,
@@ -54,12 +76,12 @@ internal fun AuthMenuOverlay(
                 modifier = Modifier.fillMaxWidth(),
             )
             TvOverlayInfoBlock(
-                text = "Используйте мобильное приложение или сайт для подтверждения входа.",
+                text = "Логин и пароль используйте только если не получается подтвердить вход по коду.",
                 palette = palette,
                 modifier = Modifier.fillMaxWidth(),
             )
             TvOverlayActionButton(
-                text = "Ввести логин или email",
+                text = "Войти логином и паролем",
                 palette = palette,
                 focusRequester = classicRequester,
                 upRequester = codeRequester,
@@ -68,7 +90,7 @@ internal fun AuthMenuOverlay(
                 modifier = Modifier.fillMaxWidth(),
             )
             TvOverlayActionButton(
-                text = "Пропустить",
+                text = "Пропустить сейчас",
                 palette = palette,
                 focusRequester = skipRequester,
                 upRequester = classicRequester,
@@ -84,16 +106,18 @@ internal fun AuthCredentialsOverlay(
     isLoading: Boolean,
     errorText: String,
     onSubmit: (String, String, String) -> Unit,
+    onBackClick: () -> Unit,
 ) {
     TvOverlayScreen(
-        title = "Авторизация",
-        subtitle = "Логин и пароль обязательны. Код двухфакторной авторизации нужен только если вы её включали.",
+        title = "Ручной вход",
+        subtitle = "Используйте этот вариант, только если вход по коду сейчас недоступен.",
         panelMaxWidth = 760.dp,
     ) { palette ->
         val loginRequester = remember { FocusRequester() }
         val passwordRequester = remember { FocusRequester() }
         val codeRequester = remember { FocusRequester() }
         val buttonRequester = remember { FocusRequester() }
+        val backRequester = remember { FocusRequester() }
 
         var login by rememberSaveable { mutableStateOf("") }
         var password by rememberSaveable { mutableStateOf("") }
@@ -109,6 +133,11 @@ internal fun AuthCredentialsOverlay(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TvOverlayInfoBlock(
+                text = "Если рядом есть телефон или сайт AniLibria, для TV удобнее вернуться и войти по коду.",
+                palette = palette,
+                modifier = Modifier.fillMaxWidth(),
+            )
             if (errorText.isNotBlank()) {
                 TvOverlayInfoBlock(
                     text = errorText,
@@ -125,6 +154,7 @@ internal fun AuthCredentialsOverlay(
                 downRequester = passwordRequester,
                 enabled = !isLoading,
                 supportingText = if (login.isEmpty()) "Введите логин или email" else null,
+                singleLine = true,
             )
             TvOverlayTextField(
                 label = "Пароль",
@@ -137,9 +167,10 @@ internal fun AuthCredentialsOverlay(
                 enabled = !isLoading,
                 visualTransformation = PasswordVisualTransformation(),
                 supportingText = if (password.isEmpty()) "Введите пароль" else null,
+                singleLine = true,
             )
             TvOverlayTextField(
-                label = "Код двухфакторной авторизации",
+                label = "2FA код, если включен",
                 value = code,
                 onValueChange = { code = it.filter(Char::isDigit) },
                 palette = palette,
@@ -150,15 +181,26 @@ internal fun AuthCredentialsOverlay(
                 isError = code.isNotBlank() && !codeValid,
                 supportingText = "Оставьте пустым, если двухфакторная авторизация не настроена",
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
             )
             TvOverlayActionButton(
                 text = "Войти",
                 palette = palette,
                 focusRequester = buttonRequester,
                 upRequester = codeRequester,
+                downRequester = backRequester,
                 enabled = canSubmit,
                 loading = isLoading,
                 onClick = { onSubmit(login.trim(), password, code.trim()) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            TvOverlayActionButton(
+                text = "Выбрать другой способ входа",
+                palette = palette,
+                focusRequester = backRequester,
+                upRequester = buttonRequester,
+                enabled = !isLoading,
+                onClick = onBackClick,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -170,20 +212,22 @@ internal fun AuthOtpOverlay(
     otpInfo: OtpInfo?,
     state: AuthOtpViewModel.State,
     onPrimaryClick: () -> Unit,
+    onBackClick: () -> Unit,
 ) {
     val primaryTitle = when (state.buttonState) {
-        AuthOtpViewModel.ButtonState.COMPLETE -> "Готово"
+        AuthOtpViewModel.ButtonState.COMPLETE -> "Проверить вход"
         AuthOtpViewModel.ButtonState.EXPIRED -> "Показать новый код"
-        AuthOtpViewModel.ButtonState.REPEAT -> "Повторить"
+        AuthOtpViewModel.ButtonState.REPEAT -> "Повторить запрос"
     }
+    val expiresAtLabel = otpInfo?.let(::formatOtpExpiration)
 
     TvOverlayScreen(
-        title = otpInfo?.code?.let { "Код: $it" } ?: "Запрашивается код",
-        subtitle = otpInfo?.description ?: "Запросите код в приложении или на сайте и подтвердите вход.",
+        title = if (otpInfo == null) "Получаем код" else "Вход по коду",
+        subtitle = "Откройте AniLibria на телефоне или сайте, подтвердите вход и вернитесь на этот экран.",
         panelMaxWidth = 760.dp,
     ) { palette ->
-        val textRequester = remember { FocusRequester() }
         val buttonRequester = remember { FocusRequester() }
+        val backRequester = remember { FocusRequester() }
 
         LaunchedEffect(Unit) {
             requestWatchingFocusAfterAttach(buttonRequester)
@@ -197,28 +241,81 @@ internal fun AuthOtpOverlay(
                     accent = true,
                 )
             }
-            otpInfo?.takeIf { it.description.isNotBlank() }?.also {
-                TvOverlayScrollableText(
-                    text = it.description,
-                    palette = palette,
-                    focusRequester = textRequester,
-                    downRequester = buttonRequester,
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp)
+                    .background(
+                        color = palette.accentColor.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(20.dp),
+                    )
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+            ) {
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                )
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "Код для входа",
+                        color = palette.secondaryTextColor,
+                        fontSize = 15.sp,
+                    )
+                    Text(
+                        text = otpInfo?.code ?: "......",
+                        color = palette.textColor,
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        text = expiresAtLabel ?: "Код появится через мгновение",
+                        color = palette.secondaryTextColor,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
+            otpInfo?.description
+                ?.takeIf { it.isNotBlank() }
+                ?.also {
+                    TvOverlayInfoBlock(
+                        text = it,
+                        palette = palette,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             TvOverlayActionButton(
                 text = primaryTitle,
                 palette = palette,
                 focusRequester = buttonRequester,
-                upRequester = if (otpInfo?.description.isNullOrBlank()) {
-                    FocusRequester.Default
-                } else {
-                    textRequester
-                },
+                downRequester = backRequester,
                 loading = state.progress,
                 onClick = onPrimaryClick,
                 modifier = Modifier.fillMaxWidth(),
             )
+            TvOverlayActionButton(
+                text = "Выбрать другой способ входа",
+                palette = palette,
+                focusRequester = backRequester,
+                upRequester = buttonRequester,
+                enabled = !state.progress,
+                onClick = onBackClick,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (otpInfo == null && state.error.isBlank()) {
+                TvOverlayInfoBlock(
+                    text = "Подготовим код и покажем его здесь. Затем подтвердите вход на другом устройстве.",
+                    palette = palette,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
+}
+
+private fun formatOtpExpiration(otpInfo: OtpInfo): String {
+    val timeText = SimpleDateFormat("HH:mm", Locale.getDefault()).format(otpInfo.expiresAt)
+    return "Код действует до $timeText"
 }

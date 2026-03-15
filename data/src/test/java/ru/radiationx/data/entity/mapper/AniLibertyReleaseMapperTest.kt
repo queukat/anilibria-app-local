@@ -223,6 +223,21 @@ class AniLibertyReleaseMapperTest {
         assertEquals(Release.STATUS_CODE_NOT_ONGOING, mapped?.statusCode)
     }
 
+    @Test
+    fun toLegacyReleaseOrNull_status_marksStoppedReleaseWithEpisodesTotalAsComplete() {
+        val release = buildRelease(
+            isOngoing = false,
+            isInProduction = false,
+            episodesTotal = 12,
+            latestEpisodeOrdinal = null,
+            episodeOrdinals = emptyList(),
+        )
+
+        val mapped = release.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+
+        assertEquals(Release.STATUS_CODE_COMPLETE, mapped?.statusCode)
+    }
+
     private fun buildRelease(
         isOngoing: Boolean?,
         isInProduction: Boolean?,

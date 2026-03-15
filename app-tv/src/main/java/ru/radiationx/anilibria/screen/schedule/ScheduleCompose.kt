@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,13 +20,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Text
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.InfoCard
@@ -36,6 +40,8 @@ import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.screen.main.MainSectionBlock
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
+import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
+import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
 import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
@@ -49,6 +55,10 @@ import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
+import ru.radiationx.shared.ktx.asDayName
+import java.util.Calendar
+import java.util.TimeZone
+import kotlin.math.abs
 
 @Composable
 internal fun ScheduleScreen(
@@ -62,6 +72,8 @@ internal fun ScheduleScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val verticalState = remember { LazyListState() }
+    val todaySectionTitle = remember { Calendar.getInstance().get(Calendar.DAY_OF_WEEK).asDayName() }
+    val timezoneLabel = remember { buildScheduleTimezoneLabel(TimeZone.getDefault()) }
     val sectionKeys = remember(sections) {
         sections.map { section ->
             section.id to section.items.map(CardItem::getId)
@@ -70,11 +82,12 @@ internal fun ScheduleScreen(
     val rowStates = remember(sectionKeys) { List(sections.size) { LazyListState() } }
     val sectionRequesters = remember(sectionKeys) {
         sections.map { section ->
-            List(section.items.size) { androidx.compose.ui.focus.FocusRequester() }
+            List(section.items.size) { FocusRequester() }
         }
     }
-    val statePanelRequester = remember { androidx.compose.ui.focus.FocusRequester() }
-    val stateActionRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    val dayChipRequesters = remember(sectionKeys) { List(sections.size) { FocusRequester() } }
+    val statePanelRequester = remember { FocusRequester() }
+    val stateActionRequester = remember { FocusRequester() }
     var selectedItem by remember(sectionKeys) { mutableStateOf<CardItem?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
@@ -97,6 +110,15 @@ internal fun ScheduleScreen(
             section.items.none { it is LibriaCard }
         }
     )
+    val showQuickDayJump = sections.size > 1 && !showStatePanel
+    val initialSectionIndex = remember(sectionKeys, todaySectionTitle) {
+        sections.indexOfFirst { section -> section.title == todaySectionTitle }
+            .takeIf { it >= 0 }
+            ?: 0
+    }
+    var highlightedSectionIndex by remember(sectionKeys, initialSectionIndex) {
+        mutableIntStateOf(initialSectionIndex)
+    }
     val hasContent = remember(sectionKeys, showStatePanel) {
         sections.any { section -> section.items.any { it is LibriaCard } } && !showStatePanel
     }
@@ -116,7 +138,38 @@ internal fun ScheduleScreen(
         return true
     }
 
-    fun sectionListIndex(sectionIndex: Int): Int = sectionIndex + 1
+    fun sectionListIndex(sectionIndex: Int): Int = sectionIndex + if (showQuickDayJump) 2 else 1
+
+    fun requestSectionItemFocus(
+        sectionIndex: Int,
+        preferredItemIndex: Int = 0,
+    ): Boolean {
+        val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
+        if (requesters.isEmpty()) {
+            return false
+        }
+        val targetItemIndex = preferredItemIndex.coerceIn(0, requesters.lastIndex)
+        highlightedSectionIndex = sectionIndex
+        scope.launch {
+            verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(sectionIndex))
+            rowStates.getOrNull(sectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
+            requestWatchingFocusAfterAttach(requesters.getOrNull(targetItemIndex))
+        }
+        return true
+    }
+
+    fun requestDayChipFocus(sectionIndex: Int = highlightedSectionIndex): Boolean {
+        if (!showQuickDayJump || sections.isEmpty()) {
+            return false
+        }
+        val clampedSectionIndex = sectionIndex.coerceIn(0, sections.lastIndex)
+        highlightedSectionIndex = clampedSectionIndex
+        scope.launch {
+            verticalState.scrollItemIntoViewIfNeeded(1)
+            requestWatchingFocusAfterAttach(dayChipRequesters.getOrNull(clampedSectionIndex))
+        }
+        return true
+    }
 
     fun targetInSection(
         sectionIndex: Int,
@@ -170,21 +223,22 @@ internal fun ScheduleScreen(
         direction: Int,
         preferredItemIndex: Int,
     ): Boolean {
+        val chipFocusHandled = direction < 0 && currentSectionIndex <= 0 && showQuickDayJump
+        if (chipFocusHandled) return requestDayChipFocus(currentSectionIndex)
+
         var targetSectionIndex = currentSectionIndex + direction
-        while (targetSectionIndex in sections.indices) {
+        var target: Pair<Int, Int>? = null
+        while (targetSectionIndex in sections.indices && target == null) {
             val requesters = sectionRequesters.getOrNull(targetSectionIndex).orEmpty()
             if (requesters.isNotEmpty()) {
-                val targetItemIndex = preferredItemIndex.coerceIn(0, requesters.lastIndex)
-                scope.launch {
-                    verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(targetSectionIndex))
-                    rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
-                    requestWatchingFocusAfterAttach(requesters.getOrNull(targetItemIndex))
-                }
-                return true
+                target = targetSectionIndex to preferredItemIndex.coerceIn(0, requesters.lastIndex)
+            } else {
+                targetSectionIndex += direction
             }
-            targetSectionIndex += direction
         }
-        return false
+        return target?.let { (sectionIndex, itemIndex) ->
+            requestSectionItemFocus(sectionIndex, itemIndex)
+        } ?: false
     }
 
     fun keepItemVisible(sectionIndex: Int, itemIndex: Int) {
@@ -210,6 +264,7 @@ internal fun ScheduleScreen(
             )
             if (restoreTarget != null) {
                 val (targetSectionIndex, targetItemIndex) = restoreTarget
+                highlightedSectionIndex = targetSectionIndex
                 verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(targetSectionIndex))
                 rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
                 requestWatchingFocusAfterAttach(
@@ -243,18 +298,17 @@ internal fun ScheduleScreen(
             null
         }
         val (targetSectionIndex, targetItemIndex) = restoreTarget ?: run {
-            val firstSectionIndex = sections.indexOfFirst { it.items.isNotEmpty() }
-            if (firstSectionIndex < 0) {
+            val preferredTarget = findRestoreTarget(
+                preferredSectionIndex = initialSectionIndex,
+                preferredItemIndex = 0,
+            )
+            if (preferredTarget == null) {
                 return@LaunchedEffect
             }
-            firstSectionIndex to 0
+            preferredTarget
         }
-        verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(targetSectionIndex))
-        rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
-        if (requestWatchingFocusAfterAttach(
-                sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
-            )
-        ) {
+        highlightedSectionIndex = targetSectionIndex
+        if (requestSectionItemFocus(targetSectionIndex, targetItemIndex)) {
             handledFocusToken = focusRequestToken
         }
     }
@@ -284,9 +338,40 @@ internal fun ScheduleScreen(
             item(key = "schedule-header") {
                 TvPageHeader(
                     title = "Расписание",
-                    subtitle = "Свежие и ближайшие релизы по дням недели",
+                    subtitle = "Свежие и ближайшие релизы по времени устройства: $timezoneLabel.",
                     palette = palette,
                 )
+            }
+
+            if (showQuickDayJump) {
+                item(key = "schedule-day-jump") {
+                    ScheduleDayJumpRow(
+                        sections = sections,
+                        highlightedSectionIndex = highlightedSectionIndex,
+                        todaySectionTitle = todaySectionTitle,
+                        palette = palette,
+                        requesters = dayChipRequesters,
+                        onChipFocused = { sectionIndex ->
+                            highlightedSectionIndex = sectionIndex
+                        },
+                        onChipClick = { sectionIndex ->
+                            val preferredItemIndex = if (sectionIndex == lastFocusedSectionIndex) {
+                                lastFocusedItemIndex
+                            } else {
+                                0
+                            }
+                            requestSectionItemFocus(sectionIndex, preferredItemIndex)
+                        },
+                        onChipDown = { sectionIndex ->
+                            val preferredItemIndex = if (sectionIndex == lastFocusedSectionIndex) {
+                                lastFocusedItemIndex
+                            } else {
+                                0
+                            }
+                            requestSectionItemFocus(sectionIndex, preferredItemIndex)
+                        },
+                    )
+                }
             }
 
             if (showStatePanel) {
@@ -380,6 +465,7 @@ internal fun ScheduleScreen(
                             lastFocusedSectionIndex = sectionIndex
                             lastFocusedItemIndex = itemIndex
                             lastFocusedItemId = item.getId()
+                            highlightedSectionIndex = sectionIndex
                             keepItemVisible(sectionIndex, itemIndex)
                         },
                         onLeftEdge = { false },
@@ -407,3 +493,105 @@ internal fun ScheduleScreen(
         }
     }
 }
+
+@Composable
+private fun ScheduleDayJumpRow(
+    sections: List<MainSectionUiModel>,
+    highlightedSectionIndex: Int,
+    todaySectionTitle: String,
+    palette: WatchingPalette,
+    requesters: List<FocusRequester>,
+    onChipFocused: (Int) -> Unit,
+    onChipClick: (Int) -> Unit,
+    onChipDown: (Int) -> Boolean,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = sections.firstOrNull { it.title == todaySectionTitle }
+                ?.let { "Быстрый переход по дням. Сегодня: ${it.title}" }
+                ?: "Быстрый переход по дням",
+            color = palette.secondaryTextColor,
+            fontSize = 15.sp,
+            lineHeight = 21.sp,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            sections.forEachIndexed { index, section ->
+                ScheduleDayChip(
+                    title = section.title,
+                    selected = index == highlightedSectionIndex,
+                    today = section.title == todaySectionTitle,
+                    palette = palette,
+                    focusRequester = requesters.getOrNull(index) ?: FocusRequester.Default,
+                    onFocused = { onChipFocused(index) },
+                    onClick = { onChipClick(index) },
+                    onLeft = { requestWatchingFocus(requesters.getOrNull(index - 1)) },
+                    onRight = { requestWatchingFocus(requesters.getOrNull(index + 1)) },
+                    onDown = { onChipDown(index) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScheduleDayChip(
+    title: String,
+    selected: Boolean,
+    today: Boolean,
+    palette: WatchingPalette,
+    focusRequester: FocusRequester,
+    onFocused: () -> Unit,
+    onClick: () -> Unit,
+    onLeft: () -> Boolean,
+    onRight: () -> Boolean,
+    onDown: () -> Boolean,
+) {
+    WatchingFocusableSurface(
+        focusRequester = focusRequester,
+        backgroundColor = if (selected) {
+            palette.accentColor.copy(alpha = 0.16f)
+        } else {
+            palette.chipColor.copy(alpha = 0.82f)
+        },
+        focusedBackgroundColor = if (selected) {
+            palette.accentColor.copy(alpha = 0.24f)
+        } else {
+            palette.chipColor
+        },
+        borderColor = when {
+            selected -> palette.accentColor.copy(alpha = 0.92f)
+            today -> palette.textColor.copy(alpha = 0.78f)
+            else -> palette.textColor.copy(alpha = 0.22f)
+        },
+        onClick = onClick,
+        onFocused = onFocused,
+        onLeft = onLeft,
+        onRight = onRight,
+        onDown = onDown,
+        paddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = title,
+            color = palette.textColor,
+            fontSize = 16.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+        )
+    }
+}
+
+private fun buildScheduleTimezoneLabel(timeZone: TimeZone): String {
+    val offsetMinutes = timeZone.getOffset(System.currentTimeMillis()) / MILLIS_IN_MINUTE
+    val sign = if (offsetMinutes >= 0) "+" else "-"
+    val absoluteMinutes = abs(offsetMinutes)
+    val hours = absoluteMinutes / MINUTES_IN_HOUR
+    val minutes = absoluteMinutes % MINUTES_IN_HOUR
+    val offsetText = if (minutes == 0) {
+        "GMT$sign$hours"
+    } else {
+        "GMT$sign$hours:${minutes.toString().padStart(2, '0')}"
+    }
+    return "$offsetText (${timeZone.id})"
+}
+
+private const val MILLIS_IN_MINUTE = 60_000
+private const val MINUTES_IN_HOUR = 60

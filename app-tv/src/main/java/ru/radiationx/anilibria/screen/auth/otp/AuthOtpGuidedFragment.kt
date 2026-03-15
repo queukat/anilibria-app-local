@@ -43,6 +43,7 @@ class AuthOtpGuidedFragment : ComposeGuidedFragment() {
                     AuthOtpViewModel.ButtonState.REPEAT -> viewModel.onRepeatClick()
                 }
             },
+            onBackClick = viewModel::onBackClick,
         )
     }
 }

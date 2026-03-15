@@ -92,7 +92,7 @@ class TvSearchUseCaseImpl @Inject constructor(
                 },
                 sorting = when (form.sort) {
                     SearchForm.Sort.RATING -> AniLibertyCatalogSorting.RatingDesc
-                    SearchForm.Sort.DATE -> AniLibertyCatalogSorting.FreshAtDesc
+                    SearchForm.Sort.DATE -> AniLibertyCatalogSorting.YearDesc
                 },
                 fields = SEARCH_FIELDS,
             )
