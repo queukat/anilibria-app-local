@@ -26,7 +26,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -66,6 +65,7 @@ import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvSectionHeader
+import ru.radiationx.anilibria.ui.compose.tvAppBackground
 
 internal data class MainSectionUiModel(
     val id: Long,
@@ -303,14 +303,7 @@ internal fun MainScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        palette.surfaceColor.copy(alpha = 0.16f),
-                        Color.Transparent,
-                    )
-                )
-            )
+            .tvAppBackground(palette)
             .padding(horizontal = TvScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
     ) {
         LazyColumn(

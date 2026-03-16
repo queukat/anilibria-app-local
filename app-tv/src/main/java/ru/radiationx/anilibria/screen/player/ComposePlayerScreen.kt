@@ -19,8 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -53,6 +53,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
@@ -95,6 +98,15 @@ private enum class PlayerInlinePicker {
     AspectRatio,
 }
 
+private fun resolveQuickActionsEntryFocusTarget(
+    qualityEnabled: Boolean,
+    speedEnabled: Boolean,
+): PlayerOverlayFocusTarget = when {
+    qualityEnabled -> PlayerOverlayFocusTarget.Quality
+    speedEnabled -> PlayerOverlayFocusTarget.Speed
+    else -> PlayerOverlayFocusTarget.Episodes
+}
+
 @OptIn(UnstableApi::class)
 @Composable
 internal fun PlayerScreenContent(
@@ -135,6 +147,9 @@ internal fun PlayerScreenContent(
 ) {
     val palette = rememberWatchingPalette()
     val skipVisible = skipsPart?.isVisible == true
+    val qualityControlsEnabled = availableQualities.isNotEmpty()
+    val speedControlsEnabled = availableSpeeds.isNotEmpty()
+    val aspectRatioControlEnabled = availableAspectRatios.size > 1
     var autoHideToken by remember { mutableIntStateOf(0) }
     var controlsPanelHeightPx by remember { mutableIntStateOf(0) }
     var activePicker by remember { mutableStateOf<PlayerInlinePicker?>(null) }
@@ -284,7 +299,7 @@ internal fun PlayerScreenContent(
                     Key.DirectionCenter,
                     Key.Enter,
                     Key.NumPadEnter -> {
-                        if (!controlsVisible) {
+                        if (!controlsVisible && !skipVisible) {
                             registerInteraction()
                             onShowControls(null)
                             true
@@ -295,7 +310,7 @@ internal fun PlayerScreenContent(
 
                     Key.DirectionUp,
                     Key.DirectionDown -> {
-                        if (!controlsVisible) {
+                        if (!controlsVisible && !skipVisible) {
                             registerInteraction()
                             onShowControls(null)
                             true
@@ -305,7 +320,7 @@ internal fun PlayerScreenContent(
                     }
 
                     Key.DirectionLeft -> {
-                        if (!controlsVisible) {
+                        if (!controlsVisible && !skipVisible) {
                             registerInteraction()
                             onSeekBack()
                             onShowControls(PlayerOverlayFocusTarget.Progress)
@@ -316,7 +331,7 @@ internal fun PlayerScreenContent(
                     }
 
                     Key.DirectionRight -> {
-                        if (!controlsVisible) {
+                        if (!controlsVisible && !skipVisible) {
                             registerInteraction()
                             onSeekForward()
                             onShowControls(PlayerOverlayFocusTarget.Progress)
@@ -384,9 +399,9 @@ internal fun PlayerScreenContent(
                 aspectRatioMode = aspectRatioMode,
                 canPrevious = canPrevious,
                 canNext = canNext,
-                qualityEnabled = availableQualities.isNotEmpty(),
-                speedEnabled = availableSpeeds.isNotEmpty(),
-                aspectRatioEnabled = availableAspectRatios.size > 1,
+                qualityEnabled = qualityControlsEnabled,
+                speedEnabled = speedControlsEnabled,
+                aspectRatioEnabled = aspectRatioControlEnabled,
                 palette = palette,
                 progressRequester = progressRequester,
                 previousRequester = previousRequester,
@@ -410,7 +425,7 @@ internal fun PlayerScreenContent(
                 onNextClick = onNextClick,
                 isQualityPickerOpen = activePicker == PlayerInlinePicker.Quality,
                 isSpeedPickerOpen = activePicker == PlayerInlinePicker.Speed,
-                isAspectRatioPickerOpen = activePicker == PlayerInlinePicker.AspectRatio,
+                isAspectRatioPickerOpen = false,
                 onOpenQualityPicker = {
                     openPicker(PlayerInlinePicker.Quality, PlayerOverlayFocusTarget.Quality)
                 },
@@ -418,11 +433,11 @@ internal fun PlayerScreenContent(
                     openPicker(PlayerInlinePicker.Speed, PlayerOverlayFocusTarget.Speed)
                 },
                 onOpenAspectRatioPicker = {
-                    openPicker(PlayerInlinePicker.AspectRatio, PlayerOverlayFocusTarget.AspectRatio)
+                    onAspectRatioSelected(aspectRatioMode.next())
                 },
                 onEpisodesClick = onEpisodesClick,
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(PlayerControlsLayoutPresets.Runtime.panelWidthFraction)
                     .onSizeChanged { controlsPanelHeightPx = it.height },
             )
         }
@@ -566,37 +581,43 @@ internal fun PlayerScreenContent(
         PlayerSkipsOverlay(
             skipsPart = skipsPart,
             onInteraction = ::registerInteraction,
-            modifier = Modifier.align(Alignment.BottomEnd),
+            onOpenControls = {
+                onShowControls(
+                    resolveQuickActionsEntryFocusTarget(
+                        qualityEnabled = qualityControlsEnabled,
+                        speedEnabled = speedControlsEnabled,
+                    )
+                )
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = TvPlayerOverlayHorizontalPadding),
             bottomPadding = if (controlsVisible) {
-                with(androidx.compose.ui.platform.LocalDensity.current) {
+                with(LocalDensity.current) {
                     controlsPanelHeightPx.toDp() + 52.dp
                 }
             } else {
                 52.dp
             },
+            panelWidthFraction = PlayerControlsLayoutPresets.Runtime.panelWidthFraction,
         )
 
         if (isLoading || isBuffering) {
+            val loadingPanelStyle = PlayerOverlayUiDefaults.loadingPanelStyle(palette)
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(Color.Black.copy(alpha = 0.68f))
-                    .border(
-                        width = 1.dp,
-                        color = palette.textColor.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(22.dp),
-                    ),
+                    .playerPanelSurface(loadingPanelStyle),
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 26.dp, vertical = 18.dp),
+                    modifier = Modifier.padding(PlayerOverlayUiDefaults.LoadingPanelPadding),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     CircularProgressIndicator(
                         color = palette.textColor,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(22.dp),
+                        strokeWidth = PlayerOverlayUiDefaults.LoadingIndicatorStrokeWidth,
+                        modifier = Modifier.size(PlayerOverlayUiDefaults.LoadingIndicatorSize),
                     )
                     Text(
                         text = stringResource(R.string.player_loading),
@@ -607,6 +628,18 @@ internal fun PlayerScreenContent(
             }
         }
     }
+}
+
+private fun Modifier.playerPanelSurface(
+    style: PlayerPanelSurfaceStyle,
+): Modifier {
+    return clip(style.shape)
+        .background(style.backgroundColor)
+        .border(
+            width = style.borderWidth,
+            color = style.borderColor,
+            shape = style.shape,
+        )
 }
 
 @Composable
@@ -652,7 +685,18 @@ private fun PlayerControlsPanel(
     onOpenAspectRatioPicker: () -> Unit,
     onEpisodesClick: () -> Unit,
     modifier: Modifier = Modifier,
+    layoutSpec: PlayerControlsLayoutSpec = PlayerControlsLayoutPresets.Runtime,
 ) {
+    val previousButtonLayout = layoutSpec.button(PlayerControlButtonId.Previous)
+    val seekBackButtonLayout = layoutSpec.button(PlayerControlButtonId.SeekBack)
+    val playPauseButtonLayout = layoutSpec.button(PlayerControlButtonId.PlayPause)
+    val seekForwardButtonLayout = layoutSpec.button(PlayerControlButtonId.SeekForward)
+    val nextButtonLayout = layoutSpec.button(PlayerControlButtonId.Next)
+    val episodesButtonLayout = layoutSpec.button(PlayerControlButtonId.Episodes)
+    val speedButtonLayout = layoutSpec.button(PlayerControlButtonId.Speed)
+    val qualityButtonLayout = layoutSpec.button(PlayerControlButtonId.Quality)
+    val aspectRatioButtonLayout = layoutSpec.button(PlayerControlButtonId.AspectRatio)
+
     fun requestSecondaryLeft(): Boolean {
         return requestFocus(episodesRequester)
     }
@@ -676,14 +720,9 @@ private fun PlayerControlsPanel(
     }
 
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color.Black.copy(alpha = 0.82f))
-            .border(
-                width = 1.dp,
-                color = palette.textColor.copy(alpha = 0.14f),
-                shape = RoundedCornerShape(24.dp),
-            ),
+        modifier = modifier.playerPanelSurface(
+            PlayerOverlayUiDefaults.controlsPanelStyle(palette)
+        ),
     ) {
         PlayerProgressSurface(
             currentPositionMs = currentPositionMs,
@@ -713,13 +752,20 @@ private fun PlayerControlsPanel(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 22.dp, vertical = 16.dp),
+                .padding(
+                    horizontal = layoutSpec.progressHorizontalPadding,
+                    vertical = layoutSpec.progressVerticalPadding,
+                ),
         )
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 22.dp, end = 22.dp, bottom = 18.dp),
+                .padding(
+                    start = layoutSpec.controlsHorizontalPadding,
+                    end = layoutSpec.controlsHorizontalPadding,
+                    bottom = layoutSpec.controlsBottomPadding,
+                ),
         ) {
             Box(
                 modifier = Modifier
@@ -729,375 +775,377 @@ private fun PlayerControlsPanel(
                     .align(Alignment.TopCenter),
             )
 
-            Row(
+            Box(
                 modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .fillMaxWidth()
+                    .padding(top = layoutSpec.rowsTopPadding),
             ) {
-                PlayerActionButton(
-                    contentDescription = stringResource(R.string.player_action_previous),
-                    focusRequester = previousRequester,
-                    palette = palette,
-                    iconRes = R.drawable.ic_player_skip_previous,
-                    enabled = canPrevious,
-                    minWidth = 68.dp,
-                    horizontalPadding = 9.dp,
-                    verticalPadding = 10.dp,
-                    iconSize = 20.dp,
-                    onFocused = {
-                        onInteraction()
-                        onControlFocused(PlayerOverlayFocusTarget.Previous)
-                    },
-                    onClick = {
-                        onInteraction()
-                        onPreviousClick()
-                    },
-                    onLeft = { true },
-                    onRight = {
-                        onInteraction()
-                        requestFocus(seekBackRequester)
-                    },
-                    onUp = {
-                        onInteraction()
-                        requestFocus(progressRequester)
-                    },
-                    onDown = {
-                        onInteraction()
-                        requestSecondaryLeft()
-                    },
-                )
-                PlayerActionButton(
-                    text = "-10",
-                    contentDescription = stringResource(R.string.player_action_rewind),
-                    focusRequester = seekBackRequester,
-                    palette = palette,
-                    minWidth = 72.dp,
-                    horizontalPadding = 11.dp,
-                    verticalPadding = 10.dp,
-                    textFontSize = 15.sp,
-                    onFocused = {
-                        onInteraction()
-                        onControlFocused(PlayerOverlayFocusTarget.SeekBack)
-                    },
-                    onClick = {
-                        onInteraction()
-                        onSeekBack()
-                    },
-                    onLeft = {
-                        onInteraction()
-                        if (canPrevious) {
-                            requestFocus(previousRequester)
+                Row(
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    horizontalArrangement = Arrangement.spacedBy(layoutSpec.primaryRowSpacing),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PlayerActionButton(
+                        contentDescription = stringResource(R.string.player_action_previous),
+                        focusRequester = previousRequester,
+                        palette = palette,
+                        iconRes = R.drawable.ic_player_skip_previous,
+                        enabled = canPrevious,
+                        minWidth = previousButtonLayout.minWidth,
+                        horizontalPadding = previousButtonLayout.horizontalPadding,
+                        verticalPadding = previousButtonLayout.verticalPadding,
+                        iconSize = previousButtonLayout.iconSize,
+                        onFocused = {
+                            onInteraction()
+                            onControlFocused(PlayerOverlayFocusTarget.Previous)
+                        },
+                        onClick = {
+                            onInteraction()
+                            onPreviousClick()
+                        },
+                        onLeft = { true },
+                        onRight = {
+                            onInteraction()
+                            requestFocus(seekBackRequester)
+                        },
+                        onUp = {
+                            onInteraction()
+                            requestFocus(progressRequester)
+                        },
+                        onDown = {
+                            onInteraction()
+                            requestSecondaryLeft()
+                        },
+                    )
+                    PlayerActionButton(
+                        contentDescription = stringResource(R.string.player_action_rewind),
+                        focusRequester = seekBackRequester,
+                        palette = palette,
+                        iconRes = R.drawable.ic_player_seek_back,
+                        minWidth = seekBackButtonLayout.minWidth,
+                        horizontalPadding = seekBackButtonLayout.horizontalPadding,
+                        verticalPadding = seekBackButtonLayout.verticalPadding,
+                        iconSize = seekBackButtonLayout.iconSize,
+                        onFocused = {
+                            onInteraction()
+                            onControlFocused(PlayerOverlayFocusTarget.SeekBack)
+                        },
+                        onClick = {
+                            onInteraction()
+                            onSeekBack()
+                        },
+                        onLeft = {
+                            onInteraction()
+                            if (canPrevious) {
+                                requestFocus(previousRequester)
+                            } else {
+                                true
+                            }
+                        },
+                        onRight = {
+                            onInteraction()
+                            requestFocus(playPauseRequester)
+                        },
+                        onUp = {
+                            onInteraction()
+                            requestFocus(progressRequester)
+                        },
+                        onDown = {
+                            onInteraction()
+                            requestSecondaryLeft()
+                        },
+                    )
+                    PlayerActionButton(
+                        contentDescription = stringResource(
+                            if (isPlaying) {
+                                R.string.player_action_pause
+                            } else {
+                                R.string.player_action_play
+                            }
+                        ),
+                        focusRequester = playPauseRequester,
+                        palette = palette,
+                        iconRes = if (isPlaying) {
+                            R.drawable.ic_player_pause
                         } else {
-                            true
-                        }
-                    },
-                    onRight = {
-                        onInteraction()
-                        requestFocus(playPauseRequester)
-                    },
-                    onUp = {
-                        onInteraction()
-                        requestFocus(progressRequester)
-                    },
-                    onDown = {
-                        onInteraction()
-                        requestSecondaryLeft()
-                    },
-                )
-                PlayerActionButton(
-                    contentDescription = stringResource(
-                        if (isPlaying) {
-                            R.string.player_action_pause
-                        } else {
-                            R.string.player_action_play
-                        }
-                    ),
-                    focusRequester = playPauseRequester,
-                    palette = palette,
-                    iconRes = if (isPlaying) {
-                        R.drawable.ic_player_pause
-                    } else {
-                        R.drawable.ic_player_play
-                    },
-                    emphasized = true,
-                    minWidth = 74.dp,
-                    horizontalPadding = 11.dp,
-                    verticalPadding = 10.dp,
-                    iconSize = 24.dp,
-                    onFocused = {
-                        onInteraction()
-                        onControlFocused(PlayerOverlayFocusTarget.PlayPause)
-                    },
-                    onClick = {
-                        onInteraction()
-                        onTogglePlayback()
-                    },
-                    onLeft = {
-                        onInteraction()
-                        requestFocus(seekBackRequester)
-                    },
-                    onRight = {
-                        onInteraction()
-                        requestFocus(seekForwardRequester)
-                    },
-                    onUp = {
-                        onInteraction()
-                        requestFocus(progressRequester)
-                    },
-                    onDown = {
-                        onInteraction()
-                        requestSecondaryCenter()
-                    },
-                )
-                PlayerActionButton(
-                    text = "+10",
-                    contentDescription = stringResource(R.string.player_action_forward),
-                    focusRequester = seekForwardRequester,
-                    palette = palette,
-                    minWidth = 72.dp,
-                    horizontalPadding = 11.dp,
-                    verticalPadding = 10.dp,
-                    textFontSize = 15.sp,
-                    onFocused = {
-                        onInteraction()
-                        onControlFocused(PlayerOverlayFocusTarget.SeekForward)
-                    },
-                    onClick = {
-                        onInteraction()
-                        onSeekForward()
-                    },
-                    onLeft = {
-                        onInteraction()
-                        requestFocus(playPauseRequester)
-                    },
-                    onRight = {
-                        onInteraction()
-                        if (canNext) {
-                            requestFocus(nextRequester)
-                        } else {
+                            R.drawable.ic_player_play
+                        },
+                        emphasized = true,
+                        minWidth = playPauseButtonLayout.minWidth,
+                        horizontalPadding = playPauseButtonLayout.horizontalPadding,
+                        verticalPadding = playPauseButtonLayout.verticalPadding,
+                        iconSize = playPauseButtonLayout.iconSize,
+                        onFocused = {
+                            onInteraction()
+                            onControlFocused(PlayerOverlayFocusTarget.PlayPause)
+                        },
+                        onClick = {
+                            onInteraction()
+                            onTogglePlayback()
+                        },
+                        onLeft = {
+                            onInteraction()
+                            requestFocus(seekBackRequester)
+                        },
+                        onRight = {
+                            onInteraction()
+                            requestFocus(seekForwardRequester)
+                        },
+                        onUp = {
+                            onInteraction()
+                            requestFocus(progressRequester)
+                        },
+                        onDown = {
+                            onInteraction()
+                            requestSecondaryCenter()
+                        },
+                    )
+                    PlayerActionButton(
+                        contentDescription = stringResource(R.string.player_action_forward),
+                        focusRequester = seekForwardRequester,
+                        palette = palette,
+                        iconRes = R.drawable.ic_player_seek_forward,
+                        minWidth = seekForwardButtonLayout.minWidth,
+                        horizontalPadding = seekForwardButtonLayout.horizontalPadding,
+                        verticalPadding = seekForwardButtonLayout.verticalPadding,
+                        iconSize = seekForwardButtonLayout.iconSize,
+                        onFocused = {
+                            onInteraction()
+                            onControlFocused(PlayerOverlayFocusTarget.SeekForward)
+                        },
+                        onClick = {
+                            onInteraction()
+                            onSeekForward()
+                        },
+                        onLeft = {
+                            onInteraction()
+                            requestFocus(playPauseRequester)
+                        },
+                        onRight = {
+                            onInteraction()
+                            if (canNext) {
+                                requestFocus(nextRequester)
+                            } else {
+                                requestSecondaryRight()
+                            }
+                        },
+                        onUp = {
+                            onInteraction()
+                            requestFocus(progressRequester)
+                        },
+                        onDown = {
+                            onInteraction()
                             requestSecondaryRight()
-                        }
-                    },
-                    onUp = {
-                        onInteraction()
-                        requestFocus(progressRequester)
-                    },
-                    onDown = {
-                        onInteraction()
-                        requestSecondaryRight()
-                    },
-                )
-                PlayerActionButton(
-                    contentDescription = stringResource(R.string.player_action_next),
-                    focusRequester = nextRequester,
-                    palette = palette,
-                    iconRes = R.drawable.ic_player_skip_next,
-                    enabled = canNext,
-                    minWidth = 68.dp,
-                    horizontalPadding = 9.dp,
-                    verticalPadding = 10.dp,
-                    iconSize = 20.dp,
-                    onFocused = {
-                        onInteraction()
-                        onControlFocused(PlayerOverlayFocusTarget.Next)
-                    },
-                    onClick = {
-                        onInteraction()
-                        onNextClick()
-                    },
-                    onLeft = {
-                        onInteraction()
-                        requestFocus(seekForwardRequester)
-                    },
-                    onRight = {
-                        onInteraction()
-                        requestSecondaryRight()
-                    },
-                    onUp = {
-                        onInteraction()
-                        requestFocus(progressRequester)
-                    },
-                    onDown = {
-                        onInteraction()
-                        requestSecondaryRight()
-                    },
-                )
-            }
+                        },
+                    )
+                    PlayerActionButton(
+                        contentDescription = stringResource(R.string.player_action_next),
+                        focusRequester = nextRequester,
+                        palette = palette,
+                        iconRes = R.drawable.ic_player_skip_next,
+                        enabled = canNext,
+                        minWidth = nextButtonLayout.minWidth,
+                        horizontalPadding = nextButtonLayout.horizontalPadding,
+                        verticalPadding = nextButtonLayout.verticalPadding,
+                        iconSize = nextButtonLayout.iconSize,
+                        onFocused = {
+                            onInteraction()
+                            onControlFocused(PlayerOverlayFocusTarget.Next)
+                        },
+                        onClick = {
+                            onInteraction()
+                            onNextClick()
+                        },
+                        onLeft = {
+                            onInteraction()
+                            requestFocus(seekForwardRequester)
+                        },
+                        onRight = {
+                            onInteraction()
+                            requestSecondaryRight()
+                        },
+                        onUp = {
+                            onInteraction()
+                            requestFocus(progressRequester)
+                        },
+                        onDown = {
+                            onInteraction()
+                            requestSecondaryRight()
+                        },
+                    )
+                }
 
-            Row(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(top = 16.dp, end = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                PlayerActionButton(
-                    text = stringResource(R.string.player_action_episodes_compact),
-                    contentDescription = stringResource(R.string.player_action_episodes),
-                    focusRequester = episodesRequester,
-                    palette = palette,
-                    iconRes = R.drawable.ic_playlist_play_black_24dp,
-                    minWidth = 92.dp,
-                    horizontalPadding = 10.dp,
-                    verticalPadding = 9.dp,
-                    iconSize = 18.dp,
-                    textFontSize = 15.sp,
-                    onFocused = {
-                        onInteraction()
-                        onControlFocused(PlayerOverlayFocusTarget.Episodes)
-                    },
-                    onClick = {
-                        onInteraction()
-                        onEpisodesClick()
-                    },
-                    onLeft = {
-                        onInteraction()
-                        requestFocus(playPauseRequester)
-                    },
-                    onRight = {
-                        onInteraction()
-                        when {
-                            speedEnabled -> requestFocus(speedRequester)
-                            qualityEnabled -> requestFocus(qualityRequester)
-                            aspectRatioEnabled -> requestFocus(aspectRatioRequester)
-                            else -> true
-                        }
-                    },
-                    onUp = {
-                        onInteraction()
-                        requestFocus(seekBackRequester)
-                    },
-                    onDown = { true },
-                )
-                PlayerActionButton(
-                    text = speedLabel,
-                    contentDescription = "${stringResource(R.string.player_action_speed)} $speedLabel",
-                    focusRequester = speedRequester,
-                    palette = palette,
-                    iconRes = R.drawable.ic_play_speed,
-                    enabled = speedEnabled,
-                    emphasized = isSpeedPickerOpen,
-                    minWidth = 88.dp,
-                    horizontalPadding = 10.dp,
-                    verticalPadding = 9.dp,
-                    iconSize = 18.dp,
-                    textFontSize = 15.sp,
-                    onFocused = {
-                        onInteraction()
-                        onControlFocused(PlayerOverlayFocusTarget.Speed)
-                    },
-                    onClick = {
-                        onInteraction()
-                        onOpenSpeedPicker()
-                    },
-                    onLeft = {
-                        onInteraction()
-                        requestFocus(episodesRequester)
-                    },
-                    onRight = {
-                        onInteraction()
-                        when {
-                            qualityEnabled -> requestFocus(qualityRequester)
-                            aspectRatioEnabled -> requestFocus(aspectRatioRequester)
-                            else -> true
-                        }
-                    },
-                    onUp = {
-                        onInteraction()
-                        requestFocus(playPauseRequester)
-                    },
-                    onDown = { true },
-                    modifier = Modifier.onGloballyPositioned {
-                        onSpeedButtonPositioned(it.boundsInRoot())
-                    },
-                )
-                PlayerActionButton(
-                    text = qualityLabel,
-                    contentDescription = "${stringResource(R.string.player_action_quality)} $qualityLabel",
-                    focusRequester = qualityRequester,
-                    palette = palette,
-                    enabled = qualityEnabled,
-                    emphasized = isQualityPickerOpen,
-                    minWidth = 78.dp,
-                    horizontalPadding = 10.dp,
-                    verticalPadding = 9.dp,
-                    textFontSize = 15.sp,
-                    onFocused = {
-                        onInteraction()
-                        onControlFocused(PlayerOverlayFocusTarget.Quality)
-                    },
-                    onClick = {
-                        onInteraction()
-                        onOpenQualityPicker()
-                    },
-                    onLeft = {
-                        onInteraction()
-                        if (speedEnabled) {
-                            requestFocus(speedRequester)
-                        } else {
+                Row(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalArrangement = Arrangement.spacedBy(layoutSpec.secondaryRowSpacing),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PlayerActionButton(
+                        text = stringResource(R.string.player_action_episodes_compact),
+                        contentDescription = stringResource(R.string.player_action_episodes),
+                        focusRequester = episodesRequester,
+                        palette = palette,
+                        iconRes = R.drawable.ic_playlist_play_black_24dp,
+                        minWidth = episodesButtonLayout.minWidth,
+                        horizontalPadding = episodesButtonLayout.horizontalPadding,
+                        verticalPadding = episodesButtonLayout.verticalPadding,
+                        iconSize = episodesButtonLayout.iconSize,
+                        textFontSize = episodesButtonLayout.textFontSize,
+                        onFocused = {
+                            onInteraction()
+                            onControlFocused(PlayerOverlayFocusTarget.Episodes)
+                        },
+                        onClick = {
+                            onInteraction()
+                            onEpisodesClick()
+                        },
+                        onLeft = {
+                            onInteraction()
+                            requestFocus(playPauseRequester)
+                        },
+                        onRight = {
+                            onInteraction()
+                            when {
+                                speedEnabled -> requestFocus(speedRequester)
+                                qualityEnabled -> requestFocus(qualityRequester)
+                                aspectRatioEnabled -> requestFocus(aspectRatioRequester)
+                                else -> true
+                            }
+                        },
+                        onUp = {
+                            onInteraction()
+                            requestFocus(seekBackRequester)
+                        },
+                        onDown = { true },
+                    )
+                    PlayerActionButton(
+                        text = speedLabel,
+                        contentDescription = "${stringResource(R.string.player_action_speed)} $speedLabel",
+                        focusRequester = speedRequester,
+                        palette = palette,
+                        iconRes = R.drawable.ic_play_speed,
+                        enabled = speedEnabled,
+                        emphasized = isSpeedPickerOpen,
+                        minWidth = speedButtonLayout.minWidth,
+                        horizontalPadding = speedButtonLayout.horizontalPadding,
+                        verticalPadding = speedButtonLayout.verticalPadding,
+                        iconSize = speedButtonLayout.iconSize,
+                        textFontSize = speedButtonLayout.textFontSize,
+                        onFocused = {
+                            onInteraction()
+                            onControlFocused(PlayerOverlayFocusTarget.Speed)
+                        },
+                        onClick = {
+                            onInteraction()
+                            onOpenSpeedPicker()
+                        },
+                        onLeft = {
+                            onInteraction()
                             requestFocus(episodesRequester)
-                        }
-                    },
-                    onRight = {
-                        onInteraction()
-                        if (aspectRatioEnabled) {
-                            requestFocus(aspectRatioRequester)
-                        } else {
-                            true
-                        }
-                    },
-                    onUp = {
-                        onInteraction()
-                        requestFocus(seekForwardRequester)
-                    },
-                    onDown = { true },
-                    modifier = Modifier.onGloballyPositioned {
-                        onQualityButtonPositioned(it.boundsInRoot())
-                    },
-                )
-                PlayerActionButton(
-                    text = stringResource(aspectRatioMode.compactTitleRes),
-                    contentDescription = buildString {
-                        append(stringResource(R.string.player_action_aspect_ratio))
-                        append(' ')
-                        append(stringResource(aspectRatioMode.titleRes))
-                    },
-                    focusRequester = aspectRatioRequester,
-                    palette = palette,
-                    enabled = aspectRatioEnabled,
-                    emphasized = isAspectRatioPickerOpen,
-                    minWidth = 108.dp,
-                    horizontalPadding = 10.dp,
-                    verticalPadding = 9.dp,
-                    textFontSize = 15.sp,
-                    onFocused = {
-                        onInteraction()
-                        onControlFocused(PlayerOverlayFocusTarget.AspectRatio)
-                    },
-                    onClick = {
-                        onInteraction()
-                        onOpenAspectRatioPicker()
-                    },
-                    onLeft = {
-                        onInteraction()
-                        when {
-                            qualityEnabled -> requestFocus(qualityRequester)
-                            speedEnabled -> requestFocus(speedRequester)
-                            else -> requestFocus(episodesRequester)
-                        }
-                    },
-                    onRight = { true },
-                    onUp = {
-                        onInteraction()
-                        requestFocus(seekForwardRequester)
-                    },
-                    onDown = { true },
-                    modifier = Modifier.onGloballyPositioned {
-                        onAspectRatioButtonPositioned(it.boundsInRoot())
-                    },
-                )
+                        },
+                        onRight = {
+                            onInteraction()
+                            when {
+                                qualityEnabled -> requestFocus(qualityRequester)
+                                aspectRatioEnabled -> requestFocus(aspectRatioRequester)
+                                else -> true
+                            }
+                        },
+                        onUp = {
+                            onInteraction()
+                            requestFocus(playPauseRequester)
+                        },
+                        onDown = { true },
+                        modifier = Modifier.onGloballyPositioned {
+                            onSpeedButtonPositioned(it.boundsInRoot())
+                        },
+                    )
+                    PlayerActionButton(
+                        text = qualityLabel,
+                        contentDescription = "${stringResource(R.string.player_action_quality)} $qualityLabel",
+                        focusRequester = qualityRequester,
+                        palette = palette,
+                        enabled = qualityEnabled,
+                        emphasized = isQualityPickerOpen,
+                        minWidth = qualityButtonLayout.minWidth,
+                        horizontalPadding = qualityButtonLayout.horizontalPadding,
+                        verticalPadding = qualityButtonLayout.verticalPadding,
+                        textFontSize = qualityButtonLayout.textFontSize,
+                        onFocused = {
+                            onInteraction()
+                            onControlFocused(PlayerOverlayFocusTarget.Quality)
+                        },
+                        onClick = {
+                            onInteraction()
+                            onOpenQualityPicker()
+                        },
+                        onLeft = {
+                            onInteraction()
+                            if (speedEnabled) {
+                                requestFocus(speedRequester)
+                            } else {
+                                requestFocus(episodesRequester)
+                            }
+                        },
+                        onRight = {
+                            onInteraction()
+                            if (aspectRatioEnabled) {
+                                requestFocus(aspectRatioRequester)
+                            } else {
+                                true
+                            }
+                        },
+                        onUp = {
+                            onInteraction()
+                            requestFocus(seekForwardRequester)
+                        },
+                        onDown = { true },
+                        modifier = Modifier.onGloballyPositioned {
+                            onQualityButtonPositioned(it.boundsInRoot())
+                        },
+                    )
+                    PlayerActionButton(
+                        text = stringResource(aspectRatioMode.compactTitleRes),
+                        contentDescription = buildString {
+                            append(stringResource(R.string.player_action_aspect_ratio))
+                            append(' ')
+                            append(stringResource(aspectRatioMode.titleRes))
+                        },
+                        focusRequester = aspectRatioRequester,
+                        palette = palette,
+                        enabled = aspectRatioEnabled,
+                        emphasized = isAspectRatioPickerOpen,
+                        minWidth = aspectRatioButtonLayout.minWidth,
+                        horizontalPadding = aspectRatioButtonLayout.horizontalPadding,
+                        verticalPadding = aspectRatioButtonLayout.verticalPadding,
+                        textFontSize = aspectRatioButtonLayout.textFontSize,
+                        onFocused = {
+                            onInteraction()
+                            onControlFocused(PlayerOverlayFocusTarget.AspectRatio)
+                        },
+                        onClick = {
+                            onInteraction()
+                            onOpenAspectRatioPicker()
+                        },
+                        onLeft = {
+                            onInteraction()
+                            when {
+                                qualityEnabled -> requestFocus(qualityRequester)
+                                speedEnabled -> requestFocus(speedRequester)
+                                else -> requestFocus(episodesRequester)
+                            }
+                        },
+                        onRight = { true },
+                        onUp = {
+                            onInteraction()
+                            requestFocus(seekForwardRequester)
+                        },
+                        onDown = { true },
+                        modifier = Modifier.onGloballyPositioned {
+                            onAspectRatioButtonPositioned(it.boundsInRoot())
+                        },
+                    )
+                }
             }
         }
     }
@@ -1128,12 +1176,13 @@ private fun PlayerProgressSurface(
     } else {
         0f
     }
+    val surfaceColors = PlayerOverlayUiDefaults.progressSurfaceColors(palette)
 
     WatchingFocusableSurface(
         focusRequester = focusRequester,
-        backgroundColor = palette.surfaceColor.copy(alpha = 0.88f),
-        focusedBackgroundColor = palette.surfaceColor,
-        borderColor = palette.accentColor.copy(alpha = 0.92f),
+        backgroundColor = surfaceColors.backgroundColor,
+        focusedBackgroundColor = surfaceColors.focusedBackgroundColor,
+        borderColor = surfaceColors.borderColor,
         onClick = onClick,
         onFocused = onFocused,
         onLeft = {
@@ -1146,9 +1195,9 @@ private fun PlayerProgressSurface(
         },
         onDown = onDown,
         modifier = modifier,
-        paddingValues = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+        paddingValues = PlayerOverlayUiDefaults.ProgressSurfacePadding,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(PlayerOverlayUiDefaults.ProgressContentSpacing)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1167,30 +1216,23 @@ private fun PlayerProgressSurface(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(7.dp)
-                    .clip(RoundedCornerShape(percent = 50))
-                    .background(Color.White.copy(alpha = 0.10f)),
+                    .height(PlayerOverlayUiDefaults.ProgressTrackHeight)
+                    .clip(PlayerOverlayUiDefaults.ProgressBarShape)
+                    .background(PlayerOverlayUiDefaults.progressTrackColor()),
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(bufferedFraction.coerceIn(0f, 1f))
-                        .height(7.dp)
-                        .clip(RoundedCornerShape(percent = 50))
-                        .background(Color.White.copy(alpha = 0.18f)),
+                        .height(PlayerOverlayUiDefaults.ProgressBufferedTrackHeight)
+                        .clip(PlayerOverlayUiDefaults.ProgressBarShape)
+                        .background(PlayerOverlayUiDefaults.progressBufferedTrackColor()),
                 )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(progressFraction.coerceIn(0f, 1f))
-                        .height(7.dp)
-                        .clip(RoundedCornerShape(percent = 50))
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    palette.accentColor.copy(alpha = 0.82f),
-                                    palette.textColor.copy(alpha = 0.94f),
-                                ),
-                            ),
-                        ),
+                        .height(PlayerOverlayUiDefaults.ProgressTrackHeight)
+                        .clip(PlayerOverlayUiDefaults.ProgressBarShape)
+                        .background(PlayerOverlayUiDefaults.progressFillBrush(palette)),
                 )
             }
         }
@@ -1207,10 +1249,10 @@ private fun PlayerActionButton(
     iconRes: Int? = null,
     emphasized: Boolean = false,
     enabled: Boolean = true,
-    minWidth: androidx.compose.ui.unit.Dp = 168.dp,
-    horizontalPadding: androidx.compose.ui.unit.Dp = 18.dp,
-    verticalPadding: androidx.compose.ui.unit.Dp = 14.dp,
-    iconSize: androidx.compose.ui.unit.Dp = 24.dp,
+    minWidth: Dp = 168.dp,
+    horizontalPadding: Dp = 18.dp,
+    verticalPadding: Dp = 14.dp,
+    iconSize: Dp = 24.dp,
     textFontSize: TextUnit = 16.sp,
     onFocused: () -> Unit,
     onClick: () -> Unit,
@@ -1219,24 +1261,16 @@ private fun PlayerActionButton(
     onUp: (() -> Boolean)? = null,
     onDown: (() -> Boolean)? = null,
 ) {
+    val buttonColors = PlayerOverlayUiDefaults.actionButtonColors(
+        palette = palette,
+        emphasized = emphasized,
+    )
     WatchingFocusableSurface(
         focusRequester = focusRequester,
         enabled = enabled,
-        backgroundColor = if (emphasized) {
-            palette.accentColor.copy(alpha = 0.18f)
-        } else {
-            palette.chipColor.copy(alpha = 0.86f)
-        },
-        focusedBackgroundColor = if (emphasized) {
-            palette.accentColor.copy(alpha = 0.30f)
-        } else {
-            palette.chipColor
-        },
-        borderColor = if (emphasized) {
-            palette.accentColor.copy(alpha = 0.96f)
-        } else {
-            palette.textColor.copy(alpha = 0.74f)
-        },
+        backgroundColor = buttonColors.backgroundColor,
+        focusedBackgroundColor = buttonColors.focusedBackgroundColor,
+        borderColor = buttonColors.borderColor,
         onClick = onClick,
         onFocused = onFocused,
         onLeft = onLeft,
@@ -1244,13 +1278,21 @@ private fun PlayerActionButton(
         onUp = onUp,
         onDown = onDown,
         modifier = modifier
-            .widthIn(min = minWidth)
+            .width(minWidth)
             .semantics { this.contentDescription = contentDescription },
         paddingValues = PaddingValues(horizontal = horizontalPadding, vertical = verticalPadding),
     ) {
         Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(if (text != null && iconRes != null) 6.dp else 0.dp),
+            horizontalArrangement = Arrangement.spacedBy(
+                space = if (text != null && iconRes != null) {
+                    PlayerOverlayUiDefaults.ActionButtonContentSpacing
+                } else {
+                    0.dp
+                },
+                alignment = Alignment.CenterHorizontally,
+            ),
         ) {
             if (iconRes != null) {
                 Icon(
@@ -1266,6 +1308,7 @@ private fun PlayerActionButton(
                     color = if (enabled) palette.textColor else palette.secondaryTextColor,
                     fontSize = textFontSize,
                     fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Medium,
+                    textAlign = TextAlign.Center,
                 )
             }
         }
@@ -1297,24 +1340,21 @@ private fun PlayerInlinePickerPanel(
 
     Box(
         modifier = modifier
-            .widthIn(min = 240.dp, max = 300.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(palette.surfaceColor.copy(alpha = 0.96f))
-            .border(
-                width = 1.dp,
-                color = palette.textColor.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(24.dp),
+            .widthIn(
+                min = PlayerOverlayUiDefaults.PickerMinWidth,
+                max = PlayerOverlayUiDefaults.PickerMaxWidth,
             )
-            .padding(horizontal = 18.dp, vertical = 16.dp),
+            .playerPanelSurface(PlayerOverlayUiDefaults.pickerPanelStyle(palette))
+            .padding(PlayerOverlayUiDefaults.PickerPanelPadding),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(PlayerOverlayUiDefaults.PickerSectionSpacing)) {
             Text(
                 text = title,
                 color = palette.secondaryTextColor,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
             )
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(PlayerOverlayUiDefaults.PickerOptionSpacing)) {
                 options.forEachIndexed { index, option ->
                     PlayerInlinePickerButton(
                         title = option.title,
@@ -1347,23 +1387,15 @@ private fun PlayerInlinePickerButton(
     onUp: () -> Boolean,
     onDown: () -> Boolean,
 ) {
+    val optionColors = PlayerOverlayUiDefaults.pickerOptionColors(
+        palette = palette,
+        selected = selected,
+    )
     WatchingFocusableSurface(
         focusRequester = focusRequester,
-        backgroundColor = if (selected) {
-            palette.accentColor.copy(alpha = 0.14f)
-        } else {
-            palette.surfaceColor.copy(alpha = 0.68f)
-        },
-        focusedBackgroundColor = if (selected) {
-            palette.accentColor.copy(alpha = 0.22f)
-        } else {
-            palette.surfaceColor
-        },
-        borderColor = if (selected) {
-            palette.accentColor.copy(alpha = 0.92f)
-        } else {
-            palette.textColor.copy(alpha = 0.76f)
-        },
+        backgroundColor = optionColors.backgroundColor,
+        focusedBackgroundColor = optionColors.focusedBackgroundColor,
+        borderColor = optionColors.borderColor,
         onClick = onClick,
         onLeft = {
             onLeft()
@@ -1372,27 +1404,26 @@ private fun PlayerInlinePickerButton(
         onRight = { true },
         onUp = onUp,
         onDown = onDown,
-        paddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        paddingValues = PlayerOverlayUiDefaults.CompactControlPadding,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(PlayerOverlayUiDefaults.PickerIndicatorSpacing),
         ) {
             Box(
                 modifier = Modifier
-                    .size(10.dp)
+                    .size(PlayerOverlayUiDefaults.PickerIndicatorSize)
                     .background(
                         color = if (selected) palette.accentColor else Color.Transparent,
-                        shape = RoundedCornerShape(percent = 50),
+                        shape = PlayerOverlayUiDefaults.ProgressBarShape,
                     )
                     .border(
                         width = 1.dp,
-                        color = if (selected) {
-                            palette.accentColor
-                        } else {
-                            palette.textColor.copy(alpha = 0.22f)
-                        },
-                        shape = RoundedCornerShape(percent = 50),
+                        color = PlayerOverlayUiDefaults.pickerIndicatorBorderColor(
+                            palette = palette,
+                            selected = selected,
+                        ),
+                        shape = PlayerOverlayUiDefaults.ProgressBarShape,
                     ),
             )
             Text(
@@ -1401,6 +1432,129 @@ private fun PlayerInlinePickerButton(
                 fontSize = 16.sp,
             )
         }
+    }
+}
+
+@Preview(
+    name = "Player Controls Runtime",
+    widthDp = 1280,
+    heightDp = 720,
+    showBackground = true,
+    backgroundColor = 0xFF0B1118,
+)
+@Composable
+private fun PlayerControlsRuntimePreview() {
+    PlayerControlsLayoutPreviewScene(layoutSpec = PlayerControlsLayoutPresets.Runtime)
+}
+
+@Preview(
+    name = "Player Controls Compact",
+    widthDp = 1280,
+    heightDp = 720,
+    showBackground = true,
+    backgroundColor = 0xFF0B1118,
+)
+@Composable
+private fun PlayerControlsCompactPreview() {
+    PlayerControlsLayoutPreviewScene(layoutSpec = PlayerControlsLayoutPresets.Compact)
+}
+
+@Preview(
+    name = "Player Controls Balanced",
+    widthDp = 1280,
+    heightDp = 720,
+    showBackground = true,
+    backgroundColor = 0xFF0B1118,
+)
+@Composable
+private fun PlayerControlsBalancedPreview() {
+    PlayerControlsLayoutPreviewScene(layoutSpec = PlayerControlsLayoutPresets.Balanced)
+}
+
+@Composable
+private fun PlayerControlsLayoutPreviewScene(
+    layoutSpec: PlayerControlsLayoutSpec,
+) {
+    val palette = rememberWatchingPalette()
+    val progressRequester = remember { FocusRequester() }
+    val buttonRequesters = remember {
+        PlayerControlButtonId.values().associateWith { FocusRequester() }
+    }
+    val skipRequester = remember { FocusRequester() }
+    val watchRequester = remember { FocusRequester() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF182332),
+                        Color(0xFF0B1118),
+                    ),
+                ),
+            )
+            .padding(horizontal = 56.dp, vertical = 40.dp),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        PlayerControlsPanel(
+            isPlaying = true,
+            currentPositionMs = 26 * MILLIS_PER_SECOND + 18_000L,
+            durationMs = 24 * SECONDS_PER_MINUTE * MILLIS_PER_SECOND + 12 * MILLIS_PER_SECOND,
+            bufferedPositionMs = 7 * SECONDS_PER_MINUTE * MILLIS_PER_SECOND,
+            qualityLabel = "1080",
+            speedLabel = "1.25x",
+            aspectRatioMode = PlayerAspectRatioMode.FIT,
+            canPrevious = true,
+            canNext = true,
+            qualityEnabled = true,
+            speedEnabled = true,
+            aspectRatioEnabled = true,
+            palette = palette,
+            progressRequester = progressRequester,
+            previousRequester = buttonRequesters.getValue(PlayerControlButtonId.Previous),
+            seekBackRequester = buttonRequesters.getValue(PlayerControlButtonId.SeekBack),
+            playPauseRequester = buttonRequesters.getValue(PlayerControlButtonId.PlayPause),
+            seekForwardRequester = buttonRequesters.getValue(PlayerControlButtonId.SeekForward),
+            nextRequester = buttonRequesters.getValue(PlayerControlButtonId.Next),
+            qualityRequester = buttonRequesters.getValue(PlayerControlButtonId.Quality),
+            speedRequester = buttonRequesters.getValue(PlayerControlButtonId.Speed),
+            aspectRatioRequester = buttonRequesters.getValue(PlayerControlButtonId.AspectRatio),
+            episodesRequester = buttonRequesters.getValue(PlayerControlButtonId.Episodes),
+            onQualityButtonPositioned = {},
+            onSpeedButtonPositioned = {},
+            onAspectRatioButtonPositioned = {},
+            onControlFocused = {},
+            onInteraction = {},
+            onTogglePlayback = {},
+            onSeekBack = {},
+            onSeekForward = {},
+            onPreviousClick = {},
+            onNextClick = {},
+            isQualityPickerOpen = false,
+            isSpeedPickerOpen = false,
+            isAspectRatioPickerOpen = false,
+            onOpenQualityPicker = {},
+            onOpenSpeedPicker = {},
+            onOpenAspectRatioPicker = {},
+            onEpisodesClick = {},
+            modifier = Modifier.fillMaxWidth(layoutSpec.panelWidthFraction),
+            layoutSpec = layoutSpec,
+        )
+        PlayerSkipsButtonsRow(
+            palette = palette,
+            skipRequester = skipRequester,
+            watchRequester = watchRequester,
+            onInteraction = {},
+            onOpenControls = {},
+            onSkipClick = {},
+            onWatchClick = {},
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = TvPlayerOverlayHorizontalPadding),
+            panelWidthFraction = layoutSpec.panelWidthFraction,
+            bottomPadding = 92.dp,
+        )
     }
 }
 
@@ -1458,7 +1612,7 @@ private fun Long.toPlaybackTime(): String {
 private fun PlayerQuality.toPlayerPickerLabel(): String = when (this) {
     PlayerQuality.SD -> "SD"
     PlayerQuality.HD -> "HD"
-    PlayerQuality.FULLHD -> "FHD"
+    PlayerQuality.FULLHD -> "1080"
 }
 
 private fun Float.toPlayerPickerLabel(): String {

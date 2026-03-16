@@ -27,8 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,6 +40,7 @@ import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvSectionHeader
+import ru.radiationx.anilibria.ui.compose.tvAppBackground
 
 internal data class WatchingSectionUiModel(
     val id: Long,
@@ -268,14 +267,7 @@ internal fun WatchingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        palette.surfaceColor.copy(alpha = 0.16f),
-                        Color.Transparent,
-                    )
-                )
-            )
+            .tvAppBackground(palette)
             .padding(horizontal = TvScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {

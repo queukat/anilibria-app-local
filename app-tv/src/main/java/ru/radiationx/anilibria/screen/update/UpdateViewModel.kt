@@ -15,8 +15,8 @@ import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.UpdateSourceScreen
+import ru.radiationx.data.downloader.LocalFile
 import ru.radiationx.data.downloader.RemoteFileLoadEvent
-import ru.radiationx.data.downloader.toLocalFile
 import ru.radiationx.data.entity.domain.updater.UpdateData
 import ru.radiationx.data.interactors.tv.TvUpdateUseCase
 import ru.radiationx.shared.ktx.coRunCatching
@@ -109,7 +109,13 @@ class UpdateViewModel @Inject constructor(
                             is RemoteFileLoadEvent.Completed -> {
                                 when (val verification = tvUpdateUseCase.verifyApk(event.file, expectedSha256)) {
                                     TvUpdateUseCase.ApkVerificationResult.Success -> {
-                                        systemUtils.openLocalFile(event.file.toLocalFile())
+                                        systemUtils.openLocalFile(
+                                            LocalFile(
+                                                file = event.file.local,
+                                                name = event.file.remote.name,
+                                                mimeType = event.file.remote.mimeType,
+                                            )
+                                        )
                                     }
 
                                     is TvUpdateUseCase.ApkVerificationResult.Failure -> {

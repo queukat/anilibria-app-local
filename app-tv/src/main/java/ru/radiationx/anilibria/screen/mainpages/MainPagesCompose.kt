@@ -5,9 +5,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -64,6 +61,9 @@ import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.screen.main.MainContentRestoreState
 import ru.radiationx.anilibria.screen.main.MainScreen
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
+import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
+import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.data.entity.domain.types.ReleaseId
 
 internal data class MainShellItem(
@@ -96,6 +96,7 @@ internal fun MainPagesRoot(
     onRequestContentFocus: () -> Boolean,
     content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
 ) {
+    val palette = rememberWatchingPalette()
     val headerHeight = dimensionResource(R.dimen.main_pages_header_height)
     val headerSpacing = dimensionResource(R.dimen.main_pages_header_spacing)
     val railWidth = dimensionResource(R.dimen.main_pages_rail_width)
@@ -108,7 +109,7 @@ internal fun MainPagesRoot(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(colorResource(R.color.dark_windowBackground))
+            .background(palette.backgroundColor)
     ) {
         Box(
             modifier = Modifier
@@ -317,7 +318,7 @@ internal fun MainPagesShell(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.08f))
+                .background(surfaceColor.copy(alpha = 0.16f))
         )
     }
 
@@ -525,62 +526,26 @@ private fun ShellFocusableButton(
     selected: Boolean = false,
     textAlign: TextAlign = TextAlign.Start,
 ) {
-    var isFocused by remember { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
-    val shape = RoundedCornerShape(22.dp)
-
-    Box(
-        modifier = modifier
-            .widthIn(min = minWidth)
-            .then(
-                if (focusRequester != null && enabled) {
-                    Modifier.focusRequester(focusRequester)
-                } else {
-                    Modifier
-                }
-            )
-            .clip(shape)
-            .background(if (isFocused) focusedBackgroundColor else backgroundColor)
-            .border(
-                width = if (isFocused || selected) 2.dp else 1.dp,
-                color = when {
-                    isFocused || selected -> borderColor
-                    else -> Color.Transparent
-                },
-                shape = shape,
-            )
-            .onFocusChanged {
-                val nowFocused = it.isFocused
-                isFocused = nowFocused
-                if (nowFocused) {
-                    onFocused?.invoke()
-                }
-            }
-            .onPreviewKeyEvent { event ->
-                if (!enabled || event.type != KeyEventType.KeyDown) {
-                    return@onPreviewKeyEvent false
-                }
-                when (event.key) {
-                    Key.DirectionLeft -> onLeft?.invoke() == true
-                    Key.DirectionUp -> onUp?.invoke() == true
-                    Key.DirectionRight -> onRight?.invoke() == true
-                    Key.DirectionDown -> onDown?.invoke() == true
-                    else -> false
-                }
-            }
-            .then(
-                if (enabled) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onClick,
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            .then(if (enabled) Modifier.focusable() else Modifier)
-            .padding(horizontal = horizontalPadding, vertical = verticalPadding)
+    WatchingFocusableSurface(
+        focusRequester = focusRequester ?: FocusRequester.Default,
+        enabled = enabled,
+        backgroundColor = backgroundColor,
+        focusedBackgroundColor = focusedBackgroundColor,
+        borderColor = borderColor,
+        onClick = onClick,
+        modifier = modifier.widthIn(min = minWidth),
+        selected = selected,
+        selectedBorderColor = borderColor,
+        selectedBorderWidth = TvUiDefaults.FocusedBorderWidth,
+        onFocused = onFocused,
+        onLeft = onLeft,
+        onUp = onUp,
+        onRight = onRight,
+        onDown = onDown,
+        paddingValues = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = horizontalPadding,
+            vertical = verticalPadding,
+        ),
     ) {
         Text(
             text = text,

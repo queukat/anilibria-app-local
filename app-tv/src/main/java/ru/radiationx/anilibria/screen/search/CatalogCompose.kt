@@ -34,8 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -75,6 +73,9 @@ import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
+import ru.radiationx.anilibria.ui.compose.TvTextActionButton
+import ru.radiationx.anilibria.ui.compose.TvUiDefaults
+import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import kotlin.math.max
 
 private enum class CatalogFocusTarget {
@@ -251,14 +252,7 @@ internal fun CatalogScreen(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        palette.surfaceColor.copy(alpha = 0.18f),
-                        Color.Transparent,
-                    )
-                )
-            )
+            .tvAppBackground(palette)
             .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         val columnsCount = max(1, (maxWidth / TvPosterCardSlotWidth).toInt())
@@ -576,26 +570,19 @@ private fun CatalogHeader(
         subtitle = "Фильтруйте релизы и переходите в экран поиска",
         palette = palette,
         trailingContent = {
-            WatchingFocusableSurface(
+            TvTextActionButton(
+                text = "Поиск",
+                palette = palette,
                 focusRequester = searchRequester,
-                enabled = interactionsEnabled,
-                backgroundColor = palette.chipColor.copy(alpha = 0.92f),
-                focusedBackgroundColor = palette.chipColor,
-                borderColor = palette.textColor.copy(alpha = 0.72f),
                 onClick = onSearchClick,
+                enabled = interactionsEnabled,
+                colors = TvUiDefaults.chipActionColors(palette),
+                paddingValues = TvUiDefaults.CompactActionButtonPadding,
+                fontSize = 16.sp,
                 onFocused = onSearchFocused,
                 onDown = onSearchDown,
-                paddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-            ) {
-                Text(
-                    text = "Поиск",
-                    color = palette.textColor,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.width(112.dp),
-                )
-            }
+                modifier = Modifier.width(148.dp),
+            )
         },
     )
 }

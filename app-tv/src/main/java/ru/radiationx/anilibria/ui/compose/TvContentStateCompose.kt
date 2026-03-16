@@ -1,8 +1,6 @@
 package ru.radiationx.anilibria.ui.compose
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -21,11 +19,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -38,7 +34,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.radiationx.anilibria.R
-import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 
 @Composable
@@ -58,30 +53,19 @@ internal fun TvContentStatePanel(
     onDown: (() -> Boolean)? = null,
     action: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
-    val backgroundColor = if (accent) {
-        palette.accentColor.copy(alpha = 0.12f)
-    } else {
-        palette.surfaceColor.copy(alpha = 0.92f)
-    }
     val isFocusable = focusRequester != null
     var isFocused by remember(focusRequester) { mutableStateOf(false) }
+    val panelStyle = TvUiDefaults.contentStatePanelStyle(
+        palette = palette,
+        accent = accent,
+        focused = isFocused,
+    )
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .widthIn(max = panelMaxWidth)
-            .clip(shape)
-            .background(backgroundColor)
-            .border(
-                width = if (isFocused) 2.dp else 1.dp,
-                color = when {
-                    isFocused -> palette.textColor.copy(alpha = 0.74f)
-                    accent -> palette.accentColor.copy(alpha = 0.34f)
-                    else -> palette.textColor.copy(alpha = 0.08f)
-                },
-                shape = shape,
-            )
+            .tvPanelSurface(panelStyle)
             .then(
                 if (isFocusable) {
                     Modifier
@@ -110,7 +94,7 @@ internal fun TvContentStatePanel(
                     Modifier
                 }
             )
-            .padding(horizontal = 28.dp, vertical = 26.dp),
+            .padding(TvUiDefaults.ContentStatePanelPadding),
         horizontalArrangement = Arrangement.spacedBy(18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -177,29 +161,28 @@ internal fun TvContentStateActionButton(
     onRight: (() -> Boolean)? = null,
     onDown: (() -> Boolean)? = null,
 ) {
-    WatchingFocusableSurface(
+    TvTextActionButton(
+        text = text,
+        palette = palette,
         focusRequester = focusRequester,
-        enabled = enabled,
-        backgroundColor = palette.chipColor.copy(alpha = 0.9f),
-        focusedBackgroundColor = palette.chipColor,
-        borderColor = palette.textColor.copy(alpha = 0.78f),
         onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        minWidth = 188.dp,
+        colors = TvUiDefaults.chipActionColors(
+            palette = palette,
+            backgroundAlpha = 0.9f,
+            borderAlpha = 0.78f,
+        ),
+        paddingValues = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = 20.dp,
+            vertical = 13.dp,
+        ),
+        fontSize = 15.sp,
         onFocused = onFocused,
         onLeft = onLeft,
         onUp = onUp,
         onRight = onRight,
         onDown = onDown,
-        modifier = modifier.widthIn(min = 188.dp),
-        paddingValues = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 20.dp,
-            vertical = 13.dp,
-        ),
-    ) {
-        Text(
-            text = text,
-            color = if (enabled) palette.textColor else palette.secondaryTextColor,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
+    )
 }

@@ -42,6 +42,9 @@ import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
 import ru.radiationx.anilibria.ui.compose.TvOverlayOuterPadding
 import ru.radiationx.anilibria.ui.compose.TvOverlayPanelSurface
+import ru.radiationx.anilibria.ui.compose.TvSelectionIndicator
+import ru.radiationx.anilibria.ui.compose.TvTextActionButton
+import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 
 private const val TV_COLLECTION_FILTER_PICKER_WIDTH_FRACTION = 0.62f
 
@@ -107,7 +110,7 @@ internal fun WatchingFilterPickerDialog(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.64f))
+            .background(TvUiDefaults.modalScrimColor(palette))
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) {
                     return@onPreviewKeyEvent false
@@ -169,27 +172,27 @@ internal fun WatchingFilterPickerDialog(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         itemsIndexed(
-                            items = state.options,
-                            key = { index, option -> option.hashCode() * 31 + index },
-                        ) { index, option ->
-                            val isSelected = index in state.selectedIndices
-                            WatchingFocusableSurface(
-                                focusRequester = optionRequesters[index],
-                                backgroundColor = if (isSelected) {
-                                    palette.accentColor.copy(alpha = 0.18f)
-                                } else {
-                                    palette.chipColor.copy(alpha = 0.74f)
-                                },
-                                focusedBackgroundColor = if (isSelected) {
-                                    palette.accentColor.copy(alpha = 0.26f)
-                                } else {
-                                    palette.chipColor
-                                },
-                                borderColor = if (isSelected) {
-                                    palette.accentColor.copy(alpha = 0.82f)
-                                } else {
-                                    palette.textColor.copy(alpha = 0.12f)
-                                },
+                        items = state.options,
+                        key = { index, option -> option.hashCode() * 31 + index },
+                    ) { index, option ->
+                        val isSelected = index in state.selectedIndices
+                        val surfaceColors = if (isSelected) {
+                            TvUiDefaults.accentActionColors(
+                                palette = palette,
+                                borderAlpha = 0.82f,
+                            )
+                        } else {
+                            TvUiDefaults.chipActionColors(
+                                palette = palette,
+                                backgroundAlpha = 0.74f,
+                                borderAlpha = 0.12f,
+                            )
+                        }
+                        WatchingFocusableSurface(
+                            focusRequester = optionRequesters[index],
+                            backgroundColor = surfaceColors.backgroundColor,
+                            focusedBackgroundColor = surfaceColors.focusedBackgroundColor,
+                            borderColor = surfaceColors.borderColor,
                                 onClick = {
                                     if (state.multiSelect) {
                                         onToggleOption(index)
@@ -224,7 +227,7 @@ internal fun WatchingFilterPickerDialog(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                paddingValues = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+                                paddingValues = TvUiDefaults.ChoiceRowPadding,
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -241,26 +244,9 @@ internal fun WatchingFilterPickerDialog(
                                             FontWeight.Normal
                                         },
                                     )
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .background(
-                                                color = if (isSelected) {
-                                                    palette.accentColor
-                                                } else {
-                                                    Color.Transparent
-                                                },
-                                                shape = RoundedCornerShape(percent = 50),
-                                            )
-                                            .border(
-                                                width = 1.dp,
-                                                color = if (isSelected) {
-                                                    palette.accentColor
-                                                } else {
-                                                    palette.textColor.copy(alpha = 0.22f)
-                                                },
-                                                shape = RoundedCornerShape(percent = 50),
-                                            )
+                                    TvSelectionIndicator(
+                                        selected = isSelected,
+                                        palette = palette,
                                     )
                                 }
                             }
@@ -277,53 +263,46 @@ internal fun WatchingFilterPickerDialog(
                                 color = palette.secondaryTextColor,
                                 fontSize = 13.sp,
                             )
-                            WatchingFocusableSurface(
+                            TvTextActionButton(
+                                text = "Ок",
+                                palette = palette,
                                 focusRequester = applyRequester,
-                                backgroundColor = palette.accentColor.copy(alpha = 0.22f),
-                                focusedBackgroundColor = palette.accentColor.copy(alpha = 0.28f),
-                                borderColor = palette.accentColor.copy(alpha = 0.86f),
                                 onClick = onApply,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = TvUiDefaults.accentActionColors(
+                                    palette = palette,
+                                    backgroundAlpha = 0.22f,
+                                    focusedBackgroundAlpha = 0.28f,
+                                    borderAlpha = 0.86f,
+                                ),
+                                paddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                                 onLeft = {
                                     requestOptionFocus(lastFocusedOptionIndex)
                                 },
                                 onDown = {
                                     requestWatchingFocus(resetRequester)
                                 },
-                                modifier = Modifier.fillMaxWidth(),
-                                paddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                            ) {
-                                Text(
-                                    text = "Ок",
-                                    color = palette.textColor,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                            WatchingFocusableSurface(
+                            )
+                            TvTextActionButton(
+                                text = "Сбросить",
+                                palette = palette,
                                 focusRequester = resetRequester,
-                                backgroundColor = palette.chipColor.copy(alpha = 0.82f),
-                                focusedBackgroundColor = palette.chipColor,
-                                borderColor = palette.textColor.copy(alpha = 0.72f),
                                 onClick = onReset,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = TvUiDefaults.chipActionColors(
+                                    palette = palette,
+                                    backgroundAlpha = 0.82f,
+                                    borderAlpha = 0.72f,
+                                ),
+                                paddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                                fontWeight = FontWeight.Normal,
                                 onUp = {
                                     requestWatchingFocus(applyRequester)
                                 },
                                 onLeft = {
                                     requestOptionFocus(lastFocusedOptionIndex)
                                 },
-                                modifier = Modifier.fillMaxWidth(),
-                                paddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                            ) {
-                                Text(
-                                    text = "Сбросить",
-                                    color = palette.textColor,
-                                    fontSize = 16.sp,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
+                            )
                             Text(
                                 text = "Вправо: применить\nВлево: вернуться к списку",
                                 color = palette.secondaryTextColor,

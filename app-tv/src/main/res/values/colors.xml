@@ -11,8 +11,8 @@
     <color name="dark_colorPrimaryDark">@color/dark_cardBackground</color>
     <color name="dark_colorAccent">@color/temp_red_</color>
 
-    <color name="dark_windowBackground">#191b1c</color>
-    <color name="dark_cardBackground">#282828</color>
+    <color name="dark_windowBackground">#1E2124</color>
+    <color name="dark_cardBackground">#2E3134</color>
 
     <color name="dark_release_day_btn">#414141</color>
 

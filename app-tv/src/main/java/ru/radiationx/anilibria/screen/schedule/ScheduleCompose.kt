@@ -23,8 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -55,6 +53,8 @@ import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
+import ru.radiationx.anilibria.ui.compose.TvUiDefaults
+import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import ru.radiationx.shared.ktx.asDayName
 import java.util.Calendar
 import java.util.TimeZone
@@ -316,14 +316,7 @@ internal fun ScheduleScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        palette.surfaceColor.copy(alpha = 0.16f),
-                        Color.Transparent,
-                    )
-                )
-            )
+            .tvAppBackground(palette)
             .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         LazyColumn(
@@ -546,29 +539,31 @@ private fun ScheduleDayChip(
     onRight: () -> Boolean,
     onDown: () -> Boolean,
 ) {
+    val colors = when {
+        selected -> TvUiDefaults.accentActionColors(
+            palette = palette,
+            backgroundAlpha = 0.16f,
+            focusedBackgroundAlpha = 0.24f,
+            borderAlpha = 0.92f,
+        )
+
+        else -> TvUiDefaults.chipActionColors(
+            palette = palette,
+            backgroundAlpha = 0.82f,
+            borderAlpha = if (today) 0.78f else 0.22f,
+        )
+    }
     WatchingFocusableSurface(
         focusRequester = focusRequester,
-        backgroundColor = if (selected) {
-            palette.accentColor.copy(alpha = 0.16f)
-        } else {
-            palette.chipColor.copy(alpha = 0.82f)
-        },
-        focusedBackgroundColor = if (selected) {
-            palette.accentColor.copy(alpha = 0.24f)
-        } else {
-            palette.chipColor
-        },
-        borderColor = when {
-            selected -> palette.accentColor.copy(alpha = 0.92f)
-            today -> palette.textColor.copy(alpha = 0.78f)
-            else -> palette.textColor.copy(alpha = 0.22f)
-        },
+        backgroundColor = colors.backgroundColor,
+        focusedBackgroundColor = colors.focusedBackgroundColor,
+        borderColor = colors.borderColor,
         onClick = onClick,
         onFocused = onFocused,
         onLeft = onLeft,
         onRight = onRight,
         onDown = onDown,
-        paddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+        paddingValues = TvUiDefaults.CompactActionButtonPadding,
     ) {
         Text(
             text = title,

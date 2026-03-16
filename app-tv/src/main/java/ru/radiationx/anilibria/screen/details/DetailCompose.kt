@@ -27,10 +27,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -49,6 +46,8 @@ import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
+import ru.radiationx.anilibria.ui.compose.TvUiDefaults
+import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsCallbacks
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsRowContent
 import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsRowUiState
@@ -77,9 +76,7 @@ internal fun DetailScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val verticalState = remember { LazyListState() }
-    val detailCardBackground = colorResource(R.color.dark_cardBackground).copy(alpha = 0.86f)
-    val contentPageStartColor = colorResource(R.color.dark_windowBackground)
-    val contentPageEndColor = colorResource(R.color.dark_colorPrimary)
+    val detailCardBackground = palette.surfaceColor.copy(alpha = 0.86f)
     val sectionKeys = remember(sections) {
         sections.map { section ->
             section.id to section.items.map(CardItem::getId)
@@ -257,14 +254,7 @@ internal fun DetailScreen(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        palette.surfaceColor.copy(alpha = 0.16f),
-                        Color.Transparent,
-                    )
-                )
-            )
+            .tvAppBackground(palette)
     ) {
         val headerHeight = maxHeight
         val headerOffsetY by animateDpAsState(
@@ -302,14 +292,7 @@ internal fun DetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .offset { IntOffset(x = 0, y = contentOffsetY.roundToPx()) }
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                contentPageStartColor.copy(alpha = 0.98f),
-                                contentPageEndColor.copy(alpha = 0.94f),
-                            )
-                        )
-                    ),
+                    .background(TvUiDefaults.surfaceBackdropBrush(palette)),
             ) {
                 LazyColumn(
                     state = verticalState,

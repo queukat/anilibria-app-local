@@ -45,6 +45,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -62,6 +63,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
+import ru.radiationx.anilibria.ui.compose.TvSelectionIndicator
+import ru.radiationx.anilibria.ui.compose.TvTextActionButton
+import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.TvOverlayOuterPadding
 import ru.radiationx.anilibria.ui.compose.TvOverlayPanelSurface
 import ru.radiationx.shared_app.imageloader.showImageUrl
@@ -70,6 +74,7 @@ private const val WATCHING_CARD_ASPECT_RATIO = 130f / 185f
 private const val WATCHING_DIALOG_WIDTH_FRACTION = 0.56f
 
 internal data class WatchingPalette(
+    val backgroundColor: Color,
     val surfaceColor: Color,
     val textColor: Color,
     val secondaryTextColor: Color,
@@ -86,6 +91,7 @@ internal data class WatchingChoiceDialogUiState(
 @Composable
 internal fun rememberWatchingPalette(): WatchingPalette {
     return WatchingPalette(
+        backgroundColor = colorResource(R.color.dark_windowBackground),
         surfaceColor = colorResource(R.color.dark_colorPrimary),
         textColor = colorResource(R.color.dark_textDefault),
         secondaryTextColor = colorResource(R.color.dark_textSecond),
@@ -146,43 +152,32 @@ internal fun WatchingFilterChip(
     onRight: (() -> Boolean)? = null,
     onDown: (() -> Boolean)? = null,
 ) {
-    WatchingFocusableSurface(
+    val colors = if (emphasized) {
+        TvUiDefaults.accentActionColors(palette)
+    } else {
+        TvUiDefaults.chipActionColors(palette)
+    }
+    TvTextActionButton(
+        text = text,
+        palette = palette,
         focusRequester = focusRequester,
-        enabled = enabled,
-        backgroundColor = if (emphasized) {
-            palette.accentColor.copy(alpha = 0.18f)
-        } else {
-            palette.chipColor.copy(alpha = 0.92f)
-        },
-        focusedBackgroundColor = if (emphasized) {
-            palette.accentColor.copy(alpha = 0.26f)
-        } else {
-            palette.chipColor
-        },
-        borderColor = if (emphasized) {
-            palette.accentColor.copy(alpha = 0.84f)
-        } else {
-            palette.textColor.copy(alpha = 0.72f)
-        },
         onClick = onClick,
+        modifier = modifier.widthIn(max = 160.dp),
+        minWidth = minWidth,
+        enabled = enabled,
+        colors = colors,
+        paddingValues = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        fontSize = 15.sp,
+        fontWeight = FontWeight.Normal,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         onFocused = onFocused,
         onLeft = onLeft,
         onUp = onUp,
         onRight = onRight,
         onDown = onDown,
-        modifier = modifier.widthIn(min = minWidth, max = 160.dp),
-        paddingValues = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-    ) {
-        Text(
-            text = text,
-            color = palette.textColor,
-            fontSize = 15.sp,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
+    )
 }
 
 @Composable
@@ -443,7 +438,7 @@ internal fun WatchingChoiceDialog(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.62f))
+            .background(TvUiDefaults.modalScrimColor(palette))
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) {
                     return@onPreviewKeyEvent false
@@ -503,23 +498,23 @@ internal fun WatchingChoiceDialog(
                     items = state.options,
                     key = { index, option -> option.hashCode() * 31 + index },
                 ) { index, option ->
+                    val surfaceColors = if (index == state.selectedIndex) {
+                        TvUiDefaults.accentActionColors(
+                            palette = palette,
+                            borderAlpha = 0.82f,
+                        )
+                    } else {
+                        TvUiDefaults.chipActionColors(
+                            palette = palette,
+                            backgroundAlpha = 0.74f,
+                            borderAlpha = 0.12f,
+                        )
+                    }
                     WatchingFocusableSurface(
                         focusRequester = optionRequesters[index],
-                        backgroundColor = if (index == state.selectedIndex) {
-                            palette.accentColor.copy(alpha = 0.18f)
-                        } else {
-                            palette.chipColor.copy(alpha = 0.74f)
-                        },
-                        focusedBackgroundColor = if (index == state.selectedIndex) {
-                            palette.accentColor.copy(alpha = 0.26f)
-                        } else {
-                            palette.chipColor
-                        },
-                        borderColor = if (index == state.selectedIndex) {
-                            palette.accentColor.copy(alpha = 0.82f)
-                        } else {
-                            palette.textColor.copy(alpha = 0.12f)
-                        },
+                        backgroundColor = surfaceColors.backgroundColor,
+                        focusedBackgroundColor = surfaceColors.focusedBackgroundColor,
+                        borderColor = surfaceColors.borderColor,
                         onClick = { onOptionClick(index) },
                         onLeft = {
                             onDismiss()
@@ -540,7 +535,7 @@ internal fun WatchingChoiceDialog(
                             { true }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        paddingValues = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+                        paddingValues = TvUiDefaults.ChoiceRowPadding,
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -557,26 +552,9 @@ internal fun WatchingChoiceDialog(
                                     FontWeight.Normal
                                 },
                             )
-                            Box(
-                                modifier = Modifier
-                                    .size(12.dp)
-                                    .clip(RoundedCornerShape(999.dp))
-                                    .background(
-                                        if (index == state.selectedIndex) {
-                                            palette.accentColor
-                                        } else {
-                                            Color.Transparent
-                                        }
-                                    )
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (index == state.selectedIndex) {
-                                            palette.accentColor
-                                        } else {
-                                            palette.textColor.copy(alpha = 0.22f)
-                                        },
-                                        shape = RoundedCornerShape(999.dp),
-                                    )
+                            TvSelectionIndicator(
+                                selected = index == state.selectedIndex,
+                                palette = palette,
                             )
                         }
                     }
@@ -601,9 +579,16 @@ internal fun WatchingFocusableSurface(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    focusedBorderWidth: Dp = 2.dp,
-    unfocusedBorderWidth: Dp = 1.dp,
+    allowFocusWhenDisabled: Boolean = false,
+    shape: Shape = TvUiDefaults.FocusableSurfaceShape,
+    focusedBorderWidth: Dp = TvUiDefaults.FocusedBorderWidth,
+    unfocusedBorderWidth: Dp = TvUiDefaults.UnfocusedBorderWidth,
+    unfocusedBorderColor: Color = Color.Transparent,
+    selected: Boolean = false,
+    selectedBorderColor: Color = borderColor,
+    selectedBorderWidth: Dp = focusedBorderWidth,
     onFocused: (() -> Unit)? = null,
+    onFocusChanged: ((Boolean) -> Unit)? = null,
     onLeft: (() -> Boolean)? = null,
     onUp: (() -> Boolean)? = null,
     onRight: (() -> Boolean)? = null,
@@ -613,18 +598,27 @@ internal fun WatchingFocusableSurface(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
+    val canFocus = enabled || allowFocusWhenDisabled
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(22.dp))
+            .clip(shape)
             .background(if (isFocused) focusedBackgroundColor else backgroundColor)
             .border(
-                width = if (isFocused) focusedBorderWidth else unfocusedBorderWidth,
-                color = if (isFocused) borderColor else Color.Transparent,
-                shape = RoundedCornerShape(22.dp),
+                width = when {
+                    isFocused -> focusedBorderWidth
+                    selected -> selectedBorderWidth
+                    else -> unfocusedBorderWidth
+                },
+                color = when {
+                    isFocused -> borderColor
+                    selected -> selectedBorderColor
+                    else -> unfocusedBorderColor
+                },
+                shape = shape,
             )
             .then(
-                if (enabled) {
+                if (canFocus) {
                     Modifier.focusRequester(focusRequester)
                 } else {
                     Modifier
@@ -633,12 +627,13 @@ internal fun WatchingFocusableSurface(
             .onFocusChanged {
                 val nowFocused = it.isFocused
                 isFocused = nowFocused
+                onFocusChanged?.invoke(nowFocused)
                 if (nowFocused) {
                     onFocused?.invoke()
                 }
             }
             .onPreviewKeyEvent { event ->
-                if (!enabled || event.type != KeyEventType.KeyDown) {
+                if (!canFocus || event.type != KeyEventType.KeyDown) {
                     return@onPreviewKeyEvent false
                 }
                 when (event.key) {
@@ -660,7 +655,7 @@ internal fun WatchingFocusableSurface(
                     Modifier
                 }
             )
-            .then(if (enabled) Modifier.focusable() else Modifier)
+            .then(if (canFocus) Modifier.focusable() else Modifier)
             .padding(paddingValues),
     ) {
         content()

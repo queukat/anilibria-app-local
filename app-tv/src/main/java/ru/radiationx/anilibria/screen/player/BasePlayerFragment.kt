@@ -449,7 +449,7 @@ open class BasePlayerFragment : Fragment() {
     private fun PlayerQuality.toPlayerLabel(): String = when (this) {
         PlayerQuality.SD -> "SD"
         PlayerQuality.HD -> "HD"
-        PlayerQuality.FULLHD -> "FHD"
+        PlayerQuality.FULLHD -> "1080"
     }
 
     private fun Float.toPlayerLabel(): String {

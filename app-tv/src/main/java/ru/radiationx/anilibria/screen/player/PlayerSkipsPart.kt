@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -105,8 +104,10 @@ class PlayerSkipsPart(
 internal fun PlayerSkipsOverlay(
     skipsPart: PlayerSkipsPart?,
     onInteraction: () -> Unit,
+    onOpenControls: () -> Unit,
     modifier: Modifier = Modifier,
     bottomPadding: Dp = TvPlayerOverlayBottomPadding,
+    panelWidthFraction: Float = 1f,
 ) {
     val visible = skipsPart?.isVisible == true
     val palette = rememberWatchingPalette()
@@ -130,58 +131,104 @@ internal fun PlayerSkipsOverlay(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(end = 28.dp, bottom = animatedBottomPadding),
-            contentAlignment = Alignment.BottomEnd,
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                WatchingFocusableSurface(
-                    focusRequester = skipRequester,
-                    backgroundColor = palette.accentColor.copy(alpha = 0.20f),
-                    focusedBackgroundColor = palette.accentColor.copy(alpha = 0.30f),
-                    borderColor = palette.accentColor.copy(alpha = 0.96f),
-                    onClick = {
-                        onInteraction()
-                        skipsPart?.skipCurrent()
-                    },
-                    onFocused = onInteraction,
-                    onLeft = { true },
-                    onRight = {
-                        onInteraction()
-                        runCatching { cancelRequester.requestFocus() }.isSuccess
-                    },
-                    paddingValues = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
-                ) {
-                    androidx.compose.material3.Text(
-                        text = stringResource(R.string.player_skip),
-                        color = palette.textColor,
-                    )
-                }
+        PlayerSkipsButtonsRow(
+            palette = palette,
+            skipRequester = skipRequester,
+            watchRequester = cancelRequester,
+            onInteraction = onInteraction,
+            onOpenControls = onOpenControls,
+            onSkipClick = { skipsPart?.skipCurrent() },
+            onWatchClick = { skipsPart?.cancelCurrent() },
+            panelWidthFraction = panelWidthFraction,
+            bottomPadding = animatedBottomPadding,
+        )
+    }
+}
 
-                WatchingFocusableSurface(
-                    focusRequester = cancelRequester,
-                    backgroundColor = palette.surfaceColor.copy(alpha = 0.90f),
-                    focusedBackgroundColor = palette.surfaceColor,
-                    borderColor = palette.textColor.copy(alpha = 0.76f),
-                    onClick = {
-                        onInteraction()
-                        skipsPart?.cancelCurrent()
-                    },
-                    onFocused = onInteraction,
-                    onLeft = {
-                        onInteraction()
-                        runCatching { skipRequester.requestFocus() }.isSuccess
-                    },
-                    onRight = { true },
-                    paddingValues = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
-                ) {
-                    androidx.compose.material3.Text(
-                        text = stringResource(R.string.player_watch),
-                        color = palette.textColor,
-                    )
-                }
+@Composable
+internal fun PlayerSkipsButtonsRow(
+    palette: ru.radiationx.anilibria.screen.watching.WatchingPalette,
+    skipRequester: FocusRequester,
+    watchRequester: FocusRequester,
+    onInteraction: () -> Unit,
+    onOpenControls: () -> Unit,
+    onSkipClick: () -> Unit,
+    onWatchClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    panelWidthFraction: Float = 1f,
+    bottomPadding: Dp = 0.dp,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth(panelWidthFraction)
+            .padding(bottom = bottomPadding),
+        contentAlignment = Alignment.BottomEnd,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = PlayerOverlayUiDefaults.QuickActionsRowHorizontalPadding),
+            horizontalArrangement = Arrangement.spacedBy(PlayerOverlayUiDefaults.QuickActionsRowSpacing),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val skipColors = PlayerOverlayUiDefaults.quickActionColors(
+                palette = palette,
+                emphasized = true,
+            )
+            val watchColors = PlayerOverlayUiDefaults.quickActionColors(
+                palette = palette,
+                emphasized = false,
+            )
+            WatchingFocusableSurface(
+                focusRequester = skipRequester,
+                backgroundColor = skipColors.backgroundColor,
+                focusedBackgroundColor = skipColors.focusedBackgroundColor,
+                borderColor = skipColors.borderColor,
+                onClick = {
+                    onInteraction()
+                    onSkipClick()
+                },
+                onFocused = onInteraction,
+                onLeft = {
+                    onInteraction()
+                    onOpenControls()
+                    true
+                },
+                onRight = {
+                    onInteraction()
+                    runCatching { watchRequester.requestFocus() }.isSuccess
+                },
+                onUp = { true },
+                onDown = { true },
+                paddingValues = PlayerOverlayUiDefaults.CompactControlPadding,
+            ) {
+                androidx.compose.material3.Text(
+                    text = stringResource(R.string.player_skip),
+                    color = palette.textColor,
+                )
+            }
+
+            WatchingFocusableSurface(
+                focusRequester = watchRequester,
+                backgroundColor = watchColors.backgroundColor,
+                focusedBackgroundColor = watchColors.focusedBackgroundColor,
+                borderColor = watchColors.borderColor,
+                onClick = {
+                    onInteraction()
+                    onWatchClick()
+                },
+                onFocused = onInteraction,
+                onLeft = {
+                    onInteraction()
+                    runCatching { skipRequester.requestFocus() }.isSuccess
+                },
+                onRight = { true },
+                onUp = { true },
+                onDown = { true },
+                paddingValues = PlayerOverlayUiDefaults.CompactControlPadding,
+            ) {
+                androidx.compose.material3.Text(
+                    text = stringResource(R.string.player_watch),
+                    color = palette.textColor,
+                )
             }
         }
     }

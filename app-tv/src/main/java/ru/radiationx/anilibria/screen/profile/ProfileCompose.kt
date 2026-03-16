@@ -8,7 +8,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.colorResource
@@ -40,10 +37,14 @@ import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
-import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
+import ru.radiationx.anilibria.ui.compose.TvFocusableSurfaceColors
+import ru.radiationx.anilibria.ui.compose.TvTextActionButton
+import ru.radiationx.anilibria.ui.compose.TvUiDefaults
+import ru.radiationx.anilibria.ui.compose.tvAppBackground
+import ru.radiationx.anilibria.ui.compose.tvPanelSurface
 import ru.radiationx.data.entity.domain.other.ProfileItem
 import ru.radiationx.shared_app.imageloader.showImageUrl
 
@@ -59,11 +60,7 @@ internal fun ProfileScreen(
     onRequestHeaderFocus: () -> Boolean,
 ) {
     val palette = rememberWatchingPalette()
-    val surfaceColor = colorResource(R.color.dark_colorPrimary)
-    val textColor = colorResource(R.color.dark_textDefault)
-    val secondaryTextColor = colorResource(R.color.dark_textSecond)
     val accentColor = colorResource(R.color.dark_colorAccent)
-    val actionBackground = colorResource(R.color.dark_release_day_btn).copy(alpha = 0.94f)
     val primaryButtonRequester = remember { FocusRequester() }
 
     LaunchedEffect(focusRequestToken) {
@@ -75,14 +72,7 @@ internal fun ProfileScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        surfaceColor.copy(alpha = 0.18f),
-                        Color.Transparent,
-                    )
-                )
-            )
+            .tvAppBackground(palette)
             .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         Column(
@@ -108,27 +98,21 @@ internal fun ProfileScreen(
                     modifier = Modifier
                         .fillMaxWidth(PROFILE_PANEL_WIDTH_FRACTION)
                         .widthIn(min = 480.dp, max = 760.dp)
-                        .clip(RoundedCornerShape(32.dp))
-                        .background(surfaceColor.copy(alpha = 0.92f))
-                        .border(
-                            width = 1.dp,
-                            color = textColor.copy(alpha = 0.10f),
-                            shape = RoundedCornerShape(32.dp),
-                        )
-                        .padding(horizontal = 28.dp, vertical = 30.dp),
+                        .tvPanelSurface(TvUiDefaults.profilePanelStyle(palette))
+                        .padding(TvUiDefaults.ProfilePanelPadding),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     ProfileAvatar(
                         avatarUrl = profile?.avatarUrl,
                         accentColor = accentColor,
-                        backgroundColor = surfaceColor,
+                        backgroundColor = palette.surfaceColor,
                     )
 
                     Spacer(modifier = Modifier.height(22.dp))
 
                     Text(
                         text = profile?.nick ?: "Гость",
-                        color = textColor,
+                        color = palette.textColor,
                         fontSize = 30.sp,
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center,
@@ -142,7 +126,7 @@ internal fun ProfileScreen(
                         } else {
                             "Подключите аккаунт, чтобы продолжать просмотр между устройствами и не терять избранное."
                         },
-                        color = secondaryTextColor,
+                        color = palette.secondaryTextColor,
                         fontSize = 17.sp,
                         lineHeight = 24.sp,
                         textAlign = TextAlign.Center,
@@ -150,26 +134,22 @@ internal fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(28.dp))
 
-                    WatchingFocusableSurface(
+                    TvTextActionButton(
+                        text = if (profile != null) "Выйти" else "Авторизоваться",
+                        palette = palette,
                         focusRequester = primaryButtonRequester,
-                        backgroundColor = actionBackground,
-                        focusedBackgroundColor = actionBackground,
-                        borderColor = accentColor.copy(alpha = 0.9f),
                         onClick = if (profile != null) onSignOutClick else onSignInClick,
+                        minWidth = 240.dp,
+                        colors = TvFocusableSurfaceColors(
+                            backgroundColor = palette.chipColor.copy(alpha = 0.94f),
+                            focusedBackgroundColor = palette.chipColor.copy(alpha = 0.94f),
+                            borderColor = accentColor.copy(alpha = 0.9f),
+                        ),
+                        paddingValues = TvUiDefaults.ActionButtonPadding,
+                        fontSize = 18.sp,
                         onLeft = onRequestRailFocus,
                         onUp = onRequestHeaderFocus,
-                        modifier = Modifier.widthIn(min = 240.dp),
-                        paddingValues = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
-                    ) {
-                        Text(
-                            text = if (profile != null) "Выйти" else "Авторизоваться",
-                            color = textColor,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                    )
                 }
             }
         }

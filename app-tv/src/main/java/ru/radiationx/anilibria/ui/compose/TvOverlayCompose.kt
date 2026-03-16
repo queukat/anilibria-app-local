@@ -45,7 +45,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -83,9 +82,7 @@ internal data class TvOverlayChoiceSection(
     val items: List<TvOverlayChoiceItem>,
 )
 
-internal val TvOverlayOuterPadding = PaddingValues(horizontal = 28.dp, vertical = 24.dp)
-private val TvOverlayPanelShape = RoundedCornerShape(24.dp)
-private val TvOverlayPanelPadding = PaddingValues(horizontal = 28.dp, vertical = 24.dp)
+internal val TvOverlayOuterPadding = TvUiDefaults.OverlayPanelPadding
 private val TvOverlayPanelSpacing = 18.dp
 private const val TV_OVERLAY_FOCUS_RETRY_DELAY_MS = 120L
 
@@ -93,11 +90,11 @@ private const val TV_OVERLAY_FOCUS_RETRY_DELAY_MS = 120L
 internal fun TvOverlayPanelSurface(
     palette: WatchingPalette,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = TvOverlayPanelPadding,
+    contentPadding: PaddingValues = TvUiDefaults.OverlayPanelPadding,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
-        shape = TvOverlayPanelShape,
+        shape = TvUiDefaults.OverlayPanelShape,
         color = palette.surfaceColor.copy(alpha = 0.98f),
         modifier = modifier,
     ) {
@@ -106,7 +103,7 @@ internal fun TvOverlayPanelSurface(
                 .border(
                     width = 1.dp,
                     color = palette.textColor.copy(alpha = 0.08f),
-                    shape = TvOverlayPanelShape,
+                    shape = TvUiDefaults.OverlayPanelShape,
                 )
                 .padding(contentPadding),
             verticalArrangement = Arrangement.spacedBy(TvOverlayPanelSpacing),
@@ -128,14 +125,7 @@ internal fun TvOverlayScreen(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Black.copy(alpha = 0.84f),
-                        palette.surfaceColor.copy(alpha = 0.96f),
-                    )
-                )
-            )
+            .background(TvUiDefaults.surfaceBackdropBrush(palette))
             .padding(TvOverlayOuterPadding),
     ) {
         TvOverlayPanelSurface(
@@ -181,26 +171,26 @@ internal fun TvOverlayActionButton(
     onClick: () -> Unit,
 ) {
     val interactiveEnabled = enabled && !loading
-    val backgroundColor = if (destructive) {
-        palette.accentColor.copy(alpha = 0.18f)
+    val colors = if (destructive) {
+        TvUiDefaults.accentActionColors(
+            palette = palette,
+            focusedBackgroundAlpha = 0.24f,
+            borderAlpha = 0.9f,
+        )
     } else {
-        androidx.compose.ui.res.colorResource(R.color.dark_release_day_btn)
+        TvUiDefaults.chipActionColors(
+            palette = palette,
+            backgroundAlpha = 1f,
+            borderAlpha = 0.75f,
+        )
     }
 
     WatchingFocusableSurface(
         focusRequester = focusRequester,
         enabled = interactiveEnabled,
-        backgroundColor = backgroundColor,
-        focusedBackgroundColor = if (destructive) {
-            palette.accentColor.copy(alpha = 0.24f)
-        } else {
-            backgroundColor
-        },
-        borderColor = if (destructive) {
-            palette.accentColor.copy(alpha = 0.9f)
-        } else {
-            palette.textColor.copy(alpha = 0.75f)
-        },
+        backgroundColor = colors.backgroundColor,
+        focusedBackgroundColor = colors.focusedBackgroundColor,
+        borderColor = colors.borderColor,
         onClick = onClick,
         onUp = {
             requestWatchingFocus(upRequester)
@@ -209,7 +199,7 @@ internal fun TvOverlayActionButton(
             requestWatchingFocus(downRequester)
         },
         modifier = modifier,
-        paddingValues = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+        paddingValues = TvUiDefaults.ActionButtonPadding,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -251,7 +241,7 @@ internal fun TvOverlayTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val fieldShape = RoundedCornerShape(24.dp)
+    val fieldShape = TvUiDefaults.OverlayPanelShape
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -331,7 +321,7 @@ internal fun TvOverlayInfoBlock(
                 } else {
                     palette.surfaceColor.copy(alpha = 0.52f)
                 },
-                shape = RoundedCornerShape(14.dp),
+                shape = TvUiDefaults.InfoSurfaceShape,
             )
             .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
@@ -360,7 +350,7 @@ internal fun TvOverlayScrollableText(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(palette.surfaceColor.copy(alpha = 0.42f), RoundedCornerShape(14.dp))
+            .background(palette.surfaceColor.copy(alpha = 0.42f), TvUiDefaults.InfoSurfaceShape)
             .border(
                 width = if (isFocused) 2.dp else 1.dp,
                 color = if (isFocused) {
@@ -368,7 +358,7 @@ internal fun TvOverlayScrollableText(
                 } else {
                     palette.textColor.copy(alpha = 0.08f)
                 },
-                shape = RoundedCornerShape(14.dp),
+                shape = TvUiDefaults.InfoSurfaceShape,
             )
             .focusRequester(focusRequester)
             .focusProperties {
@@ -539,47 +529,35 @@ private fun TvOverlayChoiceButton(
     onFocusChanged: (Boolean) -> Unit,
     onClick: () -> Unit,
 ) {
-    var isFocused by remember { mutableStateOf(false) }
     val backgroundColor = if (choice.selected) {
         palette.accentColor.copy(alpha = 0.16f)
     } else {
         palette.surfaceColor.copy(alpha = 0.64f)
     }
 
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = backgroundColor,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = if (isFocused) 2.dp else 1.dp,
-                color = when {
-                    isFocused -> palette.textColor.copy(alpha = 0.78f)
-                    choice.selected -> palette.accentColor.copy(alpha = 0.68f)
-                    else -> palette.textColor.copy(alpha = 0.08f)
-                },
-                shape = RoundedCornerShape(24.dp),
-            )
-            .focusRequester(focusRequester)
-            .focusProperties {
-                up = upRequester
-                down = downRequester
-            }
-            .onFocusChanged {
-                val nowFocused = it.isFocused
-                isFocused = nowFocused
-                onFocusChanged(nowFocused)
-            }
-            .clickable(
-                enabled = choice.enabled,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-            .focusable(enabled = choice.enabled),
+    WatchingFocusableSurface(
+        focusRequester = focusRequester,
+        enabled = choice.enabled,
+        backgroundColor = backgroundColor,
+        focusedBackgroundColor = backgroundColor,
+        borderColor = palette.textColor.copy(alpha = 0.78f),
+        unfocusedBorderColor = palette.textColor.copy(alpha = 0.08f),
+        selected = choice.selected,
+        selectedBorderColor = palette.accentColor.copy(alpha = 0.68f),
+        selectedBorderWidth = 1.dp,
+        shape = TvUiDefaults.OverlayPanelShape,
+        onClick = onClick,
+        onFocusChanged = onFocusChanged,
+        onUp = {
+            requestWatchingFocus(upRequester)
+        },
+        onDown = {
+            requestWatchingFocus(downRequester)
+        },
+        modifier = Modifier.fillMaxWidth(),
+        paddingValues = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
@@ -611,22 +589,11 @@ private fun TvOverlayChoiceButton(
                         )
                     }
             }
-            Box(
-                modifier = Modifier
-                    .size(14.dp)
-                    .background(
-                        color = if (choice.selected) palette.accentColor else Color.Transparent,
-                        shape = RoundedCornerShape(percent = 50),
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (choice.selected) {
-                            palette.accentColor
-                        } else {
-                            palette.textColor.copy(alpha = 0.24f)
-                        },
-                        shape = RoundedCornerShape(percent = 50),
-                    ),
+            TvSelectionIndicator(
+                selected = choice.selected,
+                palette = palette,
+                size = TvUiDefaults.LargeSelectionIndicatorSize,
+                inactiveBorderColor = palette.textColor.copy(alpha = 0.24f),
             )
         }
     }

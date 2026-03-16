@@ -5,10 +5,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,7 +44,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -60,7 +57,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
+import ru.radiationx.anilibria.ui.compose.TvTextActionButton
+import ru.radiationx.anilibria.ui.compose.TvUiDefaults
+import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.data.entity.domain.updater.UpdateData
 
 private const val MIN_SCROLLBAR_THUMB_HEIGHT_PX = 18
@@ -87,14 +88,7 @@ internal fun UpdateScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        palette.surfaceColor.copy(alpha = 0.18f),
-                        Color.Transparent,
-                    )
-                )
-            )
+            .tvAppBackground(palette)
             .padding(horizontal = 16.dp, vertical = 20.dp),
     ) {
         if (isInitialLoading) {
@@ -208,42 +202,26 @@ private fun UpdateActionButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    var isFocused by remember { mutableStateOf(false) }
-    val modifier = if (enabled) {
-        Modifier
-            .focusRequester(focusRequester)
-            .focusProperties { down = downRequester }
-            .onFocusChanged { isFocused = it.isFocused }
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-            .focusable()
-    } else {
-        Modifier
-            .focusRequester(focusRequester)
-            .onFocusChanged { isFocused = it.isFocused }
-            .focusable()
-    }
-
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = androidx.compose.ui.res.colorResource(R.color.dark_release_day_btn),
-        modifier = modifier
-            .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) palette.textColor.copy(alpha = 0.75f) else Color.Transparent,
-                shape = RoundedCornerShape(24.dp),
-            ),
-    ) {
-        Text(
-            text = text,
-            color = if (enabled) palette.textColor else palette.secondaryTextColor,
-            fontSize = 16.sp,
-            modifier = Modifier.padding(horizontal = 22.dp, vertical = 14.dp),
-        )
-    }
+    TvTextActionButton(
+        text = text,
+        palette = palette,
+        focusRequester = focusRequester,
+        onClick = onClick,
+        enabled = enabled,
+        allowFocusWhenDisabled = true,
+        colors = TvUiDefaults.chipActionColors(
+            palette = palette,
+            backgroundAlpha = 1f,
+            borderAlpha = 0.75f,
+        ),
+        paddingValues = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
+        unfocusedBorderWidth = 0.dp,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Normal,
+        onDown = {
+            requestWatchingFocus(downRequester)
+        },
+    )
 }
 
 @Composable

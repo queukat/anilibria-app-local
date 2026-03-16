@@ -21,6 +21,7 @@ import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.common.PlayerQuality
 import ru.radiationx.data.entity.domain.release.Episode
 import ru.radiationx.data.entity.domain.release.Release
+import ru.radiationx.data.entity.domain.release.isNearEpisodeEnd
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import timber.log.Timber
@@ -72,6 +73,7 @@ class PlayerViewModel @Inject constructor(
 
     private var currentDuration: Long = 0L
     private var currentComplete: Boolean = false
+    private var promptedForCompletedResumeEpisodeId: EpisodeId? = null
 
     private var currentQuality: PlayerQuality = preferencesHolder.playerQuality.value
     private var currentSpeed: Float = preferencesHolder.playSpeed.value
@@ -207,13 +209,21 @@ class PlayerViewModel @Inject constructor(
 
         viewModelScope.launch {
             val accessSeek = _videoData.value?.seek ?: tvPlayerFacade.getLocalEpisodeSeek(episode.id)
-            val completedSeek = duration > 0L && accessSeek >= duration
-            currentComplete = false
+            val completedSeek = isNearEpisodeEnd(
+                positionMs = accessSeek,
+                durationMs = duration,
+            )
+            currentComplete = completedSeek
 
             if (completedSeek) {
-                emitCommand(PlayerCommand.Seek(0L))
                 emitCommand(PlayerCommand.Pause)
+                if (promptedForCompletedResumeEpisodeId != episode.id) {
+                    promptedForCompletedResumeEpisodeId = episode.id
+                    val release = getCurrentRelease() ?: return@launch
+                    openEndGuidedScreen(release, episode)
+                }
             } else {
+                promptedForCompletedResumeEpisodeId = null
                 emitCommand(PlayerCommand.Play)
             }
         }
@@ -287,7 +297,10 @@ class PlayerViewModel @Inject constructor(
         val snapshot = EpisodeProgressSnapshot(
             episodeId = episode.id,
             position = position,
-            isWatched = currentComplete || (currentDuration > 0 && position >= currentDuration),
+            isWatched = currentComplete || isNearEpisodeEnd(
+                positionMs = position,
+                durationMs = currentDuration,
+            ),
         )
 
         viewModelScope.launch {
@@ -314,6 +327,9 @@ class PlayerViewModel @Inject constructor(
 
 
     private fun playEpisode(episode: Episode) {
+        promptedForCompletedResumeEpisodeId = null
+        currentComplete = false
+        currentDuration = 0L
         currentEpisode = episode
         currentRelease = currentReleases.firstOrNull { it.id == episode.id.releaseId } ?: currentReleases.firstOrNull()
         updateEpisode(force = true)
