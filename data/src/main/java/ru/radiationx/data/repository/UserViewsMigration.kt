@@ -19,6 +19,7 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReleaseEpisodeTimecode
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTimecodeUpsertBody
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
+import ru.radiationx.data.entity.domain.release.isNearEpisodeEnd
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.system.HttpException
@@ -396,16 +397,10 @@ class UserViewsMigration @Inject constructor(
         if (local.seek == 0L && local.lastAccessRaw <= 0L) return true
 
         val duration = durationMs ?: return false
-        if (duration <= 0L) return false
-
-        val tol = watchedToleranceMs(duration)
-        return local.seek >= (duration - tol)
-    }
-
-    private fun watchedToleranceMs(durationMs: Long): Long {
-        // 3% of duration, clamped to 5..20 seconds.
-        val percent = (durationMs * 0.03).roundToLong()
-        return minOf(WATCHED_TOLERANCE_MAX_MS, maxOf(WATCHED_TOLERANCE_MIN_MS, percent))
+        return isNearEpisodeEnd(
+            positionMs = local.seek,
+            durationMs = duration,
+        )
     }
 
     private fun safePosition(positionMs: Long): Long =
@@ -436,9 +431,6 @@ class UserViewsMigration @Inject constructor(
 
         private const val MIN_POSITION_TO_SYNC_MS: Long = 1_000L
         private const val MIN_REMOTE_ADVANCE_TO_UPSERT_MS: Long = 1_000L
-
-        private const val WATCHED_TOLERANCE_MIN_MS: Long = 5_000L
-        private const val WATCHED_TOLERANCE_MAX_MS: Long = 20_000L
 
         // Safety cap: should be way above any episode duration.
         private const val MAX_POSITION_MS: Long = 12L * 60L * 60L * 1000L // 12h

@@ -28,6 +28,7 @@ import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
+import ru.radiationx.data.entity.domain.release.isNearEpisodeEnd
 import kotlin.math.roundToLong
 
 /**
@@ -785,16 +786,10 @@ class UserViewsSyncInteractor @Inject constructor(
         if (access.seek <= 0L && access.lastAccessRaw <= 0L) return true
 
         val duration = durationMs ?: return false
-        if (duration <= 0L) return false
-
-        val tolerance = watchedToleranceMs(duration)
-        val threshold = (duration - tolerance).coerceAtLeast(0L)
-        return access.seek >= threshold
-    }
-
-    private fun watchedToleranceMs(durationMs: Long): Long {
-        val percent = (durationMs.toDouble() * WATCHED_TOLERANCE_PERCENT).roundToLong()
-        return percent.coerceIn(WATCHED_TOLERANCE_MIN_MS, WATCHED_TOLERANCE_MAX_MS)
+        return isNearEpisodeEnd(
+            positionMs = access.seek,
+            durationMs = duration,
+        )
     }
 
     private fun normalizeOrdinalString(value: String): String =
@@ -1027,10 +1022,6 @@ class UserViewsSyncInteractor @Inject constructor(
         private const val MIN_IMPORT_POSITION_MS = 5_000L
         private const val MIN_PROGRESS_DELTA_MS = 1_000L
         private const val REMOTE_TIMESTAMP_DRIFT_TOLERANCE_MS = 5_000L
-
-        private const val WATCHED_TOLERANCE_PERCENT = 0.03
-        private const val WATCHED_TOLERANCE_MIN_MS = 5_000L
-        private const val WATCHED_TOLERANCE_MAX_MS = 20_000L
 
         private val SIMPLE_DATE_PATTERNS = arrayOf(
             "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
