@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyAuthTokenResponse
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyOtpGetResponse
-import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyViewTimecode
+import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReleaseEpisodeTimecode
 import ru.radiationx.data.datasource.remote.aniliberty.moshi.AniLibertyMoshi
 
 class AniLibertyV1DocsSchemaParsingTest {
@@ -49,7 +49,8 @@ class AniLibertyV1DocsSchemaParsingTest {
     fun userViewTimecodes_parsesDocsTupleExample() {
         val json = """[["68d4d5c5-e3d5-419f-a21c-c511b6b251f5",743,true]]"""
 
-        val parsed: List<AniLibertyViewTimecode> = json.fetchListOrNestedList(moshi)
+        val parsed = AniLibertyJsonListParser
+            .fetchListOrNestedList<AniLibertyReleaseEpisodeTimecode>(json, moshi)
 
         assertEquals(1, parsed.size)
         assertEquals("68d4d5c5-e3d5-419f-a21c-c511b6b251f5", parsed.first().releaseEpisodeId.value)

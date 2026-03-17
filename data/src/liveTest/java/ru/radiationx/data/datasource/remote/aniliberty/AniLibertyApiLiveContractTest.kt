@@ -193,7 +193,7 @@ class AniLibertyApiLiveContractTest {
             json.trimStart().startsWith("{") -> "object"
             else -> "other"
         }
-        val parsed = parseScheduleWeekResponseJson(json, moshi)
+        val parsed = AniLibertyScheduleWeekPayloadParser.parse(json, moshi)
         val items = parsed.data.orEmpty()
         val prefix = json.take(256).replace("\n", " ")
 

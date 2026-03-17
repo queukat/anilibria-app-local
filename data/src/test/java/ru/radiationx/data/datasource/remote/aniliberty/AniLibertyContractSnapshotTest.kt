@@ -8,9 +8,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import ru.radiationx.data.entity.mapper.toLegacyReleaseOrNull
 import ru.radiationx.data.datasource.remote.aniliberty.moshi.AniLibertyMoshi
 import ru.radiationx.data.system.ApiUtils
+import ru.radiationx.data.entity.mapper.AniLibertyLegacyReleaseMapper
 
 class AniLibertyContractSnapshotTest {
 
@@ -20,7 +20,7 @@ class AniLibertyContractSnapshotTest {
     fun scheduleWeek_noArgsFixture_parsesFlatArrayOfObjects() {
         val json = loadResource("aniliberty/schedule_week_no_args.json")
 
-        val parsed = parseScheduleWeekResponseJson(json, moshi)
+        val parsed = AniLibertyScheduleWeekPayloadParser.parse(json, moshi)
 
         assertNotNull(parsed.data)
         assertFalse(parsed.data!!.isEmpty())
@@ -31,7 +31,7 @@ class AniLibertyContractSnapshotTest {
     fun scheduleWeek_withArgsFixture_parsesFlatArrayOfObjects() {
         val json = loadResource("aniliberty/schedule_week_with_args.json")
 
-        val parsed = parseScheduleWeekResponseJson(json, moshi)
+        val parsed = AniLibertyScheduleWeekPayloadParser.parse(json, moshi)
 
         assertNotNull(parsed.data)
         assertFalse(parsed.data!!.isEmpty())
@@ -42,7 +42,7 @@ class AniLibertyContractSnapshotTest {
     fun scheduleWeek_nestedArraysFixture_parsesAndNormalizesToFlatList() {
         val json = loadResource("aniliberty/schedule_week.json")
 
-        val parsed = parseScheduleWeekResponseJson(json, moshi)
+        val parsed = AniLibertyScheduleWeekPayloadParser.parse(json, moshi)
 
         assertNotNull(parsed.data)
         assertTrue(parsed.data!!.isEmpty() || parsed.data!!.all { it.release != null || it.nextReleaseEpisodeNumber != null })
@@ -52,7 +52,7 @@ class AniLibertyContractSnapshotTest {
     fun scheduleWeek_objectRootPayload_parsesCompatibly() {
         val json = """{"data":[{"next_release_episode_number":7}]}"""
 
-        val parsed = parseScheduleWeekResponseJson(json, moshi)
+        val parsed = AniLibertyScheduleWeekPayloadParser.parse(json, moshi)
 
         assertNotNull(parsed.data)
         assertFalse(parsed.data.isNullOrEmpty())
@@ -63,7 +63,7 @@ class AniLibertyContractSnapshotTest {
     fun scheduleWeek_unexpectedPayload_returnsSafeEmptyResult() {
         val json = """{"foo":"bar"}"""
 
-        val parsed = parseScheduleWeekResponseJson(json, moshi)
+        val parsed = AniLibertyScheduleWeekPayloadParser.parse(json, moshi)
 
         assertNotNull(parsed.data)
         assertTrue(parsed.data!!.isEmpty())
@@ -127,7 +127,11 @@ class AniLibertyContractSnapshotTest {
 
         val apiUtils = mockk<ApiUtils>()
         every { apiUtils.escapeHtml(any()) } answers { firstArg<String?>() }
-        val mapped = parsed!!.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val mapped = AniLibertyLegacyReleaseMapper.toLegacyReleaseOrNull(
+            parsed!!,
+            apiUtils,
+            false,
+        )
         assertNotNull(mapped)
         assertTrue(!mapped!!.series.isNullOrBlank())
     }

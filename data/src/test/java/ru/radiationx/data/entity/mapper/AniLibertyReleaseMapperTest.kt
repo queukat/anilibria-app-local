@@ -33,7 +33,7 @@ class AniLibertyReleaseMapperTest {
             latestEpisodeOrdinal = 3.0,
         )
 
-        val mapped = release.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val mapped = AniLibertyLegacyReleaseMapper.toLegacyReleaseOrNull(release, apiUtils, false)
 
         assertNotNull(mapped)
         assertEquals(10, mapped?.id?.id)
@@ -53,7 +53,7 @@ class AniLibertyReleaseMapperTest {
             latestEpisodeOrdinal = 7.0,
         )
 
-        val mapped = release.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val mapped = AniLibertyLegacyReleaseMapper.toLegacyReleaseOrNull(release, apiUtils, false)
 
         assertEquals("12", mapped?.series)
     }
@@ -67,7 +67,7 @@ class AniLibertyReleaseMapperTest {
             latestEpisodeOrdinal = 5.0,
         )
 
-        val mapped = release.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val mapped = AniLibertyLegacyReleaseMapper.toLegacyReleaseOrNull(release, apiUtils, false)
 
         assertEquals("5", mapped?.series)
     }
@@ -82,7 +82,7 @@ class AniLibertyReleaseMapperTest {
             episodeOrdinals = listOf(1.0, 2.0, 4.0),
         )
 
-        val mapped = release.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val mapped = AniLibertyLegacyReleaseMapper.toLegacyReleaseOrNull(release, apiUtils, false)
 
         assertEquals("4 из 12", mapped?.series)
     }
@@ -97,7 +97,7 @@ class AniLibertyReleaseMapperTest {
             episodeOrdinals = emptyList(),
         )
 
-        val mapped = release.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val mapped = AniLibertyLegacyReleaseMapper.toLegacyReleaseOrNull(release, apiUtils, false)
 
         assertNull(mapped?.series)
     }
@@ -149,7 +149,12 @@ class AniLibertyReleaseMapperTest {
             ),
         )
 
-        val mapped = release.toLegacyFullReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val mapped = AniLibertyLegacyReleaseMapper.toLegacyFullReleaseOrNull(
+            release,
+            apiUtils,
+            false,
+            emptyList(),
+        )
         val episodes = mapped?.episodes.orEmpty()
 
         assertEquals(listOf("1", "2"), episodes.map { it.id.id })
@@ -185,7 +190,12 @@ class AniLibertyReleaseMapperTest {
             ),
         )
 
-        val mapped = release.toLegacyFullReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val mapped = AniLibertyLegacyReleaseMapper.toLegacyFullReleaseOrNull(
+            release,
+            apiUtils,
+            false,
+            emptyList(),
+        )
         val episodes = mapped?.episodes.orEmpty()
 
         assertEquals(1, episodes.size)
@@ -202,7 +212,7 @@ class AniLibertyReleaseMapperTest {
             latestEpisodeOrdinal = 333.0,
         )
 
-        val mapped = release.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val mapped = AniLibertyLegacyReleaseMapper.toLegacyReleaseOrNull(release, apiUtils, false)
 
         assertEquals(Release.STATUS_CODE_PROGRESS, mapped?.statusCode)
         assertEquals("333 из 366", mapped?.series)
@@ -218,7 +228,7 @@ class AniLibertyReleaseMapperTest {
             episodeOrdinals = emptyList(),
         )
 
-        val mapped = release.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val mapped = AniLibertyLegacyReleaseMapper.toLegacyReleaseOrNull(release, apiUtils, false)
 
         assertEquals(Release.STATUS_CODE_NOT_ONGOING, mapped?.statusCode)
     }
@@ -233,7 +243,7 @@ class AniLibertyReleaseMapperTest {
             episodeOrdinals = emptyList(),
         )
 
-        val mapped = release.toLegacyReleaseOrNull(apiUtils = apiUtils, isFavorite = false)
+        val mapped = AniLibertyLegacyReleaseMapper.toLegacyReleaseOrNull(release, apiUtils, false)
 
         assertEquals(Release.STATUS_CODE_COMPLETE, mapped?.statusCode)
     }

@@ -48,3 +48,17 @@ internal fun parseScheduleWeekResponseJson(
     onUnsupportedPayload?.invoke(parseError)
     return AniLibertyScheduleWeekResponse(data = emptyList())
 }
+
+object AniLibertyScheduleWeekPayloadParser {
+    fun parse(
+        json: String,
+        moshi: Moshi,
+        onUnsupportedPayload: ((Throwable?) -> Unit)? = null,
+    ): AniLibertyScheduleWeekResponse {
+        return parseScheduleWeekResponseJson(
+            json = json,
+            moshi = moshi,
+            onUnsupportedPayload = onUnsupportedPayload,
+        )
+    }
+}

@@ -197,9 +197,33 @@ fun AniLibertyRelease.toLegacyFullReleaseOrNull(
     )
 }
 
+object AniLibertyLegacyReleaseMapper {
+    fun toLegacyReleaseOrNull(
+        release: AniLibertyRelease,
+        apiUtils: ApiUtils,
+        isFavorite: Boolean = true,
+    ): Release? = release.toLegacyReleaseOrNull(
+        apiUtils = apiUtils,
+        isFavorite = isFavorite,
+    )
+
+    fun toLegacyFullReleaseOrNull(
+        release: AniLibertyRelease,
+        apiUtils: ApiUtils,
+        isFavorite: Boolean = true,
+        franchises: List<Franchise> = emptyList(),
+    ): Release? = release.toLegacyFullReleaseOrNull(
+        apiUtils = apiUtils,
+        isFavorite = isFavorite,
+        franchises = franchises,
+    )
+}
+
 private fun formatEpisodeOrdinal(value: Double): String {
     return BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
 }
+
+private fun Int.toEpochDate(): Date = Date(toLong() * 1000L)
 
 private fun resolveLegacyStatusCode(
     isOngoing: Boolean?,
@@ -357,7 +381,7 @@ private fun AniLibertyEpisode.toLegacyEpisodeOrNull(
         id = episodeId,
         title = toCombinedTitle(apiUtils),
         qualityInfo = quality,
-        updatedAt = parseIsoToEpochSeconds(updatedAt).takeIf { it > 0 }?.secToDate(),
+        updatedAt = parseIsoToEpochSeconds(updatedAt).takeIf { it > 0 }?.toEpochDate(),
         skips = toSkipsOrNull(),
     )
 }
@@ -378,7 +402,7 @@ private fun AniLibertyEpisode.toLegacySourceEpisodeOrNull(
     return SourceEpisode(
         id = episodeId,
         title = toCombinedTitle(apiUtils),
-        updatedAt = parseIsoToEpochSeconds(updatedAt).takeIf { it > 0 }?.secToDate(),
+        updatedAt = parseIsoToEpochSeconds(updatedAt).takeIf { it > 0 }?.toEpochDate(),
         qualityInfo = quality,
     )
 }
@@ -393,7 +417,7 @@ private fun AniLibertyEpisode.toLegacyRutubeEpisodeOrNull(
     return RutubeEpisode(
         id = episodeId,
         title = toCombinedTitle(apiUtils),
-        updatedAt = parseIsoToEpochSeconds(updatedAt).takeIf { it > 0 }?.secToDate(),
+        updatedAt = parseIsoToEpochSeconds(updatedAt).takeIf { it > 0 }?.toEpochDate(),
         rutubeId = rutube,
         url = "https://rutube.ru/play/embed/$rutube",
     )
@@ -486,6 +510,6 @@ private fun AniLibertyTorrent.toLegacyTorrentOrNull(releaseId: ReleaseId): Torre
         series = seriesText,
         size = size ?: 0L,
         url = magnet?.trim()?.takeIf { it.isNotEmpty() },
-        date = epoch?.secToDate(),
+        date = epoch?.toEpochDate(),
     )
 }

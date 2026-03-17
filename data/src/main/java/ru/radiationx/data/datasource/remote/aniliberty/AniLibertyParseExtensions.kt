@@ -15,3 +15,10 @@ inline fun <reified T> String.fetchListOrNestedList(moshi: Moshi): List<T> {
     val nested = nestedAdapter.fromJson(this) ?: emptyList()
     return nested.flatten()
 }
+
+object AniLibertyJsonListParser {
+    inline fun <reified T> fetchListOrNestedList(
+        json: String,
+        moshi: Moshi,
+    ): List<T> = json.fetchListOrNestedList(moshi)
+}
