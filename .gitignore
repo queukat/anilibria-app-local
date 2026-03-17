@@ -153,3 +153,4 @@ fabric.properties
 /app-tv/anilibria_tv_release.jks
 .android
 /.gradle-user-home/
+gradle/gradle-daemon-jvm.properties
