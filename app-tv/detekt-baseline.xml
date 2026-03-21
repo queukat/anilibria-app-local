@@ -102,7 +102,6 @@
     <ID>NewLineAtEndOfFile:MotionLayoutListener.kt$ru.radiationx.anilibria.common.MotionLayoutListener.kt</ID>
     <ID>NewLineAtEndOfFile:NavigationModule.kt$ru.radiationx.anilibria.di.NavigationModule.kt</ID>
     <ID>NewLineAtEndOfFile:PlayerModule.kt$ru.radiationx.anilibria.di.PlayerModule.kt</ID>
-    <ID>NewLineAtEndOfFile:PlayerSpeedGuidedFragment.kt$ru.radiationx.anilibria.screen.player.speed.PlayerSpeedGuidedFragment.kt</ID>
     <ID>NewLineAtEndOfFile:QualityAction.kt$ru.radiationx.anilibria.screen.player.QualityAction.kt</ID>
     <ID>NewLineAtEndOfFile:ReleaseDetailsPresenter.kt$ru.radiationx.anilibria.ui.presenter.ReleaseDetailsPresenter.kt</ID>
     <ID>NewLineAtEndOfFile:RowDiffCallback.kt$ru.radiationx.anilibria.common.RowDiffCallback.kt</ID>

@@ -4,29 +4,25 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,15 +52,22 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import ru.radiationx.anilibria.R
+import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
+import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
+import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
+import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
+import ru.radiationx.anilibria.ui.compose.tvPanelSurface
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
+import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.data.entity.domain.updater.UpdateData
 
 private const val MIN_SCROLLBAR_THUMB_HEIGHT_PX = 18
+private const val UPDATE_CONTENT_MAX_WIDTH = 980
 
 @Composable
 internal fun UpdateScreen(
@@ -81,7 +84,7 @@ internal fun UpdateScreen(
 
     LaunchedEffect(focusRequestToken, isInitialLoading) {
         if (!isInitialLoading && focusRequestToken > 0) {
-            actionRequester.requestFocus()
+            requestWatchingFocusAfterAttach(actionRequester)
         }
     }
 
@@ -89,72 +92,59 @@ internal fun UpdateScreen(
         modifier = Modifier
             .fillMaxSize()
             .tvAppBackground(palette)
-            .padding(horizontal = 16.dp, vertical = 20.dp),
+            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
-        if (isInitialLoading) {
-            CircularProgressIndicator(
-                color = palette.textColor,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(56.dp),
-            )
-        } else {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Text(
-                            text = "Обновление",
-                            color = palette.textColor,
-                            fontSize = 30.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        val versionLine = buildString {
-                            updateData?.name?.takeIf { it.isNotBlank() }?.also {
-                                append(it)
-                            }
-                            updateData?.date?.takeIf { it.isNotBlank() }?.also {
-                                if (isNotEmpty()) append(" • ")
-                                append(it)
-                            }
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(TvPageHeaderSpacing),
+        ) {
+            TvPageHeader(
+                title = "Обновление",
+                subtitle = when {
+                    isInitialLoading -> "Проверяем наличие новой версии и готовим заметки к релизу."
+                    updateData?.hasUpdate == true -> buildString {
+                        append("Новая версия")
+                        updateData.name?.takeIf { it.isNotBlank() }?.also {
+                            append(" ")
+                            append(it)
                         }
-                        if (versionLine.isNotBlank()) {
-                            Text(
-                                text = versionLine,
-                                color = palette.secondaryTextColor,
-                                fontSize = 15.sp,
-                            )
+                        updateData.date?.takeIf { it.isNotBlank() }?.also {
+                            append(" • ")
+                            append(it)
                         }
                     }
+                    updateData != null -> "Клиент уже обновлён. Здесь останутся заметки к релизу и история изменений."
+                    else -> "Не удалось получить данные об обновлении. Проверьте информацию немного позже."
+                },
+                palette = palette,
+                trailingContent = {
+                    if (!isInitialLoading) {
+                        UpdateActionButton(
+                            text = if (isDownloading) "Отмена" else "Установить",
+                            palette = palette,
+                            focusRequester = actionRequester,
+                            downRequester = notesRequester,
+                            enabled = updateData?.hasUpdate == true || isDownloading,
+                            onClick = onActionClick,
+                        )
+                    }
+                },
+            )
 
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    UpdateActionButton(
-                        text = if (isDownloading) "Отмена" else "Установить",
-                        palette = palette,
-                        focusRequester = actionRequester,
-                        downRequester = notesRequester,
-                        enabled = updateData?.hasUpdate == true || isDownloading,
-                        onClick = onActionClick,
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = isDownloading,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
+            AnimatedVisibility(
+                visible = isDownloading,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.TopCenter,
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = UPDATE_CONTENT_MAX_WIDTH.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
@@ -173,21 +163,45 @@ internal fun UpdateScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp)
-                                .clip(RoundedCornerShape(999.dp)),
+                                .background(
+                                    color = palette.textColor.copy(alpha = 0.12f),
+                                    shape = RoundedCornerShape(999.dp),
+                                ),
                             color = palette.textColor,
                             trackColor = palette.textColor.copy(alpha = 0.12f),
                         )
                     }
                 }
+            }
 
-                UpdateNotesCard(
-                    updateData = updateData,
-                    palette = palette,
-                    focusRequester = notesRequester,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                if (isInitialLoading) {
+                    TvContentStatePanel(
+                        title = "Проверяем обновление",
+                        subtitle = "Подождите немного: версия, заметки к релизу и основное действие появятся здесь автоматически.",
+                        palette = palette,
+                        loading = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = UPDATE_CONTENT_MAX_WIDTH.dp),
+                    )
+                } else {
+                    UpdateNotesCard(
+                        updateData = updateData,
+                        palette = palette,
+                        focusRequester = notesRequester,
+                        upRequester = actionRequester,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = UPDATE_CONTENT_MAX_WIDTH.dp)
+                            .fillMaxHeight(),
+                    )
+                }
             }
         }
     }
@@ -209,15 +223,16 @@ private fun UpdateActionButton(
         onClick = onClick,
         enabled = enabled,
         allowFocusWhenDisabled = true,
-        colors = TvUiDefaults.chipActionColors(
+        minWidth = 196.dp,
+        colors = TvUiDefaults.accentActionColors(
             palette = palette,
-            backgroundAlpha = 1f,
-            borderAlpha = 0.75f,
+            backgroundAlpha = 0.20f,
+            focusedBackgroundAlpha = 0.30f,
+            borderAlpha = 0.86f,
         ),
-        paddingValues = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
-        unfocusedBorderWidth = 0.dp,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.Normal,
+        paddingValues = PaddingValues(horizontal = 22.dp, vertical = 15.dp),
+        fontSize = 17.sp,
+        fontWeight = FontWeight.Medium,
         onDown = {
             requestWatchingFocus(downRequester)
         },
@@ -229,6 +244,7 @@ private fun UpdateNotesCard(
     updateData: UpdateData?,
     palette: ru.radiationx.anilibria.screen.watching.WatchingPalette,
     focusRequester: FocusRequester,
+    upRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -238,15 +254,17 @@ private fun UpdateNotesCard(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(palette.surfaceColor.copy(alpha = 0.78f))
-            .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) palette.textColor.copy(alpha = 0.75f) else Color.Transparent,
-                shape = RoundedCornerShape(10.dp),
+            .tvPanelSurface(
+                TvUiDefaults.screenPanelStyle(
+                    palette = palette,
+                    focused = isFocused,
+                )
             )
             .onFocusChanged { isFocused = it.isFocused }
             .focusRequester(focusRequester)
+            .focusProperties {
+                up = upRequester
+            }
             .focusable()
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown || viewportHeightPx <= 0) {
@@ -264,7 +282,7 @@ private fun UpdateNotesCard(
                     true
                 }
             }
-            .padding(18.dp),
+            .padding(TvUiDefaults.ScreenPanelPadding),
     ) {
         Box(
             modifier = Modifier

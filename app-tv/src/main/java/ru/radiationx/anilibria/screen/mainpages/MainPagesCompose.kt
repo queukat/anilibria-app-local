@@ -64,6 +64,7 @@ import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
+import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import ru.radiationx.data.entity.domain.types.ReleaseId
 
 internal data class MainShellItem(
@@ -109,7 +110,7 @@ internal fun MainPagesRoot(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(palette.backgroundColor)
+            .tvAppBackground(palette, glowAlpha = 0.22f)
     ) {
         Box(
             modifier = Modifier
@@ -173,7 +174,7 @@ internal fun MainPagesHeader(
     onRequestContentFocus: () -> Boolean,
     onFocused: (MainHeaderAction) -> Unit,
 ) {
-    val surfaceColor = colorResource(R.color.dark_colorPrimary)
+    val palette = rememberWatchingPalette()
     val textColor = colorResource(R.color.dark_textDefault)
     val secondaryTextColor = colorResource(R.color.dark_textSecond)
     val actionBackground = colorResource(R.color.dark_release_day_btn).copy(alpha = 0.92f)
@@ -199,41 +200,46 @@ internal fun MainPagesHeader(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(surfaceColor.copy(alpha = 0.96f))
+            .background(TvUiDefaults.shellHeaderBrush(palette))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 10.dp),
+                .padding(TvUiDefaults.ShellHeaderPadding),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(accentColor.copy(alpha = 0.18f))
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(accentColor.copy(alpha = 0.20f))
+                    .border(
+                        width = 1.dp,
+                        color = accentColor.copy(alpha = 0.32f),
+                        shape = RoundedCornerShape(22.dp),
+                    )
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Image(
                     painter = painterResource(R.drawable.ic_anilibria_splash),
                     contentDescription = null,
-                    modifier = Modifier.width(20.dp),
+                    modifier = Modifier.width(22.dp),
                 )
             }
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = "AniLibria",
+                    text = "AniLibria TV",
                     color = secondaryTextColor,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                 )
                 Text(
                     text = selectedPageTitle,
                     color = textColor,
-                    fontSize = 20.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
@@ -295,6 +301,7 @@ internal fun MainPagesShell(
     onRequestHeaderFocus: () -> Boolean,
     onRequestContentFocus: () -> Boolean,
 ) {
+    val palette = rememberWatchingPalette()
     val surfaceColor = colorResource(R.color.dark_colorPrimary)
     val accentColor = colorResource(R.color.dark_colorAccent)
     val textColor = colorResource(R.color.dark_textDefault)
@@ -326,32 +333,24 @@ internal fun MainPagesShell(
         modifier = Modifier
             .fillMaxSize()
             .offset { IntOffset(x = panelOffset.roundToPx(), y = 0) }
-            .clip(RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp))
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        surfaceColor.copy(alpha = 0.98f),
-                        surfaceColor.copy(alpha = 0.94f),
-                        surfaceColor.copy(alpha = 0.9f),
-                    )
-                )
-            )
+            .clip(TvUiDefaults.ShellRailShape)
+            .background(TvUiDefaults.shellRailBrush(palette))
             .border(
                 width = 1.dp,
                 color = textColor.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
+                shape = TvUiDefaults.ShellRailShape,
             )
     ) {
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
-                .width(40.dp)
+                .width(42.dp)
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            accentColor.copy(alpha = 0.26f),
-                            accentColor.copy(alpha = 0.12f),
+                            accentColor.copy(alpha = 0.28f),
+                            accentColor.copy(alpha = 0.14f),
                             Color.Transparent,
                         )
                     )
@@ -360,7 +359,7 @@ internal fun MainPagesShell(
         ) {
             Column(
                 modifier = Modifier
-                    .padding(top = 26.dp)
+                    .padding(top = 28.dp)
                     .width(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -382,13 +381,14 @@ internal fun MainPagesShell(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .padding(start = 20.dp, top = 28.dp, end = 52.dp, bottom = 28.dp),
+                .padding(TvUiDefaults.ShellRailPadding),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
                 text = "Разделы",
                 color = secondaryTextColor,
-                fontSize = 13.sp,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(start = 6.dp),
             )
 
@@ -451,10 +451,11 @@ private fun HeaderActionButton(
         onClick = onClick,
         onDown = onDown,
         onFocused = onFocused,
-        modifier = Modifier.width(156.dp),
+        modifier = Modifier,
         focusRequester = focusRequester,
-        horizontalPadding = 16.dp,
-        verticalPadding = 10.dp,
+        horizontalPadding = 18.dp,
+        verticalPadding = 11.dp,
+        minWidth = 160.dp,
         textAlign = TextAlign.Center,
     )
 }
@@ -488,7 +489,11 @@ private fun RailPageButton(
         text = text,
         enabled = enabled,
         backgroundColor = if (selected) selectedColor else backgroundColor,
-        focusedBackgroundColor = if (selected) selectedColor else secondaryTextColor.copy(alpha = 0.12f),
+        focusedBackgroundColor = if (selected) {
+            selectedColor
+        } else {
+            secondaryTextColor.copy(alpha = 0.18f)
+        },
         textColor = textColor,
         borderColor = borderColor,
         onClick = onFocused,
@@ -497,8 +502,8 @@ private fun RailPageButton(
         onRight = onRight,
         modifier = Modifier.fillMaxWidth(),
         focusRequester = focusRequester,
-        horizontalPadding = 16.dp,
-        verticalPadding = 14.dp,
+        horizontalPadding = 18.dp,
+        verticalPadding = 15.dp,
         minWidth = 0.dp,
         selected = selected,
     )
@@ -546,16 +551,16 @@ private fun ShellFocusableButton(
             horizontal = horizontalPadding,
             vertical = verticalPadding,
         ),
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.fillMaxWidth(),
-            color = textColor,
-            fontSize = 17.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            textAlign = textAlign,
-        )
-    }
+        ) {
+            Text(
+                text = text,
+                modifier = Modifier.fillMaxWidth(),
+                color = textColor,
+                fontSize = 18.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                textAlign = textAlign,
+            )
+        }
 }
 
 @Preview(

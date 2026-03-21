@@ -26,11 +26,9 @@ internal data class PlayerControlsLayoutSpec(
     val controlsHorizontalPadding: Dp,
     val controlsBottomPadding: Dp,
     val rowsTopPadding: Dp,
-    val groupSpacing: Dp,
+    val rowsVerticalSpacing: Dp,
     val primaryRowSpacing: Dp,
     val secondaryRowSpacing: Dp,
-    val primaryButtons: List<PlayerControlButtonId>,
-    val secondaryButtons: List<PlayerControlButtonId>,
     val buttonLayouts: Map<PlayerControlButtonId, PlayerActionButtonLayout>,
 ) {
     fun button(id: PlayerControlButtonId): PlayerActionButtonLayout = buttonLayouts.getValue(id)
@@ -61,157 +59,95 @@ internal enum class PlayerControlButtonId {
     AspectRatio,
 }
 
-internal object PlayerControlsLayoutPresets {
-    private val transportIconButtonLayout = PlayerActionButtonLayout(
-        minWidth = 48.dp,
-        horizontalPadding = 8.dp,
-        verticalPadding = 8.dp,
-        iconSize = 18.dp,
-    )
+private val transportIconButtonLayout = PlayerActionButtonLayout(
+    minWidth = 64.dp,
+    horizontalPadding = 12.dp,
+    verticalPadding = 11.dp,
+    iconSize = 18.dp,
+)
 
-    // Edit these presets and inspect the previews below when you want to compare
-    // widths, spacing and button order without launching the TV app.
-    val Runtime = PlayerControlsLayoutSpec(
-        panelWidthFraction = 1f,
-        progressHorizontalPadding = 22.dp,
-        progressVerticalPadding = 16.dp,
-        controlsHorizontalPadding = 22.dp,
-        controlsBottomPadding = 18.dp,
-        rowsTopPadding = 16.dp,
-        groupSpacing = 20.dp,
-        primaryRowSpacing = 12.dp,
-        secondaryRowSpacing = 8.dp,
-        primaryButtons = listOf(
-            PlayerControlButtonId.Previous,
-            PlayerControlButtonId.SeekBack,
-            PlayerControlButtonId.PlayPause,
-            PlayerControlButtonId.SeekForward,
-            PlayerControlButtonId.Next,
+internal val PlayerControlsRuntimeLayout = PlayerControlsLayoutSpec(
+    panelWidthFraction = 1f,
+    progressHorizontalPadding = 0.dp,
+    progressVerticalPadding = 0.dp,
+    controlsHorizontalPadding = 20.dp,
+    controlsBottomPadding = 20.dp,
+    rowsTopPadding = 18.dp,
+    rowsVerticalSpacing = 16.dp,
+    primaryRowSpacing = 10.dp,
+    secondaryRowSpacing = 12.dp,
+    buttonLayouts = mapOf(
+        PlayerControlButtonId.Previous to transportIconButtonLayout,
+        PlayerControlButtonId.SeekBack to transportIconButtonLayout,
+        PlayerControlButtonId.PlayPause to PlayerActionButtonLayout(
+            minWidth = 72.dp,
+            horizontalPadding = 14.dp,
+            verticalPadding = 11.dp,
+            iconSize = 20.dp,
         ),
-        secondaryButtons = listOf(
-            PlayerControlButtonId.Episodes,
-            PlayerControlButtonId.Speed,
-            PlayerControlButtonId.Quality,
-            PlayerControlButtonId.AspectRatio,
+        PlayerControlButtonId.SeekForward to transportIconButtonLayout,
+        PlayerControlButtonId.Next to transportIconButtonLayout,
+        PlayerControlButtonId.Episodes to PlayerActionButtonLayout(
+            minWidth = 88.dp,
+            horizontalPadding = 14.dp,
+            verticalPadding = 11.dp,
+            iconSize = 18.dp,
+            textFontSize = 15.sp,
         ),
-        buttonLayouts = mapOf(
-            PlayerControlButtonId.Previous to transportIconButtonLayout,
-            PlayerControlButtonId.SeekBack to transportIconButtonLayout,
-            PlayerControlButtonId.PlayPause to transportIconButtonLayout,
-            PlayerControlButtonId.SeekForward to transportIconButtonLayout,
-            PlayerControlButtonId.Next to transportIconButtonLayout,
-            PlayerControlButtonId.Episodes to PlayerActionButtonLayout(
-                minWidth = 92.dp,
-                horizontalPadding = 10.dp,
-                verticalPadding = 9.dp,
-                iconSize = 18.dp,
-                textFontSize = 15.sp,
-            ),
-            PlayerControlButtonId.Speed to PlayerActionButtonLayout(
-                minWidth = 88.dp,
-                horizontalPadding = 10.dp,
-                verticalPadding = 9.dp,
-                iconSize = 18.dp,
-                textFontSize = 15.sp,
-            ),
-            PlayerControlButtonId.Quality to PlayerActionButtonLayout(
-                minWidth = 86.dp,
-                horizontalPadding = 10.dp,
-                verticalPadding = 9.dp,
-                textFontSize = 15.sp,
-            ),
-            PlayerControlButtonId.AspectRatio to PlayerActionButtonLayout(
-                minWidth = 108.dp,
-                horizontalPadding = 10.dp,
-                verticalPadding = 9.dp,
-                textFontSize = 15.sp,
-            ),
+        PlayerControlButtonId.Speed to PlayerActionButtonLayout(
+            minWidth = 88.dp,
+            horizontalPadding = 14.dp,
+            verticalPadding = 11.dp,
+            iconSize = 18.dp,
+            textFontSize = 15.sp,
         ),
-    )
-
-    val Compact = Runtime.copy(
-        panelWidthFraction = 0.86f,
-        groupSpacing = 16.dp,
-        primaryRowSpacing = 10.dp,
-        secondaryRowSpacing = 6.dp,
-        buttonLayouts = Runtime.buttonLayouts +
-            mapOf(
-                PlayerControlButtonId.Episodes to Runtime.button(PlayerControlButtonId.Episodes).copy(
-                    minWidth = 84.dp,
-                    horizontalPadding = 8.dp,
-                ),
-                PlayerControlButtonId.Speed to Runtime.button(PlayerControlButtonId.Speed).copy(
-                    minWidth = 82.dp,
-                    horizontalPadding = 8.dp,
-                ),
-                PlayerControlButtonId.Quality to Runtime.button(PlayerControlButtonId.Quality).copy(
-                    minWidth = 80.dp,
-                    horizontalPadding = 8.dp,
-                ),
-                PlayerControlButtonId.AspectRatio to Runtime.button(PlayerControlButtonId.AspectRatio).copy(
-                    minWidth = 96.dp,
-                    horizontalPadding = 8.dp,
-                ),
-            ),
-    )
-
-    val Balanced = Runtime.copy(
-        panelWidthFraction = 0.90f,
-        groupSpacing = 24.dp,
-        primaryRowSpacing = 14.dp,
-        secondaryRowSpacing = 10.dp,
-        secondaryButtons = listOf(
-            PlayerControlButtonId.Episodes,
-            PlayerControlButtonId.Quality,
-            PlayerControlButtonId.Speed,
-            PlayerControlButtonId.AspectRatio,
+        PlayerControlButtonId.Quality to PlayerActionButtonLayout(
+            minWidth = 88.dp,
+            horizontalPadding = 14.dp,
+            verticalPadding = 11.dp,
+            textFontSize = 15.sp,
         ),
-        buttonLayouts = Runtime.buttonLayouts +
-            mapOf(
-                PlayerControlButtonId.Episodes to Runtime.button(PlayerControlButtonId.Episodes).copy(
-                    minWidth = 104.dp,
-                ),
-                PlayerControlButtonId.Speed to Runtime.button(PlayerControlButtonId.Speed).copy(
-                    minWidth = 92.dp,
-                ),
-                PlayerControlButtonId.Quality to Runtime.button(PlayerControlButtonId.Quality).copy(
-                    minWidth = 92.dp,
-                ),
-                PlayerControlButtonId.AspectRatio to Runtime.button(PlayerControlButtonId.AspectRatio).copy(
-                    minWidth = 116.dp,
-                ),
-            ),
-    )
-}
+        PlayerControlButtonId.AspectRatio to PlayerActionButtonLayout(
+            minWidth = 100.dp,
+            horizontalPadding = 14.dp,
+            verticalPadding = 11.dp,
+            textFontSize = 15.sp,
+        ),
+    ),
+)
 
 internal object PlayerOverlayUiDefaults {
-    val ControlsPanelShape = RoundedCornerShape(24.dp)
+    val ControlsPanelShape = RoundedCornerShape(18.dp)
+    val ProgressSurfaceShape = RoundedCornerShape(12.dp)
     val LoadingPanelShape = RoundedCornerShape(22.dp)
     val ProgressBarShape = RoundedCornerShape(percent = 50)
-    val ActionButtonContentSpacing = 6.dp
-    val ProgressSurfacePadding = PaddingValues(horizontal = 7.dp, vertical = 10.dp)
-    val CompactControlPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-    val PickerPanelPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)
+    val ActionButtonContentSpacing = 8.dp
+    val ProgressSurfacePadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+    val CompactControlPadding = PaddingValues(horizontal = 18.dp, vertical = 13.dp)
+    val PickerPanelPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)
     val LoadingPanelPadding = PaddingValues(horizontal = 26.dp, vertical = 18.dp)
     val QuickActionsRowHorizontalPadding = 6.dp
     val QuickActionsRowSpacing = 12.dp
     val PickerSectionSpacing = 12.dp
     val PickerOptionSpacing = 10.dp
     val PickerIndicatorSpacing = 10.dp
-    val ProgressContentSpacing = 6.dp
-    val ProgressTrackHeight = 7.dp
-    val ProgressBufferedTrackHeight = 5.dp
-    val PickerMinWidth = 240.dp
-    val PickerMaxWidth = 300.dp
-    val PickerIndicatorSize = 10.dp
+    val ProgressContentSpacing = 12.dp
+    val ProgressTrackHeight = 6.dp
+    val ProgressBufferedTrackHeight = 6.dp
+    val PickerMinWidth = 264.dp
+    val PickerMaxWidth = 340.dp
+    val PickerIndicatorSize = 12.dp
+    val ProgressTimeWidth = 78.dp
     val LoadingIndicatorSize = 22.dp
     val LoadingIndicatorStrokeWidth = 2.dp
+    const val PlayerFocusScale = 1f
+    val PlayerFocusShadowElevation = 0.dp
 
     fun controlsPanelStyle(palette: WatchingPalette): PlayerPanelSurfaceStyle {
         return PlayerPanelSurfaceStyle(
             shape = ControlsPanelShape,
-            backgroundColor = Color.Black.copy(alpha = 0.82f),
-            borderColor = palette.textColor.copy(alpha = 0.14f),
+            backgroundColor = Color.Black.copy(alpha = 0.86f),
+            borderColor = palette.textColor.copy(alpha = 0.12f),
         )
     }
 
@@ -233,8 +169,8 @@ internal object PlayerOverlayUiDefaults {
 
     fun progressSurfaceColors(palette: WatchingPalette): PlayerFocusableSurfaceColors {
         return PlayerFocusableSurfaceColors(
-            backgroundColor = palette.surfaceColor.copy(alpha = 0.88f),
-            focusedBackgroundColor = palette.surfaceColor,
+            backgroundColor = Color.White.copy(alpha = 0.03f),
+            focusedBackgroundColor = Color.White.copy(alpha = 0.08f),
             borderColor = palette.accentColor.copy(alpha = 0.92f),
         )
     }
@@ -251,9 +187,9 @@ internal object PlayerOverlayUiDefaults {
             )
         } else {
             PlayerFocusableSurfaceColors(
-                backgroundColor = palette.chipColor.copy(alpha = 0.86f),
-                focusedBackgroundColor = palette.chipColor,
-                borderColor = palette.textColor.copy(alpha = 0.74f),
+                backgroundColor = Color.White.copy(alpha = 0.06f),
+                focusedBackgroundColor = Color.White.copy(alpha = 0.12f),
+                borderColor = palette.textColor.copy(alpha = 0.78f),
             )
         }
     }

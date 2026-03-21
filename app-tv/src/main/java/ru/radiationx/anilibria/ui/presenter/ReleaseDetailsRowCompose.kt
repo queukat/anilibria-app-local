@@ -65,7 +65,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.PlatformTextStyle
@@ -145,7 +144,9 @@ internal fun ReleaseDetailsRowContent(
 
     val horizontalPadding = TvScreenHorizontalPadding
     val topPadding = TvPageVerticalPadding
-    val arrowBottomPadding = dimensionResource(androidx.leanback.R.dimen.lb_browse_padding_top)
+    val actionRowBottomPadding = topPadding + 20.dp
+    val bottomHintTopSpacing = 4.dp
+    val bottomHintBottomSpacing = 4.dp
 
     val textColor = colorResource(R.color.dark_textDefault)
     val secondaryTextColor = colorResource(R.color.dark_textSecond)
@@ -373,7 +374,7 @@ internal fun ReleaseDetailsRowContent(
                 modifier = Modifier
                     .constrainAs(actionsRow) {
                         start.linkTo(parent.start)
-                        bottom.linkTo(parent.bottom, margin = topPadding + 20.dp)
+                        bottom.linkTo(parent.bottom, margin = actionRowBottomPadding)
                     }
                     .alpha(if (progressState.loadingProgress) 0f else 1f),
             )
@@ -385,7 +386,7 @@ internal fun ReleaseDetailsRowContent(
                     modifier = Modifier
                         .size(24.dp)
                         .constrainAs(updateProgress) {
-                            bottom.linkTo(bottomArrow.top, margin = 12.dp)
+                            bottom.linkTo(actionsRow.top, margin = 12.dp)
                             start.linkTo(parent.start)
                             end.linkTo(parent.end)
                         }
@@ -400,7 +401,8 @@ internal fun ReleaseDetailsRowContent(
                     modifier = Modifier
                         .alpha(BOTTOM_ARROW_ALPHA)
                         .constrainAs(bottomArrow) {
-                            bottom.linkTo(parent.bottom, margin = arrowBottomPadding)
+                            top.linkTo(actionsRow.bottom, margin = bottomHintTopSpacing)
+                            bottom.linkTo(parent.bottom, margin = bottomHintBottomSpacing)
                             start.linkTo(parent.start)
                             end.linkTo(parent.end)
                         }
@@ -484,14 +486,20 @@ private fun AnnounceChip(
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(backgroundColor)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor.copy(alpha = 0.18f))
+            .border(
+                width = 1.dp,
+                color = backgroundColor.copy(alpha = 0.34f),
+                shape = RoundedCornerShape(12.dp),
+            )
+            .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
         Text(
             text = text,
             color = textColor,
-            fontSize = 15.sp,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
         )
     }
 }
@@ -595,22 +603,26 @@ private fun DescriptionCard(
 
         Box(
             modifier = modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(18.dp))
                 .background(backgroundColor)
                 .border(
-                    width = if (isFocused) 2.dp else 0.dp,
-                    color = if (isFocused) textColor.copy(alpha = 0.75f) else Color.Transparent,
-                    shape = RoundedCornerShape(12.dp),
+                    width = if (isFocused) 2.dp else 1.dp,
+                    color = if (isFocused) {
+                        textColor.copy(alpha = 0.75f)
+                    } else {
+                        textColor.copy(alpha = 0.08f)
+                    },
+                    shape = RoundedCornerShape(18.dp),
                 )
                 .onSizeChanged { viewportHeightPx = it.height }
                 .then(interactiveModifier)
-                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .padding(horizontal = 18.dp, vertical = 16.dp)
         ) {
             Text(
                 text = text,
-                color = textColor.copy(alpha = 0.8f),
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
+                color = textColor.copy(alpha = 0.9f),
+                fontSize = 17.sp,
+                lineHeight = 26.sp,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(end = if (scrollState.maxValue > 0) 10.dp else 0.dp)
@@ -734,15 +746,17 @@ private fun ActionChipButton(
         onDown = {
             requestFocus(downRequester)
         },
+        modifier = Modifier.heightIn(min = 54.dp),
         paddingValues = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 20.dp,
-            vertical = 14.dp,
+            horizontal = 22.dp,
+            vertical = 15.dp,
         ),
     ) {
         Text(
             text = text,
             color = textColor,
-            fontSize = 17.sp,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium,
         )
     }
 }
@@ -771,10 +785,10 @@ private fun IconChipButton(
         onDown = {
             requestFocus(downRequester)
         },
-        modifier = Modifier.heightIn(min = 48.dp),
+        modifier = Modifier.heightIn(min = 54.dp),
         paddingValues = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 18.dp,
-            vertical = 12.dp,
+            horizontal = 20.dp,
+            vertical = 14.dp,
         ),
     ) {
         Box(

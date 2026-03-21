@@ -40,6 +40,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -63,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
+import androidx.compose.animation.core.animateFloatAsState
 import ru.radiationx.anilibria.ui.compose.TvSelectionIndicator
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
@@ -584,6 +586,8 @@ internal fun WatchingFocusableSurface(
     focusedBorderWidth: Dp = TvUiDefaults.FocusedBorderWidth,
     unfocusedBorderWidth: Dp = TvUiDefaults.UnfocusedBorderWidth,
     unfocusedBorderColor: Color = Color.Transparent,
+    focusedScale: Float = TvUiDefaults.FocusedScale,
+    focusedShadowElevation: Dp = TvUiDefaults.FocusedShadowElevation,
     selected: Boolean = false,
     selectedBorderColor: Color = borderColor,
     selectedBorderWidth: Dp = focusedBorderWidth,
@@ -599,9 +603,24 @@ internal fun WatchingFocusableSurface(
     var isFocused by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     val canFocus = enabled || allowFocusWhenDisabled
+    val focusScale by animateFloatAsState(
+        targetValue = if (isFocused) focusedScale else 1f,
+        label = "watchingFocusableScale",
+    )
 
     Box(
         modifier = modifier
+            .graphicsLayer {
+                scaleX = focusScale
+                scaleY = focusScale
+                shadowElevation = if (isFocused) {
+                    focusedShadowElevation.toPx()
+                } else {
+                    0f
+                }
+                this.shape = shape
+                this.clip = false
+            }
             .clip(shape)
             .background(if (isFocused) focusedBackgroundColor else backgroundColor)
             .border(
@@ -637,6 +656,16 @@ internal fun WatchingFocusableSurface(
                     return@onPreviewKeyEvent false
                 }
                 when (event.key) {
+                    Key.DirectionCenter,
+                    Key.Enter,
+                    Key.NumPadEnter -> {
+                        if (enabled) {
+                            onClick()
+                            true
+                        } else {
+                            false
+                        }
+                    }
                     Key.DirectionLeft -> onLeft?.invoke() == true
                     Key.DirectionUp -> onUp?.invoke() == true
                     Key.DirectionRight -> onRight?.invoke() == true

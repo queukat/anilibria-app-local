@@ -18,8 +18,6 @@ import ru.radiationx.anilibria.screen.player.end_episode.EndEpisodeGuidedFragmen
 import ru.radiationx.anilibria.screen.player.end_season.EndSeasonGuidedFragment
 import ru.radiationx.anilibria.screen.player.episodes.PlayerEpisodesGuidedFragment
 import ru.radiationx.anilibria.screen.player.putIds
-import ru.radiationx.anilibria.screen.player.quality.PlayerQualityGuidedFragment
-import ru.radiationx.anilibria.screen.player.speed.PlayerSpeedGuidedFragment
 import ru.radiationx.anilibria.screen.schedule.ScheduleFragment
 import ru.radiationx.anilibria.screen.search.SearchFragment
 import ru.radiationx.anilibria.screen.suggestions.SuggestionsFragment
@@ -121,24 +119,6 @@ class PlayerScreen(
     @OptIn(UnstableApi::class)
     override fun createFragment(factory: FragmentFactory): Fragment {
         return PlayerFragment.newInstance(releaseId, episodeId)
-    }
-}
-
-class PlayerQualityGuidedScreen(
-    private val releaseId: ReleaseId,
-    private val episodeId: EpisodeId?,
-) : GuidedAppScreen() {
-    override fun createFragment(factory: FragmentFactory): Fragment {
-        return PlayerQualityGuidedFragment().putIds(releaseId, episodeId)
-    }
-}
-
-class PlayerSpeedGuidedScreen(
-    private val releaseId: ReleaseId,
-    private val episodeId: EpisodeId?,
-) : GuidedAppScreen() {
-    override fun createFragment(factory: FragmentFactory): Fragment {
-        return PlayerSpeedGuidedFragment().putIds(releaseId, episodeId)
     }
 }
 

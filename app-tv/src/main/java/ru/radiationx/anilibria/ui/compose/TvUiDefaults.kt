@@ -45,6 +45,8 @@ internal object TvUiDefaults {
     val OverlayPanelShape = RoundedCornerShape(24.dp)
     val ContentStatePanelShape = RoundedCornerShape(28.dp)
     val ProfilePanelShape = RoundedCornerShape(32.dp)
+    val ScreenPanelShape = RoundedCornerShape(26.dp)
+    val ShellRailShape = RoundedCornerShape(topEnd = 32.dp, bottomEnd = 32.dp)
     val InfoSurfaceShape = RoundedCornerShape(14.dp)
     val CircularIndicatorShape = RoundedCornerShape(percent = 50)
 
@@ -54,11 +56,16 @@ internal object TvUiDefaults {
     val OverlayPanelPadding = PaddingValues(horizontal = 28.dp, vertical = 24.dp)
     val ContentStatePanelPadding = PaddingValues(horizontal = 28.dp, vertical = 26.dp)
     val ProfilePanelPadding = PaddingValues(horizontal = 28.dp, vertical = 30.dp)
+    val ScreenPanelPadding = PaddingValues(horizontal = 26.dp, vertical = 24.dp)
+    val ShellHeaderPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+    val ShellRailPadding = PaddingValues(start = 24.dp, top = 30.dp, end = 56.dp, bottom = 30.dp)
 
     val FocusedBorderWidth = 2.dp
     val UnfocusedBorderWidth = 1.dp
     val SelectionIndicatorSize = 12.dp
     val LargeSelectionIndicatorSize = 14.dp
+    val FocusedScale = 1.035f
+    val FocusedShadowElevation = 18.dp
     const val AppBackgroundGlowAlpha = 0.18f
 
     fun chipActionColors(
@@ -116,6 +123,27 @@ internal object TvUiDefaults {
         )
     }
 
+    fun screenPanelStyle(
+        palette: WatchingPalette,
+        focused: Boolean = false,
+        accent: Boolean = false,
+    ): TvPanelSurfaceStyle {
+        return TvPanelSurfaceStyle(
+            shape = ScreenPanelShape,
+            backgroundColor = if (accent) {
+                palette.accentColor.copy(alpha = 0.12f)
+            } else {
+                palette.surfaceColor.copy(alpha = 0.92f)
+            },
+            borderColor = when {
+                focused -> palette.textColor.copy(alpha = 0.74f)
+                accent -> palette.accentColor.copy(alpha = 0.32f)
+                else -> palette.textColor.copy(alpha = 0.10f)
+            },
+            borderWidth = if (focused) FocusedBorderWidth else UnfocusedBorderWidth,
+        )
+    }
+
     fun appBackgroundBrush(
         palette: WatchingPalette,
         glowAlpha: Float = AppBackgroundGlowAlpha,
@@ -133,6 +161,25 @@ internal object TvUiDefaults {
             colors = listOf(
                 palette.backgroundColor.copy(alpha = 0.98f),
                 palette.surfaceColor.copy(alpha = 0.94f),
+            )
+        )
+    }
+
+    fun shellHeaderBrush(palette: WatchingPalette): Brush {
+        return Brush.verticalGradient(
+            colors = listOf(
+                palette.surfaceColor.copy(alpha = 0.98f),
+                palette.surfaceColor.copy(alpha = 0.94f),
+            )
+        )
+    }
+
+    fun shellRailBrush(palette: WatchingPalette): Brush {
+        return Brush.verticalGradient(
+            colors = listOf(
+                palette.surfaceColor.copy(alpha = 0.98f),
+                palette.surfaceColor.copy(alpha = 0.95f),
+                palette.backgroundColor.copy(alpha = 0.94f),
             )
         )
     }
