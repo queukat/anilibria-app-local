@@ -160,6 +160,7 @@ internal fun PlayerScreenContent(
     onControlFocused: (PlayerOverlayFocusTarget) -> Unit,
     onShowControls: (PlayerOverlayFocusTarget?) -> Unit,
     onAutoHideControls: () -> Unit,
+    onQuickActionHandled: () -> Unit,
     onBackRequested: () -> Unit,
     onTogglePlayback: () -> Unit,
     onSeekBack: () -> Unit,
@@ -585,7 +586,7 @@ internal fun PlayerScreenContent(
         PlayerSkipsOverlay(
             skipsPart = skipsPart,
             onInteraction = ::registerInteraction,
-            onQuickActionHandled = onAutoHideControls,
+            onQuickActionHandled = onQuickActionHandled,
             onOpenControls = {
                 onShowControls(PlayerOverlayFocusTarget.PlayPause)
             },
@@ -1477,6 +1478,17 @@ private fun PlayerControlSurface(
                     return@onPreviewKeyEvent false
                 }
                 when (event.key) {
+                    Key.DirectionCenter,
+                    Key.Enter,
+                    Key.NumPadEnter -> {
+                        if (enabled) {
+                            onClick()
+                            true
+                        } else {
+                            false
+                        }
+                    }
+
                     Key.DirectionLeft -> onLeft?.invoke() == true
                     Key.DirectionUp -> onUp?.invoke() == true
                     Key.DirectionRight -> onRight?.invoke() == true

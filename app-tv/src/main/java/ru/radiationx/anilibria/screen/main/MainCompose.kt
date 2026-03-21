@@ -357,6 +357,7 @@ internal fun MainScreen(
                     subtitle = description.subtitle.toString(),
                     palette = palette,
                     contentPadding = TvDescriptionBarPadding,
+                    solidSurface = true,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }

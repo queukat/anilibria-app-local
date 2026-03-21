@@ -529,17 +529,14 @@ private fun TvOverlayChoiceButton(
     onFocusChanged: (Boolean) -> Unit,
     onClick: () -> Unit,
 ) {
-    val backgroundColor = if (choice.selected) {
-        palette.accentColor.copy(alpha = 0.16f)
-    } else {
-        palette.surfaceColor.copy(alpha = 0.64f)
-    }
+    val backgroundColor = palette.surfaceColor.copy(alpha = 0.88f)
+    val focusedBackgroundColor = palette.surfaceColor.copy(alpha = 0.98f)
 
     WatchingFocusableSurface(
         focusRequester = focusRequester,
         enabled = choice.enabled,
         backgroundColor = backgroundColor,
-        focusedBackgroundColor = backgroundColor,
+        focusedBackgroundColor = focusedBackgroundColor,
         borderColor = palette.textColor.copy(alpha = 0.78f),
         unfocusedBorderColor = palette.textColor.copy(alpha = 0.08f),
         selected = choice.selected,

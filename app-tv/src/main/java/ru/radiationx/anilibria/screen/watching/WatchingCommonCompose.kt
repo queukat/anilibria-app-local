@@ -333,6 +333,7 @@ internal fun WatchingDescriptionBar(
     subtitle: String,
     palette: WatchingPalette,
     contentPadding: PaddingValues = TvDescriptionBarPadding,
+    solidSurface: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -341,15 +342,39 @@ internal fun WatchingDescriptionBar(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color.Transparent,
-                        Color.Black.copy(alpha = 0.88f),
+                        if (solidSurface) {
+                            Color.Black.copy(alpha = 0.20f)
+                        } else {
+                            Color.Transparent
+                        },
+                        if (solidSurface) {
+                            Color.Black.copy(alpha = 0.96f)
+                        } else {
+                            Color.Black.copy(alpha = 0.88f)
+                        },
                     )
                 )
             )
             .padding(contentPadding)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (solidSurface) {
+                        Modifier
+                            .clip(TvUiDefaults.ScreenPanelShape)
+                            .background(palette.backgroundColor.copy(alpha = 0.94f))
+                            .border(
+                                width = 1.dp,
+                                color = palette.textColor.copy(alpha = 0.10f),
+                                shape = TvUiDefaults.ScreenPanelShape,
+                            )
+                            .padding(horizontal = 20.dp, vertical = 16.dp)
+                    } else {
+                        Modifier
+                    }
+                ),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(

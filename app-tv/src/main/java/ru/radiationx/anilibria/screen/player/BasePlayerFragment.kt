@@ -57,6 +57,7 @@ open class BasePlayerFragment : Fragment() {
     private var activePickerState by mutableStateOf<PlayerOverlayPicker?>(null)
     private var resumeFocusRestoreTargetState by mutableStateOf<PlayerOverlayFocusTarget?>(null)
     private var resumePlaybackAfterPauseState by mutableStateOf(false)
+    private var suppressAutoShowControlsState by mutableStateOf(false)
 
     private var titleState by mutableStateOf("")
     private var subtitleState by mutableStateOf("")
@@ -107,7 +108,13 @@ open class BasePlayerFragment : Fragment() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             isPlayingState = isPlaying
+            if (isPlaying) {
+                suppressAutoShowControlsState = false
+            }
             if (!isPlaying && playerState?.currentMediaItem != null) {
+                if (suppressAutoShowControlsState) {
+                    return
+                }
                 showControls()
             }
         }
@@ -165,6 +172,7 @@ open class BasePlayerFragment : Fragment() {
                         onControlFocused = ::rememberFocusedControl,
                         onShowControls = ::showControls,
                         onAutoHideControls = ::hideControls,
+                        onQuickActionHandled = ::handleQuickAction,
                         onBackRequested = ::handleBackPressed,
                         onTogglePlayback = ::togglePlayback,
                         onSeekBack = { seekBy(-SEEK_DELTA_MS) },
@@ -458,6 +466,9 @@ open class BasePlayerFragment : Fragment() {
 
     private fun syncPlayerProgress() {
         val player = playerState ?: return
+        if (suppressAutoShowControlsState && player.isPlaying) {
+            suppressAutoShowControlsState = false
+        }
         val duration = player.duration.takeIf { it > 0L } ?: 0L
         val position = player.currentPosition.coerceAtLeast(0L)
         positionState = if (duration > 0L) {
@@ -488,6 +499,11 @@ open class BasePlayerFragment : Fragment() {
     private fun hideControls() {
         controlsVisibleState = false
         activePickerState = null
+    }
+
+    private fun handleQuickAction() {
+        suppressAutoShowControlsState = true
+        hideControls()
     }
 
     private fun rememberFocusedControl(target: PlayerOverlayFocusTarget) {
