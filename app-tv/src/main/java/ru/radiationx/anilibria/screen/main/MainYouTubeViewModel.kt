@@ -13,7 +13,7 @@ class MainYouTubeViewModel @Inject constructor(
     private val cardRouter: LibriaCardRouter
 ) : BaseCardsViewModel() {
 
-    override val defaultTitle: String = "Обновления на YouTube"
+    override val defaultTitle: String = MainSectionTitles.YOUTUBE
 
     override val preventClearOnRefresh: Boolean = true
 

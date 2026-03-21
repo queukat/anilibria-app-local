@@ -23,7 +23,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import ru.radiationx.anilibria.screen.auth.otp.AuthOtpViewModel
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvOverlayActionButton
 import ru.radiationx.anilibria.ui.compose.TvOverlayInfoBlock
@@ -210,14 +209,17 @@ internal fun AuthCredentialsOverlay(
 @Composable
 internal fun AuthOtpOverlay(
     otpInfo: OtpInfo?,
-    state: AuthOtpViewModel.State,
+    state: AuthOtpState,
     onPrimaryClick: () -> Unit,
     onBackClick: () -> Unit,
 ) {
-    val primaryTitle = when (state.buttonState) {
-        AuthOtpViewModel.ButtonState.COMPLETE -> "Проверить вход"
-        AuthOtpViewModel.ButtonState.EXPIRED -> "Показать новый код"
-        AuthOtpViewModel.ButtonState.REPEAT -> "Повторить запрос"
+    val primaryTitle = when {
+        otpInfo == null && state.progress -> "Получаем код"
+        else -> when (state.buttonState) {
+            AuthOtpButtonState.COMPLETE -> "Проверить вход"
+            AuthOtpButtonState.EXPIRED -> "Показать новый код"
+            AuthOtpButtonState.REPEAT -> "Повторить запрос"
+        }
     }
     val expiresAtLabel = otpInfo?.let(::formatOtpExpiration)
 

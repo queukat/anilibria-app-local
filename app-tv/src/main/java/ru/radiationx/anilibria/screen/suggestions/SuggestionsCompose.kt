@@ -62,6 +62,7 @@ import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
 import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.isTvStateOnlySection
 import ru.radiationx.anilibria.screen.watching.primaryTvStateItem
+import ru.radiationx.anilibria.screen.watching.edgeAwareHorizontalTransformOrigin
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
@@ -584,6 +585,10 @@ private fun SuggestionsSectionBlock(
                             imageUrl = item.image,
                             palette = palette,
                             focusRequester = requesters[index],
+                            scaleTransformOrigin = edgeAwareHorizontalTransformOrigin(
+                                index = index,
+                                lastIndex = items.lastIndex,
+                            ),
                             onClick = { onItemClick(item) },
                             onFocused = { onItemFocused(index, item) },
                             onUp = { onUp(index) },

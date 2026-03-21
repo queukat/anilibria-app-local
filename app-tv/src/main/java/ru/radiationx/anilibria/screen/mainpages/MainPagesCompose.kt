@@ -60,7 +60,9 @@ import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.screen.main.MainContentRestoreState
 import ru.radiationx.anilibria.screen.main.MainScreen
+import ru.radiationx.anilibria.screen.main.MainSectionTitles
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
+import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
@@ -609,22 +611,28 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
             .fillMaxSize()
             .background(colorResource(R.color.dark_windowBackground))
     ) {
-        MainScreen(
-            sections = previewMainSections(),
-            focusRequestToken = 0,
-            visibilityRestoreToken = 0,
-            contentRestoreState = MainContentRestoreState(
-                preferredSectionIndex = 0,
-                preferredItemIndex = 1,
-                preferredItemId = 1002,
-            ),
-            onItemClick = { _, _ -> },
-            onRequestRailFocus = { true },
-            onRequestHeaderFocus = { true },
-            onContentMovedDown = {},
-            onContentMovedUp = {},
-            onItemFocused = { _, _, _ -> },
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = TvCardScreenHorizontalPadding),
+        ) {
+            MainScreen(
+                sections = previewMainSections(),
+                focusRequestToken = 0,
+                visibilityRestoreToken = 0,
+                contentRestoreState = MainContentRestoreState(
+                    preferredSectionIndex = 0,
+                    preferredItemIndex = 1,
+                    preferredItemId = 1002,
+                ),
+                onItemClick = { _, _ -> },
+                onRequestRailFocus = { true },
+                onRequestHeaderFocus = { true },
+                onContentMovedDown = {},
+                onContentMovedUp = {},
+                onItemFocused = { _, _, _ -> },
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -670,7 +678,7 @@ private fun previewMainSections(): List<MainSectionUiModel> {
     return listOf(
         MainSectionUiModel(
             id = PREVIEW_MAIN_SECTION_ID,
-            title = "Самое актуальное",
+            title = MainSectionTitles.FEED,
             items = listOf(
                 previewReleaseCard(PREVIEW_RELEASE_ID_1, "Врата Штейна", "На неделе вышла 7 серия"),
                 previewReleaseCard(PREVIEW_RELEASE_ID_2, "Frieren", "Новый эпизод сегодня в 20:00"),
@@ -681,7 +689,7 @@ private fun previewMainSections(): List<MainSectionUiModel> {
         ),
         MainSectionUiModel(
             id = PREVIEW_FAVORITES_SECTION_ID,
-            title = "Обновления в избранном",
+            title = MainSectionTitles.FAVORITES,
             items = listOf(
                 previewReleaseCard(PREVIEW_FAVORITE_ID_1, "Solo Leveling", "Добавлена 10 серия"),
                 previewReleaseCard(PREVIEW_FAVORITE_ID_2, "Kaiju No. 8", "Вышла новая озвучка"),
@@ -691,7 +699,7 @@ private fun previewMainSections(): List<MainSectionUiModel> {
         ),
         MainSectionUiModel(
             id = PREVIEW_SCHEDULE_SECTION_ID,
-            title = "Ожидается сегодня",
+            title = MainSectionTitles.SCHEDULE,
             items = listOf(
                 previewReleaseCard(PREVIEW_SCHEDULE_ID_1, "Dr. Stone", "Премьера в 18:30"),
                 previewReleaseCard(PREVIEW_SCHEDULE_ID_2, "Wind Breaker", "Сегодня вечером"),
@@ -704,7 +712,7 @@ private fun previewMainSections(): List<MainSectionUiModel> {
         ),
         MainSectionUiModel(
             id = PREVIEW_YOUTUBE_SECTION_ID,
-            title = "Обновления на YouTube",
+            title = MainSectionTitles.YOUTUBE,
             items = listOf(
                 previewYoutubeCard(PREVIEW_YOUTUBE_ID_1, "Итоги недели AniLibria"),
                 previewYoutubeCard(PREVIEW_YOUTUBE_ID_2, "Разбор сезона и ожидания"),

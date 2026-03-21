@@ -23,6 +23,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.watching.TvPlayerOverlayBottomPadding
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
@@ -36,8 +37,8 @@ class PlayerSkipsPart(
 ) {
 
     private var playerSkips: PlayerSkips? = null
-    private val skippedList = mutableSetOf<PlayerSkips.Skip>()
     private var currentPosition = 0L
+    private var suppressedSkip: PlayerSkips.Skip? = null
 
     var visibleSkip by mutableStateOf<PlayerSkips.Skip?>(null)
         private set
@@ -50,13 +51,19 @@ class PlayerSkipsPart(
 
     fun setSkips(skips: PlayerSkips?) {
         playerSkips = skips
-        skippedList.clear()
+        suppressedSkip = null
         visibleSkip = null
     }
 
     fun update(position: Long) {
         currentPosition = position
-        autoCancel()
+        val currentSuppressedSkip = suppressedSkip
+        if (
+            currentSuppressedSkip != null &&
+            (position < currentSuppressedSkip.start || position > currentSuppressedSkip.end)
+        ) {
+            suppressedSkip = null
+        }
 
         val nextVisibleSkip = getCurrentSkip()
         if (nextVisibleSkip != null && nextVisibleSkip != visibleSkip) {
@@ -67,14 +74,14 @@ class PlayerSkipsPart(
 
     fun skipCurrent() {
         visibleSkip?.also {
-            skippedList.add(it)
+            suppressedSkip = it
             onSeek(it.end)
         }
         dismissCurrent()
     }
 
     fun cancelCurrent() {
-        visibleSkip?.also(skippedList::add)
+        visibleSkip?.also { suppressedSkip = it }
         dismissCurrent()
     }
 
@@ -88,18 +95,9 @@ class PlayerSkipsPart(
     }
 
     private fun canDisplaySkip(skip: PlayerSkips.Skip): Boolean {
-        return skip !in skippedList &&
+        return skip != suppressedSkip &&
             currentPosition >= skip.start &&
             currentPosition <= skip.end
-    }
-
-    private fun autoCancel() {
-        playerSkips?.opening
-            ?.takeIf { it !in skippedList && it.end < currentPosition }
-            ?.also(skippedList::add)
-        playerSkips?.ending
-            ?.takeIf { it !in skippedList && it.end < currentPosition }
-            ?.also(skippedList::add)
     }
 }
 
@@ -107,6 +105,7 @@ class PlayerSkipsPart(
 internal fun PlayerSkipsOverlay(
     skipsPart: PlayerSkipsPart?,
     onInteraction: () -> Unit,
+    onQuickActionHandled: () -> Unit,
     onOpenControls: () -> Unit,
     modifier: Modifier = Modifier,
     bottomPadding: Dp = TvPlayerOverlayBottomPadding,
@@ -124,7 +123,7 @@ internal fun PlayerSkipsOverlay(
         visible = visible,
         enter = fadeIn(),
         exit = fadeOut(),
-        modifier = modifier,
+        modifier = modifier.zIndex(1f),
     ) {
         val skipRequester = remember { FocusRequester() }
         val watchRequester = remember { FocusRequester() }
@@ -141,8 +140,14 @@ internal fun PlayerSkipsOverlay(
             watchRequester = watchRequester,
             onInteraction = onInteraction,
             onOpenControls = onOpenControls,
-            onSkipClick = { skipsPart?.skipCurrent() },
-            onWatchClick = { skipsPart?.cancelCurrent() },
+            onSkipClick = {
+                skipsPart?.skipCurrent()
+                onQuickActionHandled()
+            },
+            onWatchClick = {
+                skipsPart?.cancelCurrent()
+                onQuickActionHandled()
+            },
             panelWidthFraction = panelWidthFraction,
             bottomPadding = animatedBottomPadding,
         )

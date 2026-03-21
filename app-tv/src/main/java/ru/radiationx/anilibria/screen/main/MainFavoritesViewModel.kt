@@ -28,7 +28,7 @@ class MainFavoritesViewModel @Inject constructor(
     private var lastLoadAtMs: Long = 0L
     private var pagingState = PagingState(page = firstPage - 1)
 
-    override val defaultTitle: String = "Обновления в избранном"
+    override val defaultTitle: String = MainSectionTitles.FAVORITES
 
     override val loadOnCreate: Boolean = false
 

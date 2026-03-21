@@ -9,7 +9,7 @@ import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 
-internal val TvScreenHorizontalPadding = 20.dp
+internal val TvScreenHorizontalPadding = 10.dp
 internal val TvCardScreenHorizontalPadding = TvScreenHorizontalPadding
 internal val TvDetailHorizontalPadding = 28.dp
 internal val TvRowsScreenVerticalPadding = 8.dp

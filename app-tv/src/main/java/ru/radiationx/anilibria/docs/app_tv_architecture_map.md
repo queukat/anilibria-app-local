@@ -6,13 +6,13 @@
 2. `ViewModel` in `screen/*` (often via `common/BaseCardsViewModel`) orchestrates loading and card state.
 3. Data is requested from shared TV-oriented interactors/facades (for example `TvContentUseCase`, `TvFavoritesUseCase`, `ReleaseInteractor`).
 4. DTO/domain models are converted by `CardsDataConverter`/other mappers into `CardItem` UI models.
-5. Leanback presenters (`ui/presenter/*`) render card lists.
+5. Compose-first screen primitives render lists, overlays, and state panels. The main runtime interop exception is the player surface, which still uses Media3 `PlayerView` via `AndroidView`.
 
 ## current package map
 
-- `screen/*`: feature-first screens (fragment + viewmodel).
+- `screen/*`: feature-first entry points, Compose UI, and fragment hosts where navigation still expects `FragmentScreen`.
 - `common/*`: shared card models, base viewmodel, converters.
-- `ui/*`: leanback presenters and widgets.
+- `ui/compose/*`: shared Compose TV primitives.
 - `di/*`: app/activity scoped wiring.
 
 ## anti-patterns observed

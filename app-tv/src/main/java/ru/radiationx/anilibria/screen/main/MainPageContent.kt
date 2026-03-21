@@ -1,5 +1,9 @@
 package ru.radiationx.anilibria.screen.main
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -15,6 +19,7 @@ import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.screen.mainpages.MainShellCallbacks
 import ru.radiationx.anilibria.screen.mainpages.MainShellPageContent
 import ru.radiationx.anilibria.screen.mainpages.collectStarted
+import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
 import ru.radiationx.quill.getViewModel
 
 internal class MainPageContent(
@@ -35,10 +40,10 @@ internal class MainPageContent(
             MainViewModel.YOUTUBE_ROW_ID,
         )
     )
-    private var feedTitleState by mutableStateOf("Самое актуальное")
-    private var favoritesTitleState by mutableStateOf("Обновления в избранном")
-    private var scheduleTitleState by mutableStateOf("Ожидается сегодня")
-    private var youtubeTitleState by mutableStateOf("Обновления на YouTube")
+    private var feedTitleState by mutableStateOf(MainSectionTitles.FEED)
+    private var favoritesTitleState by mutableStateOf(MainSectionTitles.FAVORITES)
+    private var scheduleTitleState by mutableStateOf(MainSectionTitles.SCHEDULE)
+    private var youtubeTitleState by mutableStateOf(MainSectionTitles.YOUTUBE)
     private var feedCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
     private var favoritesCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
     private var scheduleCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
@@ -80,28 +85,34 @@ internal class MainPageContent(
 
     @Composable
     override fun Render(callbacks: MainShellCallbacks) {
-        MainScreen(
-            sections = buildSections(),
-            focusRequestToken = focusRequestToken,
-            visibilityRestoreToken = visibilityRestoreToken,
-            contentRestoreState = MainContentRestoreState(
-                preferredSectionIndex = restoreSectionIndex,
-                preferredItemIndex = restoreItemIndex,
-                preferredItemId = restoreItemId,
-            ),
-            onItemClick = ::handleItemClick,
-            onRequestRailFocus = callbacks.onRequestRailFocus,
-            onRequestHeaderFocus = callbacks.onRequestHeaderFocus,
-            onContentMovedDown = callbacks.onContentMovedDown,
-            onContentMovedUp = callbacks.onContentMovedUp,
-            onItemFocused = { sectionIndex, itemIndex, item ->
-                restoreSectionIndex = sectionIndex
-                restoreItemIndex = itemIndex
-                restoreItemId = item.getId()
-                selectedItemState = item
-                backgroundManager.applyCard(item)
-            },
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = TvCardScreenHorizontalPadding),
+        ) {
+            MainScreen(
+                sections = buildSections(),
+                focusRequestToken = focusRequestToken,
+                visibilityRestoreToken = visibilityRestoreToken,
+                contentRestoreState = MainContentRestoreState(
+                    preferredSectionIndex = restoreSectionIndex,
+                    preferredItemIndex = restoreItemIndex,
+                    preferredItemId = restoreItemId,
+                ),
+                onItemClick = ::handleItemClick,
+                onRequestRailFocus = callbacks.onRequestRailFocus,
+                onRequestHeaderFocus = callbacks.onRequestHeaderFocus,
+                onContentMovedDown = callbacks.onContentMovedDown,
+                onContentMovedUp = callbacks.onContentMovedUp,
+                onItemFocused = { sectionIndex, itemIndex, item ->
+                    restoreSectionIndex = sectionIndex
+                    restoreItemIndex = itemIndex
+                    restoreItemId = item.getId()
+                    selectedItemState = item
+                    backgroundManager.applyCard(item)
+                },
+            )
+        }
     }
 
     private fun buildSections(): List<MainSectionUiModel> {

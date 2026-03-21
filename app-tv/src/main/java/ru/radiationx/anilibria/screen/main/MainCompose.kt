@@ -51,9 +51,9 @@ import ru.radiationx.anilibria.screen.watching.TvPosterCardWidth
 import ru.radiationx.anilibria.screen.watching.TvRowEndPadding
 import ru.radiationx.anilibria.screen.watching.TvRowSpacing
 import ru.radiationx.anilibria.screen.watching.TvRowsScreenVerticalPadding
-import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
+import ru.radiationx.anilibria.screen.watching.edgeAwareHorizontalTransformOrigin
 import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
 import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.isTvStateOnlySection
@@ -65,7 +65,6 @@ import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvSectionHeader
-import ru.radiationx.anilibria.ui.compose.tvAppBackground
 
 internal data class MainSectionUiModel(
     val id: Long,
@@ -303,8 +302,7 @@ internal fun MainScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .tvAppBackground(palette)
-            .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
+            .padding(vertical = TvRowsScreenVerticalPadding),
     ) {
         LazyColumn(
             state = verticalState,
@@ -482,6 +480,10 @@ internal fun MainSectionBlock(
                                 focusedBorderColor = posterBorderColor,
                                 focusedBorderWidth = posterFocusedBorderWidth,
                                 unfocusedBorderWidth = posterUnfocusedBorderWidth,
+                                scaleTransformOrigin = edgeAwareHorizontalTransformOrigin(
+                                    index = index,
+                                    lastIndex = items.lastIndex,
+                                ),
                                 onClick = { onItemClick(item) },
                                 onFocused = { onItemFocused(index, item) },
                                 onLeft = if (index == 0) onLeftEdge else null,

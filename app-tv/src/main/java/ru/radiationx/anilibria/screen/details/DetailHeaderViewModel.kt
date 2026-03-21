@@ -13,8 +13,7 @@ import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.DetailDataConverter
 import ru.radiationx.anilibria.common.DetailsState
 import ru.radiationx.anilibria.common.LibriaDetails
-import ru.radiationx.anilibria.common.fragment.GuidedRouter
-import ru.radiationx.anilibria.screen.AuthGuidedScreen
+import ru.radiationx.anilibria.screen.AuthScreen
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.PlayerScreen
 import ru.radiationx.anilibria.screen.player.formatEpisodeAccessDescription
@@ -36,7 +35,6 @@ class DetailHeaderViewModel @Inject constructor(
     private val tvDetailHeaderUseCase: TvDetailHeaderUseCase,
     private val converter: DetailDataConverter,
     private val router: Router,
-    private val guidedRouter: GuidedRouter,
     private val tvContentUseCase: TvContentUseCase,
 ) : LifecycleViewModel() {
 
@@ -175,7 +173,7 @@ class DetailHeaderViewModel @Inject constructor(
         favoriteJob?.cancel()
         favoriteJob = viewModelScope.launch {
             if (!tvDetailHeaderUseCase.isAuthorized()) {
-                guidedRouter.open(AuthGuidedScreen())
+                router.navigateTo(AuthScreen())
                 return@launch
             }
 

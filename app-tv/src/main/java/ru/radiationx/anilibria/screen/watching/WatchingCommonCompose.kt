@@ -20,10 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.CircularProgressIndicator
@@ -51,6 +48,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -63,14 +61,10 @@ import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
 import androidx.compose.animation.core.animateFloatAsState
 import ru.radiationx.anilibria.ui.compose.TvAsyncImage
-import ru.radiationx.anilibria.ui.compose.TvSelectionIndicator
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
-import ru.radiationx.anilibria.ui.compose.TvOverlayOuterPadding
-import ru.radiationx.anilibria.ui.compose.TvOverlayPanelSurface
 
 private const val WATCHING_CARD_ASPECT_RATIO = 130f / 185f
-private const val WATCHING_DIALOG_WIDTH_FRACTION = 0.56f
 
 internal data class WatchingPalette(
     val backgroundColor: Color,
@@ -79,12 +73,6 @@ internal data class WatchingPalette(
     val secondaryTextColor: Color,
     val accentColor: Color,
     val chipColor: Color,
-)
-
-internal data class WatchingChoiceDialogUiState(
-    val title: String,
-    val options: List<String>,
-    val selectedIndex: Int,
 )
 
 @Composable
@@ -193,6 +181,7 @@ internal fun WatchingPosterCard(
     focusedBorderColor: Color = palette.accentColor.copy(alpha = 0.92f),
     focusedBorderWidth: Dp = 2.dp,
     unfocusedBorderWidth: Dp = 1.dp,
+    scaleTransformOrigin: TransformOrigin = TransformOrigin.Center,
     onFocused: (() -> Unit)? = null,
     onLeft: (() -> Boolean)? = null,
     onUp: (() -> Boolean)? = null,
@@ -206,6 +195,7 @@ internal fun WatchingPosterCard(
         borderColor = focusedBorderColor,
         focusedBorderWidth = focusedBorderWidth,
         unfocusedBorderWidth = unfocusedBorderWidth,
+        scaleTransformOrigin = scaleTransformOrigin,
         onClick = onClick,
         onFocused = onFocused,
         onLeft = onLeft,
@@ -381,187 +371,6 @@ internal fun WatchingDescriptionBar(
     }
 }
 
-@Composable
-internal fun WatchingChoiceDialog(
-    state: WatchingChoiceDialogUiState,
-    palette: WatchingPalette,
-    focusRequestToken: Int,
-    onOptionClick: (Int) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val optionIds = remember(state.options) { state.options.indices.toList() }
-    val optionRequesters = remember(optionIds) { List(optionIds.size) { FocusRequester() } }
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-
-    fun shouldScrollToOption(index: Int): Boolean {
-        val visibleItems = listState.layoutInfo.visibleItemsInfo
-        if (visibleItems.isEmpty()) {
-            return true
-        }
-        return visibleItems.none { it.index == index }
-    }
-
-    fun requestOptionFocus(targetIndex: Int): Boolean {
-        if (state.options.isEmpty()) {
-            return false
-        }
-        val clampedIndex = targetIndex.coerceIn(0, state.options.lastIndex)
-        scope.launch {
-            if (shouldScrollToOption(clampedIndex)) {
-                val anchorIndex = (clampedIndex - 1).coerceAtLeast(0)
-                listState.scrollToItem(anchorIndex)
-                withFrameNanos { }
-            }
-            requestWatchingFocus(optionRequesters.getOrNull(clampedIndex))
-        }
-        return true
-    }
-
-    LaunchedEffect(focusRequestToken, optionIds) {
-        if (focusRequestToken <= 0 || optionIds.isEmpty()) {
-            return@LaunchedEffect
-        }
-        val targetIndex = state.selectedIndex.coerceIn(0, optionIds.lastIndex)
-        listState.scrollToItem(targetIndex)
-        withFrameNanos { }
-        requestWatchingFocus(optionRequesters.getOrNull(targetIndex))
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(TvUiDefaults.modalScrimColor(palette))
-            .onPreviewKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) {
-                    return@onPreviewKeyEvent false
-                }
-                when (event.key) {
-                    Key.Back, Key.Escape -> {
-                        onDismiss()
-                        true
-                    }
-
-                    else -> false
-                }
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        TvOverlayPanelSurface(
-            palette = palette,
-            modifier = Modifier
-                .widthIn(max = 560.dp)
-                .fillMaxWidth(WATCHING_DIALOG_WIDTH_FRACTION),
-            contentPadding = TvOverlayOuterPadding,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = state.title,
-                        color = palette.textColor,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = "Выберите значение фильтра",
-                        color = palette.secondaryTextColor,
-                        fontSize = 15.sp,
-                        lineHeight = 21.sp,
-                    )
-                }
-                Image(
-                    painter = painterResource(R.drawable.ic_anilibria_splash),
-                    contentDescription = null,
-                    modifier = Modifier.width(20.dp),
-                )
-            }
-
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 420.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                itemsIndexed(
-                    items = state.options,
-                    key = { index, option -> option.hashCode() * 31 + index },
-                ) { index, option ->
-                    val surfaceColors = if (index == state.selectedIndex) {
-                        TvUiDefaults.accentActionColors(
-                            palette = palette,
-                            borderAlpha = 0.82f,
-                        )
-                    } else {
-                        TvUiDefaults.chipActionColors(
-                            palette = palette,
-                            backgroundAlpha = 0.74f,
-                            borderAlpha = 0.12f,
-                        )
-                    }
-                    WatchingFocusableSurface(
-                        focusRequester = optionRequesters[index],
-                        backgroundColor = surfaceColors.backgroundColor,
-                        focusedBackgroundColor = surfaceColors.focusedBackgroundColor,
-                        borderColor = surfaceColors.borderColor,
-                        onClick = { onOptionClick(index) },
-                        onLeft = {
-                            onDismiss()
-                            true
-                        },
-                        onRight = {
-                            onDismiss()
-                            true
-                        },
-                        onUp = if (index > 0) {
-                            { requestOptionFocus(index - 1) }
-                        } else {
-                            { true }
-                        },
-                        onDown = if (index < state.options.lastIndex) {
-                            { requestOptionFocus(index + 1) }
-                        } else {
-                            { true }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        paddingValues = TvUiDefaults.ChoiceRowPadding,
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = option,
-                                color = palette.textColor,
-                                fontSize = 17.sp,
-                                fontWeight = if (index == state.selectedIndex) {
-                                    FontWeight.SemiBold
-                                } else {
-                                    FontWeight.Normal
-                                },
-                            )
-                            TvSelectionIndicator(
-                                selected = index == state.selectedIndex,
-                                palette = palette,
-                            )
-                        }
-                    }
-                }
-            }
-
-            Text(
-                text = "Назад или влево: закрыть",
-                color = palette.secondaryTextColor,
-                fontSize = 14.sp,
-            )
-        }
-    }
-}
 
 @Composable
 internal fun WatchingFocusableSurface(
@@ -579,6 +388,7 @@ internal fun WatchingFocusableSurface(
     unfocusedBorderColor: Color = Color.Transparent,
     focusedScale: Float = TvUiDefaults.FocusedScale,
     focusedShadowElevation: Dp = TvUiDefaults.FocusedShadowElevation,
+    scaleTransformOrigin: TransformOrigin = TransformOrigin.Center,
     selected: Boolean = false,
     selectedBorderColor: Color = borderColor,
     selectedBorderWidth: Dp = focusedBorderWidth,
@@ -604,6 +414,7 @@ internal fun WatchingFocusableSurface(
             .graphicsLayer {
                 scaleX = focusScale
                 scaleY = focusScale
+                transformOrigin = scaleTransformOrigin
                 shadowElevation = if (isFocused) {
                     focusedShadowElevation.toPx()
                 } else {
@@ -679,5 +490,16 @@ internal fun WatchingFocusableSurface(
             .padding(paddingValues),
     ) {
         content()
+    }
+}
+
+internal fun edgeAwareHorizontalTransformOrigin(
+    index: Int,
+    lastIndex: Int,
+): TransformOrigin {
+    return when (index) {
+        0 -> TransformOrigin(0f, 0.5f)
+        lastIndex -> TransformOrigin(1f, 0.5f)
+        else -> TransformOrigin.Center
     }
 }

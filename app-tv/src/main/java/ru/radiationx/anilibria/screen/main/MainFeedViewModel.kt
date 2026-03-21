@@ -20,7 +20,7 @@ class MainFeedViewModel @Inject constructor(
     private val cardRouter: LibriaCardRouter,
 ) : BaseCardsViewModel() {
 
-    override val defaultTitle: String = "Самое актуальное"
+    override val defaultTitle: String = MainSectionTitles.FEED
 
     // 1) Не показываем лоадер при refresh (особенно для фонового обновления)
     override val preventClearOnRefresh: Boolean = true
@@ -33,7 +33,7 @@ class MainFeedViewModel @Inject constructor(
     override fun hasMoreCards(newCards: List<LibriaCard>, allCards: List<LibriaCard>): Boolean = false
 
     override fun getEmptyStateCard(): CardItem = LoadingCard(
-        title = "Самое актуальное пока пусто",
+        title = MainSectionTitles.FEED_EMPTY,
         description = "Обновите экран позже",
         isError = false,
     )

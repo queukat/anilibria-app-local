@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import ru.radiationx.anilibria.common.fragment.GuidedRouter
-import ru.radiationx.anilibria.screen.AuthGuidedScreen
+import com.github.terrakok.cicerone.Router
+import ru.radiationx.anilibria.screen.AuthScreen
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.data.contracts.tv.TvProfileFacade
 import ru.radiationx.data.entity.domain.other.ProfileItem
@@ -18,7 +18,7 @@ import javax.inject.Inject
 
 class ProfileViewModel @Inject constructor(
     private val tvProfileFacade: TvProfileFacade,
-    private val guidedRouter: GuidedRouter
+    private val router: Router,
 ) : LifecycleViewModel() {
 
     private val _profileData = MutableStateFlow<ProfileItem?>(null)
@@ -32,7 +32,7 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun onSignInClick() {
-        guidedRouter.open(AuthGuidedScreen())
+        router.navigateTo(AuthScreen())
     }
 
     fun onSignOutClick() {

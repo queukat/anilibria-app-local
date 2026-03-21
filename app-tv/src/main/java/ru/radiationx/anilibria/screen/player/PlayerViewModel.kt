@@ -37,6 +37,11 @@ class PlayerViewModel @Inject constructor(
     private val router: Router,
 ) : LifecycleViewModel() {
 
+    data class EpisodeOptionUiModel(
+        val episodeId: EpisodeId,
+        val label: String,
+    )
+
     data class StartupFailure(
         val message: String,
         val shouldExitPlayer: Boolean = true,
@@ -56,6 +61,12 @@ class PlayerViewModel @Inject constructor(
 
     private val _availableSpeeds = MutableStateFlow(preferencesHolder.availableSpeeds.value)
     val availableSpeeds: StateFlow<List<Float>> = _availableSpeeds.asStateFlow()
+
+    private val _episodeOptions = MutableStateFlow<List<EpisodeOptionUiModel>>(emptyList())
+    val episodeOptions: StateFlow<List<EpisodeOptionUiModel>> = _episodeOptions.asStateFlow()
+
+    private val _selectedEpisodeId = MutableStateFlow<EpisodeId?>(null)
+    val selectedEpisodeId: StateFlow<EpisodeId?> = _selectedEpisodeId.asStateFlow()
 
     private val _commands = MutableSharedFlow<PlayerCommand>(
         replay = 0,
@@ -215,6 +226,19 @@ class PlayerViewModel @Inject constructor(
         playEpisode(prev)
     }
 
+    fun onEpisodeSelected(
+        position: Long,
+        episodeId: EpisodeId,
+    ) {
+        val targetEpisode = currentEpisodes.firstOrNull { it.id == episodeId } ?: return
+        if (targetEpisode.id == currentEpisode?.id) {
+            return
+        }
+        saveEpisodePosition(position)
+        dismissCompletionOverlay()
+        playEpisode(targetEpisode)
+    }
+
     fun setQuality(
         position: Long,
         quality: PlayerQuality,
@@ -296,6 +320,8 @@ class PlayerViewModel @Inject constructor(
         dismissCompletionOverlay()
         currentEpisode = episode
         currentRelease = currentReleases.firstOrNull { it.id == episode.id.releaseId } ?: currentReleases.firstOrNull()
+        _episodeOptions.value = currentEpisodes.map(::toEpisodeOptionUiModel)
+        _selectedEpisodeId.value = episode.id
         updateEpisode(force = true)
     }
 
@@ -379,5 +405,28 @@ class PlayerViewModel @Inject constructor(
 
     private fun emitCommand(command: PlayerCommand) {
         _commands.tryEmit(command)
+    }
+
+    private fun toEpisodeOptionUiModel(episode: Episode): EpisodeOptionUiModel {
+        val ordinalLabel = episode.id.id.trim().ifBlank { "?" }
+        val rawTitleLabel = episode.title?.trim().orEmpty()
+        val titleLabel = rawTitleLabel
+            .removePrefix("$ordinalLabel •")
+            .removePrefix("$ordinalLabel.")
+            .removePrefix("$ordinalLabel ")
+            .trim()
+        val label = if (
+            titleLabel.isNotBlank() &&
+            titleLabel != ordinalLabel &&
+            !titleLabel.equals("серия $ordinalLabel", ignoreCase = true)
+        ) {
+            "$ordinalLabel • $titleLabel"
+        } else {
+            "Серия $ordinalLabel"
+        }
+        return EpisodeOptionUiModel(
+            episodeId = episode.id,
+            label = label,
+        )
     }
 }

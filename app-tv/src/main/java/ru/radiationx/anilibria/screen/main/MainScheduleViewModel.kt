@@ -19,7 +19,7 @@ class MainScheduleViewModel @Inject constructor(
     private val cardRouter: LibriaCardRouter,
 ) : BaseCardsViewModel() {
 
-    override val defaultTitle: String = "Ожидается сегодня"
+    override val defaultTitle: String = MainSectionTitles.SCHEDULE
 
     override val loadMoreCard: LinkCard = LinkCard("Открыть полное расписание")
 

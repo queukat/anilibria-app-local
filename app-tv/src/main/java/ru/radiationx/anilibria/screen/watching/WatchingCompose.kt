@@ -439,6 +439,10 @@ private fun WatchingSectionBlock(
                             imageUrl = item.image,
                             palette = palette,
                             focusRequester = requesters[index],
+                            scaleTransformOrigin = edgeAwareHorizontalTransformOrigin(
+                                index = index,
+                                lastIndex = items.lastIndex,
+                            ),
                             onClick = { onItemClick(item) },
                             onFocused = { onCardFocused(index, item) },
                             onLeft = if (index == 0) onLeftEdge else null,

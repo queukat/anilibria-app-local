@@ -47,8 +47,10 @@ internal data class PlayerPanelSurfaceStyle(
 internal enum class PlayerControlButtonId {
     Previous,
     SeekBack,
+    SeekForward,
     PlayPause,
     Next,
+    Episodes,
     Quality,
     Speed,
     AspectRatio,
@@ -71,6 +73,7 @@ internal val PlayerControlsRuntimeLayout = PlayerControlsLayoutSpec(
     buttonLayouts = mapOf(
         PlayerControlButtonId.Previous to transportIconButtonLayout,
         PlayerControlButtonId.SeekBack to transportIconButtonLayout,
+        PlayerControlButtonId.SeekForward to transportIconButtonLayout,
         PlayerControlButtonId.PlayPause to PlayerActionButtonLayout(
             minWidth = 72.dp,
             horizontalPadding = 14.dp,
@@ -78,6 +81,12 @@ internal val PlayerControlsRuntimeLayout = PlayerControlsLayoutSpec(
             iconSize = 20.dp,
         ),
         PlayerControlButtonId.Next to transportIconButtonLayout,
+        PlayerControlButtonId.Episodes to PlayerActionButtonLayout(
+            minWidth = 84.dp,
+            horizontalPadding = 16.dp,
+            verticalPadding = 11.dp,
+            textFontSize = 15.sp,
+        ),
         PlayerControlButtonId.Quality to PlayerActionButtonLayout(
             minWidth = 96.dp,
             horizontalPadding = 16.dp,

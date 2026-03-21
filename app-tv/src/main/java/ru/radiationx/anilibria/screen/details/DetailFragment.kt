@@ -29,9 +29,6 @@ import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.screen.details.other.DetailOtherViewModel
 import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
-import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsCallbacks
-import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsFocusTarget
-import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsRowUiState
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.QuillExtra
 import ru.radiationx.quill.inject

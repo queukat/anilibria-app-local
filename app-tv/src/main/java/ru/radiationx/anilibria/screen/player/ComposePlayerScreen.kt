@@ -20,10 +20,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -34,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +68,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.launch
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
@@ -74,14 +80,18 @@ import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
+import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.data.entity.common.PlayerQuality
 
 internal enum class PlayerOverlayFocusTarget {
     Root,
+    Progress,
     PlayPause,
     SeekBack,
+    SeekForward,
     PreviousEpisode,
     NextEpisode,
+    Episodes,
     Quality,
     Speed,
     AspectRatio,
@@ -91,6 +101,10 @@ internal enum class PlayerOverlayPicker(
     @StringRes val titleRes: Int,
     private val returnTarget: PlayerOverlayFocusTarget,
 ) {
+    Episodes(
+        titleRes = R.string.player_action_episodes,
+        returnTarget = PlayerOverlayFocusTarget.Episodes,
+    ),
     Quality(
         titleRes = R.string.player_action_quality,
         returnTarget = PlayerOverlayFocusTarget.Quality,
@@ -135,6 +149,8 @@ internal fun PlayerScreenContent(
     qualityLabel: String,
     selectedSpeed: Float,
     speedLabel: String,
+    availableEpisodes: List<PlayerViewModel.EpisodeOptionUiModel>,
+    selectedEpisodeId: ru.radiationx.data.entity.domain.types.EpisodeId?,
     aspectRatioMode: PlayerAspectRatioMode,
     availableQualities: List<PlayerQuality>,
     availableSpeeds: List<Float>,
@@ -150,16 +166,19 @@ internal fun PlayerScreenContent(
     onSeekForward: () -> Unit,
     onPreviousClick: () -> Unit,
     onNextClick: () -> Unit,
+    onEpisodesClick: () -> Unit,
     onQualityClick: () -> Unit,
     onSpeedClick: () -> Unit,
     onAspectRatioClick: () -> Unit,
     onDismissPicker: (PlayerOverlayPicker) -> Unit,
+    onEpisodeSelected: (ru.radiationx.data.entity.domain.types.EpisodeId) -> Unit,
     onQualitySelected: (PlayerQuality) -> Unit,
     onSpeedSelected: (Float) -> Unit,
     onAspectRatioSelected: (PlayerAspectRatioMode) -> Unit,
 ) {
     val palette = rememberWatchingPalette()
     val skipVisible = skipsPart?.visibleSkip != null
+    val episodesControlEnabled = availableEpisodes.size > 1
     val qualityControlsEnabled = availableQualities.isNotEmpty()
     val speedControlsEnabled = availableSpeeds.isNotEmpty()
     val aspectRatioControlEnabled = PlayerAspectRatioMode.entries.size > 1
@@ -171,20 +190,26 @@ internal fun PlayerScreenContent(
     }
 
     val rootRequester = remember { FocusRequester() }
+    val progressRequester = remember { FocusRequester() }
     val playPauseRequester = remember { FocusRequester() }
     val seekBackRequester = remember { FocusRequester() }
+    val seekForwardRequester = remember { FocusRequester() }
     val previousRequester = remember { FocusRequester() }
     val nextRequester = remember { FocusRequester() }
+    val episodesRequester = remember { FocusRequester() }
     val qualityRequester = remember { FocusRequester() }
     val speedRequester = remember { FocusRequester() }
     val aspectRatioRequester = remember { FocusRequester() }
 
     fun requesterFor(target: PlayerOverlayFocusTarget): FocusRequester = when (target) {
         PlayerOverlayFocusTarget.Root -> rootRequester
+        PlayerOverlayFocusTarget.Progress -> progressRequester
         PlayerOverlayFocusTarget.PlayPause -> playPauseRequester
         PlayerOverlayFocusTarget.SeekBack -> seekBackRequester
+        PlayerOverlayFocusTarget.SeekForward -> seekForwardRequester
         PlayerOverlayFocusTarget.PreviousEpisode -> previousRequester
         PlayerOverlayFocusTarget.NextEpisode -> nextRequester
+        PlayerOverlayFocusTarget.Episodes -> episodesRequester
         PlayerOverlayFocusTarget.Quality -> qualityRequester
         PlayerOverlayFocusTarget.Speed -> speedRequester
         PlayerOverlayFocusTarget.AspectRatio -> aspectRatioRequester
@@ -194,10 +219,13 @@ internal fun PlayerScreenContent(
         return targets.firstOrNull { target ->
             when (target) {
                 PlayerOverlayFocusTarget.Root -> false
+                PlayerOverlayFocusTarget.Progress -> true
                 PlayerOverlayFocusTarget.PlayPause -> true
                 PlayerOverlayFocusTarget.SeekBack -> true
+                PlayerOverlayFocusTarget.SeekForward -> true
                 PlayerOverlayFocusTarget.PreviousEpisode -> canPrevious
                 PlayerOverlayFocusTarget.NextEpisode -> canNext
+                PlayerOverlayFocusTarget.Episodes -> episodesControlEnabled
                 PlayerOverlayFocusTarget.Quality -> qualityControlsEnabled
                 PlayerOverlayFocusTarget.Speed -> speedControlsEnabled
                 PlayerOverlayFocusTarget.AspectRatio -> aspectRatioControlEnabled
@@ -208,18 +236,24 @@ internal fun PlayerScreenContent(
     fun resolveFocusTarget(target: PlayerOverlayFocusTarget): PlayerOverlayFocusTarget = when (target) {
         PlayerOverlayFocusTarget.Root -> firstAvailable(
             PlayerOverlayFocusTarget.PlayPause,
+            PlayerOverlayFocusTarget.Progress,
             PlayerOverlayFocusTarget.SeekBack,
+            PlayerOverlayFocusTarget.SeekForward,
             PlayerOverlayFocusTarget.PreviousEpisode,
             PlayerOverlayFocusTarget.NextEpisode,
+            PlayerOverlayFocusTarget.Episodes,
             PlayerOverlayFocusTarget.Quality,
             PlayerOverlayFocusTarget.Speed,
             PlayerOverlayFocusTarget.AspectRatio,
         )
 
+        PlayerOverlayFocusTarget.Progress -> PlayerOverlayFocusTarget.Progress
         PlayerOverlayFocusTarget.PlayPause -> PlayerOverlayFocusTarget.PlayPause
         PlayerOverlayFocusTarget.SeekBack -> PlayerOverlayFocusTarget.SeekBack
+        PlayerOverlayFocusTarget.SeekForward -> PlayerOverlayFocusTarget.SeekForward
         PlayerOverlayFocusTarget.PreviousEpisode -> firstAvailable(
             PlayerOverlayFocusTarget.PreviousEpisode,
+            PlayerOverlayFocusTarget.SeekForward,
             PlayerOverlayFocusTarget.SeekBack,
             PlayerOverlayFocusTarget.PlayPause,
             PlayerOverlayFocusTarget.NextEpisode,
@@ -227,6 +261,15 @@ internal fun PlayerScreenContent(
 
         PlayerOverlayFocusTarget.NextEpisode -> firstAvailable(
             PlayerOverlayFocusTarget.NextEpisode,
+            PlayerOverlayFocusTarget.Episodes,
+            PlayerOverlayFocusTarget.Quality,
+            PlayerOverlayFocusTarget.Speed,
+            PlayerOverlayFocusTarget.AspectRatio,
+            PlayerOverlayFocusTarget.PlayPause,
+        )
+
+        PlayerOverlayFocusTarget.Episodes -> firstAvailable(
+            PlayerOverlayFocusTarget.Episodes,
             PlayerOverlayFocusTarget.Quality,
             PlayerOverlayFocusTarget.Speed,
             PlayerOverlayFocusTarget.AspectRatio,
@@ -235,6 +278,7 @@ internal fun PlayerScreenContent(
 
         PlayerOverlayFocusTarget.Quality -> firstAvailable(
             PlayerOverlayFocusTarget.Quality,
+            PlayerOverlayFocusTarget.Episodes,
             PlayerOverlayFocusTarget.Speed,
             PlayerOverlayFocusTarget.AspectRatio,
             PlayerOverlayFocusTarget.PlayPause,
@@ -242,6 +286,7 @@ internal fun PlayerScreenContent(
 
         PlayerOverlayFocusTarget.Speed -> firstAvailable(
             PlayerOverlayFocusTarget.Speed,
+            PlayerOverlayFocusTarget.Episodes,
             PlayerOverlayFocusTarget.Quality,
             PlayerOverlayFocusTarget.AspectRatio,
             PlayerOverlayFocusTarget.PlayPause,
@@ -250,12 +295,22 @@ internal fun PlayerScreenContent(
         PlayerOverlayFocusTarget.AspectRatio -> firstAvailable(
             PlayerOverlayFocusTarget.AspectRatio,
             PlayerOverlayFocusTarget.Speed,
+            PlayerOverlayFocusTarget.Episodes,
             PlayerOverlayFocusTarget.Quality,
             PlayerOverlayFocusTarget.PlayPause,
         )
     }
 
     val pickerOptions = when (activePicker) {
+        PlayerOverlayPicker.Episodes -> availableEpisodes.map { episode ->
+            PlayerPickerOption(
+                id = "${episode.episodeId.releaseId.id}:${episode.episodeId.id}",
+                label = episode.label,
+                selected = episode.episodeId == selectedEpisodeId,
+                onSelected = { onEpisodeSelected(episode.episodeId) },
+            )
+        }
+
         PlayerOverlayPicker.Quality -> availableQualities.map { quality ->
             PlayerPickerOption(
                 id = "quality_${quality.name}",
@@ -286,8 +341,8 @@ internal fun PlayerScreenContent(
         null -> emptyList()
     }
 
-    LaunchedEffect(controlsVisible, controlsFocusToken, controlsFocusTarget, activePicker) {
-        if (!controlsVisible || activePicker != null) {
+    LaunchedEffect(controlsVisible, controlsFocusToken, controlsFocusTarget, activePicker, skipVisible) {
+        if (!controlsVisible || activePicker != null || skipVisible) {
             return@LaunchedEffect
         }
         requestWatchingFocusAfterAttach(requesterFor(resolveFocusTarget(controlsFocusTarget)))
@@ -400,7 +455,7 @@ internal fun PlayerScreenContent(
                         if (!controlsVisible && !skipVisible) {
                             registerInteraction()
                             onSeekBack()
-                            onShowControls(PlayerOverlayFocusTarget.SeekBack)
+                            onShowControls(PlayerOverlayFocusTarget.Progress)
                             true
                         } else {
                             false
@@ -411,7 +466,7 @@ internal fun PlayerScreenContent(
                         if (!controlsVisible && !skipVisible) {
                             registerInteraction()
                             onSeekForward()
-                            onShowControls(PlayerOverlayFocusTarget.PlayPause)
+                            onShowControls(PlayerOverlayFocusTarget.Progress)
                             true
                         } else {
                             false
@@ -498,10 +553,13 @@ internal fun PlayerScreenContent(
                     speedEnabled = speedControlsEnabled,
                     aspectRatioEnabled = aspectRatioControlEnabled,
                     palette = palette,
+                    progressRequester = progressRequester,
                     playPauseRequester = playPauseRequester,
                     seekBackRequester = seekBackRequester,
+                    seekForwardRequester = seekForwardRequester,
                     previousRequester = previousRequester,
                     nextRequester = nextRequester,
+                    episodesRequester = episodesRequester,
                     qualityRequester = qualityRequester,
                     speedRequester = speedRequester,
                     aspectRatioRequester = aspectRatioRequester,
@@ -509,8 +567,11 @@ internal fun PlayerScreenContent(
                     onInteraction = ::registerInteraction,
                     onTogglePlayback = onTogglePlayback,
                     onSeekBack = onSeekBack,
+                    onSeekForward = onSeekForward,
                     onPreviousClick = onPreviousClick,
                     onNextClick = onNextClick,
+                    episodesEnabled = episodesControlEnabled,
+                    onEpisodesClick = onEpisodesClick,
                     onQualityClick = onQualityClick,
                     onSpeedClick = onSpeedClick,
                     onAspectRatioClick = onAspectRatioClick,
@@ -524,6 +585,7 @@ internal fun PlayerScreenContent(
         PlayerSkipsOverlay(
             skipsPart = skipsPart,
             onInteraction = ::registerInteraction,
+            onQuickActionHandled = onAutoHideControls,
             onOpenControls = {
                 onShowControls(PlayerOverlayFocusTarget.PlayPause)
             },
@@ -591,14 +653,18 @@ private fun PlayerControlsPanel(
     aspectRatioMode: PlayerAspectRatioMode,
     canPrevious: Boolean,
     canNext: Boolean,
+    episodesEnabled: Boolean,
     qualityEnabled: Boolean,
     speedEnabled: Boolean,
     aspectRatioEnabled: Boolean,
     palette: WatchingPalette,
+    progressRequester: FocusRequester,
     playPauseRequester: FocusRequester,
     seekBackRequester: FocusRequester,
+    seekForwardRequester: FocusRequester,
     previousRequester: FocusRequester,
     nextRequester: FocusRequester,
+    episodesRequester: FocusRequester,
     qualityRequester: FocusRequester,
     speedRequester: FocusRequester,
     aspectRatioRequester: FocusRequester,
@@ -606,8 +672,10 @@ private fun PlayerControlsPanel(
     onInteraction: () -> Unit,
     onTogglePlayback: () -> Unit,
     onSeekBack: () -> Unit,
+    onSeekForward: () -> Unit,
     onPreviousClick: () -> Unit,
     onNextClick: () -> Unit,
+    onEpisodesClick: () -> Unit,
     onQualityClick: () -> Unit,
     onSpeedClick: () -> Unit,
     onAspectRatioClick: () -> Unit,
@@ -616,8 +684,10 @@ private fun PlayerControlsPanel(
     val layout = PlayerControlsRuntimeLayout
     val playPauseButtonLayout = layout.button(PlayerControlButtonId.PlayPause)
     val seekBackButtonLayout = layout.button(PlayerControlButtonId.SeekBack)
+    val seekForwardButtonLayout = layout.button(PlayerControlButtonId.SeekForward)
     val previousButtonLayout = layout.button(PlayerControlButtonId.Previous)
     val nextButtonLayout = layout.button(PlayerControlButtonId.Next)
+    val episodesButtonLayout = layout.button(PlayerControlButtonId.Episodes)
     val qualityButtonLayout = layout.button(PlayerControlButtonId.Quality)
     val speedButtonLayout = layout.button(PlayerControlButtonId.Speed)
     val aspectRatioButtonLayout = layout.button(PlayerControlButtonId.AspectRatio)
@@ -625,8 +695,10 @@ private fun PlayerControlsPanel(
     val focusableButtonTargets = buildList {
         add(PlayerOverlayFocusTarget.PlayPause)
         add(PlayerOverlayFocusTarget.SeekBack)
+        add(PlayerOverlayFocusTarget.SeekForward)
         if (canPrevious) add(PlayerOverlayFocusTarget.PreviousEpisode)
         if (canNext) add(PlayerOverlayFocusTarget.NextEpisode)
+        if (episodesEnabled) add(PlayerOverlayFocusTarget.Episodes)
         if (qualityEnabled) add(PlayerOverlayFocusTarget.Quality)
         if (speedEnabled) add(PlayerOverlayFocusTarget.Speed)
         if (aspectRatioEnabled) add(PlayerOverlayFocusTarget.AspectRatio)
@@ -634,10 +706,13 @@ private fun PlayerControlsPanel(
 
     fun requesterFor(target: PlayerOverlayFocusTarget): FocusRequester = when (target) {
         PlayerOverlayFocusTarget.Root -> playPauseRequester
+        PlayerOverlayFocusTarget.Progress -> progressRequester
         PlayerOverlayFocusTarget.PlayPause -> playPauseRequester
         PlayerOverlayFocusTarget.SeekBack -> seekBackRequester
+        PlayerOverlayFocusTarget.SeekForward -> seekForwardRequester
         PlayerOverlayFocusTarget.PreviousEpisode -> previousRequester
         PlayerOverlayFocusTarget.NextEpisode -> nextRequester
+        PlayerOverlayFocusTarget.Episodes -> episodesRequester
         PlayerOverlayFocusTarget.Quality -> qualityRequester
         PlayerOverlayFocusTarget.Speed -> speedRequester
         PlayerOverlayFocusTarget.AspectRatio -> aspectRatioRequester
@@ -650,6 +725,11 @@ private fun PlayerControlsPanel(
         }
         val nextTarget = focusableButtonTargets.getOrNull(currentIndex + step) ?: return false
         return requestFocus(requesterFor(nextTarget))
+    }
+
+    fun requestPrimaryControlFocus(): Boolean {
+        val target = focusableButtonTargets.firstOrNull() ?: return false
+        return requestFocus(requesterFor(target))
     }
 
     Column(
@@ -668,6 +748,13 @@ private fun PlayerControlsPanel(
             durationMs = durationMs,
             bufferedPositionMs = bufferedPositionMs,
             palette = palette,
+            focusRequester = progressRequester,
+            onControlFocused = onControlFocused,
+            onInteraction = onInteraction,
+            onTogglePlayback = onTogglePlayback,
+            onSeekBack = onSeekBack,
+            onSeekForward = onSeekForward,
+            onDown = ::requestPrimaryControlFocus,
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -715,7 +802,10 @@ private fun PlayerControlsPanel(
                     onInteraction()
                     requestAdjacent(PlayerOverlayFocusTarget.PlayPause, 1)
                 },
-                onUp = { true },
+                onUp = {
+                    onInteraction()
+                    requestFocus(progressRequester)
+                },
                 onDown = { true },
             )
 
@@ -744,7 +834,42 @@ private fun PlayerControlsPanel(
                     onInteraction()
                     requestAdjacent(PlayerOverlayFocusTarget.SeekBack, 1)
                 },
-                onUp = { true },
+                onUp = {
+                    onInteraction()
+                    requestFocus(progressRequester)
+                },
+                onDown = { true },
+            )
+
+            PlayerActionButton(
+                contentDescription = stringResource(R.string.player_action_forward),
+                focusRequester = seekForwardRequester,
+                palette = palette,
+                iconRes = R.drawable.ic_player_seek_forward,
+                minWidth = seekForwardButtonLayout.minWidth,
+                horizontalPadding = seekForwardButtonLayout.horizontalPadding,
+                verticalPadding = seekForwardButtonLayout.verticalPadding,
+                iconSize = seekForwardButtonLayout.iconSize,
+                onFocused = {
+                    onInteraction()
+                    onControlFocused(PlayerOverlayFocusTarget.SeekForward)
+                },
+                onClick = {
+                    onInteraction()
+                    onSeekForward()
+                },
+                onLeft = {
+                    onInteraction()
+                    requestAdjacent(PlayerOverlayFocusTarget.SeekForward, -1)
+                },
+                onRight = {
+                    onInteraction()
+                    requestAdjacent(PlayerOverlayFocusTarget.SeekForward, 1)
+                },
+                onUp = {
+                    onInteraction()
+                    requestFocus(progressRequester)
+                },
                 onDown = { true },
             )
 
@@ -774,7 +899,10 @@ private fun PlayerControlsPanel(
                     onInteraction()
                     requestAdjacent(PlayerOverlayFocusTarget.PreviousEpisode, 1)
                 },
-                onUp = { true },
+                onUp = {
+                    onInteraction()
+                    requestFocus(progressRequester)
+                },
                 onDown = { true },
             )
 
@@ -804,7 +932,43 @@ private fun PlayerControlsPanel(
                     onInteraction()
                     requestAdjacent(PlayerOverlayFocusTarget.NextEpisode, 1)
                 },
-                onUp = { true },
+                onUp = {
+                    onInteraction()
+                    requestFocus(progressRequester)
+                },
+                onDown = { true },
+            )
+
+            PlayerActionButton(
+                text = stringResource(R.string.player_action_episodes_compact),
+                contentDescription = stringResource(R.string.player_action_episodes),
+                focusRequester = episodesRequester,
+                palette = palette,
+                enabled = episodesEnabled,
+                minWidth = episodesButtonLayout.minWidth,
+                horizontalPadding = episodesButtonLayout.horizontalPadding,
+                verticalPadding = episodesButtonLayout.verticalPadding,
+                textFontSize = episodesButtonLayout.textFontSize,
+                onFocused = {
+                    onInteraction()
+                    onControlFocused(PlayerOverlayFocusTarget.Episodes)
+                },
+                onClick = {
+                    onInteraction()
+                    onEpisodesClick()
+                },
+                onLeft = {
+                    onInteraction()
+                    requestAdjacent(PlayerOverlayFocusTarget.Episodes, -1)
+                },
+                onRight = {
+                    onInteraction()
+                    requestAdjacent(PlayerOverlayFocusTarget.Episodes, 1)
+                },
+                onUp = {
+                    onInteraction()
+                    requestFocus(progressRequester)
+                },
                 onDown = { true },
             )
 
@@ -834,7 +998,10 @@ private fun PlayerControlsPanel(
                     onInteraction()
                     requestAdjacent(PlayerOverlayFocusTarget.Quality, 1)
                 },
-                onUp = { true },
+                onUp = {
+                    onInteraction()
+                    requestFocus(progressRequester)
+                },
                 onDown = { true },
             )
 
@@ -864,7 +1031,10 @@ private fun PlayerControlsPanel(
                     onInteraction()
                     requestAdjacent(PlayerOverlayFocusTarget.Speed, 1)
                 },
-                onUp = { true },
+                onUp = {
+                    onInteraction()
+                    requestFocus(progressRequester)
+                },
                 onDown = { true },
             )
 
@@ -895,7 +1065,10 @@ private fun PlayerControlsPanel(
                     requestAdjacent(PlayerOverlayFocusTarget.AspectRatio, -1)
                 },
                 onRight = { true },
-                onUp = { true },
+                onUp = {
+                    onInteraction()
+                    requestFocus(progressRequester)
+                },
                 onDown = { true },
             )
         }
@@ -908,6 +1081,13 @@ private fun PlayerProgressDisplay(
     durationMs: Long,
     bufferedPositionMs: Long,
     palette: WatchingPalette,
+    focusRequester: FocusRequester,
+    onControlFocused: (PlayerOverlayFocusTarget) -> Unit,
+    onInteraction: () -> Unit,
+    onTogglePlayback: () -> Unit,
+    onSeekBack: () -> Unit,
+    onSeekForward: () -> Unit,
+    onDown: () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     val safeDuration = durationMs.coerceAtLeast(0L)
@@ -922,10 +1102,39 @@ private fun PlayerProgressDisplay(
         0f
     }
 
-    Box(
-        modifier = modifier
-            .playerPanelSurface(PlayerOverlayUiDefaults.progressDisplayStyle())
-            .padding(PlayerOverlayUiDefaults.ProgressSurfacePadding),
+    val progressStyle = PlayerOverlayUiDefaults.progressDisplayStyle()
+
+    PlayerControlSurface(
+        focusRequester = focusRequester,
+        backgroundColor = progressStyle.backgroundColor,
+        focusedBackgroundColor = progressStyle.backgroundColor,
+        borderColor = palette.accentColor,
+        onClick = {
+            onInteraction()
+            onTogglePlayback()
+        },
+        shape = progressStyle.shape,
+        onFocused = {
+            onInteraction()
+            onControlFocused(PlayerOverlayFocusTarget.Progress)
+        },
+        onLeft = {
+            onInteraction()
+            onSeekBack()
+            true
+        },
+        onUp = { true },
+        onRight = {
+            onInteraction()
+            onSeekForward()
+            true
+        },
+        onDown = {
+            onInteraction()
+            onDown()
+        },
+        modifier = modifier,
+        paddingValues = PlayerOverlayUiDefaults.ProgressSurfacePadding,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -987,11 +1196,26 @@ private fun PlayerPickerMenu(
 
     val optionIds = remember(options) { options.map(PlayerPickerOption::id) }
     val optionRequesters = remember(optionIds) { List(optionIds.size) { FocusRequester() } }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     val selectedIndex = remember(options) {
         options.indexOfFirst { it.selected }.takeIf { it >= 0 } ?: 0
     }
 
+    fun requestOptionFocus(targetIndex: Int): Boolean {
+        if (options.isEmpty()) {
+            return false
+        }
+        val clampedIndex = targetIndex.coerceIn(0, options.lastIndex)
+        scope.launch {
+            listState.scrollItemIntoViewIfNeeded(clampedIndex)
+            requestWatchingFocusAfterAttach(optionRequesters.getOrNull(clampedIndex))
+        }
+        return true
+    }
+
     LaunchedEffect(optionIds, selectedIndex) {
+        listState.scrollItemIntoViewIfNeeded(selectedIndex)
         requestWatchingFocusAfterAttach(optionRequesters.getOrNull(selectedIndex))
     }
 
@@ -1009,10 +1233,15 @@ private fun PlayerPickerMenu(
             modifier = Modifier.padding(bottom = PlayerOverlayUiDefaults.PickerHeaderBottomSpacing),
         )
 
-        Column(
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.heightIn(max = 420.dp),
             verticalArrangement = Arrangement.spacedBy(PlayerOverlayUiDefaults.PickerOptionSpacing),
         ) {
-            options.forEachIndexed { index, option ->
+            itemsIndexed(
+                items = options,
+                key = { _, option -> option.id },
+            ) { index, option ->
                 PlayerPickerOptionButton(
                     option = option,
                     focusRequester = optionRequesters[index],
@@ -1023,7 +1252,7 @@ private fun PlayerPickerMenu(
                         if (index <= 0) {
                             true
                         } else {
-                            requestFocus(optionRequesters[index - 1])
+                            requestOptionFocus(index - 1)
                         }
                     },
                     onDown = {
@@ -1031,7 +1260,7 @@ private fun PlayerPickerMenu(
                         if (index >= optionRequesters.lastIndex) {
                             true
                         } else {
-                            requestFocus(optionRequesters[index + 1])
+                            requestOptionFocus(index + 1)
                         }
                     },
                 )

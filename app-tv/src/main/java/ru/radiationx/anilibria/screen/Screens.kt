@@ -4,10 +4,7 @@ import androidx.annotation.OptIn
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentFactory
 import androidx.media3.common.util.UnstableApi
-import ru.radiationx.anilibria.common.fragment.GuidedAppScreen
-import ru.radiationx.anilibria.screen.auth.credentials.AuthCredentialsGuidedFragment
-import ru.radiationx.anilibria.screen.auth.main.AuthGuidedFragment
-import ru.radiationx.anilibria.screen.auth.otp.AuthOtpGuidedFragment
+import ru.radiationx.anilibria.screen.auth.AuthFragment
 import ru.radiationx.anilibria.screen.config.ConfigFragment
 import ru.radiationx.anilibria.screen.details.DetailFragment
 import ru.radiationx.anilibria.screen.mainpages.MainPagesFragment
@@ -66,21 +63,9 @@ class SearchScreen : FragmentScreen {
     }
 }
 
-class AuthGuidedScreen : GuidedAppScreen() {
+class AuthScreen : FragmentScreen {
     override fun createFragment(factory: FragmentFactory): Fragment {
-        return AuthGuidedFragment()
-    }
-}
-
-class AuthCredentialsGuidedScreen : GuidedAppScreen() {
-    override fun createFragment(factory: FragmentFactory): Fragment {
-        return AuthCredentialsGuidedFragment()
-    }
-}
-
-class AuthOtpGuidedScreen : GuidedAppScreen() {
-    override fun createFragment(factory: FragmentFactory): Fragment {
-        return AuthOtpGuidedFragment()
+        return AuthFragment()
     }
 }
 

@@ -3,14 +3,14 @@ package ru.radiationx.anilibria.screen.launcher
 import android.content.Intent
 import android.os.Bundle
 import androidx.fragment.app.FragmentActivity
+import com.github.terrakok.cicerone.NavigatorHolder
+import com.github.terrakok.cicerone.androidx.AppNavigator
 import ru.radiationx.anilibria.R
-import ru.radiationx.anilibria.common.fragment.GuidedStepNavigator
 import ru.radiationx.anilibria.contentprovider.suggestions.SuggestionsContentProvider
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.installModules
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
-import com.github.terrakok.cicerone.NavigatorHolder
 import ru.radiationx.anilibria.di.ActivityModule
 import ru.radiationx.anilibria.di.AppModule
 import ru.radiationx.anilibria.di.NavigationModule
@@ -22,7 +22,7 @@ class MainActivity : FragmentActivity() {
 
     private val viewModel: AppLauncherViewModel by viewModel()
     private val navigator by lazy {
-        GuidedStepNavigator(this, android.R.id.content)
+        AppNavigator(this, android.R.id.content)
     }
 
     private val navigatorHolder by inject<NavigatorHolder>()

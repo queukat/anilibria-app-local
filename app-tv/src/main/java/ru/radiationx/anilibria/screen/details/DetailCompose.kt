@@ -48,9 +48,6 @@ import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
-import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsCallbacks
-import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsRowContent
-import ru.radiationx.anilibria.ui.presenter.ReleaseDetailsRowUiState
 
 @Stable
 internal data class DetailContentRestoreState(

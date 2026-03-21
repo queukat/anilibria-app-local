@@ -113,6 +113,20 @@ class PlayerFragment : BasePlayerFragment() {
             updateAvailableQualities(qualities)
         }
 
+        subscribeTo(viewModel.episodeOptions) { options ->
+            updateEpisodeOptions(
+                options = options,
+                selectedEpisodeId = viewModel.selectedEpisodeId.value,
+            )
+        }
+
+        subscribeTo(viewModel.selectedEpisodeId) { selectedEpisodeId ->
+            updateEpisodeOptions(
+                options = viewModel.episodeOptions.value,
+                selectedEpisodeId = selectedEpisodeId,
+            )
+        }
+
         subscribeTo(viewModel.startupFailure.filterNotNull()) { failure ->
             context?.let { safeContext ->
                 Toast.makeText(safeContext, failure.message, Toast.LENGTH_LONG).show()
@@ -176,6 +190,17 @@ class PlayerFragment : BasePlayerFragment() {
 
     override fun onSpeedSelected(speed: Float) {
         viewModel.setSpeed(speed)
+    }
+
+    override fun onEpisodeSelected(
+        position: Long,
+        episodeId: EpisodeId,
+    ) {
+        viewModel.onEpisodeSelected(position, episodeId)
+        updateNavigationState(
+            canPrevious = viewModel.hasPreviousEpisode(),
+            canNext = viewModel.hasNextEpisode(),
+        )
     }
 
     @Composable

@@ -34,6 +34,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import ru.radiationx.data.entity.common.PlayerQuality
+import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.player.PlayerDataSourceProvider
 import ru.radiationx.quill.get
 import java.util.concurrent.TimeUnit
@@ -64,6 +65,8 @@ open class BasePlayerFragment : Fragment() {
     private var aspectRatioModeState by mutableStateOf(PlayerAspectRatioMode.FIT)
     private var availableQualitiesState by mutableStateOf<List<PlayerQuality>>(emptyList())
     private var availableSpeedsState by mutableStateOf<List<Float>>(emptyList())
+    private var availableEpisodesState by mutableStateOf<List<PlayerViewModel.EpisodeOptionUiModel>>(emptyList())
+    private var selectedEpisodeIdState by mutableStateOf<EpisodeId?>(null)
     private var canPreviousState by mutableStateOf(false)
     private var canNextState by mutableStateOf(false)
 
@@ -151,6 +154,8 @@ open class BasePlayerFragment : Fragment() {
                         qualityLabel = qualityState.asPlayerLabel(),
                         selectedSpeed = speedState,
                         speedLabel = speedState.asPlayerLabel(),
+                        availableEpisodes = availableEpisodesState,
+                        selectedEpisodeId = selectedEpisodeIdState,
                         aspectRatioMode = aspectRatioModeState,
                         availableQualities = availableQualitiesState,
                         availableSpeeds = availableSpeedsState,
@@ -166,6 +171,7 @@ open class BasePlayerFragment : Fragment() {
                         onSeekForward = { seekBy(SEEK_DELTA_MS) },
                         onPreviousClick = { onPreviousAction(getCurrentPosition()) },
                         onNextClick = { onNextAction(getCurrentPosition()) },
+                        onEpisodesClick = { togglePicker(PlayerOverlayPicker.Episodes) },
                         onQualityClick = { togglePicker(PlayerOverlayPicker.Quality) },
                         onSpeedClick = { togglePicker(PlayerOverlayPicker.Speed) },
                         onAspectRatioClick = { togglePicker(PlayerOverlayPicker.AspectRatio) },
@@ -176,6 +182,13 @@ open class BasePlayerFragment : Fragment() {
                                 quality = quality,
                             )
                             closePicker(PlayerOverlayFocusTarget.Quality)
+                        },
+                        onEpisodeSelected = { episodeId ->
+                            onEpisodeSelected(
+                                position = getCurrentPosition(),
+                                episodeId = episodeId,
+                            )
+                            closePicker(PlayerOverlayFocusTarget.Episodes)
                         },
                         onSpeedSelected = { speed ->
                             onSpeedSelected(speed)
@@ -245,6 +258,11 @@ open class BasePlayerFragment : Fragment() {
         quality: PlayerQuality,
     ) {}
 
+    protected open fun onEpisodeSelected(
+        position: Long,
+        episodeId: EpisodeId,
+    ) {}
+
     @Composable
     protected open fun RenderPlayerOverlay() = Unit
 
@@ -303,6 +321,17 @@ open class BasePlayerFragment : Fragment() {
         availableSpeedsState = speeds
         if (speeds.isEmpty() && activePickerState == PlayerOverlayPicker.Speed) {
             closePicker(PlayerOverlayFocusTarget.Speed)
+        }
+    }
+
+    protected fun updateEpisodeOptions(
+        options: List<PlayerViewModel.EpisodeOptionUiModel>,
+        selectedEpisodeId: EpisodeId?,
+    ) {
+        availableEpisodesState = options
+        selectedEpisodeIdState = selectedEpisodeId
+        if (options.size <= 1 && activePickerState == PlayerOverlayPicker.Episodes) {
+            closePicker(PlayerOverlayFocusTarget.PlayPause)
         }
     }
 

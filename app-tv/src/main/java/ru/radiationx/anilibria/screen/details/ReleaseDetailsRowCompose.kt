@@ -1,4 +1,4 @@
-package ru.radiationx.anilibria.ui.presenter
+package ru.radiationx.anilibria.screen.details
 
 import android.content.Context
 import android.util.TypedValue

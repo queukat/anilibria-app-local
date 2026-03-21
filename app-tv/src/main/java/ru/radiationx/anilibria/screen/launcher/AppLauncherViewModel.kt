@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import ru.radiationx.anilibria.screen.AuthGuidedScreen
+import ru.radiationx.anilibria.screen.AuthScreen
 import ru.radiationx.anilibria.screen.ConfigScreen
 import ru.radiationx.anilibria.screen.DetailsScreen
 import ru.radiationx.anilibria.screen.LifecycleViewModel
@@ -77,7 +77,7 @@ class AppLauncherViewModel @Inject constructor(
         viewModelScope.launch {
             router.newRootScreen(MainPagesScreen())
             if (!AndroidTestMode.enabled && authRepository.getAuthState() == AuthState.NO_AUTH) {
-                router.navigateTo(AuthGuidedScreen())
+                router.navigateTo(AuthScreen())
             }
             _commands.tryEmit(AppLauncherCommand.AppReady)
         }
