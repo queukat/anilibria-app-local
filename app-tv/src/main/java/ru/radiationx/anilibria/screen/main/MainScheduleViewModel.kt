@@ -55,10 +55,6 @@ class MainScheduleViewModel @Inject constructor(
         super.onLoadingCardClick()
     }
 
-    override fun onLinkCardBind() {
-        // do nothing
-    }
-
     override fun onLibriaCardClick(card: LibriaCard) {
         cardRouter.navigate(card)
     }

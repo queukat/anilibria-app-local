@@ -1,8 +1,10 @@
 package ru.radiationx.anilibria.screen.details.other
 
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.details.DetailExtra
 import ru.radiationx.data.interactors.ReleaseInteractor
@@ -13,15 +15,16 @@ class DetailOtherViewModel @Inject constructor(
     private val argExtra: DetailExtra,
     private val releaseInteractor: ReleaseInteractor,
     private val userViewsRepository: UserViewsRepository,
-    private val guidedRouter: GuidedRouter,
 ) : LifecycleViewModel() {
 
+    private val _dismissEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val dismissEvents: SharedFlow<Unit> = _dismissEvents.asSharedFlow()
 
     fun onClearClick() {
         viewModelScope.launch {
             releaseInteractor.resetAccessHistory(argExtra.id)
             userViewsRepository.deleteAllTimecodesForRelease(argExtra.id)
-            guidedRouter.close()
+            _dismissEvents.emit(Unit)
         }
     }
 
@@ -29,7 +32,7 @@ class DetailOtherViewModel @Inject constructor(
         viewModelScope.launch {
             releaseInteractor.markAllViewed(argExtra.id)
             userViewsRepository.markAllWatchedForRelease(argExtra.id)
-            guidedRouter.close()
+            _dismissEvents.emit(Unit)
         }
     }
 }

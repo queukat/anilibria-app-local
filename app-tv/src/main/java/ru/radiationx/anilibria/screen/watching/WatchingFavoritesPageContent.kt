@@ -9,6 +9,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.LifecycleOwner
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.GradientBackgroundManager
+import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
@@ -120,6 +121,7 @@ internal class WatchingFavoritesPageContent(
             is LibriaCard -> viewModel.onLibriaCardClick(item)
             is LinkCard -> viewModel.onLinkCardClick()
             is LoadingCard -> viewModel.onLoadingCardClick()
+            is InfoCard -> Unit
         }
     }
 

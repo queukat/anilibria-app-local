@@ -21,14 +21,11 @@ internal data class PlayerActionButtonLayout(
 
 internal data class PlayerControlsLayoutSpec(
     val panelWidthFraction: Float,
-    val progressHorizontalPadding: Dp,
-    val progressVerticalPadding: Dp,
     val controlsHorizontalPadding: Dp,
     val controlsBottomPadding: Dp,
     val rowsTopPadding: Dp,
     val rowsVerticalSpacing: Dp,
     val primaryRowSpacing: Dp,
-    val secondaryRowSpacing: Dp,
     val buttonLayouts: Map<PlayerControlButtonId, PlayerActionButtonLayout>,
 ) {
     fun button(id: PlayerControlButtonId): PlayerActionButtonLayout = buttonLayouts.getValue(id)
@@ -51,11 +48,9 @@ internal enum class PlayerControlButtonId {
     Previous,
     SeekBack,
     PlayPause,
-    SeekForward,
     Next,
-    Episodes,
-    Speed,
     Quality,
+    Speed,
     AspectRatio,
 }
 
@@ -68,14 +63,11 @@ private val transportIconButtonLayout = PlayerActionButtonLayout(
 
 internal val PlayerControlsRuntimeLayout = PlayerControlsLayoutSpec(
     panelWidthFraction = 1f,
-    progressHorizontalPadding = 0.dp,
-    progressVerticalPadding = 0.dp,
     controlsHorizontalPadding = 20.dp,
     controlsBottomPadding = 20.dp,
     rowsTopPadding = 18.dp,
-    rowsVerticalSpacing = 16.dp,
+    rowsVerticalSpacing = 14.dp,
     primaryRowSpacing = 10.dp,
-    secondaryRowSpacing = 12.dp,
     buttonLayouts = mapOf(
         PlayerControlButtonId.Previous to transportIconButtonLayout,
         PlayerControlButtonId.SeekBack to transportIconButtonLayout,
@@ -85,31 +77,22 @@ internal val PlayerControlsRuntimeLayout = PlayerControlsLayoutSpec(
             verticalPadding = 11.dp,
             iconSize = 20.dp,
         ),
-        PlayerControlButtonId.SeekForward to transportIconButtonLayout,
         PlayerControlButtonId.Next to transportIconButtonLayout,
-        PlayerControlButtonId.Episodes to PlayerActionButtonLayout(
-            minWidth = 88.dp,
-            horizontalPadding = 14.dp,
+        PlayerControlButtonId.Quality to PlayerActionButtonLayout(
+            minWidth = 96.dp,
+            horizontalPadding = 16.dp,
             verticalPadding = 11.dp,
-            iconSize = 18.dp,
             textFontSize = 15.sp,
         ),
         PlayerControlButtonId.Speed to PlayerActionButtonLayout(
-            minWidth = 88.dp,
-            horizontalPadding = 14.dp,
-            verticalPadding = 11.dp,
-            iconSize = 18.dp,
-            textFontSize = 15.sp,
-        ),
-        PlayerControlButtonId.Quality to PlayerActionButtonLayout(
-            minWidth = 88.dp,
-            horizontalPadding = 14.dp,
+            minWidth = 84.dp,
+            horizontalPadding = 16.dp,
             verticalPadding = 11.dp,
             textFontSize = 15.sp,
         ),
         PlayerControlButtonId.AspectRatio to PlayerActionButtonLayout(
-            minWidth = 100.dp,
-            horizontalPadding = 14.dp,
+            minWidth = 116.dp,
+            horizontalPadding = 16.dp,
             verticalPadding = 11.dp,
             textFontSize = 15.sp,
         ),
@@ -122,21 +105,21 @@ internal object PlayerOverlayUiDefaults {
     val LoadingPanelShape = RoundedCornerShape(22.dp)
     val ProgressBarShape = RoundedCornerShape(percent = 50)
     val ActionButtonContentSpacing = 8.dp
-    val ProgressSurfacePadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+    val ProgressSurfacePadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
     val CompactControlPadding = PaddingValues(horizontal = 18.dp, vertical = 13.dp)
     val PickerPanelPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)
+    val PickerOptionPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)
     val LoadingPanelPadding = PaddingValues(horizontal = 26.dp, vertical = 18.dp)
     val QuickActionsRowHorizontalPadding = 6.dp
     val QuickActionsRowSpacing = 12.dp
     val PickerSectionSpacing = 12.dp
-    val PickerOptionSpacing = 10.dp
-    val PickerIndicatorSpacing = 10.dp
+    val PickerOptionSpacing = 8.dp
+    val PickerHeaderBottomSpacing = 8.dp
     val ProgressContentSpacing = 12.dp
     val ProgressTrackHeight = 6.dp
     val ProgressBufferedTrackHeight = 6.dp
-    val PickerMinWidth = 264.dp
-    val PickerMaxWidth = 340.dp
-    val PickerIndicatorSize = 12.dp
+    val PickerMinWidth = 244.dp
+    val PickerMaxWidth = 320.dp
     val ProgressTimeWidth = 78.dp
     val LoadingIndicatorSize = 22.dp
     val LoadingIndicatorStrokeWidth = 2.dp
@@ -146,32 +129,32 @@ internal object PlayerOverlayUiDefaults {
     fun controlsPanelStyle(palette: WatchingPalette): PlayerPanelSurfaceStyle {
         return PlayerPanelSurfaceStyle(
             shape = ControlsPanelShape,
-            backgroundColor = Color.Black.copy(alpha = 0.86f),
-            borderColor = palette.textColor.copy(alpha = 0.12f),
+            backgroundColor = Color(0xD932363D),
+            borderColor = Color.White.copy(alpha = 0.10f),
         )
     }
 
     fun loadingPanelStyle(palette: WatchingPalette): PlayerPanelSurfaceStyle {
         return PlayerPanelSurfaceStyle(
             shape = LoadingPanelShape,
-            backgroundColor = Color.Black.copy(alpha = 0.68f),
-            borderColor = palette.textColor.copy(alpha = 0.12f),
+            backgroundColor = Color(0xCC2C3037),
+            borderColor = Color.White.copy(alpha = 0.10f),
         )
     }
 
     fun pickerPanelStyle(palette: WatchingPalette): PlayerPanelSurfaceStyle {
         return PlayerPanelSurfaceStyle(
             shape = ControlsPanelShape,
-            backgroundColor = palette.surfaceColor.copy(alpha = 0.96f),
-            borderColor = palette.textColor.copy(alpha = 0.08f),
+            backgroundColor = Color(0xF03B4048),
+            borderColor = Color.White.copy(alpha = 0.12f),
         )
     }
 
-    fun progressSurfaceColors(palette: WatchingPalette): PlayerFocusableSurfaceColors {
-        return PlayerFocusableSurfaceColors(
-            backgroundColor = Color.White.copy(alpha = 0.03f),
-            focusedBackgroundColor = Color.White.copy(alpha = 0.08f),
-            borderColor = palette.accentColor.copy(alpha = 0.92f),
+    fun progressDisplayStyle(): PlayerPanelSurfaceStyle {
+        return PlayerPanelSurfaceStyle(
+            shape = ProgressSurfaceShape,
+            backgroundColor = Color.White.copy(alpha = 0.06f),
+            borderColor = Color.White.copy(alpha = 0.08f),
         )
     }
 
@@ -181,15 +164,15 @@ internal object PlayerOverlayUiDefaults {
     ): PlayerFocusableSurfaceColors {
         return if (emphasized) {
             PlayerFocusableSurfaceColors(
-                backgroundColor = palette.accentColor.copy(alpha = 0.18f),
-                focusedBackgroundColor = palette.accentColor.copy(alpha = 0.30f),
+                backgroundColor = palette.accentColor.copy(alpha = 0.22f),
+                focusedBackgroundColor = palette.accentColor.copy(alpha = 0.34f),
                 borderColor = palette.accentColor.copy(alpha = 0.96f),
             )
         } else {
             PlayerFocusableSurfaceColors(
-                backgroundColor = Color.White.copy(alpha = 0.06f),
-                focusedBackgroundColor = Color.White.copy(alpha = 0.12f),
-                borderColor = palette.textColor.copy(alpha = 0.78f),
+                backgroundColor = Color.White.copy(alpha = 0.08f),
+                focusedBackgroundColor = Color.White.copy(alpha = 0.16f),
+                borderColor = Color.White.copy(alpha = 0.82f),
             )
         }
     }
@@ -200,15 +183,15 @@ internal object PlayerOverlayUiDefaults {
     ): PlayerFocusableSurfaceColors {
         return if (emphasized) {
             PlayerFocusableSurfaceColors(
-                backgroundColor = palette.accentColor.copy(alpha = 0.20f),
-                focusedBackgroundColor = palette.accentColor.copy(alpha = 0.30f),
+                backgroundColor = palette.accentColor.copy(alpha = 0.22f),
+                focusedBackgroundColor = palette.accentColor.copy(alpha = 0.34f),
                 borderColor = palette.accentColor.copy(alpha = 0.96f),
             )
         } else {
             PlayerFocusableSurfaceColors(
-                backgroundColor = palette.surfaceColor.copy(alpha = 0.90f),
-                focusedBackgroundColor = palette.surfaceColor,
-                borderColor = palette.textColor.copy(alpha = 0.76f),
+                backgroundColor = Color(0xE63B4048),
+                focusedBackgroundColor = Color(0xF0454A53),
+                borderColor = Color.White.copy(alpha = 0.80f),
             )
         }
     }
@@ -219,40 +202,29 @@ internal object PlayerOverlayUiDefaults {
     ): PlayerFocusableSurfaceColors {
         return if (selected) {
             PlayerFocusableSurfaceColors(
-                backgroundColor = palette.accentColor.copy(alpha = 0.14f),
-                focusedBackgroundColor = palette.accentColor.copy(alpha = 0.22f),
-                borderColor = palette.accentColor.copy(alpha = 0.92f),
+                backgroundColor = palette.accentColor.copy(alpha = 0.20f),
+                focusedBackgroundColor = palette.accentColor.copy(alpha = 0.30f),
+                borderColor = palette.accentColor.copy(alpha = 0.94f),
             )
         } else {
             PlayerFocusableSurfaceColors(
-                backgroundColor = palette.surfaceColor.copy(alpha = 0.68f),
-                focusedBackgroundColor = palette.surfaceColor,
-                borderColor = palette.textColor.copy(alpha = 0.76f),
+                backgroundColor = Color.White.copy(alpha = 0.07f),
+                focusedBackgroundColor = Color.White.copy(alpha = 0.14f),
+                borderColor = Color.White.copy(alpha = 0.80f),
             )
         }
     }
 
-    fun progressTrackColor(): Color = Color.White.copy(alpha = 0.10f)
+    fun progressTrackColor(): Color = Color.White.copy(alpha = 0.12f)
 
-    fun progressBufferedTrackColor(): Color = Color.White.copy(alpha = 0.18f)
+    fun progressBufferedTrackColor(): Color = Color.White.copy(alpha = 0.20f)
 
     fun progressFillBrush(palette: WatchingPalette): Brush {
         return Brush.horizontalGradient(
             colors = listOf(
-                palette.accentColor.copy(alpha = 0.82f),
-                palette.textColor.copy(alpha = 0.94f),
+                palette.accentColor.copy(alpha = 0.86f),
+                palette.textColor.copy(alpha = 0.96f),
             ),
         )
-    }
-
-    fun pickerIndicatorBorderColor(
-        palette: WatchingPalette,
-        selected: Boolean,
-    ): Color {
-        return if (selected) {
-            palette.accentColor
-        } else {
-            palette.textColor.copy(alpha = 0.22f)
-        }
     }
 }

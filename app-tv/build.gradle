@@ -1,22 +1,15 @@
-import com.android.build.api.dsl.ManagedVirtualDevice
+// ---------- utility ----------
 
 import java.text.DateFormat
 import java.text.SimpleDateFormat
+import java.util.Date
 
-plugins {
-    alias libs.plugins.android.application
-    alias libs.plugins.kotlin.android
-    alias libs.plugins.kotlin.compose
-    alias libs.plugins.ksp
-//    alias libs.plugins.appmetrica
-}
-
-static def getDateTime() {
-    DateFormat df = new SimpleDateFormat("dd MMMMM yyyy")
+static String buildDate() {
+    DateFormat df = new SimpleDateFormat("dd MMMM yyyy", Locale.US)
     return df.format(new Date()) + " г."
 }
 
-static def resolveSigningProperty(Project project, String key) {
+static String resolveSigningProperty(Project project, String key) {
     def fromEnv = System.getenv(key)
     if (fromEnv != null && !fromEnv.trim().isEmpty()) {
         return fromEnv
@@ -28,35 +21,71 @@ static def resolveSigningProperty(Project project, String key) {
     return null
 }
 
-android {
-    namespace = "ru.radiationx.anilibria"
+static File resolveSigningFile(Project project, String pathValue) {
+    if (pathValue == null || pathValue.trim().isEmpty()) {
+        return null
+    }
 
-    compileSdk = app_compile_sdk_version
+    def direct = project.file(pathValue)
+    if (direct.exists()) {
+        return direct
+    }
+
+    // Support legacy root-style values like "\keystore.jks" by also checking the repo root.
+    if (pathValue.startsWith("\\") || pathValue.startsWith("/")) {
+        def repoRelative = project.rootProject.file(pathValue.substring(1))
+        if (repoRelative.exists()) {
+            return repoRelative
+        }
+    }
+
+    return direct
+}
+
+// ---------- plugins ----------
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+}
+
+// ---------- android ----------
+
+android {
+    namespace "ru.radiationx.anilibria"
+
+    compileSdk app_compile_sdk_version
+
     def androidUserHome = System.getenv("ANDROID_USER_HOME") ?: "${System.getProperty("user.home")}/.android"
     def debugStoreFile = file("${androidUserHome}/debug.keystore")
     def hasDebugSigning = debugStoreFile.exists()
 
-    def releaseStoreFile = resolveSigningProperty(project, "RELEASE_STORE_FILE")
+    def releaseStorePath = resolveSigningProperty(project, "RELEASE_STORE_FILE")
+    def releaseStoreFile = resolveSigningFile(project, releaseStorePath)
     def releaseStorePassword = resolveSigningProperty(project, "RELEASE_STORE_PASSWORD")
     def releaseKeyAlias = resolveSigningProperty(project, "RELEASE_KEY_ALIAS")
     def releaseKeyPassword = resolveSigningProperty(project, "RELEASE_KEY_PASSWORD")
-    def hasReleaseSigning = [releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword]
-            .every { it != null && !it.trim().isEmpty() }
+    def hasReleaseSigning = releaseStoreFile?.exists() &&
+            [releaseStorePassword, releaseKeyAlias, releaseKeyPassword]
+                    .every { it != null && !it.trim().isEmpty() }
 
     defaultConfig {
-        applicationId = "ru.radiationx.anilibria.app.tv"
-        minSdk = Math.max(tv_min_sdk_version as int, 23)
-        targetSdk = app_target_sdk_version
-        versionCode = tv_version_code
-        versionName = tv_version_name
-        testInstrumentationRunner = "ru.radiationx.anilibria.test.TvInstrumentationRunner"
-        buildConfigField "String", 'BUILD_DATE', '"' + getDateTime() + '"'
+        applicationId "ru.radiationx.anilibria.app.tv"
+        minSdk tv_min_sdk_version
+        targetSdk app_target_sdk_version
+        versionCode tv_version_code
+        versionName tv_version_name
+
+        ndkVersion "27.0.11718014"
+
+        buildConfigField "String", "BUILD_DATE", "\"${buildDate()}\""
     }
 
     buildFeatures {
-        compose = true
-        viewBinding = true
-        buildConfig = true
+        compose true
+        buildConfig true
     }
 
     signingConfigs {
@@ -70,7 +99,7 @@ android {
         }
         if (hasReleaseSigning) {
             release {
-                storeFile = file(releaseStoreFile)
+                storeFile = releaseStoreFile
                 storePassword = releaseStorePassword
                 keyAlias = releaseKeyAlias
                 keyPassword = releaseKeyPassword
@@ -87,39 +116,23 @@ android {
         release {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.release
+            } else if (hasDebugSigning) {
+                signingConfig = signingConfigs.debug
             }
-            minifyEnabled = true
-            shrinkResources = true
-            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            minifyEnabled false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
-    applicationVariants.configureEach { variant ->
-        variant.outputs.configureEach { output ->
-            def appName = "AniLibria_TV"
-            def versionName = variant.versionName
-            outputFileName = "${appName}_v${versionName}.apk"
-        }
-    }
-
-    lint {
-        baseline = file("lint-baseline.xml")
-    }
-
-    packaging {
-        jniLibs {
-            keepDebugSymbols += ["**/libconscrypt_jni.so"]
-        }
-    }
-
-    testOptions {
-        managedDevices {
-            devices {
-                pixel2Api33(ManagedVirtualDevice) {
-                    device = "Pixel 2"
-                    apiLevel = 33
-                    systemImageSource = "google_apis"
-                }
+    androidComponents {
+        onVariants(selector().all()) { variant ->
+            variant.outputs.forEach { output ->
+                def appName = "AniLibria_TV"
+                def versionStr = output.versionName.get()
+                output.outputFileName.set("${appName}_v${versionStr}.apk")
             }
         }
     }
@@ -129,58 +142,48 @@ kotlin {
     jvmToolchain(jvm_toolchain_version)
 }
 
-//appmetrica {
-//    Properties properties = new Properties()
-//    properties.load(project.rootProject.file('local.properties').newDataInputStream())
-//    String propApiKey = properties.get("appmetrica_post_api_key", "")
-//    setPostApiKey(propApiKey)
-//}
+// ---------- dependencies ----------
 
 dependencies {
-    implementation libs.kotlin.stdlib
+    implementation(libs.kotlin.stdlib)
 
-    implementation project(":data")
-    implementation project(":shared-android-ktx")
-    implementation project(":shared-app")
-    implementation project(":quill-di")
+    implementation(project(":data"))
+    implementation(project(":shared-android-ktx"))
+    implementation(project(":shared-app"))
+    implementation(project(":quill-di"))
 
-    implementation libs.androidx.appcompat
-    implementation libs.androidx.leanback
-    implementation libs.androidx.leanback.preference
-    implementation libs.google.material
-    implementation libs.androidx.constraintlayout
-    implementation platform(libs.androidx.compose.bom)
-    implementation libs.androidx.compose.animation
-    implementation libs.androidx.compose.foundation
-    implementation libs.androidx.compose.material3
-    implementation libs.androidx.compose.runtime
-    implementation libs.androidx.compose.ui
-    implementation libs.androidx.compose.ui.tooling.preview
-    implementation libs.androidx.constraintlayout.compose
+    implementation(libs.androidx.appcompat)
+    implementation(libs.google.material)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.constraintlayout.compose)
 
-    implementation libs.cicerone
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.material3)
+    debugImplementation(libs.androidx.compose.ui.tooling)
 
-    compileOnly libs.toothpick
-    ksp libs.toothpick.compiler
+    implementation(libs.cicerone)
 
-    implementation "androidx.media3:media3-ui:1.6.0"
-    implementation libs.media3.exoplayer
-    implementation libs.media3.exoplayer.hls
+    compileOnly(libs.toothpick)
+    ksp(libs.toothpick.compiler)
 
-    implementation libs.mintpermissions
-    implementation libs.mintpermissions.flows
+    implementation(libs.media3.ui)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.exoplayer.hls)
 
-    implementation libs.viewbindingpropertydelegate
+    implementation(libs.mintpermissions)
+    implementation(libs.mintpermissions.flows)
 
-    testImplementation libs.junit
-    testImplementation libs.kotlinx.coroutines.test
-    testImplementation libs.mockk
+    implementation(libs.zxing.core)
 
-    androidTestImplementation libs.androidx.core.ktx
-    androidTestImplementation libs.androidx.runner
-    androidTestImplementation libs.androidx.junit
-    androidTestImplementation libs.androidx.uiautomator
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
+    testImplementation("io.mockk:mockk:1.13.13")
 
-    debugImplementation platform(libs.androidx.compose.bom)
-    debugImplementation libs.androidx.compose.ui.tooling
+    androidTestImplementation("androidx.core:core-ktx:1.15.0")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
 }

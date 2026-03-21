@@ -1,6 +1,11 @@
 package ru.radiationx.anilibria.common
 
-interface CardItem {
+sealed interface CardItem {
 
-    fun getId(): Int
+    val itemId: Int
+
+    val backgroundImageUrl: String?
+        get() = null
+
+    fun getId(): Int = itemId
 }

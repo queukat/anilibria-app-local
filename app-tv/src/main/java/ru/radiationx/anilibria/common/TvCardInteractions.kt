@@ -8,21 +8,18 @@ internal data class TvCardDescription(
 internal fun Any?.toTvCardDescription(
     libriaSubtitle: (LibriaCard) -> CharSequence = { it.description }
 ): TvCardDescription {
-    return when (this) {
-        is LibriaCard -> TvCardDescription(title = title, subtitle = libriaSubtitle(this))
-        is InfoCard -> TvCardDescription(title = title, subtitle = subtitle)
-        is LinkCard -> TvCardDescription(title = title, subtitle = "")
-        is LoadingCard -> TvCardDescription(title = title, subtitle = description)
-        else -> TvCardDescription()
+    val card = this as? CardItem ?: return TvCardDescription()
+    return when (card) {
+        is LibriaCard -> TvCardDescription(title = card.title, subtitle = libriaSubtitle(card))
+        is InfoCard -> TvCardDescription(title = card.title, subtitle = card.subtitle)
+        is LinkCard -> TvCardDescription(title = card.title, subtitle = "")
+        is LoadingCard -> TvCardDescription(title = card.title, subtitle = card.description)
     }
 }
 
 internal fun BaseCardsViewModel?.handleTvCardClick(item: Any?) {
-    when (item) {
-        is LinkCard -> this?.onLinkCardClick()
-        is LoadingCard -> this?.onLoadingCardClick()
-        is LibriaCard -> this?.onLibriaCardClick(item)
-    }
+    val card = item as? CardItem ?: return
+    this?.onCardItemClick(card)
 }
 
 internal inline fun <T> MutableMap<Long, T>.getOrPutRow(

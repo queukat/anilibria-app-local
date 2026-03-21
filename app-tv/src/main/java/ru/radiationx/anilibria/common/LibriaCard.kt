@@ -15,10 +15,14 @@ data class LibriaCard(
     val relativePrefix: String? = null,
 ) : CardItem {
 
-    override fun getId(): Int = when (val t = type) {
-        is LibriaCard.Type.Release -> t.releaseId.id
-        is LibriaCard.Type.Youtube -> t.link.hashCode()
-    }
+    override val itemId: Int
+        get() = when (val t = type) {
+            is LibriaCard.Type.Release -> t.releaseId.id
+            is LibriaCard.Type.Youtube -> t.link.hashCode()
+        }
+
+    override val backgroundImageUrl: String?
+        get() = image.trim().takeIf(String::isNotEmpty)
 
     fun resolveDescription(context: Context): String {
         val timestampSec = relativeTimestampSec ?: return description

@@ -1,7 +1,5 @@
 package ru.radiationx.anilibria.screen.watching
 
-import android.widget.ImageView
-import androidx.appcompat.widget.AppCompatImageView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,16 +59,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
 import androidx.compose.animation.core.animateFloatAsState
+import ru.radiationx.anilibria.ui.compose.TvAsyncImage
 import ru.radiationx.anilibria.ui.compose.TvSelectionIndicator
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.TvOverlayOuterPadding
 import ru.radiationx.anilibria.ui.compose.TvOverlayPanelSurface
-import ru.radiationx.shared_app.imageloader.showImageUrl
 
 private const val WATCHING_CARD_ASPECT_RATIO = 130f / 185f
 private const val WATCHING_DIALOG_WIDTH_FRACTION = 0.56f
@@ -224,15 +221,9 @@ internal fun WatchingPosterCard(
                 .clip(RoundedCornerShape(18.dp))
                 .background(Color.Black.copy(alpha = 0.18f)),
         ) {
-            AndroidView(
-                factory = { context ->
-                    AppCompatImageView(context).apply {
-                        scaleType = ImageView.ScaleType.CENTER_CROP
-                    }
-                },
-                update = { imageView ->
-                    imageView.showImageUrl(imageUrl)
-                },
+            TvAsyncImage(
+                imageUrl = imageUrl,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
         }

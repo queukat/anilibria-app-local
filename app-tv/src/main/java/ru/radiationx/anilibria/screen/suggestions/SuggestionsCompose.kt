@@ -55,7 +55,7 @@ import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvRowEndPadding
 import ru.radiationx.anilibria.screen.watching.TvRowSpacing
-import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
 import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
@@ -302,7 +302,7 @@ internal fun SuggestionsScreen(
         modifier = Modifier
             .fillMaxSize()
             .tvAppBackground(palette)
-            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+            .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),

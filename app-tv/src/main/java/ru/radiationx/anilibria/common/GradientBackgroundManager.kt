@@ -1,25 +1,16 @@
 package ru.radiationx.anilibria.common
 
-import android.animation.ValueAnimator
-import android.graphics.Color
-import android.graphics.drawable.LayerDrawable
 import androidx.annotation.ColorInt
-import androidx.core.graphics.drawable.toDrawable
-import androidx.core.graphics.toColorInt
 import androidx.fragment.app.FragmentActivity
-import androidx.leanback.app.BackgroundManager
 import androidx.lifecycle.lifecycleScope
 import androidx.palette.graphics.Palette
-import com.google.android.material.animation.ArgbEvaluatorCompat
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import ru.radiationx.shared.ktx.android.launchInStarted
 import ru.radiationx.anilibria.R
 import ru.radiationx.shared.ktx.android.asSoftware
 import ru.radiationx.shared.ktx.android.getCompatColor
@@ -29,43 +20,18 @@ import timber.log.Timber
 import java.util.LinkedHashMap
 import javax.inject.Inject
 
+data class GradientBackgroundState(
+    @ColorInt val baseColor: Int,
+    @ColorInt val foregroundColor: Int,
+    val foregroundVisible: Boolean,
+)
+
 class GradientBackgroundManager @Inject constructor(
     private val activity: FragmentActivity,
 ) {
 
-    private val backgroundManager: BackgroundManager by lazy {
-        BackgroundManager.getInstance(activity)
-    }
-
     private val defaultColor = activity.getCompatColor(R.color.dark_colorAccent)
     private val foregroundColor = activity.getCompatColor(R.color.dark_windowBackground)
-
-    private val backgroundDrawable = defaultColor.toDrawable()
-    private val foregroundDrawable = foregroundColor.toDrawable()
-    private val customGradientDrawable = LinearGradientDrawable(
-        190f,
-        intArrayOf(
-            "#ee000000".toColorInt(),
-            "#55000000".toColorInt()
-        )
-    )
-    private val layerDrawable = LayerDrawable(
-        arrayOf(
-            backgroundDrawable, customGradientDrawable, foregroundDrawable
-        )
-    )
-
-    private var primaryColorAnimator: ValueAnimator? = null
-    private var foregroundColorAnimator: ValueAnimator? = null
-    private var imageApplierJob: Job? = null
-    private var colorApplierJob: Job? = null
-    private val colorApplier = MutableStateFlow(defaultColor)
-    private val colorEvaluator = ArgbEvaluatorCompat()
-    private val urlColorMap = LinkedHashMap<String, Int>(
-        MAX_COLOR_CACHE_SIZE,
-        CACHE_LOAD_FACTOR,
-        true,
-    )
 
     private val defaultColorSelector = { palette: Palette ->
         palette.getMutedColor(defaultColor)
@@ -73,38 +39,30 @@ class GradientBackgroundManager @Inject constructor(
 
     private val defaultColorModifier = { color: Int -> color }
 
-    init {
-        if (!backgroundManager.isAttached) {
-            backgroundManager.isAutoReleaseOnStop = false
+    private val _backgroundState = MutableStateFlow(
+        GradientBackgroundState(
+            baseColor = defaultColor,
+            foregroundColor = foregroundColor,
+            foregroundVisible = true,
+        )
+    )
+    val backgroundState: StateFlow<GradientBackgroundState> = _backgroundState.asStateFlow()
 
-            // to avoid java.lang.NullPointerException: Attempt to invoke virtual method 'android.graphics.drawable.Drawable android.graphics.drawable.Drawable$ConstantState.newDrawable()' on a null object reference
-            // hope this helps
-            backgroundManager.color = foregroundColor
-
-            backgroundManager.attach(activity.window)
-            backgroundManager.drawable = layerDrawable
-        }
-    }
-
-    @OptIn(FlowPreview::class)
-    private fun subscribeColorApplier() {
-        colorApplierJob?.cancel()
-        colorApplierJob = colorApplier
-            .debounce(200)
-            .onEach {
-                instantApplyColor(it)
-            }
-            .launchInStarted(activity)
-    }
+    private var imageApplierJob: Job? = null
+    private val urlColorMap = LinkedHashMap<String, Int>(
+        MAX_COLOR_CACHE_SIZE,
+        CACHE_LOAD_FACTOR,
+        true,
+    )
 
     fun clearGradient() {
         imageApplierJob?.cancel()
-        colorApplierJob?.cancel()
-        instantApplyForeground(true)
+        _backgroundState.value = _backgroundState.value.copy(foregroundVisible = true)
     }
 
     fun applyDefault() {
-        applyColor(defaultColor)
+        imageApplierJob?.cancel()
+        updateBackgroundState(defaultColor, foregroundVisible = false)
     }
 
     fun applyImage(
@@ -118,9 +76,9 @@ class GradientBackgroundManager @Inject constructor(
             return
         }
 
-        val color = urlColorMap[normalizedUrl]
-        if (colorSelector == defaultColorSelector && color != null) {
-            applyColor(color, colorModifier)
+        val cachedColor = urlColorMap[normalizedUrl]
+        if (colorSelector == defaultColorSelector && cachedColor != null) {
+            updateBackgroundState(colorModifier(cachedColor), foregroundVisible = false)
             return
         }
 
@@ -158,48 +116,22 @@ class GradientBackgroundManager @Inject constructor(
         colorSelector: (Palette) -> Int? = defaultColorSelector,
         colorModifier: (Int) -> Int = defaultColorModifier,
     ) {
-        applyColor(colorSelector(palette) ?: defaultColorSelector(palette), colorModifier)
+        val resolvedColor = colorSelector(palette) ?: defaultColorSelector(palette)
+        updateBackgroundState(
+            color = colorModifier(resolvedColor),
+            foregroundVisible = false,
+        )
     }
 
-    private fun applyColor(
+    private fun updateBackgroundState(
         @ColorInt color: Int,
-        colorModifier: (Int) -> Int = defaultColorModifier,
+        foregroundVisible: Boolean,
     ) {
-        val finalColor = colorModifier.invoke(color)
-        subscribeColorApplier()
-        colorApplier.value = finalColor
-    }
-
-    private fun instantApplyColor(@ColorInt color: Int) {
-        imageApplierJob?.cancel()
-        primaryColorAnimator?.cancel()
-        if (foregroundDrawable.alpha != 0) {
-            instantApplyForeground(false)
-        }
-        primaryColorAnimator = ValueAnimator
-            .ofObject(colorEvaluator, backgroundDrawable.color, color)
-            .apply {
-                duration = 500
-                addUpdateListener {
-                    backgroundDrawable.color = it.animatedValue as Int
-                }
-                start()
-            }
-    }
-
-    private fun instantApplyForeground(visible: Boolean) {
-        val start = foregroundDrawable.alpha
-        val end = if (visible) 255 else 0
-        foregroundColorAnimator?.cancel()
-        foregroundColorAnimator = ValueAnimator
-            .ofInt(start, end)
-            .apply {
-                duration = 500
-                addUpdateListener {
-                    foregroundDrawable.alpha = it.animatedValue as Int
-                }
-                start()
-            }
+        _backgroundState.value = GradientBackgroundState(
+            baseColor = color,
+            foregroundColor = foregroundColor,
+            foregroundVisible = foregroundVisible,
+        )
     }
 
     private fun cacheDefaultColor(url: String, @ColorInt color: Int) {

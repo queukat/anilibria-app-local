@@ -5,13 +5,17 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.annotation.OptIn
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.util.UnstableApi
 import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.filterNotNull
-import ru.radiationx.anilibria.common.fragment.ComposeGuidedFragment
 import ru.radiationx.anilibria.screen.DetailsScreen
 import ru.radiationx.data.entity.common.PlayerQuality
+import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.get
 import ru.radiationx.quill.getViewModel
@@ -29,7 +33,7 @@ class PlayerFragment : BasePlayerFragment() {
 
         fun newInstance(
             releaseId: ReleaseId,
-            episodeId: ru.radiationx.data.entity.domain.types.EpisodeId?,
+            episodeId: EpisodeId?,
         ): PlayerFragment = PlayerFragment().putExtra {
             putParcelable(ARG_RELEASE_ID, releaseId)
             putParcelable(ARG_EPISODE_ID, episodeId)
@@ -40,6 +44,7 @@ class PlayerFragment : BasePlayerFragment() {
 
     private lateinit var router: Router
     private lateinit var viewModel: PlayerViewModel
+    private var completionOverlayState by mutableStateOf<PlayerCompletionOverlay?>(null)
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -84,8 +89,11 @@ class PlayerFragment : BasePlayerFragment() {
                 PlayerCommand.Play -> playPlayback()
                 PlayerCommand.Pause -> pausePlayback()
                 is PlayerCommand.Seek -> seekToPosition(command.positionMs)
-                is PlayerCommand.NextEpisodeSelected -> Unit
             }
+        }
+
+        subscribeTo(viewModel.completionOverlay) {
+            completionOverlayState = it
         }
 
         subscribeTo(viewModel.speedState) { speedValue ->
@@ -123,9 +131,6 @@ class PlayerFragment : BasePlayerFragment() {
 
     override fun onStop() {
         super.onStop()
-        if (hasTemporaryGuidedOverlay() && !isRemoving && !requireActivity().isFinishing) {
-            return
-        }
         viewModel.onExit(getCurrentPosition())
 
         val newReleaseId = viewModel.getCurrentReleaseId() ?: return
@@ -173,14 +178,27 @@ class PlayerFragment : BasePlayerFragment() {
         viewModel.setSpeed(speed)
     }
 
-    override fun onEpisodesAction(position: Long) {
-        restoreEpisodesButtonFocusOnNextResume()
-        viewModel.onEpisodesClick(position)
+    @Composable
+    override fun RenderPlayerOverlay() {
+        completionOverlayState?.let { overlay ->
+            PlayerCompletionOverlayHost(
+                overlay = overlay,
+                onReplayEpisodeClick = viewModel::onReplayEpisodeClick,
+                onNextEpisodeClick = viewModel::onNextEpisodeClick,
+                onReplaySeasonClick = viewModel::onReplaySeasonClick,
+                onClosePlayerClick = viewModel::onClosePlayerClick,
+            )
+        }
     }
 
-    private fun hasTemporaryGuidedOverlay(): Boolean {
-        return parentFragmentManager.fragments.any { fragment ->
-            fragment !== this && fragment is ComposeGuidedFragment && fragment.isVisible
+    override fun handlePlayerOverlayBack(): Boolean {
+        val overlay = completionOverlayState ?: return false
+        viewModel.dismissCompletionOverlay()
+        if (overlay == PlayerCompletionOverlay.EpisodeComplete && viewModel.hasNextEpisode()) {
+            restoreNextEpisodeFocus()
+        } else {
+            restorePlayPauseFocus()
         }
+        return true
     }
 }

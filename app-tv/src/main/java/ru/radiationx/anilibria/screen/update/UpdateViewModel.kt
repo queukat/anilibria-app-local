@@ -9,12 +9,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
-import ru.radiationx.anilibria.screen.UpdateSourceScreen
 import ru.radiationx.data.downloader.LocalFile
 import ru.radiationx.data.downloader.RemoteFileLoadEvent
 import ru.radiationx.data.entity.domain.updater.UpdateData
@@ -26,8 +22,6 @@ import javax.inject.Inject
 
 class UpdateViewModel @Inject constructor(
     private val tvUpdateUseCase: TvUpdateUseCase,
-    private val guidedRouter: GuidedRouter,
-    private val updateController: UpdateController,
     private val systemUtils: SystemUtils,
 ) : LifecycleViewModel() {
 
@@ -41,6 +35,8 @@ class UpdateViewModel @Inject constructor(
     val downloadProgressShowState: StateFlow<Boolean> = _downloadProgressShowState.asStateFlow()
     private val _downloadProgressData = MutableStateFlow(0)
     val downloadProgressData: StateFlow<Int> = _downloadProgressData.asStateFlow()
+    private val _sourceChooserVisible = MutableStateFlow(false)
+    val sourceChooserVisible: StateFlow<Boolean> = _sourceChooserVisible.asStateFlow()
     private val _errorMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
 
@@ -56,12 +52,6 @@ class UpdateViewModel @Inject constructor(
             }
             _progressState.value = false
         }
-        updateController
-            .downloadAction
-            .onEach {
-                startDownload(it.url)
-            }
-            .launchIn(viewModelScope)
     }
 
     fun onActionClick() {
@@ -75,10 +65,10 @@ class UpdateViewModel @Inject constructor(
     private fun downloadClick() {
         val data = _updateData.value ?: return
         if (data.links.size > 1) {
-            guidedRouter.open(UpdateSourceScreen())
+            _sourceChooserVisible.value = true
         } else {
             val link = data.links.firstOrNull() ?: return
-            startDownload(link.url)
+            handleSelectedLink(link)
         }
     }
 
@@ -86,12 +76,32 @@ class UpdateViewModel @Inject constructor(
         downloadJob?.cancel()
         downloadJob = null
         _downloadProgressShowState.value = false
+        _downloadProgressData.value = 0
+    }
+
+    fun onSourceSelected(index: Int) {
+        val link = _updateData.value?.links?.getOrNull(index) ?: return
+        _sourceChooserVisible.value = false
+        handleSelectedLink(link)
+    }
+
+    fun dismissSourceChooser() {
+        _sourceChooserVisible.value = false
+    }
+
+    private fun handleSelectedLink(link: UpdateData.UpdateLink) {
+        when (link.type) {
+            UpdateData.LinkType.FILE -> startDownload(link.url)
+            UpdateData.LinkType.SITE -> systemUtils.externalLink(link.url)
+        }
     }
 
     private fun startDownload(url: String) {
         if (downloadJob?.isActive == true) {
             return
         }
+        _sourceChooserVisible.value = false
+        _downloadProgressData.value = 0
         val expectedSha256 = _updateData.value
             ?.links
             ?.firstOrNull { it.url == url }

@@ -15,12 +15,12 @@ import ru.radiationx.anilibria.common.DetailsState
 import ru.radiationx.anilibria.common.LibriaDetails
 import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.AuthGuidedScreen
-import ru.radiationx.anilibria.screen.DetailDescriptionScreen
-import ru.radiationx.anilibria.screen.DetailOtherGuidedScreen
 import ru.radiationx.anilibria.screen.LifecycleViewModel
-import ru.radiationx.anilibria.screen.PlayerEpisodesGuidedScreen
 import ru.radiationx.anilibria.screen.PlayerScreen
+import ru.radiationx.anilibria.screen.player.formatEpisodeAccessDescription
+import ru.radiationx.anilibria.screen.player.sortedByEpisodeOrdinalAsc
 import ru.radiationx.data.entity.domain.release.Release
+import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.interactors.tv.TvContentUseCase
@@ -46,6 +46,8 @@ class DetailHeaderViewModel @Inject constructor(
     val releaseData: StateFlow<LibriaDetails?> = _releaseData.asStateFlow()
     private val _progressState = MutableStateFlow(DetailsState(loadingProgress = true))
     val progressState: StateFlow<DetailsState> = _progressState.asStateFlow()
+    private val _overlayState = MutableStateFlow<DetailOverlayState?>(null)
+    internal val overlayState: StateFlow<DetailOverlayState?> = _overlayState.asStateFlow()
 
     private val remoteFavoriteState = MutableStateFlow<Boolean?>(null)
 
@@ -86,7 +88,7 @@ class DetailHeaderViewModel @Inject constructor(
 
                 currentRelease = resolvedRelease
 
-                _releaseData.value = converter.toDetail(
+                _releaseData.value = converter.toDetailsUiState(
                     releaseItem = resolvedRelease,
                     accesses = accesses,
                 )
@@ -147,9 +149,7 @@ class DetailHeaderViewModel @Inject constructor(
             return
         }
 
-        // Если серий много — открываем выбор серий (guided).
         viewModelScope.launch {
-            // 1) local seed (legacy)
             val localEpisodeId = runCatching {
                 releaseInteractor
                     .getAccesses(releaseId)
@@ -157,7 +157,6 @@ class DetailHeaderViewModel @Inject constructor(
                     ?.id
             }.getOrNull()
 
-            // 2) remote seed (AniLiberty) fallback
             val seedEpisodeId = localEpisodeId ?: run {
                 if (tvDetailHeaderUseCase.isAuthorized()) {
                     runCatching { tvDetailHeaderUseCase.findLatestEpisodeIdForRelease(releaseId) }.getOrNull()
@@ -166,7 +165,7 @@ class DetailHeaderViewModel @Inject constructor(
                 }
             }
 
-            guidedRouter.open(PlayerEpisodesGuidedScreen(releaseId, seedEpisodeId))
+            _overlayState.value = release.toEpisodePickerOverlay(seedEpisodeId)
         }
     }
 
@@ -222,16 +221,57 @@ class DetailHeaderViewModel @Inject constructor(
         val title = details.titleRu.ifBlank { "Описание" }
         val message = details.description.ifBlank { "Описание отсутствует" }
 
-        guidedRouter.open(DetailDescriptionScreen(title = title, message = message))
+        _overlayState.value = DetailOverlayState.Description(
+            title = title,
+            message = message,
+        )
     }
 
     fun onOtherClick() {
-        guidedRouter.open(DetailOtherGuidedScreen(releaseId))
+        _overlayState.value = DetailOverlayState.Other
+    }
+
+    fun onEpisodeSelected(actionId: Long) {
+        val overlay = _overlayState.value as? DetailOverlayState.EpisodePicker ?: return
+        val action = overlay.groups
+            .asSequence()
+            .flatMap { it.actions.asSequence() }
+            .firstOrNull { it.id == actionId }
+            ?: return
+        dismissOverlay()
+        router.navigateTo(PlayerScreen(action.episodeId.releaseId, action.episodeId))
+    }
+
+    fun dismissOverlay() {
+        _overlayState.value = null
     }
 
     override fun onCleared() {
         super.onCleared()
         favoriteJob?.cancel()
         favoriteStateJob?.cancel()
+    }
+
+    private suspend fun Release.toEpisodePickerOverlay(seedEpisodeId: EpisodeId?): DetailOverlayState.EpisodePicker {
+        val accesses = releaseInteractor.getAccesses(id).associateBy { it.id }
+        var nextId = 0L
+        val actions = episodes.sortedByEpisodeOrdinalAsc().map { episode ->
+            DetailOverlayState.EpisodePicker.Action(
+                id = nextId++,
+                episodeId = episode.id,
+                title = episode.title.orEmpty(),
+                description = accesses[episode.id]?.let(::formatEpisodeAccessDescription),
+            )
+        }
+        return DetailOverlayState.EpisodePicker(
+            groups = listOf(
+                DetailOverlayState.EpisodePicker.Group(
+                    id = 0L,
+                    title = title.orEmpty(),
+                    actions = actions,
+                )
+            ),
+            selectedActionId = actions.firstOrNull { it.episodeId == seedEpisodeId }?.id ?: -1L,
+        )
     }
 }

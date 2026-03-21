@@ -5,7 +5,6 @@ data class LoadingCard(
     val description: String = "",
     val isError: Boolean = false
 ) : CardItem {
-    override fun getId(): Int {
-        return title.hashCode()
-    }
+    override val itemId: Int
+        get() = title.hashCode()
 }

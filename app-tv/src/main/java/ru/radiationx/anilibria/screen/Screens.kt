@@ -10,19 +10,12 @@ import ru.radiationx.anilibria.screen.auth.main.AuthGuidedFragment
 import ru.radiationx.anilibria.screen.auth.otp.AuthOtpGuidedFragment
 import ru.radiationx.anilibria.screen.config.ConfigFragment
 import ru.radiationx.anilibria.screen.details.DetailFragment
-import ru.radiationx.anilibria.screen.details.description.DetailDescriptionGuidedFragment
-import ru.radiationx.anilibria.screen.details.other.DetailOtherGuidedFragment
 import ru.radiationx.anilibria.screen.mainpages.MainPagesFragment
 import ru.radiationx.anilibria.screen.player.PlayerFragment
-import ru.radiationx.anilibria.screen.player.end_episode.EndEpisodeGuidedFragment
-import ru.radiationx.anilibria.screen.player.end_season.EndSeasonGuidedFragment
-import ru.radiationx.anilibria.screen.player.episodes.PlayerEpisodesGuidedFragment
-import ru.radiationx.anilibria.screen.player.putIds
 import ru.radiationx.anilibria.screen.schedule.ScheduleFragment
 import ru.radiationx.anilibria.screen.search.SearchFragment
 import ru.radiationx.anilibria.screen.suggestions.SuggestionsFragment
 import ru.radiationx.anilibria.screen.update.UpdateFragment
-import ru.radiationx.anilibria.screen.update.source.UpdateSourceGuidedFragment
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import com.github.terrakok.cicerone.androidx.FragmentScreen
@@ -48,21 +41,6 @@ class DetailsScreen(private val releaseId: ReleaseId) : FragmentScreen {
     }
 }
 
-class DetailOtherGuidedScreen(private val releaseId: ReleaseId) : GuidedAppScreen() {
-    override fun createFragment(factory: FragmentFactory): Fragment {
-        return DetailOtherGuidedFragment.newInstance(releaseId)
-    }
-}
-
-class DetailDescriptionScreen(
-    private val title: String,
-    private val message: String,
-) : GuidedAppScreen() {
-    override fun createFragment(factory: FragmentFactory): Fragment {
-        return DetailDescriptionGuidedFragment.newInstance(title, message)
-    }
-}
-
 class ScheduleScreen : FragmentScreen {
     override fun createFragment(factory: FragmentFactory): Fragment {
         return ScheduleFragment()
@@ -73,12 +51,6 @@ class UpdateScreen
     : FragmentScreen {
     override fun createFragment(factory: FragmentFactory): Fragment {
         return UpdateFragment()
-    }
-}
-
-class UpdateSourceScreen : GuidedAppScreen() {
-    override fun createFragment(factory: FragmentFactory): Fragment {
-        return UpdateSourceGuidedFragment()
     }
 }
 
@@ -119,32 +91,5 @@ class PlayerScreen(
     @OptIn(UnstableApi::class)
     override fun createFragment(factory: FragmentFactory): Fragment {
         return PlayerFragment.newInstance(releaseId, episodeId)
-    }
-}
-
-class PlayerEpisodesGuidedScreen(
-    private val releaseId: ReleaseId,
-    private val episodeId: EpisodeId?,
-) : GuidedAppScreen() {
-    override fun createFragment(factory: FragmentFactory): Fragment {
-        return PlayerEpisodesGuidedFragment().putIds(releaseId, episodeId)
-    }
-}
-
-class PlayerEndEpisodeGuidedScreen(
-    private val releaseId: ReleaseId,
-    private val episodeId: EpisodeId?,
-) : GuidedAppScreen() {
-    override fun createFragment(factory: FragmentFactory): Fragment {
-        return EndEpisodeGuidedFragment().putIds(releaseId, episodeId)
-    }
-}
-
-class PlayerEndSeasonGuidedScreen(
-    private val releaseId: ReleaseId,
-    private val episodeId: EpisodeId?,
-) : GuidedAppScreen() {
-    override fun createFragment(factory: FragmentFactory): Fragment {
-        return EndSeasonGuidedFragment().putIds(releaseId, episodeId)
     }
 }

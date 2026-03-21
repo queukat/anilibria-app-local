@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ru.radiationx.anilibria.presentation.pagination.LoadMoreCardsComposer
+import ru.radiationx.anilibria.presentation.pagination.PaginatorState
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
@@ -76,11 +78,6 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
         loadPage(currentPage + 1)
     }
 
-    /** Можно переопределить, если нужна особая логика при биндинге/фокусе LinkCard. */
-    open fun onLinkCardBind() {
-        // No-op by default. Loading next page must happen only on explicit click.
-    }
-
     /** Нажали «обновить» (обычно перезагрузить c первой страницы). */
     open fun onRefreshClick() {
         loadPage(firstPage)
@@ -90,6 +87,16 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
     open fun onLoadingCardClick() {
         val pageToLoad = if (currentPage >= firstPage) currentPage else firstPage
         loadPage(pageToLoad)
+    }
+
+    /** Compose-first dispatch: экран передаёт CardItem, а VM решает, что с ним делать. */
+    open fun onCardItemClick(item: CardItem) {
+        when (item) {
+            is LibriaCard -> onLibriaCardClick(item)
+            is LinkCard -> onLinkCardClick()
+            is LoadingCard -> onLoadingCardClick()
+            is InfoCard -> Unit
+        }
     }
 
     /** При клике по обычной карточке (LibriaCard). Переопределяйте в наследниках. */
@@ -147,13 +154,38 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
         loaderDispatcher = dispatcher
     }
 
+    private fun composeCards(
+        cards: List<LibriaCard>,
+        isLoading: Boolean = false,
+        error: Throwable? = null,
+        canLoadMore: Boolean = false,
+    ): List<CardItem> {
+        return LoadMoreCardsComposer(
+            loadMoreCard = loadMoreCard,
+            loadingCard = loadingCard,
+            errorCardFactory = ::getErrorCard,
+            emptyCardFactory = ::getEmptyStateCard,
+        ).compose(
+            PaginatorState(
+                items = cards,
+                isLoading = isLoading,
+                canLoadMore = canLoadMore,
+                error = error,
+                currentPage = currentPage.takeIf { it >= firstPage },
+            )
+        )
+    }
+
     /** Главный метод для загрузки (первая или следующая страница). */
     private fun loadPage(requestPage: Int) {
         if (requestJob?.isActive == true) return
         requestJob = viewModelScope.launch {
             // Показываем «loadingCard», если (не первая страница) или при принуд. прогрессе
             if (requestPage != firstPage || progressOnRefresh) {
-                _cardsData.value = currentCards + loadingCard
+                _cardsData.value = composeCards(
+                    cards = currentCards.toList(),
+                    isLoading = true,
+                )
             }
             coRunCatching {
                 withContext(loaderDispatcher) { getLoader(requestPage) }
@@ -170,22 +202,16 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
                     currentPage = requestPage
                     currentCards.addAll(newCards)
                 }
-                if (currentCards.isEmpty()) {
-                    val emptyCard = getEmptyStateCard()
-                    if (emptyCard != null) {
-                        _cardsData.value = listOf(emptyCard)
-                        return@onSuccess
-                    }
-                }
-                // Если ещё есть страницы — добавим linkCard, иначе нет
-                _cardsData.value = if (hasMoreCards(newCards, currentCards)) {
-                    currentCards + loadMoreCard
-                } else {
-                    currentCards.toList()
-                }
+                _cardsData.value = composeCards(
+                    cards = currentCards.toList(),
+                    canLoadMore = hasMoreCards(newCards, currentCards),
+                )
             }.onFailure { error ->
                 Timber.e(error)
-                _cardsData.value = currentCards + getErrorCard(error)
+                _cardsData.value = composeCards(
+                    cards = currentCards.toList(),
+                    error = error,
+                )
             }
         }
     }

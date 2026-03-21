@@ -8,7 +8,6 @@ import com.github.terrakok.cicerone.Back
 import com.github.terrakok.cicerone.BackTo
 import com.github.terrakok.cicerone.Command
 import com.github.terrakok.cicerone.Forward
-import com.github.terrakok.cicerone.Replace
 import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.github.terrakok.cicerone.androidx.FragmentScreen
 
@@ -19,15 +18,6 @@ class GuidedStepNavigator(
 ) : AppNavigator(activity, containerId, fragmentManager) {
 
     private val guidedStack = ArrayDeque<String>()
-
-    private val backStack: List<FragmentManager.BackStackEntry>
-        get() = (0 until fragmentManager.backStackEntryCount).map {
-            fragmentManager.getBackStackEntryAt(
-                it
-            )
-        }
-
-    fun backStackById(id: Int): FragmentManager.BackStackEntry? = backStack.find { it.id == id }
 
     override fun setupFragmentTransaction(
         screen: FragmentScreen,
@@ -53,9 +43,21 @@ class GuidedStepNavigator(
     override fun applyCommand(command: Command) {
         when (command) {
             is Forward -> guidedForward(command)
-            is Replace -> guidedReplace(command)
-            is BackTo -> guidedBackTo(command)
-            is Back -> guidedBack()
+            is BackTo -> {
+                if (guidedStack.isNotEmpty()) {
+                    guidedBackTo(command)
+                } else {
+                    super.applyCommand(command)
+                }
+            }
+            is Back -> {
+                if (guidedStack.isNotEmpty()) {
+                    guidedBack()
+                } else {
+                    super.applyCommand(command)
+                }
+            }
+            else -> super.applyCommand(command)
         }
     }
 
@@ -64,36 +66,19 @@ class GuidedStepNavigator(
             val screen = command.screen as GuidedAppScreen
             showGuidedScreen(screen)
         } else {
-            forward(command)
-        }
-    }
-
-    private fun guidedReplace(command: Replace) {
-        if (command.screen is GuidedAppScreen) {
-            val screen = command.screen as GuidedAppScreen
-            if (guidedStack.isNotEmpty()) {
-                fragmentManager.popBackStackImmediate()
-                guidedStack.removeLast()
-            }
-            showGuidedScreen(screen)
-        } else {
-            replace(command)
+            super.applyCommand(command)
         }
     }
 
     private fun guidedBackTo(command: BackTo) {
-        if (guidedStack.isEmpty()) {
-            backTo(command)
-        } else {
-            val targetKey = command.screen?.screenKey
-            when {
-                targetKey == null -> clearGuidedStack()
-                targetKey !in guidedStack -> clearGuidedStack()
-                else -> {
-                    while (guidedStack.lastOrNull() != targetKey) {
-                        guidedStack.removeLast()
-                        fragmentManager.popBackStackImmediate()
-                    }
+        val targetKey = command.screen?.screenKey
+        when {
+            targetKey == null -> clearGuidedStack()
+            targetKey !in guidedStack -> clearGuidedStack()
+            else -> {
+                while (guidedStack.lastOrNull() != targetKey) {
+                    guidedStack.removeLast()
+                    fragmentManager.popBackStackImmediate()
                 }
             }
         }
@@ -110,8 +95,6 @@ class GuidedStepNavigator(
         if (guidedStack.isNotEmpty()) {
             fragmentManager.popBackStackImmediate()
             guidedStack.removeLast()
-        } else {
-            back()
         }
     }
 

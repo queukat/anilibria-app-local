@@ -87,7 +87,7 @@ import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.DetailsState
 import ru.radiationx.anilibria.common.LibriaDetails
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
-import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvDetailHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.shared_app.imageloader.loadImageBitmap
@@ -142,8 +142,8 @@ internal fun ReleaseDetailsRowContent(
     val density = LocalDensity.current
     val interactionsEnabled = !progressState.loadingProgress
 
-    val horizontalPadding = TvScreenHorizontalPadding
-    val topPadding = TvPageVerticalPadding
+    val horizontalPadding = TvDetailHorizontalPadding
+    val topPadding = horizontalPadding
     val actionRowBottomPadding = topPadding + 20.dp
     val bottomHintTopSpacing = 4.dp
     val bottomHintBottomSpacing = 4.dp

@@ -38,8 +38,8 @@ import ru.radiationx.anilibria.screen.main.MainSectionBlock
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
-import ru.radiationx.anilibria.screen.watching.TvDescriptionBarPadding
-import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvDetailDescriptionBarPadding
+import ru.radiationx.anilibria.screen.watching.TvDetailHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
 import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
@@ -337,7 +337,7 @@ internal fun DetailScreen(
                             onDown = { itemIndex ->
                                 requestSectionFocus(sectionIndex, 1, itemIndex)
                             },
-                            modifier = Modifier.padding(horizontal = TvScreenHorizontalPadding),
+                            modifier = Modifier.padding(horizontal = TvDetailHorizontalPadding),
                             posterFocusedBackgroundColor = detailCardBackground,
                             posterBorderColor = palette.textColor.copy(alpha = 0.58f),
                             posterFocusedBorderWidth = 2.dp,
@@ -357,7 +357,7 @@ internal fun DetailScreen(
                         title = description.title.toString(),
                         subtitle = description.subtitle.toString(),
                         palette = palette,
-                        contentPadding = TvDescriptionBarPadding,
+                        contentPadding = TvDetailDescriptionBarPadding,
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }

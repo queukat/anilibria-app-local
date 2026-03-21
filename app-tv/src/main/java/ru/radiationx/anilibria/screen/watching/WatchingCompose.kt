@@ -268,7 +268,7 @@ internal fun WatchingScreen(
         modifier = Modifier
             .fillMaxSize()
             .tvAppBackground(palette)
-            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
+            .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
@@ -476,6 +476,18 @@ private fun WatchingSectionBlock(
                             ),
                             focusRequester = requesters[index],
                             loading = !item.isError,
+                            onClick = { onItemClick(item) },
+                            onFocused = { onMessageFocused(index, item) },
+                            onLeft = if (index == 0) onLeftEdge else null,
+                            onUp = { onUp(index) },
+                            onDown = { onDown(index) },
+                        )
+
+                        is InfoCard -> WatchingMessageCard(
+                            title = item.title,
+                            subtitle = item.subtitle,
+                            palette = palette,
+                            focusRequester = requesters[index],
                             onClick = { onItemClick(item) },
                             onFocused = { onMessageFocused(index, item) },
                             onLeft = if (index == 0) onLeftEdge else null,

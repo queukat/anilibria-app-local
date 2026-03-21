@@ -24,6 +24,7 @@ import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.extension.applyCard
+import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
 import ru.radiationx.shared.ktx.android.subscribeTo
 import ru.radiationx.quill.viewModel
 
@@ -70,31 +71,33 @@ class SearchFragment : Fragment() {
                 }
             }
             setContent {
-                CatalogScreen(
-                    cards = cardsState,
-                    filters = filtersState,
-                    progressVisible = progressState,
-                    pickerState = pickerState,
-                    focusRequestToken = focusRequestToken,
-                    pickerFocusRequestToken = pickerFocusRequestToken,
-                    restoreFilterIndex = restoreFilterIndex,
-                    restoreFilterToken = restoreFilterToken,
-                    onSearchClick = cardsViewModel::onSearchClick,
-                    onYearClick = formViewModel::onYearClick,
-                    onSeasonClick = formViewModel::onSeasonClick,
-                    onGenreClick = formViewModel::onGenreClick,
-                    onSortClick = formViewModel::onSortClick,
-                    onOnlyCompletedClick = formViewModel::onOnlyCompletedClick,
-                    onPickerToggleOption = formViewModel::togglePickerSelection,
-                    onPickerSingleSelect = formViewModel::selectSinglePicker,
-                    onPickerApply = formViewModel::applyFilterPicker,
-                    onPickerReset = formViewModel::resetFilterPicker,
-                    onPickerDismiss = formViewModel::dismissFilterPicker,
-                    onItemClick = ::handleItemClick,
-                    onItemFocused = { item ->
-                        backgroundManager.applyCard(item)
-                    },
-                )
+                ProvideGradientBackground(backgroundManager) {
+                    CatalogScreen(
+                        cards = cardsState,
+                        filters = filtersState,
+                        progressVisible = progressState,
+                        pickerState = pickerState,
+                        focusRequestToken = focusRequestToken,
+                        pickerFocusRequestToken = pickerFocusRequestToken,
+                        restoreFilterIndex = restoreFilterIndex,
+                        restoreFilterToken = restoreFilterToken,
+                        onSearchClick = cardsViewModel::onSearchClick,
+                        onYearClick = formViewModel::onYearClick,
+                        onSeasonClick = formViewModel::onSeasonClick,
+                        onGenreClick = formViewModel::onGenreClick,
+                        onSortClick = formViewModel::onSortClick,
+                        onOnlyCompletedClick = formViewModel::onOnlyCompletedClick,
+                        onPickerToggleOption = formViewModel::togglePickerSelection,
+                        onPickerSingleSelect = formViewModel::selectSinglePicker,
+                        onPickerApply = formViewModel::applyFilterPicker,
+                        onPickerReset = formViewModel::resetFilterPicker,
+                        onPickerDismiss = formViewModel::dismissFilterPicker,
+                        onItemClick = ::handleItemClick,
+                        onItemFocused = { item ->
+                            backgroundManager.applyCard(item)
+                        },
+                    )
+                }
             }
         }
     }
@@ -154,9 +157,11 @@ class SearchFragment : Fragment() {
 
     private fun handleItemClick(item: CardItem) {
         when (item) {
-            is LibriaCard -> cardsViewModel.onLibriaCardClick(item)
-            is LinkCard -> cardsViewModel.onLinkCardClick()
-            is LoadingCard -> cardsViewModel.onLoadingCardClick()
+            is LibriaCard,
+            is LinkCard,
+            is LoadingCard,
+                -> cardsViewModel.onCardItemClick(item)
+
             is InfoCard -> Unit
         }
     }

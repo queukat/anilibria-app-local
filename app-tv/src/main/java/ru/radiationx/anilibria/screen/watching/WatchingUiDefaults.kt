@@ -10,6 +10,8 @@ import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 
 internal val TvScreenHorizontalPadding = 20.dp
+internal val TvCardScreenHorizontalPadding = TvScreenHorizontalPadding
+internal val TvDetailHorizontalPadding = 28.dp
 internal val TvRowsScreenVerticalPadding = 8.dp
 internal val TvPageVerticalPadding = 16.dp
 internal val TvPageHeaderSpacing = 18.dp
@@ -19,12 +21,16 @@ internal val TvSectionSpacing = 26.dp
 internal val TvSectionHeaderSpacing = 12.dp
 internal val TvFilterRowSpacing = 10.dp
 internal val TvRowSpacing = 16.dp
-internal val TvRowEndPadding = 24.dp
+internal val TvRowEndPadding = 0.dp
 internal val TvPosterCardWidth = 152.dp
 internal val TvPosterCardSlotWidth = 168.dp
 internal val TvPickerTopInset = 72.dp
 internal val TvDescriptionBarPadding = PaddingValues(
     horizontal = 20.dp,
+    vertical = 18.dp,
+)
+internal val TvDetailDescriptionBarPadding = PaddingValues(
+    horizontal = TvDetailHorizontalPadding,
     vertical = 18.dp,
 )
 internal val TvPlayerOverlayHorizontalPadding = 48.dp

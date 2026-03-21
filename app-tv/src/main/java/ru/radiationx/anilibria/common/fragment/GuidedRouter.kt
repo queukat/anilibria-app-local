@@ -9,16 +9,11 @@ class GuidedRouter : Router() {
         navigateTo(screen)
     }
 
-    fun replace(screen: GuidedAppScreen) {
-        replaceScreen(screen)
-    }
-
     fun close() {
         exit()
     }
 
     fun finishGuidedChain() {
-        //finishChain()
         executeCommands(BackTo(null))
     }
 }

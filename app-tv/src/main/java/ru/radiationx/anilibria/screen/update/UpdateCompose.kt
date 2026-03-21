@@ -56,7 +56,11 @@ import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceItem
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceList
+import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceSection
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
+import ru.radiationx.anilibria.ui.compose.TvOverlayScreen
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
@@ -75,8 +79,10 @@ internal fun UpdateScreen(
     isInitialLoading: Boolean,
     isDownloading: Boolean,
     downloadProgress: Int,
+    isSourceChooserVisible: Boolean,
     focusRequestToken: Int,
     onActionClick: () -> Unit,
+    onSourceSelected: (Int) -> Unit,
 ) {
     val palette = rememberWatchingPalette()
     val actionRequester = remember { FocusRequester() }
@@ -88,120 +94,153 @@ internal fun UpdateScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .tvAppBackground(palette)
-            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(TvPageHeaderSpacing),
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .tvAppBackground(palette)
+                .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
         ) {
-            TvPageHeader(
-                title = "Обновление",
-                subtitle = when {
-                    isInitialLoading -> "Проверяем наличие новой версии и готовим заметки к релизу."
-                    updateData?.hasUpdate == true -> buildString {
-                        append("Новая версия")
-                        updateData.name?.takeIf { it.isNotBlank() }?.also {
-                            append(" ")
-                            append(it)
-                        }
-                        updateData.date?.takeIf { it.isNotBlank() }?.also {
-                            append(" • ")
-                            append(it)
-                        }
-                    }
-                    updateData != null -> "Клиент уже обновлён. Здесь останутся заметки к релизу и история изменений."
-                    else -> "Не удалось получить данные об обновлении. Проверьте информацию немного позже."
-                },
-                palette = palette,
-                trailingContent = {
-                    if (!isInitialLoading) {
-                        UpdateActionButton(
-                            text = if (isDownloading) "Отмена" else "Установить",
-                            palette = palette,
-                            focusRequester = actionRequester,
-                            downRequester = notesRequester,
-                            enabled = updateData?.hasUpdate == true || isDownloading,
-                            onClick = onActionClick,
-                        )
-                    }
-                },
-            )
-
-            AnimatedVisibility(
-                visible = isDownloading,
-                enter = fadeIn(),
-                exit = fadeOut(),
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(TvPageHeaderSpacing),
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.TopCenter,
+                TvPageHeader(
+                    title = "Обновление",
+                    subtitle = when {
+                        isInitialLoading -> "Проверяем наличие новой версии и готовим заметки к релизу."
+                        updateData?.hasUpdate == true -> buildString {
+                            append("Новая версия")
+                            updateData.name?.takeIf { it.isNotBlank() }?.also {
+                                append(" ")
+                                append(it)
+                            }
+                            updateData.date?.takeIf { it.isNotBlank() }?.also {
+                                append(" • ")
+                                append(it)
+                            }
+                        }
+                        updateData != null -> "Клиент уже обновлён. Здесь останутся заметки к релизу и история изменений."
+                        else -> "Не удалось получить данные об обновлении. Проверьте информацию немного позже."
+                    },
+                    palette = palette,
+                    trailingContent = {
+                        if (!isInitialLoading) {
+                            UpdateActionButton(
+                                text = if (isDownloading) "Отмена" else "Установить",
+                                palette = palette,
+                                focusRequester = actionRequester,
+                                downRequester = notesRequester,
+                                enabled = updateData?.hasUpdate == true || isDownloading,
+                                onClick = onActionClick,
+                            )
+                        }
+                    },
+                )
+
+                AnimatedVisibility(
+                    visible = isDownloading,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = UPDATE_CONTENT_MAX_WIDTH.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.TopCenter,
                     ) {
-                        Text(
-                            text = if (downloadProgress > 0) "$downloadProgress%" else "Подготовка загрузки",
-                            color = palette.secondaryTextColor,
-                            fontSize = 14.sp,
-                        )
-                        LinearProgressIndicator(
-                            progress = {
-                                if (downloadProgress > 0) {
-                                    downloadProgress / 100f
-                                } else {
-                                    0f
-                                }
-                            },
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(8.dp)
-                                .background(
-                                    color = palette.textColor.copy(alpha = 0.12f),
-                                    shape = RoundedCornerShape(999.dp),
-                                ),
-                            color = palette.textColor,
-                            trackColor = palette.textColor.copy(alpha = 0.12f),
+                                .widthIn(max = UPDATE_CONTENT_MAX_WIDTH.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = if (downloadProgress > 0) "$downloadProgress%" else "Подготовка загрузки",
+                                color = palette.secondaryTextColor,
+                                fontSize = 14.sp,
+                            )
+                            LinearProgressIndicator(
+                                progress = {
+                                    if (downloadProgress > 0) {
+                                        downloadProgress / 100f
+                                    } else {
+                                        0f
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .background(
+                                        color = palette.textColor.copy(alpha = 0.12f),
+                                        shape = RoundedCornerShape(999.dp),
+                                    ),
+                                color = palette.textColor,
+                                trackColor = palette.textColor.copy(alpha = 0.12f),
+                            )
+                        }
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    if (isInitialLoading) {
+                        TvContentStatePanel(
+                            title = "Проверяем обновление",
+                            subtitle = "Подождите немного: версия, заметки к релизу и основное действие появятся здесь автоматически.",
+                            palette = palette,
+                            loading = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = UPDATE_CONTENT_MAX_WIDTH.dp),
+                        )
+                    } else {
+                        UpdateNotesCard(
+                            updateData = updateData,
+                            palette = palette,
+                            focusRequester = notesRequester,
+                            upRequester = actionRequester,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = UPDATE_CONTENT_MAX_WIDTH.dp)
+                                .fillMaxHeight(),
                         )
                     }
                 }
             }
+        }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.TopCenter,
-            ) {
-                if (isInitialLoading) {
-                    TvContentStatePanel(
-                        title = "Проверяем обновление",
-                        subtitle = "Подождите немного: версия, заметки к релизу и основное действие появятся здесь автоматически.",
-                        palette = palette,
-                        loading = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = UPDATE_CONTENT_MAX_WIDTH.dp),
-                    )
-                } else {
-                    UpdateNotesCard(
-                        updateData = updateData,
-                        palette = palette,
-                        focusRequester = notesRequester,
-                        upRequester = actionRequester,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = UPDATE_CONTENT_MAX_WIDTH.dp)
-                            .fillMaxHeight(),
-                    )
-                }
+        if (isSourceChooserVisible) {
+            TvOverlayScreen(
+                title = "Источник обновления",
+                subtitle = "Выберите, откуда загрузить новую версию приложения.",
+                panelMaxWidth = 680.dp,
+            ) { _ ->
+                TvOverlayChoiceList(
+                    sections = listOf(
+                        TvOverlayChoiceSection(
+                            items = updateData
+                                ?.links
+                                .orEmpty()
+                                .mapIndexed { index, source ->
+                                    TvOverlayChoiceItem(
+                                        id = index.toLong(),
+                                        title = source.name,
+                                        subtitle = when (source.type) {
+                                            UpdateData.LinkType.FILE -> "Скачать APK-файл"
+                                            UpdateData.LinkType.SITE -> "Открыть страницу загрузки"
+                                        },
+                                        selected = index == 0,
+                                    )
+                                },
+                        )
+                    ),
+                    onItemClick = { choice ->
+                        onSourceSelected(choice.id.toInt())
+                    },
+                )
             }
         }
     }

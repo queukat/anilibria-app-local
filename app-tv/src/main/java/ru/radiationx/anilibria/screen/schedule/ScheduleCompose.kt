@@ -43,7 +43,7 @@ import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
 import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
-import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
 import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
@@ -317,7 +317,7 @@ internal fun ScheduleScreen(
         modifier = Modifier
             .fillMaxSize()
             .tvAppBackground(palette)
-            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+            .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         LazyColumn(
             state = verticalState,

@@ -1,7 +1,5 @@
 package ru.radiationx.anilibria.screen.profile
 
-import android.widget.ImageView
-import androidx.appcompat.widget.AppCompatImageView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,13 +30,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
+import ru.radiationx.anilibria.ui.compose.TvAsyncImage
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.anilibria.ui.compose.TvFocusableSurfaceColors
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
@@ -46,7 +44,6 @@ import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import ru.radiationx.anilibria.ui.compose.tvPanelSurface
 import ru.radiationx.data.entity.domain.other.ProfileItem
-import ru.radiationx.shared_app.imageloader.showImageUrl
 
 private const val PROFILE_PANEL_WIDTH_FRACTION = 0.62f
 
@@ -182,15 +179,10 @@ private fun ProfileAvatar(
                 contentScale = ContentScale.Fit,
             )
         } else {
-            AndroidView(
-                factory = { context ->
-                    AppCompatImageView(context).apply {
-                        scaleType = ImageView.ScaleType.CENTER_CROP
-                    }
-                },
-                update = { imageView ->
-                    imageView.showImageUrl(avatarUrl)
-                },
+            TvAsyncImage(
+                imageUrl = avatarUrl,
+                contentScale = ContentScale.Crop,
+                placeholderRes = R.drawable.ic_anilibria_splash,
                 modifier = Modifier.fillMaxSize(),
             )
         }

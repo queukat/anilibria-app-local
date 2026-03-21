@@ -232,7 +232,7 @@ internal fun WatchingFavoritesScreen(
         modifier = Modifier
             .fillMaxSize()
             .tvAppBackground(palette)
-            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
+            .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
     ) {
         val columnsCount = max(1, (maxWidth / TvPosterCardSlotWidth).toInt())
 

@@ -2,8 +2,6 @@ package ru.radiationx.anilibria.screen.launcher
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.FragmentActivity
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.fragment.GuidedStepNavigator
@@ -16,9 +14,7 @@ import com.github.terrakok.cicerone.NavigatorHolder
 import ru.radiationx.anilibria.di.ActivityModule
 import ru.radiationx.anilibria.di.AppModule
 import ru.radiationx.anilibria.di.NavigationModule
-import ru.radiationx.anilibria.di.PlayerModule
 import ru.radiationx.anilibria.di.SearchModule
-import ru.radiationx.anilibria.di.UpdateModule
 import ru.radiationx.quill.inject
 
 class MainActivity : FragmentActivity() {
@@ -26,7 +22,7 @@ class MainActivity : FragmentActivity() {
 
     private val viewModel: AppLauncherViewModel by viewModel()
     private val navigator by lazy {
-        GuidedStepNavigator(this, R.id.fragmentContainer)
+        GuidedStepNavigator(this, android.R.id.content)
     }
 
     private val navigatorHolder by inject<NavigatorHolder>()
@@ -38,24 +34,14 @@ class MainActivity : FragmentActivity() {
             ActivityModule(this),
             AppModule(this),
             NavigationModule(),
-            PlayerModule(),
-            UpdateModule(),
             SearchModule(),
         )
 
         super.onCreate(savedInstanceState)
-        setContentView(
-            FragmentContainerView(this).apply {
-                id = R.id.fragmentContainer
-                layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-            }
-        )
 
         lifecycle.addObserver(viewModel)
-        subscribeTo(viewModel.commands) { command ->
-            if (command is AppLauncherViewModel.AppLauncherCommand.AppReady) {
-                handleIntent(intent)
-            }
+        subscribeTo(viewModel.commands) { _ ->
+            handleIntent(intent)
         }
 
         if (savedInstanceState == null) {

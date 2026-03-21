@@ -1,7 +1,7 @@
 package ru.radiationx.anilibria.screen.player
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -22,8 +24,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import ru.radiationx.anilibria.R
-import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.TvPlayerOverlayBottomPadding
+import ru.radiationx.anilibria.screen.watching.WatchingPalette
+import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.data.entity.domain.release.PlayerSkips
@@ -124,9 +127,9 @@ internal fun PlayerSkipsOverlay(
         modifier = modifier,
     ) {
         val skipRequester = remember { FocusRequester() }
-        val cancelRequester = remember { FocusRequester() }
+        val watchRequester = remember { FocusRequester() }
 
-        androidx.compose.runtime.LaunchedEffect(skipsPart?.focusRequestToken, visibleSkip) {
+        LaunchedEffect(skipsPart?.focusRequestToken, visibleSkip) {
             if (visible) {
                 requestWatchingFocusAfterAttach(skipRequester)
             }
@@ -135,7 +138,7 @@ internal fun PlayerSkipsOverlay(
         PlayerSkipsButtonsRow(
             palette = palette,
             skipRequester = skipRequester,
-            watchRequester = cancelRequester,
+            watchRequester = watchRequester,
             onInteraction = onInteraction,
             onOpenControls = onOpenControls,
             onSkipClick = { skipsPart?.skipCurrent() },
@@ -148,7 +151,7 @@ internal fun PlayerSkipsOverlay(
 
 @Composable
 internal fun PlayerSkipsButtonsRow(
-    palette: ru.radiationx.anilibria.screen.watching.WatchingPalette,
+    palette: WatchingPalette,
     skipRequester: FocusRequester,
     watchRequester: FocusRequester,
     onInteraction: () -> Unit,
@@ -178,6 +181,7 @@ internal fun PlayerSkipsButtonsRow(
                 palette = palette,
                 emphasized = false,
             )
+
             WatchingFocusableSurface(
                 focusRequester = skipRequester,
                 backgroundColor = skipColors.backgroundColor,
@@ -203,7 +207,7 @@ internal fun PlayerSkipsButtonsRow(
                 onDown = { true },
                 paddingValues = PlayerOverlayUiDefaults.CompactControlPadding,
             ) {
-                androidx.compose.material3.Text(
+                Text(
                     text = stringResource(R.string.player_skip),
                     color = palette.textColor,
                 )
@@ -234,7 +238,7 @@ internal fun PlayerSkipsButtonsRow(
                 onDown = { true },
                 paddingValues = PlayerOverlayUiDefaults.CompactControlPadding,
             ) {
-                androidx.compose.material3.Text(
+                Text(
                     text = stringResource(R.string.player_watch),
                     color = palette.textColor,
                 )

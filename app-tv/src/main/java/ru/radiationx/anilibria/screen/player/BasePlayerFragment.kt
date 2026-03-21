@@ -8,6 +8,9 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -50,6 +53,7 @@ open class BasePlayerFragment : Fragment() {
     private var controlsFocusTargetState by mutableStateOf(PlayerOverlayFocusTarget.PlayPause)
     private var controlsFocusTokenState by mutableIntStateOf(1)
     private var lastFocusedControlState by mutableStateOf(PlayerOverlayFocusTarget.PlayPause)
+    private var activePickerState by mutableStateOf<PlayerOverlayPicker?>(null)
     private var resumeFocusRestoreTargetState by mutableStateOf<PlayerOverlayFocusTarget?>(null)
     private var resumePlaybackAfterPauseState by mutableStateOf(false)
 
@@ -126,50 +130,64 @@ open class BasePlayerFragment : Fragment() {
         return ComposeView(requireContext()).apply {
             isFocusable = true
             isFocusableInTouchMode = true
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                PlayerScreenContent(
-                    player = playerState,
-                    title = titleState,
-                    subtitle = subtitleState,
-                    controlsVisible = controlsVisibleState,
-                    controlsFocusTarget = controlsFocusTargetState,
-                    controlsFocusToken = controlsFocusTokenState,
-                    isPlaying = isPlayingState,
-                    isLoading = isLoadingState,
-                    isBuffering = isBufferingState,
-                    currentPositionMs = positionState,
-                    durationMs = durationState,
-                    bufferedPositionMs = bufferedPositionState,
-                    selectedQuality = qualityState,
-                    qualityLabel = qualityState.toPlayerLabel(),
-                    selectedSpeed = speedState,
-                    speedLabel = speedState.toPlayerLabel(),
-                    aspectRatioMode = aspectRatioModeState,
-                    availableQualities = availableQualitiesState,
-                    availableSpeeds = availableSpeedsState,
-                    canPrevious = canPreviousState,
-                    canNext = canNextState,
-                    skipsPart = skipsPartState,
-                    onControlFocused = ::rememberFocusedControl,
-                    onShowControls = ::showControls,
-                    onAutoHideControls = ::hideControls,
-                    onBackRequested = ::handleBackPressed,
-                    onTogglePlayback = ::togglePlayback,
-                    onSeekBack = { seekBy(-SEEK_DELTA_MS) },
-                    onSeekForward = { seekBy(SEEK_DELTA_MS) },
-                    onPreviousClick = { onPreviousAction(getCurrentPosition()) },
-                    onNextClick = { onNextAction(getCurrentPosition()) },
-                    onQualitySelected = { quality ->
-                        onQualitySelected(
-                            position = getCurrentPosition(),
-                            quality = quality,
-                        )
-                    },
-                    onSpeedSelected = ::onSpeedSelected,
-                    onAspectRatioSelected = ::onAspectRatioSelected,
-                    onEpisodesClick = { onEpisodesAction(getCurrentPosition()) },
-                )
+                Box(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
+                    PlayerScreenContent(
+                        player = playerState,
+                        title = titleState,
+                        subtitle = subtitleState,
+                        controlsVisible = controlsVisibleState,
+                        controlsFocusTarget = controlsFocusTargetState,
+                        controlsFocusToken = controlsFocusTokenState,
+                        activePicker = activePickerState,
+                        isPlaying = isPlayingState,
+                        isLoading = isLoadingState,
+                        isBuffering = isBufferingState,
+                        currentPositionMs = positionState,
+                        durationMs = durationState,
+                        bufferedPositionMs = bufferedPositionState,
+                        selectedQuality = qualityState,
+                        qualityLabel = qualityState.asPlayerLabel(),
+                        selectedSpeed = speedState,
+                        speedLabel = speedState.asPlayerLabel(),
+                        aspectRatioMode = aspectRatioModeState,
+                        availableQualities = availableQualitiesState,
+                        availableSpeeds = availableSpeedsState,
+                        canPrevious = canPreviousState,
+                        canNext = canNextState,
+                        skipsPart = skipsPartState,
+                        onControlFocused = ::rememberFocusedControl,
+                        onShowControls = ::showControls,
+                        onAutoHideControls = ::hideControls,
+                        onBackRequested = ::handleBackPressed,
+                        onTogglePlayback = ::togglePlayback,
+                        onSeekBack = { seekBy(-SEEK_DELTA_MS) },
+                        onSeekForward = { seekBy(SEEK_DELTA_MS) },
+                        onPreviousClick = { onPreviousAction(getCurrentPosition()) },
+                        onNextClick = { onNextAction(getCurrentPosition()) },
+                        onQualityClick = { togglePicker(PlayerOverlayPicker.Quality) },
+                        onSpeedClick = { togglePicker(PlayerOverlayPicker.Speed) },
+                        onAspectRatioClick = { togglePicker(PlayerOverlayPicker.AspectRatio) },
+                        onDismissPicker = ::dismissPicker,
+                        onQualitySelected = { quality ->
+                            onQualitySelected(
+                                position = getCurrentPosition(),
+                                quality = quality,
+                            )
+                            closePicker(PlayerOverlayFocusTarget.Quality)
+                        },
+                        onSpeedSelected = { speed ->
+                            onSpeedSelected(speed)
+                            closePicker(PlayerOverlayFocusTarget.Speed)
+                        },
+                        onAspectRatioSelected = { mode ->
+                            onAspectRatioSelected(mode)
+                            closePicker(PlayerOverlayFocusTarget.AspectRatio)
+                        },
+                    )
+                    RenderPlayerOverlay()
+                }
             }
         }
     }
@@ -199,7 +217,7 @@ open class BasePlayerFragment : Fragment() {
     override fun onPause() {
         super.onPause()
         if (controlsVisibleState) {
-            resumeFocusRestoreTargetState = resumeFocusRestoreTargetState ?: lastFocusedControlState
+            resumeFocusRestoreTargetState = activePickerState?.focusTarget() ?: lastFocusedControlState
         }
         resumePlaybackAfterPauseState = isPlayingState
         pausePlayback()
@@ -227,20 +245,15 @@ open class BasePlayerFragment : Fragment() {
         quality: PlayerQuality,
     ) {}
 
+    @Composable
+    protected open fun RenderPlayerOverlay() = Unit
+
+    protected open fun handlePlayerOverlayBack(): Boolean = false
+
     protected open fun onSpeedSelected(speed: Float) {}
 
     protected open fun onAspectRatioSelected(mode: PlayerAspectRatioMode) {
         updatePlayerAspectRatio(mode)
-    }
-
-    protected open fun onEpisodesAction(position: Long) {}
-
-    protected fun restoreEpisodesButtonFocusOnNextResume() {
-        restoreControlsFocusOnNextResume(PlayerOverlayFocusTarget.Episodes)
-    }
-
-    private fun restoreControlsFocusOnNextResume(target: PlayerOverlayFocusTarget) {
-        resumeFocusRestoreTargetState = target
     }
 
     protected fun updatePlayerInfo(
@@ -267,20 +280,30 @@ open class BasePlayerFragment : Fragment() {
         speedState = speed
     }
 
+    protected fun restorePlayPauseFocus() {
+        showControls(PlayerOverlayFocusTarget.PlayPause)
+    }
+
+    protected fun restoreNextEpisodeFocus() {
+        showControls(PlayerOverlayFocusTarget.NextEpisode)
+    }
+
     protected fun updatePlayerAspectRatio(mode: PlayerAspectRatioMode) {
         aspectRatioModeState = mode
     }
 
     protected fun updateAvailableQualities(qualities: List<PlayerQuality>) {
         availableQualitiesState = qualities
+        if (qualities.isEmpty() && activePickerState == PlayerOverlayPicker.Quality) {
+            closePicker(PlayerOverlayFocusTarget.Quality)
+        }
     }
 
     protected fun updateAvailableSpeeds(speeds: List<Float>) {
         availableSpeedsState = speeds
-    }
-
-    protected fun setPlayerLoading(loading: Boolean) {
-        isLoadingState = loading
+        if (speeds.isEmpty() && activePickerState == PlayerOverlayPicker.Speed) {
+            closePicker(PlayerOverlayFocusTarget.Speed)
+        }
     }
 
     protected fun preparePlayer(
@@ -361,6 +384,7 @@ open class BasePlayerFragment : Fragment() {
         positionState = 0L
         durationState = 0L
         bufferedPositionState = 0L
+        activePickerState = null
         resumePlaybackAfterPauseState = false
     }
 
@@ -378,6 +402,8 @@ open class BasePlayerFragment : Fragment() {
 
     private fun handleBackPressed() {
         when {
+            handlePlayerOverlayBack() -> Unit
+            activePickerState != null -> closePicker(activePickerState?.focusTarget() ?: lastFocusedControlState)
             skipsPartState?.isVisible == true -> skipsPartState?.cancelCurrent()
             controlsVisibleState -> hideControls()
             else -> {
@@ -432,10 +458,31 @@ open class BasePlayerFragment : Fragment() {
 
     private fun hideControls() {
         controlsVisibleState = false
+        activePickerState = null
     }
 
     private fun rememberFocusedControl(target: PlayerOverlayFocusTarget) {
         lastFocusedControlState = target
+    }
+
+    private fun togglePicker(picker: PlayerOverlayPicker) {
+        if (activePickerState == picker) {
+            closePicker(picker.focusTarget())
+        } else {
+            showControls(picker.focusTarget())
+            activePickerState = picker
+        }
+    }
+
+    private fun dismissPicker(picker: PlayerOverlayPicker) {
+        if (activePickerState == picker) {
+            closePicker(picker.focusTarget())
+        }
+    }
+
+    private fun closePicker(restoreTarget: PlayerOverlayFocusTarget) {
+        activePickerState = null
+        showControls(restoreTarget)
     }
 
     private fun clampPosition(
@@ -445,20 +492,6 @@ open class BasePlayerFragment : Fragment() {
         val boundedPosition = positionMs.coerceAtLeast(0L)
         val duration = player.duration.takeIf { it > 0L } ?: return boundedPosition
         return boundedPosition.coerceAtMost(duration)
-    }
-
-    private fun PlayerQuality.toPlayerLabel(): String = when (this) {
-        PlayerQuality.SD -> "SD"
-        PlayerQuality.HD -> "HD"
-        PlayerQuality.FULLHD -> "1080"
-    }
-
-    private fun Float.toPlayerLabel(): String {
-        return if (this == 1.0f) {
-            "1x"
-        } else {
-            "${this}x"
-        }
     }
 
     private companion object {

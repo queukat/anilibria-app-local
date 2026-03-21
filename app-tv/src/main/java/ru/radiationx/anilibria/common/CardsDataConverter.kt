@@ -14,7 +14,7 @@ class CardsDataConverter @Inject constructor(
     private val context: Context,
 ) {
 
-    fun toCard(releaseItem: Release) = releaseItem.run {
+    fun toReleaseCard(releaseItem: Release) = releaseItem.run {
         val torrentDate = torrentUpdate.takeIf { it != 0 }?.let { Date(it * 1000L) }
         val seasonText = "${year.orEmpty()} ${season.orEmpty()}"
         val genreText = genres.firstOrNull()?.capitalizeDefault()
@@ -33,7 +33,7 @@ class CardsDataConverter @Inject constructor(
         )
     }
 
-    fun toCard(youtubeItem: YoutubeItem) = youtubeItem.run {
+    fun toYoutubeCard(youtubeItem: YoutubeItem) = youtubeItem.run {
         LibriaCard(
             title.orEmpty(),
             "Вышел ${Date(timestamp * 1000L).relativeDate(context).decapitalizeDefault()}",
@@ -44,11 +44,17 @@ class CardsDataConverter @Inject constructor(
         )
     }
 
-    fun toCard(feedItem: FeedItem): LibriaCard = feedItem.run {
+    fun toFeedCard(feedItem: FeedItem): LibriaCard = feedItem.run {
         when {
-            release != null -> toCard(release!!)
-            youtube != null -> toCard(youtube!!)
-            else -> throw RuntimeException("WataFuq")
+            release != null -> toReleaseCard(release!!)
+            youtube != null -> toYoutubeCard(youtube!!)
+            else -> error("Feed item does not contain release or youtube payload")
         }
     }
+
+    fun toCard(releaseItem: Release): LibriaCard = toReleaseCard(releaseItem)
+
+    fun toCard(youtubeItem: YoutubeItem): LibriaCard = toYoutubeCard(youtubeItem)
+
+    fun toCard(feedItem: FeedItem): LibriaCard = toFeedCard(feedItem)
 }

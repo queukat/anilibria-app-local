@@ -1,6 +1,7 @@
 package ru.radiationx.anilibria.screen.player
 
 import androidx.lifecycle.viewModelScope
+import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -10,11 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import ru.radiationx.anilibria.common.fragment.GuidedRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
-import ru.radiationx.anilibria.screen.PlayerEndEpisodeGuidedScreen
-import ru.radiationx.anilibria.screen.PlayerEndSeasonGuidedScreen
-import ru.radiationx.anilibria.screen.PlayerEpisodesGuidedScreen
 import ru.radiationx.data.contracts.tv.TvPlayerFacade
 import ru.radiationx.data.datasource.holders.PreferencesHolder
 import ru.radiationx.data.entity.common.AuthState
@@ -31,15 +28,13 @@ sealed interface PlayerCommand {
     data object Play : PlayerCommand
     data object Pause : PlayerCommand
     data class Seek(val positionMs: Long) : PlayerCommand
-    data class NextEpisodeSelected(val episodeId: EpisodeId) : PlayerCommand
 }
 
 class PlayerViewModel @Inject constructor(
     private val argExtra: PlayerExtra,
     private val tvPlayerFacade: TvPlayerFacade,
     private val preferencesHolder: PreferencesHolder,
-    private val guidedRouter: GuidedRouter,
-    private val playerController: PlayerController,
+    private val router: Router,
 ) : LifecycleViewModel() {
 
     data class StartupFailure(
@@ -49,21 +44,29 @@ class PlayerViewModel @Inject constructor(
 
     private val _videoData = MutableStateFlow<Video?>(null)
     val videoData: StateFlow<Video?> = _videoData.asStateFlow()
+
     private val _qualityState = MutableStateFlow(preferencesHolder.playerQuality.value)
     val qualityState: StateFlow<PlayerQuality> = _qualityState.asStateFlow()
+
     private val _speedState = MutableStateFlow(preferencesHolder.playSpeed.value)
     val speedState: StateFlow<Float> = _speedState.asStateFlow()
+
     private val _availableQualities = MutableStateFlow<List<PlayerQuality>>(emptyList())
     val availableQualities: StateFlow<List<PlayerQuality>> = _availableQualities.asStateFlow()
+
     private val _availableSpeeds = MutableStateFlow(preferencesHolder.availableSpeeds.value)
     val availableSpeeds: StateFlow<List<Float>> = _availableSpeeds.asStateFlow()
+
     private val _commands = MutableSharedFlow<PlayerCommand>(
         replay = 0,
         extraBufferCapacity = 16,
     )
     val commands: SharedFlow<PlayerCommand> = _commands.asSharedFlow()
+
     private val _startupFailure = MutableStateFlow<StartupFailure?>(null)
     val startupFailure: StateFlow<StartupFailure?> = _startupFailure.asStateFlow()
+    private val _completionOverlay = MutableStateFlow<PlayerCompletionOverlay?>(null)
+    internal val completionOverlay: StateFlow<PlayerCompletionOverlay?> = _completionOverlay.asStateFlow()
 
     private var currentReleases: List<Release> = emptyList()
     private var currentEpisodes: List<Episode> = emptyList()
@@ -76,21 +79,13 @@ class PlayerViewModel @Inject constructor(
     private var promptedForCompletedResumeEpisodeId: EpisodeId? = null
 
     private var currentQuality: PlayerQuality = preferencesHolder.playerQuality.value
-    private var currentSpeed: Float = preferencesHolder.playSpeed.value
-
     private var canSyncRemoteViews: Boolean = false
 
     init {
-        // PlayerController — singleton. Сбрасываем данные, чтобы guided-экраны
-        // не подхватывали список серий от предыдущего просмотра.
-        playerController.reset()
-
-        // Auth: включаем удалённую синхронизацию прогресса только если AUTH.
         tvPlayerFacade.observeAuthState()
             .onEach { canSyncRemoteViews = it == AuthState.AUTH }
             .launchIn(viewModelScope)
 
-        // Quality
         preferencesHolder.playerQuality
             .onEach { quality ->
                 currentQuality = quality
@@ -99,10 +94,8 @@ class PlayerViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        // Speed
         preferencesHolder.playSpeed
             .onEach { speed ->
-                currentSpeed = speed
                 _speedState.value = speed
             }
             .launchIn(viewModelScope)
@@ -113,15 +106,6 @@ class PlayerViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        // Episode selection from guided screens (end-episode / episodes list)
-        playerController.selectEpisodeRelay
-            .onEach { episodeId ->
-                val episode = currentEpisodes.firstOrNull { it.id == episodeId } ?: return@onEach
-                playEpisode(episode)
-            }
-            .launchIn(viewModelScope)
-
-        // Load initial release(s)
         viewModelScope.launch {
             val releases = runCatching {
                 tvPlayerFacade.loadWithFranchises(argExtra.releaseId)
@@ -135,7 +119,6 @@ class PlayerViewModel @Inject constructor(
                 return@launch
             }
             currentReleases = releases
-            playerController.data.value = releases
 
             currentRelease = releases.firstOrNull { it.id == argExtra.releaseId } ?: releases.firstOrNull()
             currentEpisodes = releases.toPlaybackEpisodesOrder()
@@ -145,7 +128,6 @@ class PlayerViewModel @Inject constructor(
                     tvPlayerFacade.getLocalContinueEpisodeId(argExtra.releaseId)
                 }.getOrNull()
                 ?: run {
-                    // remote continue (AniLiberty) — best effort
                     if (tvPlayerFacade.getAuthState() == AuthState.AUTH) {
                         runCatching { tvPlayerFacade.getRemoteContinueEpisodeId(argExtra.releaseId) }.getOrNull()
                     } else {
@@ -165,29 +147,6 @@ class PlayerViewModel @Inject constructor(
 
             playEpisode(episode)
         }
-    }
-
-    override fun onCreate() {
-        super.onCreate()
-        playerController.bindPlayer()
-
-        // Если плеер вернулся из бэкстека/конфига и данные уже есть — отдадим их в controller.
-        if (currentReleases.isNotEmpty()) {
-            playerController.data.value = currentReleases
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        // Экран плеера больше не активен (view уничтожен) — очищаем singleton-состояние,
-        // иначе следующий экран может увидеть «чужие» серии.
-        playerController.unbindPlayer()
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        // На всякий случай (если view уже уничтожен, а ViewModel очищается позже)
-        playerController.unbindPlayer()
     }
 
     fun onPauseClick(
@@ -219,8 +178,7 @@ class PlayerViewModel @Inject constructor(
                 emitCommand(PlayerCommand.Pause)
                 if (promptedForCompletedResumeEpisodeId != episode.id) {
                     promptedForCompletedResumeEpisodeId = episode.id
-                    val release = getCurrentRelease() ?: return@launch
-                    openEndGuidedScreen(release, episode)
+                    showCompletionOverlay()
                 }
             } else {
                 promptedForCompletedResumeEpisodeId = null
@@ -234,26 +192,21 @@ class PlayerViewModel @Inject constructor(
         saveEpisodePosition(position)
         emitCommand(PlayerCommand.Pause)
 
-        // Автоплей следующей серии (если включено и серия существует)
         val next = getNextEpisode()
         if (next != null && preferencesHolder.playerAutoplay.value) {
-            // важно: сбросить флаг, иначе следующий эпизод может сохраниться как "просмотрен"
             currentComplete = false
             playEpisode(next)
             return
         }
 
-        val release = getCurrentRelease() ?: return
-        val episode = currentEpisode ?: return
-        openEndGuidedScreen(release, episode)
+        showCompletionOverlay()
     }
-
 
     fun onNextClick(position: Long) {
         saveEpisodePosition(position)
+        dismissCompletionOverlay()
         val next = getNextEpisode() ?: return
         playEpisode(next)
-        emitCommand(PlayerCommand.NextEpisodeSelected(next.id))
     }
 
     fun onPrevClick(position: Long) {
@@ -274,26 +227,37 @@ class PlayerViewModel @Inject constructor(
         preferencesHolder.playSpeed.value = speed
     }
 
-    fun onEpisodesClick(position: Long) {
-        saveEpisodePosition(position, syncRemote = false)
-        guidedRouter.open(PlayerEpisodesGuidedScreen(getCurrentReleaseId() ?: return, currentEpisode?.id))
+    fun dismissCompletionOverlay() {
+        _completionOverlay.value = null
     }
 
-    private fun openEndGuidedScreen(release: Release, episode: Episode) {
-        val next = getNextEpisode()
-
-        if (next != null) {
-            guidedRouter.open(PlayerEndEpisodeGuidedScreen(release.id, episode.id))
-        } else {
-            guidedRouter.open(PlayerEndSeasonGuidedScreen(release.id, episode.id))
+    fun onReplayEpisodeClick() {
+        val episode = currentEpisode ?: return
+        viewModelScope.launch {
+            tvPlayerFacade.saveLocalEpisodeSeek(episode.id, 0L)
+            playEpisode(episode)
         }
+    }
+
+    fun onNextEpisodeClick() {
+        val nextEpisode = getNextEpisode() ?: return
+        playEpisode(nextEpisode)
+    }
+
+    fun onReplaySeasonClick() {
+        val firstEpisode = currentEpisodes.firstOrNull() ?: return
+        playEpisode(firstEpisode)
+    }
+
+    fun onClosePlayerClick() {
+        dismissCompletionOverlay()
+        router.exit()
     }
 
     private fun saveEpisodePosition(position: Long, syncRemote: Boolean = true) {
         getCurrentRelease() ?: return
         val episode = currentEpisode ?: return
 
-        // фиксируем значения ДО launch, чтобы переключение эпизода не ломало расчёт
         val snapshot = EpisodeProgressSnapshot(
             episodeId = episode.id,
             position = position,
@@ -304,15 +268,15 @@ class PlayerViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            // local progress (legacy) — always
             tvPlayerFacade.saveLocalEpisodeSeek(snapshot.episodeId, snapshot.position)
-
-            // remote progress (AniLiberty) — best effort
             syncEpisodeProgressToRemote(snapshot, syncRemote)
         }
     }
 
-    private suspend fun syncEpisodeProgressToRemote(snapshot: EpisodeProgressSnapshot, syncRemote: Boolean) {
+    private suspend fun syncEpisodeProgressToRemote(
+        snapshot: EpisodeProgressSnapshot,
+        syncRemote: Boolean,
+    ) {
         if (!syncRemote || !canSyncRemoteViews) return
 
         val remotePosition = if (snapshot.isWatched) 0L else snapshot.position
@@ -325,11 +289,11 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-
     private fun playEpisode(episode: Episode) {
         promptedForCompletedResumeEpisodeId = null
         currentComplete = false
         currentDuration = 0L
+        dismissCompletionOverlay()
         currentEpisode = episode
         currentRelease = currentReleases.firstOrNull { it.id == episode.id.releaseId } ?: currentReleases.firstOrNull()
         updateEpisode(force = true)
@@ -363,16 +327,12 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val newUrl = episode.qualityInfo.getSafeUrlFor(quality)
 
-            // local (legacy): always available
             val localSeek = tvPlayerFacade.getLocalEpisodeSeek(episode.id)
-
-            // remote (AniLiberty): enables "continue on another device"
             val remoteSeek = if (canSyncRemoteViews) {
                 runCatching { tvPlayerFacade.getRemoteEpisodeSeek(episode.id) }.getOrDefault(0L)
             } else {
                 0L
             }
-
             val seek = maxOf(localSeek, remoteSeek)
 
             val newVideo = Video(
@@ -386,7 +346,6 @@ class PlayerViewModel @Inject constructor(
             if (force || _videoData.value?.url != newVideo.url) {
                 _videoData.value = newVideo
             } else if (_videoData.value?.seek != newVideo.seek) {
-                // url тот же, но seek изменился — отправим одноразовую команду.
                 emitCommand(PlayerCommand.Seek(newVideo.seek))
             }
         }
@@ -402,6 +361,14 @@ class PlayerViewModel @Inject constructor(
 
     fun consumeStartupFailure() {
         _startupFailure.value = null
+    }
+
+    private fun showCompletionOverlay() {
+        _completionOverlay.value = if (getNextEpisode() != null) {
+            PlayerCompletionOverlay.EpisodeComplete
+        } else {
+            PlayerCompletionOverlay.SeasonComplete
+        }
     }
 
     private data class EpisodeProgressSnapshot(

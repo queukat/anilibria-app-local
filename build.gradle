@@ -1,12 +1,10 @@
-import io.gitlab.arturbosch.detekt.Detekt
-
 buildscript {
     ext {
         // main
         app_compile_sdk_version = 35
         app_target_sdk_version = 35
         app_min_sdk_version = 21
-        tv_min_sdk_version = 21
+        tv_min_sdk_version = 23
 
         mobile_version_code = 70
         mobile_version_name = "2.14.0_RC2"
@@ -23,68 +21,21 @@ plugins {
     alias libs.plugins.android.application apply false
     alias libs.plugins.android.library apply false
     alias libs.plugins.kotlin.android apply false
-    alias libs.plugins.kotlin.compose apply false
     alias libs.plugins.kotlin.jvm apply false
+    alias(libs.plugins.kotlin.compose) apply false
     alias libs.plugins.ksp apply false
     alias libs.plugins.gms apply false
     alias libs.plugins.appmetrica apply false
-    alias libs.plugins.detekt apply false
     alias(libs.plugins.version.catalog.update)
 }
 
 // todo delete after fixes in conscrypt library
-// Tracking: https://github.com/google/conscrypt/issues/1413
 allprojects {
     if (libs.versions.conscrypt.android.get() == "2.5.3") {
-        throw new Exception("Do not use conscrypt version 2.5.3, it's broken (crashes on 16KB page-size devices)")
+        throw new Exception("Do not use conscrypt version 2.5.3, it's broken")
     }
 }
 
 tasks.register('clean', Delete) {
     delete rootProject.layout.buildDirectory
-}
-
-def detektTargets = [
-        ":app-tv",
-        ":media-mobile",
-        ":data",
-        ":shared-app",
-        ":quill-di",
-        ":shared-android-ktx",
-        ":shared-ktx",
-        ":envoy",
-        ":taiwa",
-        ":searchbar",
-]
-
-configure(detektTargets.collect { project(it) }) {
-    apply plugin: "io.gitlab.arturbosch.detekt"
-
-    detekt {
-        buildUponDefaultConfig = true
-        parallel = true
-        config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
-        baseline = file("$projectDir/detekt-baseline.xml")
-    }
-
-    tasks.withType(Detekt).configureEach {
-        source = files("src/main/java", "src/main/kotlin")
-        include("**/*.kt", "**/*.kts")
-        exclude("**/build/**")
-        reports {
-            html.required.set(true)
-            xml.required.set(true)
-            txt.required.set(false)
-            sarif.required.set(false)
-            md.required.set(false)
-        }
-    }
-}
-
-tasks.register("detekt") {
-    dependsOn(detektTargets.collect { "${it}:detekt" })
-}
-
-tasks.register("detektBaseline") {
-    dependsOn(detektTargets.collect { "${it}:detektBaseline" })
 }

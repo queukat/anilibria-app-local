@@ -5,4 +5,9 @@
     <item name="title_other" type="id" />
     <item name="title_alert" type="id" />
     <item name="title_controls" type="id" />
+
+    <item name="player_action_quality" type="id" />
+    <item name="player_action_speed" type="id" />
+    <item name="player_action_episodes" type="id" />
+    <item name="player_action_resize" type="id" />
 </resources>

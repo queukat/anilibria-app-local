@@ -13,11 +13,13 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.GradientBackgroundManager
+import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
+import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
 
@@ -45,15 +47,17 @@ class ScheduleFragment : Fragment() {
                 }
             }
             setContent {
-                ScheduleScreen(
-                    sections = buildSections(),
-                    loadingVisible = loadingState,
-                    focusRequestToken = focusRequestToken,
-                    onItemClick = { _, item -> handleItemClick(item) },
-                    onItemFocused = { item ->
-                        backgroundManager.applyCard(item)
-                    },
-                )
+                ProvideGradientBackground(backgroundManager) {
+                    ScheduleScreen(
+                        sections = buildSections(),
+                        loadingVisible = loadingState,
+                        focusRequestToken = focusRequestToken,
+                        onItemClick = { _, item -> handleItemClick(item) },
+                        onItemFocused = { item ->
+                            backgroundManager.applyCard(item)
+                        },
+                    )
+                }
             }
         }
     }
@@ -100,6 +104,7 @@ class ScheduleFragment : Fragment() {
             is LoadingCard -> if (item.isError) {
                 viewModel.onRetryClick()
             }
+            is InfoCard -> Unit
         }
     }
 }

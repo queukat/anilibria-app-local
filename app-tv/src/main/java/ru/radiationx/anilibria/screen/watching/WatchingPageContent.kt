@@ -10,8 +10,6 @@ import androidx.lifecycle.LifecycleOwner
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.GradientBackgroundManager
-import ru.radiationx.anilibria.common.LibriaCard
-import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.screen.mainpages.MainShellCallbacks
@@ -65,12 +63,7 @@ internal class WatchingPageContent(
 
     override fun onSelected() {
         visibilityRestoreToken++
-        val card = selectedItemState as? LibriaCard
-        if (card != null) {
-            backgroundManager.applyCard(card)
-        } else {
-            backgroundManager.clearGradient()
-        }
+        selectedItemState?.let(backgroundManager::applyCard) ?: backgroundManager.clearGradient()
     }
 
     override fun requestContentFocus(): Boolean {
@@ -91,12 +84,7 @@ internal class WatchingPageContent(
             onContentMovedUp = callbacks.onContentMovedUp,
             onItemFocused = { _, _, item ->
                 selectedItemState = item
-                val card = item as? LibriaCard
-                if (card != null) {
-                    backgroundManager.applyCard(card)
-                } else {
-                    backgroundManager.clearGradient()
-                }
+                backgroundManager.applyCard(item)
             },
         )
     }
@@ -142,10 +130,6 @@ internal class WatchingPageContent(
         viewModel: BaseCardsViewModel,
         item: CardItem,
     ) {
-        when (item) {
-            is LibriaCard -> viewModel.onLibriaCardClick(item)
-            is LinkCard -> viewModel.onLinkCardClick()
-            is LoadingCard -> viewModel.onLoadingCardClick()
-        }
+        viewModel.onCardItemClick(item)
     }
 }

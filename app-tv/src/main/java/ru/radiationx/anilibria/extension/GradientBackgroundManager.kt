@@ -1,9 +1,13 @@
 package ru.radiationx.anilibria.extension
 
+import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.GradientBackgroundManager
-import ru.radiationx.anilibria.common.LibriaCard
 
-fun GradientBackgroundManager.applyCard(card: Any?) = when (card) {
-    is LibriaCard -> applyImage(card.image)
-    else -> clearGradient()
+fun GradientBackgroundManager.applyCard(card: CardItem?) {
+    val imageUrl = card?.backgroundImageUrl
+    if (imageUrl != null) {
+        applyImage(imageUrl)
+    } else {
+        clearGradient()
+    }
 }

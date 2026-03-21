@@ -24,6 +24,7 @@ import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.extension.applyCard
+import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
 import ru.radiationx.quill.installModules
 import ru.radiationx.quill.quillModule
 import ru.radiationx.quill.viewModel
@@ -85,19 +86,21 @@ class SuggestionsFragment : Fragment() {
                 }
             }
             setContent {
-                SuggestionsScreen(
-                    query = queryState,
-                    sections = buildSections(),
-                    progressVisible = progressState,
-                    voiceSearchAvailable = voiceSearchAvailable,
-                    focusRequestToken = focusRequestToken,
-                    onQueryChange = ::handleQueryChange,
-                    onVoiceSearchClick = ::launchVoiceSearch,
-                    onItemClick = ::handleItemClick,
-                    onItemFocused = { item ->
-                        backgroundManager.applyCard(item)
-                    },
-                )
+                ProvideGradientBackground(backgroundManager) {
+                    SuggestionsScreen(
+                        query = queryState,
+                        sections = buildSections(),
+                        progressVisible = progressState,
+                        voiceSearchAvailable = voiceSearchAvailable,
+                        focusRequestToken = focusRequestToken,
+                        onQueryChange = ::handleQueryChange,
+                        onVoiceSearchClick = ::launchVoiceSearch,
+                        onItemClick = ::handleItemClick,
+                        onItemFocused = { item ->
+                            backgroundManager.applyCard(item)
+                        },
+                    )
+                }
             }
         }
     }
@@ -209,9 +212,11 @@ class SuggestionsFragment : Fragment() {
         item: CardItem,
     ) {
         when (item) {
-            is LibriaCard -> viewModel.onLibriaCardClick(item)
-            is LinkCard -> viewModel.onLinkCardClick()
-            is LoadingCard -> viewModel.onLoadingCardClick()
+            is LibriaCard,
+            is LinkCard,
+            is LoadingCard,
+                -> viewModel.onCardItemClick(item)
+
             else -> Unit
         }
     }

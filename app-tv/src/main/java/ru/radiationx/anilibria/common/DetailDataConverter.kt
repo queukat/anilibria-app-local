@@ -12,7 +12,7 @@ import javax.inject.Inject
 
 class DetailDataConverter @Inject constructor() {
 
-    fun toDetail(
+    fun toDetailsUiState(
         releaseItem: Release,
         accesses: List<EpisodeAccess>,
     ): LibriaDetails = releaseItem.run {
@@ -36,6 +36,11 @@ class DetailDataConverter @Inject constructor() {
             hasWebPlayer = moonwalkLink != null
         )
     }
+
+    fun toDetail(
+        releaseItem: Release,
+        accesses: List<EpisodeAccess>,
+    ): LibriaDetails = toDetailsUiState(releaseItem, accesses)
 
     private fun Release.buildExtra(): String {
         return buildList {
@@ -72,21 +77,6 @@ class DetailDataConverter @Inject constructor() {
         val calendarDay = ScheduleDay.toCalendarDay(this)
         val prefix = calendarDay.dayIterationPrefix2()
         return "Серии выходят $prefix"
-    }
-
-    private fun Int.dayIterationPrefix(): String = when (this) {
-        Calendar.MONDAY,
-        Calendar.TUESDAY,
-        Calendar.THURSDAY,
-            -> "каждый"
-
-        Calendar.WEDNESDAY,
-        Calendar.FRIDAY,
-        Calendar.SATURDAY,
-            -> "каждую"
-
-        Calendar.SUNDAY -> "каждое"
-        else -> throw Exception("Not found day by $this")
     }
 
     private fun Int.dayIterationPrefix2(): String = when (this) {

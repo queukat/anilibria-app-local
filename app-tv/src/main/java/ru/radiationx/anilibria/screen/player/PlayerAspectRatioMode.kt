@@ -28,10 +28,4 @@ enum class PlayerAspectRatioMode(
         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL,
     ),
     ;
-
-    fun next(): PlayerAspectRatioMode = when (this) {
-        FIT -> ZOOM
-        ZOOM -> FILL
-        FILL -> FIT
-    }
 }

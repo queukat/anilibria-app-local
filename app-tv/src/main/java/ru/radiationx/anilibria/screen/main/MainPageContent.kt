@@ -10,8 +10,6 @@ import androidx.lifecycle.LifecycleOwner
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.GradientBackgroundManager
-import ru.radiationx.anilibria.common.LibriaCard
-import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.screen.mainpages.MainShellCallbacks
@@ -154,10 +152,6 @@ internal class MainPageContent(
         viewModel: BaseCardsViewModel,
         item: CardItem,
     ) {
-        when (item) {
-            is LibriaCard -> viewModel.onLibriaCardClick(item)
-            is LinkCard -> viewModel.onLinkCardClick()
-            is LoadingCard -> viewModel.onLoadingCardClick()
-        }
+        viewModel.onCardItemClick(item)
     }
 }

@@ -24,6 +24,7 @@ import ru.radiationx.anilibria.screen.main.MainPageContent
 import ru.radiationx.anilibria.screen.profile.ProfilePageContent
 import ru.radiationx.anilibria.screen.watching.WatchingFavoritesPageContent
 import ru.radiationx.anilibria.screen.watching.WatchingPageContent
+import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
 
@@ -92,32 +93,34 @@ class MainPagesFragment : Fragment() {
             isFocusableInTouchMode = true
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
-                MainPagesRoot(
-                    items = shellItems,
-                    selectedPageId = selectedPageId,
-                    hasUpdates = hasUpdates,
-                    headerVisible = isHeaderVisible,
-                    railExpanded = isRailExpanded,
-                    preferredHeaderAction = preferredHeaderAction,
-                    headerFocusRequestToken = headerFocusRequestToken,
-                    railFocusRequestToken = railFocusRequestToken,
-                    onHeaderFocused = { action ->
-                        preferredHeaderAction = action
-                        isRailExpanded = false
-                        applyHeaderVisibility(true)
-                    },
-                    onSearchClick = viewModel::onSearchClick,
-                    onCatalogClick = viewModel::onCatalogClick,
-                    onUpdateClick = viewModel::onAppUpdateClick,
-                    onPageFocused = ::showPageFromShell,
-                    onRequestHeaderFocus = ::requestHeaderFocus,
-                    onRequestContentFocus = ::moveFocusToContent,
-                ) {
-                    MainPagesContentHost(
+                ProvideGradientBackground(backgroundManager) {
+                    MainPagesRoot(
+                        items = shellItems,
                         selectedPageId = selectedPageId,
-                        pageContents = pageContents,
-                        callbacks = shellCallbacks,
-                    )
+                        hasUpdates = hasUpdates,
+                        headerVisible = isHeaderVisible,
+                        railExpanded = isRailExpanded,
+                        preferredHeaderAction = preferredHeaderAction,
+                        headerFocusRequestToken = headerFocusRequestToken,
+                        railFocusRequestToken = railFocusRequestToken,
+                        onHeaderFocused = { action ->
+                            preferredHeaderAction = action
+                            isRailExpanded = false
+                            applyHeaderVisibility(true)
+                        },
+                        onSearchClick = viewModel::onSearchClick,
+                        onCatalogClick = viewModel::onCatalogClick,
+                        onUpdateClick = viewModel::onAppUpdateClick,
+                        onPageFocused = ::showPageFromShell,
+                        onRequestHeaderFocus = ::requestHeaderFocus,
+                        onRequestContentFocus = ::moveFocusToContent,
+                    ) {
+                        MainPagesContentHost(
+                            selectedPageId = selectedPageId,
+                            pageContents = pageContents,
+                            callbacks = shellCallbacks,
+                        )
+                    }
                 }
             }
         }

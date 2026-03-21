@@ -63,7 +63,7 @@ import ru.radiationx.anilibria.screen.watching.TvPosterCardSlotWidth
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvPickerTopInset
 import ru.radiationx.anilibria.screen.watching.TvRowSpacing
-import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.WatchingWideMessageCard
 import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
@@ -253,7 +253,7 @@ internal fun CatalogScreen(
         modifier = Modifier
             .fillMaxSize()
             .tvAppBackground(palette)
-            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+            .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         val columnsCount = max(1, (maxWidth / TvPosterCardSlotWidth).toInt())
 

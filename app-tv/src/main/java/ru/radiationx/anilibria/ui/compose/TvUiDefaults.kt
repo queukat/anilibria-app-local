@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.composed
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
@@ -206,7 +209,33 @@ internal fun Modifier.tvAppBackground(
     palette: WatchingPalette,
     glowAlpha: Float = TvUiDefaults.AppBackgroundGlowAlpha,
 ): Modifier {
-    return background(TvUiDefaults.appBackgroundBrush(palette, glowAlpha))
+    return composed {
+        val dynamicBackground = LocalTvAppBackgroundState.current
+        drawWithCache {
+            val overlayBrush = TvUiDefaults.appBackgroundBrush(palette, glowAlpha)
+            val legacyBackdropBrush = Brush.linearGradient(
+                colors = listOf(
+                    Color(0xEE000000),
+                    Color(0x55000000),
+                ),
+                start = Offset(0f, size.height),
+                end = Offset(size.width * 0.9f, size.height * 0.14f),
+            )
+            val foregroundColor = dynamicBackground.foregroundColor.copy(
+                alpha = dynamicBackground.foregroundAlpha,
+            )
+            onDrawBehind {
+                if (dynamicBackground.enabled) {
+                    drawRect(color = dynamicBackground.baseColor)
+                    drawRect(brush = legacyBackdropBrush)
+                }
+                drawRect(brush = overlayBrush)
+                if (dynamicBackground.enabled && dynamicBackground.foregroundAlpha > 0f) {
+                    drawRect(color = foregroundColor)
+                }
+            }
+        }
+    }
 }
 
 @Composable
