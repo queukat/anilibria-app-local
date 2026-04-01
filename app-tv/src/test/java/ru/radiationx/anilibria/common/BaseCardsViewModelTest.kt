@@ -1,5 +1,6 @@
 package ru.radiationx.anilibria.common
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -61,6 +62,29 @@ class BaseCardsViewModelTest {
         collectJob.cancel()
     }
 
+    @Test
+    fun loadMoreKeepsActionCardWhileAppendIsLoadingWithoutProgressState() = runBlocking {
+        val secondPageGate = CompletableDeferred<Unit>()
+        val viewModel = AppendWithoutProgressCardsViewModel(secondPageGate)
+
+        viewModel.onRefreshClick()
+        waitUntil {
+            viewModel.cardsData.value.filterIsInstance<LibriaCard>().map { it.title } == listOf("A")
+        }
+        assertTrue(viewModel.cardsData.value.lastOrNull() is LinkCard)
+
+        viewModel.onLinkCardClick()
+        repeat(5) { delay(20) }
+
+        assertTrue(viewModel.cardsData.value.lastOrNull() is LinkCard)
+        assertTrue(viewModel.cardsData.value.none { it is LoadingCard && !it.isError })
+
+        secondPageGate.complete(Unit)
+        waitUntil {
+            viewModel.cardsData.value.filterIsInstance<LibriaCard>().map { it.title } == listOf("A", "B")
+        }
+    }
+
     private suspend fun waitUntil(predicate: () -> Boolean) {
         repeat(100) {
             if (predicate()) return
@@ -69,13 +93,15 @@ class BaseCardsViewModelTest {
         error("Condition was not met in time")
     }
 
-    private fun card(title: String): LibriaCard = LibriaCard(
-        title = title,
-        description = "",
-        image = "",
-        type = LibriaCard.Type.Release(ReleaseId(1)),
-    )
+    private fun card(title: String): LibriaCard = testCard(title)
 }
+
+private fun testCard(title: String): LibriaCard = LibriaCard(
+    title = title,
+    description = "",
+    image = "",
+    type = LibriaCard.Type.Release(ReleaseId(1)),
+)
 
 private class TestCardsViewModel(
     private val loaderResults: ArrayDeque<List<LibriaCard>>,
@@ -88,5 +114,27 @@ private class TestCardsViewModel(
 
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
         return loaderResults.removeFirst()
+    }
+}
+
+private class AppendWithoutProgressCardsViewModel(
+    private val secondPageGate: CompletableDeferred<Unit>,
+) : BaseCardsViewModel() {
+
+    override val progressOnAppend: Boolean = false
+
+    override fun hasMoreCards(newCards: List<LibriaCard>, allCards: List<LibriaCard>): Boolean {
+        return allCards.size < 2
+    }
+
+    override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
+        return when (requestPage) {
+            1 -> listOf(testCard(title = "A"))
+            2 -> {
+                secondPageGate.await()
+                listOf(testCard(title = "B"))
+            }
+            else -> emptyList()
+        }
     }
 }

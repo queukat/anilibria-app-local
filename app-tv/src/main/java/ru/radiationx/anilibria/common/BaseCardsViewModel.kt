@@ -38,6 +38,12 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
     protected open val progressOnRefresh = true
 
     /**
+     * Показывать ли промежуточный loading-state при догрузке следующей страницы.
+     * Для TV-рядов с кнопкой "Загрузить еще" можно отключить, чтобы не терять фокус.
+     */
+    protected open val progressOnAppend = true
+
+    /**
      * Нужно ли предотвращать «clear» списка при обновлении?
      * Если `true`, при обновлении мы не очищаем старые карточки, а только добавляем новые.
      */
@@ -181,7 +187,12 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
         if (requestJob?.isActive == true) return
         requestJob = viewModelScope.launch {
             // Показываем «loadingCard», если (не первая страница) или при принуд. прогрессе
-            if (requestPage != firstPage || progressOnRefresh) {
+            val showLoadingState = if (requestPage == firstPage) {
+                progressOnRefresh
+            } else {
+                progressOnAppend
+            }
+            if (showLoadingState) {
                 _cardsData.value = composeCards(
                     cards = currentCards.toList(),
                     isLoading = true,

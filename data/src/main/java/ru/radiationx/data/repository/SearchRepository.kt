@@ -113,7 +113,9 @@ class SearchRepository @Inject constructor(
 
     suspend fun searchReleases(form: SearchForm, page: Int): Paginated<Release> {
         val yearsQuery = form.years.joinToString(",") { it.value }
-        val seasonsQuery = form.seasons.joinToString(",") { it.value }
+        val seasonsQuery = form.seasons
+            .map(SeasonItem::toLegacySearchSeasonItem)
+            .joinToString(",") { it.value }
         val genresQuery = form.genres.joinToString(",") { it.value }
         val sortStr = when (form.sort) {
             SearchForm.Sort.RATING -> "2"
@@ -168,4 +170,18 @@ class SearchRepository @Inject constructor(
             listOf("зима", "весна", "лето", "осень").map { SeasonItem(it.capitalizeDefault(), it) }
         }
     }
+}
+
+internal fun SeasonItem.toLegacySearchSeasonItem(): SeasonItem {
+    val normalizedValue = value.trim().lowercase()
+    val legacyValue = when (normalizedValue) {
+        "winter" -> "зима"
+        "spring" -> "весна"
+        "summer" -> "лето"
+        "autumn",
+        "fall",
+        -> "осень"
+        else -> normalizedValue.ifBlank { value }
+    }
+    return copy(value = legacyValue)
 }

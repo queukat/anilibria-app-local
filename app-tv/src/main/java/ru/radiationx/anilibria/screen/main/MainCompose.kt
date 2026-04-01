@@ -84,6 +84,7 @@ private const val DESCRIPTION_REFRESH_INTERVAL_MS = 60_000L
 @Composable
 internal fun MainScreen(
     sections: List<MainSectionUiModel>,
+    interactionsEnabled: Boolean = true,
     focusRequestToken: Int,
     visibilityRestoreToken: Int,
     contentRestoreState: MainContentRestoreState,
@@ -98,22 +99,32 @@ internal fun MainScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val verticalState = remember { LazyListState() }
+    val sectionIds = remember(sections) { sections.map(MainSectionUiModel::id) }
     val sectionKeys = remember(sections) {
         sections.map { section ->
             section.id to section.items.map(CardItem::getId)
         }
     }
-    val rowStates = remember(sectionKeys) {
+    val rowStates = remember(sectionIds) {
         List(sections.size) { LazyListState() }
+    }
+    val requesterCache = remember {
+        mutableMapOf<Long, MutableMap<Int, androidx.compose.ui.focus.FocusRequester>>()
     }
     val sectionRequesters = remember(sectionKeys) {
         sections.map { section ->
-            List(section.items.size) { androidx.compose.ui.focus.FocusRequester() }
+            val cachedRequesters = requesterCache.getOrPut(section.id) { mutableMapOf() }
+            val activeItemIds = section.items.map(CardItem::getId).toSet()
+            cachedRequesters.keys.retainAll(activeItemIds)
+            section.items.map { item ->
+                cachedRequesters.getOrPut(item.getId()) {
+                    androidx.compose.ui.focus.FocusRequester()
+                }
+            }
         }
     }
-    var selectedItem by remember(sectionKeys) { mutableStateOf<LibriaCard?>(null) }
+    var selectedItem by remember { mutableStateOf<LibriaCard?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
-    var descriptionTick by remember { mutableIntStateOf(0) }
     val hasContent = remember(sectionKeys) { sections.any { section -> section.items.hasTvPosterContent() } }
 
     fun targetInSection(
@@ -251,16 +262,6 @@ internal fun MainScreen(
         rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
     }
 
-    LaunchedEffect(selectedItem?.getId()) {
-        if (selectedItem == null) {
-            return@LaunchedEffect
-        }
-        while (isActive) {
-            delay(DESCRIPTION_REFRESH_INTERVAL_MS)
-            descriptionTick++
-        }
-    }
-
     LaunchedEffect(focusRequestToken, sectionKeys) {
         if (focusRequestToken <= handledFocusToken) {
             return@LaunchedEffect
@@ -321,6 +322,7 @@ internal fun MainScreen(
                     title = section.title,
                     items = section.items,
                     palette = palette,
+                    interactionsEnabled = interactionsEnabled,
                     rowState = rowStates.getOrNull(sectionIndex) ?: LazyListState(),
                     requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty(),
                     onItemClick = { item -> onItemClick(section.id, item) },
@@ -346,22 +348,55 @@ internal fun MainScreen(
         }
 
         selectedItem?.let { item ->
-            val description = remember(item, descriptionTick, context) {
-                item.toTvCardDescription { card ->
-                    card.resolveDescription(context)
-                }
-            }
-            if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
-                WatchingDescriptionBar(
-                    title = description.title.toString(),
-                    subtitle = description.subtitle.toString(),
-                    palette = palette,
-                    contentPadding = TvDescriptionBarPadding,
-                    solidSurface = true,
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
-            }
+            MainSelectedItemDescriptionBar(
+                item = item,
+                palette = palette,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
+    }
+}
+
+@Composable
+private fun MainSelectedItemDescriptionBar(
+    item: LibriaCard,
+    palette: WatchingPalette,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    var descriptionTick by remember(
+        item.itemId,
+        item.description,
+        item.relativeTimestampSec,
+        item.relativePrefix,
+    ) {
+        mutableIntStateOf(0)
+    }
+
+    LaunchedEffect(item.itemId, item.relativeTimestampSec, item.relativePrefix) {
+        if (item.relativeTimestampSec == null) {
+            return@LaunchedEffect
+        }
+        while (isActive) {
+            delay(DESCRIPTION_REFRESH_INTERVAL_MS)
+            descriptionTick++
+        }
+    }
+
+    val description = remember(item, descriptionTick, context) {
+        item.toTvCardDescription { card ->
+            card.resolveDescription(context)
+        }
+    }
+    if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
+        WatchingDescriptionBar(
+            title = description.title.toString(),
+            subtitle = description.subtitle.toString(),
+            palette = palette,
+            contentPadding = TvDescriptionBarPadding,
+            solidSurface = true,
+            modifier = modifier,
+        )
     }
 }
 
@@ -370,6 +405,7 @@ internal fun MainSectionBlock(
     title: String,
     items: List<CardItem>,
     palette: WatchingPalette,
+    interactionsEnabled: Boolean = true,
     rowState: LazyListState,
     requesters: List<androidx.compose.ui.focus.FocusRequester>,
     onItemClick: (CardItem) -> Unit,
@@ -383,6 +419,7 @@ internal fun MainSectionBlock(
     posterFocusedBorderWidth: androidx.compose.ui.unit.Dp = 2.dp,
     posterUnfocusedBorderWidth: androidx.compose.ui.unit.Dp = 1.dp,
 ) {
+    val scope = rememberCoroutineScope()
     val stateItem = remember(items) { items.primaryTvStateItem() }
     val stateFocusIndex = remember(items) { items.tvStateFocusIndex() }
     val stateFocusItem = remember(items, stateFocusIndex) {
@@ -393,6 +430,20 @@ internal fun MainSectionBlock(
             is LinkCard -> stateFocusItem.title
             is LoadingCard -> if (stateFocusItem.isError) "Повторить" else null
             else -> null
+        }
+    }
+
+    fun moveFocusFromActionCard(index: Int) {
+        val fallbackIndex = (index - 1 downTo 0)
+            .firstOrNull { candidateIndex -> items.getOrNull(candidateIndex) is LibriaCard }
+            ?: (index - 1).takeIf { it >= 0 }
+            ?: return
+        scope.launch {
+            withFrameNanos { }
+            requestWatchingFocusAfterAttach(
+                requester = requesters.getOrNull(fallbackIndex),
+                attempts = 4,
+            )
         }
     }
 
@@ -429,7 +480,11 @@ internal fun MainSectionBlock(
                 accent = stateItem is LoadingCard && stateItem.isError,
                 loading = stateItem is LoadingCard && !stateItem.isError,
                 focusRequester = if (stateActionLabel == null) {
-                    requesters.getOrNull(stateFocusIndex ?: -1)
+                    if (interactionsEnabled) {
+                        requesters.getOrNull(stateFocusIndex ?: -1)
+                    } else {
+                        null
+                    }
                 } else {
                     null
                 },
@@ -447,6 +502,7 @@ internal fun MainSectionBlock(
                             focusRequester = requesters.getOrNull(stateFocusIndex ?: -1)
                                 ?: androidx.compose.ui.focus.FocusRequester.Default,
                             onClick = { onItemClick(stateFocusItem) },
+                            enabled = interactionsEnabled,
                             onFocused = {
                                 onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
                             },
@@ -481,6 +537,7 @@ internal fun MainSectionBlock(
                                 focusedBorderColor = posterBorderColor,
                                 focusedBorderWidth = posterFocusedBorderWidth,
                                 unfocusedBorderWidth = posterUnfocusedBorderWidth,
+                                enabled = interactionsEnabled,
                                 scaleTransformOrigin = edgeAwareHorizontalTransformOrigin(
                                     index = index,
                                     lastIndex = items.lastIndex,
@@ -498,7 +555,11 @@ internal fun MainSectionBlock(
                             subtitle = "Нажмите, чтобы выполнить действие",
                             palette = palette,
                             focusRequester = requesters[index],
-                            onClick = { onItemClick(item) },
+                            enabled = interactionsEnabled,
+                            onClick = {
+                                moveFocusFromActionCard(index)
+                                onItemClick(item)
+                            },
                             onFocused = { onItemFocused(index, item) },
                             onLeft = if (index == 0) onLeftEdge else null,
                             onUp = { onUp(index) },
@@ -518,6 +579,7 @@ internal fun MainSectionBlock(
                                 }
                             ),
                             focusRequester = requesters[index],
+                            enabled = interactionsEnabled,
                             loading = !item.isError,
                             onClick = { onItemClick(item) },
                             onFocused = { onItemFocused(index, item) },
@@ -531,6 +593,7 @@ internal fun MainSectionBlock(
                             subtitle = item.subtitle,
                             palette = palette,
                             focusRequester = requesters[index],
+                            enabled = interactionsEnabled,
                             onClick = { onItemClick(item) },
                             onFocused = { onItemFocused(index, item) },
                             onLeft = if (index == 0) onLeftEdge else null,

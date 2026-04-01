@@ -62,6 +62,7 @@ internal object TvUiDefaults {
     val ScreenPanelPadding = PaddingValues(horizontal = 26.dp, vertical = 24.dp)
     val ShellHeaderPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
     val ShellRailPadding = PaddingValues(start = 24.dp, top = 30.dp, end = 56.dp, bottom = 30.dp)
+    val ShellHeaderActionWidth = 172.dp
 
     val FocusedBorderWidth = 2.dp
     val UnfocusedBorderWidth = 1.dp

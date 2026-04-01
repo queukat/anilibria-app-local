@@ -8,8 +8,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import ru.radiationx.anilibria.common.CardItem
-import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.anilibria.screen.LifecycleViewModel
@@ -24,33 +22,29 @@ import javax.inject.Inject
 class SuggestionsResultViewModel @Inject constructor(
     private val tvSuggestionsUseCase: TvSuggestionsUseCase,
     private val cardRouter: LibriaCardRouter,
-    private val suggestionsController: SuggestionsController,
 ) : LifecycleViewModel() {
 
     private val searchLoader = SearchLoader<Query, List<SuggestionItem>>(viewModelScope) {
         tvSuggestionsUseCase.loadSuggestions(it.query)
     }
 
-    private val _progressState = MutableStateFlow(false)
-    val progressState: StateFlow<Boolean> = _progressState.asStateFlow()
-    private val _resultData = MutableStateFlow<List<CardItem>>(emptyList())
-    val resultData: StateFlow<List<CardItem>> = _resultData.asStateFlow()
+    private val _uiState = MutableStateFlow(SuggestionsResultUiState())
+    internal val uiState: StateFlow<SuggestionsResultUiState> = _uiState.asStateFlow()
 
     init {
         searchLoader
             .observeState()
             .mapData { items ->
                 val currentQuery = searchLoader.getQuery()?.query.orEmpty()
-                SuggestionsController.SearchResult(
+                SuggestionsSearchResult(
                     items = items,
                     query = currentQuery,
                     validQuery = currentQuery.length >= 3,
                 )
             }
             .onEach {
-                _progressState.value = it.loading
-                val result = it.data ?: SuggestionsController.SearchResult(emptyList(), "", false)
-                showItems(result)
+                val result = it.data ?: SuggestionsSearchResult()
+                _uiState.value = result.toUiState(progressVisible = it.loading)
             }
             .launchIn(viewModelScope)
     }
@@ -61,27 +55,6 @@ class SuggestionsResultViewModel @Inject constructor(
 
     fun onCardClick(item: LibriaCard) {
         cardRouter.navigate(item)
-    }
-
-    private fun showItems(result: SuggestionsController.SearchResult) {
-        suggestionsController.resultEvent.emit(result)
-        _resultData.value = if (result.validQuery && result.items.isEmpty()) {
-            listOf(
-                InfoCard(
-                    title = "Ничего не найдено",
-                    subtitle = "Попробуйте изменить запрос: \"${result.query}\"",
-                )
-            )
-        } else {
-            result.items.map {
-                LibriaCard(
-                    it.names.getOrNull(0).orEmpty(),
-                    it.names.getOrNull(1).orEmpty(),
-                    it.poster.orEmpty(),
-                    LibriaCard.Type.Release(it.id)
-                )
-            }
-        }
     }
 
     private data class Query(val query: String) : SearchQuery {

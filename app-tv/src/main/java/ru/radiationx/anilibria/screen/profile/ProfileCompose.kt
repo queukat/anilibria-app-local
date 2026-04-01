@@ -50,6 +50,7 @@ private const val PROFILE_PANEL_WIDTH_FRACTION = 0.62f
 @Composable
 internal fun ProfileScreen(
     profile: ProfileItem?,
+    interactionsEnabled: Boolean = true,
     focusRequestToken: Int,
     onSignInClick: () -> Unit,
     onSignOutClick: () -> Unit,
@@ -60,8 +61,8 @@ internal fun ProfileScreen(
     val accentColor = colorResource(R.color.dark_colorAccent)
     val primaryButtonRequester = remember { FocusRequester() }
 
-    LaunchedEffect(focusRequestToken) {
-        if (focusRequestToken > 0) {
+    LaunchedEffect(focusRequestToken, interactionsEnabled) {
+        if (interactionsEnabled && focusRequestToken > 0) {
             requestWatchingFocusAfterAttach(primaryButtonRequester)
         }
     }
@@ -136,6 +137,7 @@ internal fun ProfileScreen(
                         palette = palette,
                         focusRequester = primaryButtonRequester,
                         onClick = if (profile != null) onSignOutClick else onSignInClick,
+                        enabled = interactionsEnabled,
                         minWidth = 240.dp,
                         colors = TvFocusableSurfaceColors(
                             backgroundColor = palette.chipColor.copy(alpha = 0.94f),

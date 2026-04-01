@@ -25,7 +25,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
 import ru.radiationx.anilibria.ui.compose.TvOverlayOuterPadding
@@ -89,9 +89,28 @@ internal fun WatchingFilterPickerDialog(
             if (shouldScrollToOption(clampedIndex)) {
                 val anchorIndex = (clampedIndex - 1).coerceAtLeast(0)
                 listState.scrollToItem(anchorIndex)
-                withFrameNanos { }
             }
-            requestWatchingFocus(optionRequesters.getOrNull(clampedIndex))
+            requestWatchingFocusAfterAttach(optionRequesters.getOrNull(clampedIndex))
+        }
+        return true
+    }
+
+    fun requestApplyFocus(): Boolean {
+        if (!state.multiSelect) {
+            return false
+        }
+        scope.launch {
+            requestWatchingFocusAfterAttach(applyRequester)
+        }
+        return true
+    }
+
+    fun requestResetFocus(): Boolean {
+        if (!state.multiSelect) {
+            return false
+        }
+        scope.launch {
+            requestWatchingFocusAfterAttach(resetRequester)
         }
         return true
     }
@@ -103,8 +122,8 @@ internal fun WatchingFilterPickerDialog(
         val targetIndex = state.selectedIndices.minOrNull()?.coerceIn(0, optionIds.lastIndex) ?: 0
         lastFocusedOptionIndex = targetIndex
         listState.scrollToItem(targetIndex)
-        withFrameNanos { }
-        requestWatchingFocus(optionRequesters.getOrNull(targetIndex))
+        delay(TV_COLLECTION_FILTER_PICKER_INITIAL_FOCUS_DELAY_MS)
+        requestWatchingFocusAfterAttach(optionRequesters.getOrNull(targetIndex))
     }
 
     Box(
@@ -209,7 +228,7 @@ internal fun WatchingFilterPickerDialog(
                                     { true }
                                 },
                                 onRight = if (state.multiSelect) {
-                                    { requestWatchingFocus(applyRequester) }
+                                    ::requestApplyFocus
                                 } else {
                                     null
                                 },
@@ -219,7 +238,7 @@ internal fun WatchingFilterPickerDialog(
                                     }
 
                                     state.multiSelect -> {
-                                        { requestWatchingFocus(applyRequester) }
+                                        ::requestApplyFocus
                                     }
 
                                     else -> {
@@ -280,7 +299,7 @@ internal fun WatchingFilterPickerDialog(
                                     requestOptionFocus(lastFocusedOptionIndex)
                                 },
                                 onDown = {
-                                    requestWatchingFocus(resetRequester)
+                                    requestResetFocus()
                                 },
                             )
                             TvTextActionButton(
@@ -297,7 +316,7 @@ internal fun WatchingFilterPickerDialog(
                                 paddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                                 fontWeight = FontWeight.Normal,
                                 onUp = {
-                                    requestWatchingFocus(applyRequester)
+                                    requestApplyFocus()
                                 },
                                 onLeft = {
                                     requestOptionFocus(lastFocusedOptionIndex)
@@ -322,3 +341,5 @@ internal fun WatchingFilterPickerDialog(
         }
     }
 }
+
+private const val TV_COLLECTION_FILTER_PICKER_INITIAL_FOCUS_DELAY_MS = 120L

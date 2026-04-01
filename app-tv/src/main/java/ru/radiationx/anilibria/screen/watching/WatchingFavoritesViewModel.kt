@@ -39,11 +39,13 @@ import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.search.SearchForm
 import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
+import ru.radiationx.data.interactors.tv.TvSearchUseCase
 import ru.radiationx.data.repository.AuthRepository
 import javax.inject.Inject
 
 class WatchingFavoritesViewModel @Inject constructor(
     private val tvFavoritesUseCase: TvFavoritesUseCase,
+    private val tvSearchUseCase: TvSearchUseCase,
     authRepository: AuthRepository,
     private val converter: CardsDataConverter,
     private val cardRouter: LibriaCardRouter,
@@ -65,7 +67,7 @@ class WatchingFavoritesViewModel @Inject constructor(
             seasonEmphasized = false,
             genreLabel = TvCollectionFilterLabels.ALL_GENRES,
             genreEmphasized = false,
-            sortLabel = SearchForm.Sort.RATING.toTvCollectionSortLabel(),
+            sortLabel = SearchForm.Sort.DATE.toTvCollectionSortLabel(),
             sortEmphasized = false,
             onlyCompletedLabel = false.toTvCollectionCompletedLabel(),
             onlyCompletedEmphasized = false,
@@ -73,15 +75,21 @@ class WatchingFavoritesViewModel @Inject constructor(
     )
     internal val filtersUiState: StateFlow<TvCollectionFiltersUiState> = _filtersUiState.asStateFlow()
 
-    private var currentSort: SearchForm.Sort = SearchForm.Sort.RATING
+    private var currentSort: SearchForm.Sort = SearchForm.Sort.DATE
     private var onlyCompletedFilter: Boolean = false
     private var yearFilters: Set<String> = emptySet()
     private var seasonFilters: Set<String> = emptySet()
     private var genreFilters: Set<String> = emptySet()
 
+    private var rawAvailableYears: List<String> = emptyList()
+    private var rawAvailableSeasons: List<String> = emptyList()
+    private var rawAvailableGenres: List<String> = emptyList()
     private var availableYears: List<String> = emptyList()
     private var availableSeasons: List<String> = emptyList()
     private var availableGenres: List<String> = emptyList()
+    private var catalogYearOptions: List<String> = emptyList()
+    private var catalogSeasonOptions: List<String> = emptyList()
+    private var catalogGenreOptions: List<String> = emptyList()
 
     private var loadJob: Job? = null
     private var rebuildJob: Job? = null
@@ -93,6 +101,23 @@ class WatchingFavoritesViewModel @Inject constructor(
     private val minRefreshIntervalMs: Long = 2L * 60L * 1000L
 
     init {
+        viewModelScope.launch {
+            runCatching { tvSearchUseCase.loadYears().map { it.title } }
+                .onSuccess { years ->
+                    catalogYearOptions = years
+                    syncAvailableFilterOptions()
+                }
+            runCatching { tvSearchUseCase.loadSeasons().map { it.title } }
+                .onSuccess { seasons ->
+                    catalogSeasonOptions = seasons
+                    syncAvailableFilterOptions()
+                }
+            runCatching { tvSearchUseCase.loadGenres().map { it.title } }
+                .onSuccess { genres ->
+                    catalogGenreOptions = genres
+                    syncAvailableFilterOptions()
+                }
+        }
         authRepository
             .observeAuthState()
             .distinctUntilChanged()
@@ -254,39 +279,12 @@ class WatchingFavoritesViewModel @Inject constructor(
 
     fun applyFilterPicker() {
         val current = _filterPicker.value
-        val wasApplied = if (current != null && current.multiSelect) {
-            when (current.kind) {
-            TvCollectionFilterPickerKind.YEAR -> {
-                yearFilters = current.selectedIndices
-                    .mapNotNull { availableYears.getOrNull(it) }
-                    .toSet()
-                true
-            }
-
-            TvCollectionFilterPickerKind.SEASON -> {
-                seasonFilters = current.selectedIndices
-                    .mapNotNull { availableSeasons.getOrNull(it) }
-                    .toSet()
-                true
-            }
-
-            TvCollectionFilterPickerKind.GENRE -> {
-                genreFilters = current.selectedIndices
-                    .mapNotNull { availableGenres.getOrNull(it) }
-                    .toSet()
-                true
-            }
-
-            TvCollectionFilterPickerKind.SORT,
-            TvCollectionFilterPickerKind.COMPLETED,
-            -> false
-        }
-        } else {
-            false
+        val wasApplied = current?.takeIf { it.multiSelect }?.let(::applyMultiSelectPickerSelection) == true
+        if (current != null) {
+            _filterPicker.value = null
         }
         if (wasApplied) {
             updateLabels()
-            dismissFilterPicker()
             rebuildFromCache()
         }
     }
@@ -300,7 +298,13 @@ class WatchingFavoritesViewModel @Inject constructor(
     }
 
     fun dismissFilterPicker() {
+        val current = _filterPicker.value
+        val wasApplied = current?.takeIf { it.multiSelect }?.let(::applyMultiSelectPickerSelection) == true
         _filterPicker.value = null
+        if (wasApplied) {
+            updateLabels()
+            rebuildFromCache()
+        }
     }
 
     private fun shouldRefreshNow(): Boolean {
@@ -366,9 +370,16 @@ class WatchingFavoritesViewModel @Inject constructor(
     }
 
     private fun updateAvailableFilters(filters: Filters) {
-        availableYears = filters.years
-        availableSeasons = filters.seasons
-        availableGenres = filters.genres
+        rawAvailableYears = filters.years
+        rawAvailableSeasons = filters.seasons
+        rawAvailableGenres = filters.genres
+        syncAvailableFilterOptions()
+    }
+
+    private fun syncAvailableFilterOptions() {
+        availableYears = rawAvailableYears.ifEmpty { catalogYearOptions }
+        availableSeasons = rawAvailableSeasons.ifEmpty { catalogSeasonOptions }
+        availableGenres = rawAvailableGenres.ifEmpty { catalogGenreOptions }
         pruneUnavailableFilters()
         updateLabels()
         syncFilterPicker()
@@ -548,7 +559,7 @@ class WatchingFavoritesViewModel @Inject constructor(
             genreLabel = genreLabel,
             genreEmphasized = genreFilters.isNotEmpty(),
             sortLabel = sortLabel,
-            sortEmphasized = currentSort != SearchForm.Sort.RATING,
+            sortEmphasized = currentSort != SearchForm.Sort.DATE,
             onlyCompletedLabel = onlyCompletedLabel,
             onlyCompletedEmphasized = onlyCompletedFilter,
         )
@@ -621,6 +632,52 @@ class WatchingFavoritesViewModel @Inject constructor(
             0 -> false
             1 -> true
             else -> null
+        }
+    }
+
+    private fun applyMultiSelectPickerSelection(
+        picker: TvCollectionFilterPickerState,
+    ): Boolean {
+        return when (picker.kind) {
+            TvCollectionFilterPickerKind.YEAR -> {
+                val nextFilters = picker.selectedIndices
+                    .mapNotNull { availableYears.getOrNull(it) }
+                    .toSet()
+                if (nextFilters == yearFilters) {
+                    false
+                } else {
+                    yearFilters = nextFilters
+                    true
+                }
+            }
+
+            TvCollectionFilterPickerKind.SEASON -> {
+                val nextFilters = picker.selectedIndices
+                    .mapNotNull { availableSeasons.getOrNull(it) }
+                    .toSet()
+                if (nextFilters == seasonFilters) {
+                    false
+                } else {
+                    seasonFilters = nextFilters
+                    true
+                }
+            }
+
+            TvCollectionFilterPickerKind.GENRE -> {
+                val nextFilters = picker.selectedIndices
+                    .mapNotNull { availableGenres.getOrNull(it) }
+                    .toSet()
+                if (nextFilters == genreFilters) {
+                    false
+                } else {
+                    genreFilters = nextFilters
+                    true
+                }
+            }
+
+            TvCollectionFilterPickerKind.SORT,
+            TvCollectionFilterPickerKind.COMPLETED,
+            -> false
         }
     }
 

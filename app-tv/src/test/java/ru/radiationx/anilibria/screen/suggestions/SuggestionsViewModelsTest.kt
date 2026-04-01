@@ -1,7 +1,6 @@
 package ru.radiationx.anilibria.screen.suggestions
 
 import androidx.lifecycle.LifecycleOwner
-import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
@@ -13,6 +12,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import ru.radiationx.anilibria.common.InfoCard
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SuggestionsViewModelsTest {
@@ -30,28 +30,21 @@ class SuggestionsViewModelsTest {
     }
 
     @Test
-    fun rowsViewModel_keepsResultRowVisibleForEmptyValidQuery() = runBlocking {
-        val controller = SuggestionsController()
-        val viewModel = SuggestionsRowsViewModel(controller)
-        viewModel.onCreate(mockk<LifecycleOwner>(relaxed = true))
+    fun validEmptyQuery_keepsResultRowVisibleViaUiState() = runBlocking {
+        val uiState = SuggestionsSearchResult(
+            items = emptyList(),
+            query = "naruto",
+            validQuery = true,
+        ).toUiState(progressVisible = false)
 
         assertEquals(
-            listOf(SuggestionsRowsViewModel.RECOMMENDS_ROW_ID),
-            viewModel.rowListData.value,
+            listOf(SuggestionsRows.RESULT_ROW_ID),
+            SuggestionsRows.visibleRowIds(
+                showResultRow = uiState.showResultRow,
+                showRecommendsRow = uiState.showRecommendsRow,
+            ),
         )
-
-        controller.resultEvent.emit(
-            SuggestionsController.SearchResult(
-                items = emptyList(),
-                query = "naruto",
-                validQuery = true,
-            )
-        )
-
-        assertEquals(
-            listOf(SuggestionsRowsViewModel.RESULT_ROW_ID),
-            viewModel.rowListData.value,
-        )
-        assertTrue(viewModel.emptyResultState.value)
+        assertEquals(1, uiState.resultCards.size)
+        assertTrue(uiState.resultCards.first() is InfoCard)
     }
 }

@@ -2,7 +2,6 @@ package ru.radiationx.anilibria.smoke
 
 import android.content.Intent
 import android.os.SystemClock
-import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -16,7 +15,6 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.details.DetailFragment
 import ru.radiationx.anilibria.screen.launcher.MainActivity
 import ru.radiationx.anilibria.screen.mainpages.MainPagesFragment
@@ -47,8 +45,8 @@ class AppTvSmokeTest {
         waitUntil("MainPagesFragment is not displayed") {
             hasFragment(MainPagesFragment::class.java)
         }
-        waitUntil("Search orb is not visible on launch") {
-            isViewVisible(R.id.title_orb)
+        waitUntil("Main header actions are not visible on launch") {
+            hasTextVisible("Главная") && hasTextVisible("Поиск")
         }
     }
 
@@ -78,8 +76,8 @@ class AppTvSmokeTest {
         }
         watchingHeader.click()
 
-        waitUntil("Search orb disappeared on 'Я смотрю'") {
-            isViewVisible(R.id.title_orb)
+        waitUntil("Header actions disappeared on 'Я смотрю'") {
+            hasTextVisible("Я смотрю") && hasTextVisible("Поиск")
         }
     }
 
@@ -89,12 +87,8 @@ class AppTvSmokeTest {
         }
     }
 
-    private fun isViewVisible(viewId: Int): Boolean {
-        var isVisible = false
-        scenario.onActivity { activity ->
-            isVisible = activity.findViewById<View?>(viewId)?.visibility == View.VISIBLE
-        }
-        return isVisible
+    private fun hasTextVisible(text: String): Boolean {
+        return device.wait(Until.hasObject(By.text(text)), 1_000)
     }
 
     private fun hasFragment(fragmentClass: Class<out Fragment>): Boolean {

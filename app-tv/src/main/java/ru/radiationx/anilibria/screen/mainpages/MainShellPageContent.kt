@@ -13,6 +13,7 @@ internal data class MainShellCallbacks(
     val onContentMovedDown: () -> Unit,
     val onContentMovedUp: () -> Unit,
     val onRequestHeaderFocus: () -> Boolean,
+    val contentInteractionsEnabled: Boolean,
 )
 
 internal interface MainShellPageContent {

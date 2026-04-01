@@ -355,6 +355,7 @@ internal fun DetailScreen(
                         subtitle = description.subtitle.toString(),
                         palette = palette,
                         contentPadding = TvDetailDescriptionBarPadding,
+                        solidSurface = true,
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }

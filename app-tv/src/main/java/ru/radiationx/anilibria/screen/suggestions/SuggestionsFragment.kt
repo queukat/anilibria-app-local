@@ -25,8 +25,6 @@ import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
-import ru.radiationx.quill.installModules
-import ru.radiationx.quill.quillModule
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
 import java.util.Locale
@@ -35,14 +33,11 @@ class SuggestionsFragment : Fragment() {
 
     private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
 
-    private val rowsViewModel by viewModel<SuggestionsRowsViewModel>()
     private val resultViewModel by viewModel<SuggestionsResultViewModel>()
     private val recommendsViewModel by viewModel<SuggestionsRecommendsViewModel>()
 
     private var queryState by mutableStateOf("")
-    private var rowOrderState by mutableStateOf(listOf(SuggestionsRowsViewModel.RECOMMENDS_ROW_ID))
-    private var progressState by mutableStateOf(false)
-    private var resultCardsState by mutableStateOf<List<CardItem>>(emptyList())
+    private var searchState by mutableStateOf(SuggestionsResultUiState())
     private var recommendsCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
     private var focusRequestToken by mutableIntStateOf(1)
     private var voiceSearchAvailable by mutableStateOf(false)
@@ -61,13 +56,6 @@ class SuggestionsFragment : Fragment() {
         if (voiceQuery.isNotBlank()) {
             handleQueryChange(voiceQuery)
         }
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        installModules(quillModule {
-            single<SuggestionsController>()
-        })
-        super.onCreate(savedInstanceState)
     }
 
     override fun onCreateView(
@@ -90,7 +78,7 @@ class SuggestionsFragment : Fragment() {
                     SuggestionsScreen(
                         query = queryState,
                         sections = buildSections(),
-                        progressVisible = progressState,
+                        progressVisible = searchState.progressVisible,
                         voiceSearchAvailable = voiceSearchAvailable,
                         focusRequestToken = focusRequestToken,
                         onQueryChange = ::handleQueryChange,
@@ -110,20 +98,11 @@ class SuggestionsFragment : Fragment() {
 
         backgroundManager.clearGradient()
 
-        viewLifecycleOwner.lifecycle.addObserver(rowsViewModel)
         viewLifecycleOwner.lifecycle.addObserver(resultViewModel)
         viewLifecycleOwner.lifecycle.addObserver(recommendsViewModel)
 
-        subscribeTo(rowsViewModel.rowListData) {
-            rowOrderState = it
-        }
-
-        subscribeTo(resultViewModel.progressState) {
-            progressState = it
-        }
-
-        subscribeTo(resultViewModel.resultData) {
-            resultCardsState = it
+        subscribeTo(resultViewModel.uiState) {
+            searchState = it
         }
 
         subscribeTo(recommendsViewModel.cardsData) {
@@ -171,15 +150,19 @@ class SuggestionsFragment : Fragment() {
     }
 
     private fun buildSections(): List<SuggestionsSectionUiModel> {
-        return rowOrderState.mapNotNull { rowId ->
+        val rowIds = SuggestionsRows.visibleRowIds(
+            showResultRow = searchState.showResultRow,
+            showRecommendsRow = searchState.showRecommendsRow,
+        )
+        return rowIds.mapNotNull { rowId ->
             when (rowId) {
-                SuggestionsRowsViewModel.RESULT_ROW_ID -> SuggestionsSectionUiModel(
+                SuggestionsRows.RESULT_ROW_ID -> SuggestionsSectionUiModel(
                     id = rowId,
                     title = "Результат поиска",
-                    items = resultCardsState,
+                    items = searchState.resultCards,
                 )
 
-                SuggestionsRowsViewModel.RECOMMENDS_ROW_ID -> SuggestionsSectionUiModel(
+                SuggestionsRows.RECOMMENDS_ROW_ID -> SuggestionsSectionUiModel(
                     id = rowId,
                     title = recommendsViewModel.defaultTitle,
                     items = recommendsCardsState.ifEmpty { listOf(LoadingCard("Загрузка...")) },
@@ -195,13 +178,13 @@ class SuggestionsFragment : Fragment() {
         item: CardItem,
     ) {
         when (rowId) {
-            SuggestionsRowsViewModel.RESULT_ROW_ID -> {
+            SuggestionsRows.RESULT_ROW_ID -> {
                 if (item is LibriaCard) {
                     resultViewModel.onCardClick(item)
                 }
             }
 
-            SuggestionsRowsViewModel.RECOMMENDS_ROW_ID -> {
+            SuggestionsRows.RECOMMENDS_ROW_ID -> {
                 dispatchItemClick(recommendsViewModel, item)
             }
         }

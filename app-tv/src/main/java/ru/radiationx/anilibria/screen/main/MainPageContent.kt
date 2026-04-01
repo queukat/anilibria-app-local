@@ -27,6 +27,10 @@ internal class MainPageContent(
     private val backgroundManager: GradientBackgroundManager,
 ) : MainShellPageContent {
 
+    private companion object {
+        val loadingItems = listOf<CardItem>(LoadingCard("Загрузка..."))
+    }
+
     private val mainViewModel = fragment.getViewModel(MainViewModel::class)
     private val feedViewModel = fragment.getViewModel(MainFeedViewModel::class)
     private val scheduleViewModel = fragment.getViewModel(MainScheduleViewModel::class)
@@ -40,14 +44,29 @@ internal class MainPageContent(
             MainViewModel.YOUTUBE_ROW_ID,
         )
     )
-    private var feedTitleState by mutableStateOf(MainSectionTitles.FEED)
-    private var favoritesTitleState by mutableStateOf(MainSectionTitles.FAVORITES)
-    private var scheduleTitleState by mutableStateOf(MainSectionTitles.SCHEDULE)
-    private var youtubeTitleState by mutableStateOf(MainSectionTitles.YOUTUBE)
-    private var feedCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
-    private var favoritesCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
-    private var scheduleCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
-    private var youtubeCardsState by mutableStateOf<List<CardItem>>(listOf(LoadingCard("Загрузка...")))
+    private val sectionStateById = linkedMapOf(
+        MainViewModel.FEED_ROW_ID to MainSectionUiModel(
+            id = MainViewModel.FEED_ROW_ID,
+            title = MainSectionTitles.FEED,
+            items = loadingItems,
+        ),
+        MainViewModel.FAVORITE_ROW_ID to MainSectionUiModel(
+            id = MainViewModel.FAVORITE_ROW_ID,
+            title = MainSectionTitles.FAVORITES,
+            items = loadingItems,
+        ),
+        MainViewModel.SCHEDULE_ROW_ID to MainSectionUiModel(
+            id = MainViewModel.SCHEDULE_ROW_ID,
+            title = MainSectionTitles.SCHEDULE,
+            items = loadingItems,
+        ),
+        MainViewModel.YOUTUBE_ROW_ID to MainSectionUiModel(
+            id = MainViewModel.YOUTUBE_ROW_ID,
+            title = MainSectionTitles.YOUTUBE,
+            items = loadingItems,
+        ),
+    )
+    private var sectionsState by mutableStateOf(buildOrderedSections(rowOrderState))
     private var focusRequestToken by mutableIntStateOf(0)
     private var visibilityRestoreToken by mutableIntStateOf(0)
     private var restoreSectionIndex by mutableIntStateOf(0)
@@ -62,15 +81,15 @@ internal class MainPageContent(
         owner.lifecycle.addObserver(favoritesViewModel)
         owner.lifecycle.addObserver(youtubeViewModel)
 
-        owner.collectStarted(mainViewModel.rowListData) { rowOrderState = it }
-        owner.collectStarted(feedViewModel.rowTitle) { feedTitleState = it }
-        owner.collectStarted(favoritesViewModel.rowTitle) { favoritesTitleState = it }
-        owner.collectStarted(scheduleViewModel.rowTitle) { scheduleTitleState = it }
-        owner.collectStarted(youtubeViewModel.rowTitle) { youtubeTitleState = it }
-        owner.collectStarted(feedViewModel.cardsData) { feedCardsState = it }
-        owner.collectStarted(favoritesViewModel.cardsData) { favoritesCardsState = it }
-        owner.collectStarted(scheduleViewModel.cardsData) { scheduleCardsState = it }
-        owner.collectStarted(youtubeViewModel.cardsData) { youtubeCardsState = it }
+        owner.collectStarted(mainViewModel.rowListData, ::updateRowOrder)
+        owner.collectStarted(feedViewModel.rowTitle) { updateSectionTitle(MainViewModel.FEED_ROW_ID, it) }
+        owner.collectStarted(favoritesViewModel.rowTitle) { updateSectionTitle(MainViewModel.FAVORITE_ROW_ID, it) }
+        owner.collectStarted(scheduleViewModel.rowTitle) { updateSectionTitle(MainViewModel.SCHEDULE_ROW_ID, it) }
+        owner.collectStarted(youtubeViewModel.rowTitle) { updateSectionTitle(MainViewModel.YOUTUBE_ROW_ID, it) }
+        owner.collectStarted(feedViewModel.cardsData) { updateSectionItems(MainViewModel.FEED_ROW_ID, it) }
+        owner.collectStarted(favoritesViewModel.cardsData) { updateSectionItems(MainViewModel.FAVORITE_ROW_ID, it) }
+        owner.collectStarted(scheduleViewModel.cardsData) { updateSectionItems(MainViewModel.SCHEDULE_ROW_ID, it) }
+        owner.collectStarted(youtubeViewModel.cardsData) { updateSectionItems(MainViewModel.YOUTUBE_ROW_ID, it) }
     }
 
     override fun onSelected() {
@@ -80,7 +99,7 @@ internal class MainPageContent(
 
     override fun requestContentFocus(): Boolean {
         focusRequestToken++
-        return buildSections().any { section -> section.items.isNotEmpty() }
+        return sectionsState.any { section -> section.items.isNotEmpty() }
     }
 
     @Composable
@@ -91,7 +110,8 @@ internal class MainPageContent(
                 .padding(horizontal = TvCardScreenHorizontalPadding),
         ) {
             MainScreen(
-                sections = buildSections(),
+                sections = sectionsState,
+                interactionsEnabled = callbacks.contentInteractionsEnabled,
                 focusRequestToken = focusRequestToken,
                 visibilityRestoreToken = visibilityRestoreToken,
                 contentRestoreState = MainContentRestoreState(
@@ -115,36 +135,60 @@ internal class MainPageContent(
         }
     }
 
-    private fun buildSections(): List<MainSectionUiModel> {
-        return rowOrderState.mapNotNull { rowId ->
-            when (rowId) {
-                MainViewModel.FEED_ROW_ID -> MainSectionUiModel(
-                    id = rowId,
-                    title = feedTitleState,
-                    items = feedCardsState.ifEmpty { listOf(LoadingCard("Загрузка...")) },
-                )
-
-                MainViewModel.FAVORITE_ROW_ID -> MainSectionUiModel(
-                    id = rowId,
-                    title = favoritesTitleState,
-                    items = favoritesCardsState.ifEmpty { listOf(LoadingCard("Загрузка...")) },
-                )
-
-                MainViewModel.SCHEDULE_ROW_ID -> MainSectionUiModel(
-                    id = rowId,
-                    title = scheduleTitleState,
-                    items = scheduleCardsState.ifEmpty { listOf(LoadingCard("Загрузка...")) },
-                )
-
-                MainViewModel.YOUTUBE_ROW_ID -> MainSectionUiModel(
-                    id = rowId,
-                    title = youtubeTitleState,
-                    items = youtubeCardsState.ifEmpty { listOf(LoadingCard("Загрузка...")) },
-                )
-
-                else -> null
-            }
+    private fun updateRowOrder(rowIds: List<Long>) {
+        if (rowOrderState == rowIds) {
+            return
         }
+        rowOrderState = rowIds
+        syncSectionsState()
+    }
+
+    private fun updateSectionTitle(
+        rowId: Long,
+        title: String,
+    ) {
+        updateSection(
+            rowId = rowId,
+            transform = { section -> section.copy(title = title) },
+        )
+    }
+
+    private fun updateSectionItems(
+        rowId: Long,
+        items: List<CardItem>,
+    ) {
+        updateSection(
+            rowId = rowId,
+            transform = { section ->
+                section.copy(items = items.ifEmpty { loadingItems })
+            },
+        )
+    }
+
+    private fun updateSection(
+        rowId: Long,
+        transform: (MainSectionUiModel) -> MainSectionUiModel,
+    ) {
+        val current = sectionStateById[rowId] ?: return
+        val updated = transform(current)
+        if (updated == current) {
+            return
+        }
+        sectionStateById[rowId] = updated
+        syncSectionsState()
+    }
+
+    private fun syncSectionsState() {
+        val orderedSections = buildOrderedSections(rowOrderState)
+        if (sectionsState != orderedSections) {
+            sectionsState = orderedSections
+        }
+    }
+
+    private fun buildOrderedSections(
+        rowIds: List<Long>,
+    ): List<MainSectionUiModel> {
+        return rowIds.mapNotNull(sectionStateById::get)
     }
 
     private fun handleItemClick(

@@ -36,7 +36,7 @@ internal class WatchingFavoritesPageContent(
             year = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL_YEARS, emphasized = false),
             season = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL_SEASONS, emphasized = false),
             genre = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL_GENRES, emphasized = false),
-            sort = TvCollectionFilterChipState(TvCollectionFilterLabels.SORT_POPULARITY, emphasized = false),
+            sort = TvCollectionFilterChipState(TvCollectionFilterLabels.SORT_DATE, emphasized = false),
             onlyCompleted = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL, emphasized = false),
         )
     )
@@ -92,6 +92,7 @@ internal class WatchingFavoritesPageContent(
         WatchingFavoritesScreen(
             cards = cardsState,
             filters = filtersState,
+            contentInteractionsEnabled = callbacks.contentInteractionsEnabled,
             focusRequestToken = focusRequestToken,
             visibilityRestoreToken = visibilityRestoreToken,
             restoreFilterIndex = restoreFilterIndex,

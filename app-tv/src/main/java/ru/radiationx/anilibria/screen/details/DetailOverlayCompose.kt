@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import ru.radiationx.anilibria.ui.compose.TvOverlayActionButton
 import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceItem
 import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceList
@@ -59,6 +60,7 @@ internal fun DetailOverlayHost(
             val closeRequester = remember { FocusRequester() }
 
             LaunchedEffect(Unit) {
+                delay(DETAIL_OVERLAY_INITIAL_FOCUS_DELAY_MS)
                 requestWatchingFocusAfterAttach(textRequester)
             }
 
@@ -90,6 +92,7 @@ internal fun DetailOverlayHost(
             val markRequester = remember { FocusRequester() }
 
             LaunchedEffect(Unit) {
+                delay(DETAIL_OVERLAY_INITIAL_FOCUS_DELAY_MS)
                 requestWatchingFocusAfterAttach(clearRequester)
             }
 
@@ -151,3 +154,5 @@ internal fun DetailOverlayHost(
         }
     }
 }
+
+private const val DETAIL_OVERLAY_INITIAL_FOCUS_DELAY_MS = 120L

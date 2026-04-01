@@ -85,6 +85,7 @@ internal data class TvOverlayChoiceSection(
 internal val TvOverlayOuterPadding = TvUiDefaults.OverlayPanelPadding
 private val TvOverlayPanelSpacing = 18.dp
 private const val TV_OVERLAY_FOCUS_RETRY_DELAY_MS = 120L
+private const val TV_OVERLAY_INITIAL_FOCUS_DELAY_MS = 120L
 
 @Composable
 internal fun TvOverlayPanelSurface(
@@ -449,6 +450,7 @@ internal fun TvOverlayChoiceList(
             return@LaunchedEffect
         }
         val targetRequester = focusRequesters.getOrNull(selectedChoiceIndex) ?: return@LaunchedEffect
+        delay(TV_OVERLAY_INITIAL_FOCUS_DELAY_MS)
         if (requestWatchingFocusAfterAttach(targetRequester)) {
             return@LaunchedEffect
         }

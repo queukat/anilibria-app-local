@@ -34,7 +34,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,6 +60,7 @@ import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
 import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
 import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
 import ru.radiationx.anilibria.screen.watching.TvFilterRowSpacing
+import ru.radiationx.anilibria.screen.watching.TvGridBottomDescriptionInset
 import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvPosterCardSlotWidth
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
@@ -65,6 +68,7 @@ import ru.radiationx.anilibria.screen.watching.TvPickerTopInset
 import ru.radiationx.anilibria.screen.watching.TvRowSpacing
 import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.WatchingWideMessageCard
+import ru.radiationx.anilibria.screen.watching.edgeAwareGridTransformOrigin
 import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
@@ -109,7 +113,9 @@ internal fun CatalogScreen(
     onItemFocused: (CardItem?) -> Unit,
 ) {
     val palette = rememberWatchingPalette()
+    val configuration = LocalConfiguration.current
     val context = LocalContext.current
+    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val filtersRowState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -162,6 +168,24 @@ internal fun CatalogScreen(
     }
     val showStatePanel = cards.isEmpty() || (cards.isNotEmpty() && cards.none { it is LibriaCard })
     val hasContent = remember(itemIds, showStatePanel) { cards.any { it is LibriaCard } && !showStatePanel }
+    val columnsCount = remember(configuration.screenWidthDp) {
+        max(
+            1,
+            ((configuration.screenWidthDp.dp - (TvCardScreenHorizontalPadding * 2)) / TvPosterCardSlotWidth)
+                .toInt(),
+        )
+    }
+    val gridDescriptionInset = if (hasContent) TvGridBottomDescriptionInset else TvBottomContentInset
+    val gridBottomClearancePx = remember(hasContent, density) {
+        with(density) { if (hasContent) TvGridBottomDescriptionInset.roundToPx() else 0 }
+    }
+
+    fun gridAnchorIndex(index: Int): Int {
+        if (columnsCount <= 0) {
+            return index.coerceAtLeast(0)
+        }
+        return (index - (index % columnsCount)).coerceAtLeast(0)
+    }
 
     fun requestFilterFocus(index: Int): Boolean {
         if (filterRequesters.isEmpty()) {
@@ -192,7 +216,11 @@ internal fun CatalogScreen(
         } else {
             val targetIndex = index.coerceIn(0, itemRequesters.lastIndex)
             scope.launch {
-                gridState.scrollItemIntoViewIfNeeded(targetIndex)
+                gridState.scrollItemIntoViewIfNeeded(
+                    index = targetIndex,
+                    anchorIndex = gridAnchorIndex(targetIndex),
+                    bottomClearancePx = gridBottomClearancePx,
+                )
                 requestWatchingFocusAfterAttach(itemRequesters.getOrNull(targetIndex))
             }
             true
@@ -255,8 +283,6 @@ internal fun CatalogScreen(
             .tvAppBackground(palette)
             .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
-        val columnsCount = max(1, (maxWidth / TvPosterCardSlotWidth).toInt())
-
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -389,7 +415,7 @@ internal fun CatalogScreen(
                             state = gridState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(
-                                bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset
+                                bottom = gridDescriptionInset
                             ),
                             verticalArrangement = Arrangement.spacedBy(18.dp),
                             horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
@@ -405,6 +431,11 @@ internal fun CatalogScreen(
                                         palette = palette,
                                         focusRequester = itemRequesters[index],
                                         enabled = interactionsEnabled,
+                                        scaleTransformOrigin = edgeAwareGridTransformOrigin(
+                                            index = index,
+                                            columnsCount = columnsCount,
+                                            itemsCount = cards.size,
+                                        ),
                                         onClick = { onItemClick(item) },
                                         onFocused = {
                                             selectedItem = item
@@ -412,7 +443,11 @@ internal fun CatalogScreen(
                                             lastFocusedItemId = item.getId()
                                             lastFocusTarget = CatalogFocusTarget.Grid.name
                                             scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(index)
+                                                gridState.scrollItemIntoViewIfNeeded(
+                                                    index = index,
+                                                    anchorIndex = gridAnchorIndex(index),
+                                                    bottomClearancePx = gridBottomClearancePx,
+                                                )
                                             }
                                         },
                                         onUp = if (index < columnsCount) {
@@ -440,7 +475,11 @@ internal fun CatalogScreen(
                                             lastFocusedItemId = item.getId()
                                             lastFocusTarget = CatalogFocusTarget.Grid.name
                                             scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(index)
+                                                gridState.scrollItemIntoViewIfNeeded(
+                                                    index = index,
+                                                    anchorIndex = gridAnchorIndex(index),
+                                                    bottomClearancePx = gridBottomClearancePx,
+                                                )
                                             }
                                         },
                                         onUp = {
@@ -464,7 +503,11 @@ internal fun CatalogScreen(
                                             lastFocusedItemId = item.getId()
                                             lastFocusTarget = CatalogFocusTarget.Grid.name
                                             scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(index)
+                                                gridState.scrollItemIntoViewIfNeeded(
+                                                    index = index,
+                                                    anchorIndex = gridAnchorIndex(index),
+                                                    bottomClearancePx = gridBottomClearancePx,
+                                                )
                                             }
                                         },
                                         onUp = {
@@ -497,7 +540,11 @@ internal fun CatalogScreen(
                                             lastFocusedItemId = item.getId()
                                             lastFocusTarget = CatalogFocusTarget.Grid.name
                                             scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(index)
+                                                gridState.scrollItemIntoViewIfNeeded(
+                                                    index = index,
+                                                    anchorIndex = gridAnchorIndex(index),
+                                                    bottomClearancePx = gridBottomClearancePx,
+                                                )
                                             }
                                         },
                                         onUp = {
@@ -532,6 +579,7 @@ internal fun CatalogScreen(
                                     title = description.title.toString(),
                                     subtitle = description.subtitle.toString(),
                                     palette = palette,
+                                    solidSurface = true,
                                     modifier = Modifier.align(Alignment.BottomCenter),
                                 )
                             }

@@ -47,6 +47,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.res.colorResource
@@ -336,6 +337,12 @@ internal fun WatchingDescriptionBar(
     solidSurface: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val layoutDirection = LocalLayoutDirection.current
+    val startPadding = contentPadding.calculateLeftPadding(layoutDirection)
+    val endPadding = contentPadding.calculateRightPadding(layoutDirection)
+    val topPadding = contentPadding.calculateTopPadding()
+    val bottomPadding = contentPadding.calculateBottomPadding()
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -355,7 +362,7 @@ internal fun WatchingDescriptionBar(
                     )
                 )
             )
-            .padding(contentPadding)
+            .padding(top = topPadding, bottom = bottomPadding)
     ) {
         Column(
             modifier = Modifier
@@ -370,9 +377,15 @@ internal fun WatchingDescriptionBar(
                                 color = palette.textColor.copy(alpha = 0.10f),
                                 shape = TvUiDefaults.ScreenPanelShape,
                             )
-                            .padding(horizontal = 20.dp, vertical = 16.dp)
+                            .padding(
+                                start = startPadding + 20.dp,
+                                end = endPadding + 20.dp,
+                                top = 16.dp,
+                                bottom = 16.dp,
+                            )
                     } else {
                         Modifier
+                            .padding(start = startPadding, end = endPadding)
                     }
                 ),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -527,4 +540,22 @@ internal fun edgeAwareHorizontalTransformOrigin(
         lastIndex -> TransformOrigin(1f, 0.5f)
         else -> TransformOrigin.Center
     }
+}
+
+internal fun edgeAwareGridTransformOrigin(
+    index: Int,
+    columnsCount: Int,
+    itemsCount: Int,
+): TransformOrigin {
+    if (columnsCount <= 0 || itemsCount <= 0) {
+        return TransformOrigin.Center
+    }
+    val columnIndex = index % columnsCount
+    val x = when {
+        columnIndex == 0 -> 0f
+        index == itemsCount - 1 || columnIndex == columnsCount - 1 -> 1f
+        else -> 0.5f
+    }
+    val y = if (index < columnsCount) 0f else 0.5f
+    return TransformOrigin(x, y)
 }

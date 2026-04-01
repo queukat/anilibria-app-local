@@ -171,6 +171,7 @@ open class BasePlayerFragment : Fragment() {
                         skipsPart = skipsPartState,
                         onControlFocused = ::rememberFocusedControl,
                         onShowControls = ::showControls,
+                        onShowControlsFromQuickActions = ::showControlsFromQuickActions,
                         onAutoHideControls = ::hideControls,
                         onQuickActionHandled = ::handleQuickAction,
                         onBackRequested = ::handleBackPressed,
@@ -494,6 +495,10 @@ open class BasePlayerFragment : Fragment() {
         controlsVisibleState = true
         controlsFocusTargetState = target ?: lastFocusedControlState
         controlsFocusTokenState += 1
+    }
+
+    private fun showControlsFromQuickActions() {
+        showControls(lastFocusedControlState)
     }
 
     private fun hideControls() {

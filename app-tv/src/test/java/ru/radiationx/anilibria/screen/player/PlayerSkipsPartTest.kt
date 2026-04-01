@@ -98,4 +98,29 @@ class PlayerSkipsPartTest {
         assertTrue(skipsPart.isVisible)
         assertNotNull(skipsPart.visibleSkip)
     }
+
+    @Test
+    fun requestControlsFocusTransfer_incrementsTokenOnlyWhenSkipVisible() {
+        val skipsPart = PlayerSkipsPart(onSeek = {})
+        skipsPart.setSkips(
+            PlayerSkips(
+                opening = PlayerSkips.Skip(start = 1_000L, end = 5_000L),
+                ending = null,
+            )
+        )
+        skipsPart.update(2_000L)
+
+        skipsPart.requestControlsFocusTransfer()
+
+        assertEquals(1, skipsPart.controlsFocusTransferToken)
+    }
+
+    @Test
+    fun requestControlsFocusTransfer_doesNothingWithoutVisibleSkip() {
+        val skipsPart = PlayerSkipsPart(onSeek = {})
+
+        skipsPart.requestControlsFocusTransfer()
+
+        assertEquals(0, skipsPart.controlsFocusTransferToken)
+    }
 }

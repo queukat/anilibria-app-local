@@ -211,7 +211,7 @@ class PlayerFragment : BasePlayerFragment() {
                 onReplayEpisodeClick = viewModel::onReplayEpisodeClick,
                 onNextEpisodeClick = viewModel::onNextEpisodeClick,
                 onReplaySeasonClick = viewModel::onReplaySeasonClick,
-                onClosePlayerClick = viewModel::onClosePlayerClick,
+                onClosePlayerClick = router::exit,
             )
         }
     }

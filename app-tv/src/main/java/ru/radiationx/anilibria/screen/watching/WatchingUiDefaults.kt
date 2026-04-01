@@ -16,6 +16,7 @@ internal val TvRowsScreenVerticalPadding = 8.dp
 internal val TvPageVerticalPadding = 16.dp
 internal val TvPageHeaderSpacing = 18.dp
 internal val TvBottomDescriptionInset = 124.dp
+internal val TvGridBottomDescriptionInset = 164.dp
 internal val TvBottomContentInset = 28.dp
 internal val TvSectionSpacing = 26.dp
 internal val TvSectionHeaderSpacing = 12.dp
@@ -71,10 +72,20 @@ internal fun List<CardItem>.tvStateFocusIndex(): Int? {
 internal suspend fun LazyGridState.scrollItemIntoViewIfNeeded(
     index: Int,
     anchorIndex: Int = (index - 1).coerceAtLeast(0),
+    bottomClearancePx: Int = 0,
 ) {
     if (index < 0) return
     val visibleItems = layoutInfo.visibleItemsInfo
-    if (visibleItems.none { it.index == index }) {
+    val targetItem = visibleItems.firstOrNull { it.index == index }
+    val viewportStart = layoutInfo.viewportStartOffset
+    val viewportEnd = layoutInfo.viewportEndOffset - bottomClearancePx
+    val needsAdjust = when {
+        targetItem == null -> true
+        targetItem.offset.y < viewportStart -> true
+        targetItem.offset.y + targetItem.size.height > viewportEnd -> true
+        else -> false
+    }
+    if (needsAdjust) {
         val targetIndex = when {
             visibleItems.isEmpty() -> index
             index < visibleItems.first().index -> index

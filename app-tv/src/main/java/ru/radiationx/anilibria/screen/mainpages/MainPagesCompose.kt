@@ -28,7 +28,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,6 +64,7 @@ import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import ru.radiationx.data.entity.domain.types.ReleaseId
@@ -190,13 +190,15 @@ internal fun MainPagesHeader(
         if (headerFocusRequestToken <= 0) {
             return@LaunchedEffect
         }
-        withFrameNanos { }
         val preferredRequester = when (preferredAction) {
             MainHeaderAction.Search -> searchRequester
             MainHeaderAction.Catalog -> catalogRequester
             MainHeaderAction.Update -> if (hasUpdates) updateRequester else catalogRequester
         }
-        requestFocusSafely(preferredRequester)
+        requestWatchingFocusAfterAttach(
+            requester = preferredRequester,
+            attempts = 12,
+        )
     }
 
     Box(
@@ -316,11 +318,14 @@ internal fun MainPagesShell(
         label = "mainPagesRailOffset",
     )
 
-    LaunchedEffect(railFocusRequestToken, expanded) {
-        if (expanded && railFocusRequestToken > 0) {
-            withFrameNanos { }
-            requestFocusSafely(requesters.getOrNull(selectedIndex))
+    LaunchedEffect(railFocusRequestToken, expanded, selectedPageId) {
+        if (!expanded) {
+            return@LaunchedEffect
         }
+        requestWatchingFocusAfterAttach(
+            requester = requesters.getOrNull(selectedIndex),
+            attempts = 12,
+        )
     }
 
     if (expanded) {
@@ -453,23 +458,13 @@ private fun HeaderActionButton(
         onClick = onClick,
         onDown = onDown,
         onFocused = onFocused,
-        modifier = Modifier,
+        modifier = Modifier.width(TvUiDefaults.ShellHeaderActionWidth),
         focusRequester = focusRequester,
         horizontalPadding = 18.dp,
         verticalPadding = 11.dp,
-        minWidth = 160.dp,
+        minWidth = TvUiDefaults.ShellHeaderActionWidth,
         textAlign = TextAlign.Center,
     )
-}
-
-private fun requestFocusSafely(focusRequester: FocusRequester?): Boolean {
-    if (focusRequester == null) {
-        return false
-    }
-    return runCatching {
-        focusRequester.requestFocus()
-        true
-    }.getOrDefault(false)
 }
 
 @Composable

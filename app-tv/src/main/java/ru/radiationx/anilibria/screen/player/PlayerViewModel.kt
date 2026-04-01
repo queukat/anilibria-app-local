@@ -1,7 +1,6 @@
 package ru.radiationx.anilibria.screen.player
 
 import androidx.lifecycle.viewModelScope
-import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -34,7 +33,6 @@ class PlayerViewModel @Inject constructor(
     private val argExtra: PlayerExtra,
     private val tvPlayerFacade: TvPlayerFacade,
     private val preferencesHolder: PreferencesHolder,
-    private val router: Router,
 ) : LifecycleViewModel() {
 
     data class EpisodeOptionUiModel(
@@ -257,10 +255,7 @@ class PlayerViewModel @Inject constructor(
 
     fun onReplayEpisodeClick() {
         val episode = currentEpisode ?: return
-        viewModelScope.launch {
-            tvPlayerFacade.saveLocalEpisodeSeek(episode.id, 0L)
-            playEpisode(episode)
-        }
+        replayEpisodeFromStart(episode)
     }
 
     fun onNextEpisodeClick() {
@@ -270,12 +265,7 @@ class PlayerViewModel @Inject constructor(
 
     fun onReplaySeasonClick() {
         val firstEpisode = currentEpisodes.firstOrNull() ?: return
-        playEpisode(firstEpisode)
-    }
-
-    fun onClosePlayerClick() {
-        dismissCompletionOverlay()
-        router.exit()
+        replayEpisodeFromStart(firstEpisode)
     }
 
     private fun saveEpisodePosition(position: Long, syncRemote: Boolean = true) {
@@ -313,7 +303,10 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun playEpisode(episode: Episode) {
+    private fun playEpisode(
+        episode: Episode,
+        playbackStart: PlayerPlaybackStart = PlayerPlaybackStart.ResumeSavedProgress,
+    ) {
         promptedForCompletedResumeEpisodeId = null
         currentComplete = false
         currentDuration = 0L
@@ -322,7 +315,10 @@ class PlayerViewModel @Inject constructor(
         currentRelease = currentReleases.firstOrNull { it.id == episode.id.releaseId } ?: currentReleases.firstOrNull()
         _episodeOptions.value = currentEpisodes.map(::toEpisodeOptionUiModel)
         _selectedEpisodeId.value = episode.id
-        updateEpisode(force = true)
+        updateEpisode(
+            force = true,
+            playbackStart = playbackStart,
+        )
     }
 
     private fun getCurrentRelease(): Release? {
@@ -343,7 +339,10 @@ class PlayerViewModel @Inject constructor(
         return currentEpisodes.getOrNull(idx - 1)
     }
 
-    private fun updateEpisode(force: Boolean = false) {
+    private fun updateEpisode(
+        force: Boolean = false,
+        playbackStart: PlayerPlaybackStart = PlayerPlaybackStart.ResumeSavedProgress,
+    ) {
         val release = getCurrentRelease() ?: return
         val episode = currentEpisode ?: return
         val quality = currentQuality
@@ -352,14 +351,22 @@ class PlayerViewModel @Inject constructor(
 
         viewModelScope.launch {
             val newUrl = episode.qualityInfo.getSafeUrlFor(quality)
-
-            val localSeek = tvPlayerFacade.getLocalEpisodeSeek(episode.id)
-            val remoteSeek = if (canSyncRemoteViews) {
-                runCatching { tvPlayerFacade.getRemoteEpisodeSeek(episode.id) }.getOrDefault(0L)
-            } else {
-                0L
+            val seek = when (playbackStart) {
+                PlayerPlaybackStart.StartFromBeginning -> 0L
+                PlayerPlaybackStart.ResumeSavedProgress -> {
+                    val localSeek = tvPlayerFacade.getLocalEpisodeSeek(episode.id)
+                    val remoteSeek = if (canSyncRemoteViews) {
+                        runCatching { tvPlayerFacade.getRemoteEpisodeSeek(episode.id) }.getOrDefault(0L)
+                    } else {
+                        0L
+                    }
+                    resolvePlayerStartPosition(
+                        localSeekMs = localSeek,
+                        remoteSeekMs = remoteSeek,
+                        playbackStart = playbackStart,
+                    )
+                }
             }
-            val seek = maxOf(localSeek, remoteSeek)
 
             val newVideo = Video(
                 url = newUrl,
@@ -374,6 +381,30 @@ class PlayerViewModel @Inject constructor(
             } else if (_videoData.value?.seek != newVideo.seek) {
                 emitCommand(PlayerCommand.Seek(newVideo.seek))
             }
+        }
+    }
+
+    private fun replayEpisodeFromStart(episode: Episode) {
+        viewModelScope.launch {
+            resetEpisodeProgress(episode.id)
+            playEpisode(
+                episode = episode,
+                playbackStart = PlayerPlaybackStart.StartFromBeginning,
+            )
+        }
+    }
+
+    private suspend fun resetEpisodeProgress(episodeId: EpisodeId) {
+        tvPlayerFacade.saveLocalEpisodeSeek(episodeId, 0L)
+        if (!canSyncRemoteViews) {
+            return
+        }
+        runCatching {
+            tvPlayerFacade.saveRemoteEpisodeProgress(
+                episodeId = episodeId,
+                positionMs = 0L,
+                isWatched = false,
+            )
         }
     }
 

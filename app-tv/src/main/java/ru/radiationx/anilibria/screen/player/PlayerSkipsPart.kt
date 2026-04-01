@@ -46,6 +46,9 @@ class PlayerSkipsPart(
     var focusRequestToken by mutableIntStateOf(0)
         private set
 
+    var controlsFocusTransferToken by mutableIntStateOf(0)
+        private set
+
     val isVisible: Boolean
         get() = visibleSkip != null
 
@@ -83,6 +86,12 @@ class PlayerSkipsPart(
     fun cancelCurrent() {
         visibleSkip?.also { suppressedSkip = it }
         dismissCurrent()
+    }
+
+    fun requestControlsFocusTransfer() {
+        if (visibleSkip != null) {
+            controlsFocusTransferToken += 1
+        }
     }
 
     private fun dismissCurrent() {
@@ -139,7 +148,10 @@ internal fun PlayerSkipsOverlay(
             skipRequester = skipRequester,
             watchRequester = watchRequester,
             onInteraction = onInteraction,
-            onOpenControls = onOpenControls,
+            onOpenControls = {
+                skipsPart?.requestControlsFocusTransfer()
+                onOpenControls()
+            },
             onSkipClick = {
                 skipsPart?.skipCurrent()
                 onQuickActionHandled()

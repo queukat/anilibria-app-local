@@ -66,17 +66,6 @@ class MainPagesFragment : Fragment() {
         }
     }
 
-    private val shellCallbacks = MainShellCallbacks(
-        onRequestRailFocus = ::requestRailFocus,
-        onContentMovedDown = {
-            applyHeaderVisibility(false)
-        },
-        onContentMovedUp = {
-            applyHeaderVisibility(true)
-        },
-        onRequestHeaderFocus = ::requestHeaderFocus,
-    )
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         selectedPageId = savedInstanceState?.getLong(KEY_SELECTED_PAGE_ID)
@@ -118,7 +107,7 @@ class MainPagesFragment : Fragment() {
                         MainPagesContentHost(
                             selectedPageId = selectedPageId,
                             pageContents = pageContents,
-                            callbacks = shellCallbacks,
+                            callbacks = buildShellCallbacks(),
                         )
                     }
                 }
@@ -234,7 +223,11 @@ class MainPagesFragment : Fragment() {
     }
 
     private fun requestCurrentContentFocus(): Boolean {
-        return currentPageContent()?.requestContentFocus() == true
+        val focused = currentPageContent()?.requestContentFocus() == true
+        if (focused && !isRailExpanded) {
+            applyHeaderVisibility(false)
+        }
+        return focused
     }
 
     private fun installBackHandler() {
@@ -272,6 +265,22 @@ class MainPagesFragment : Fragment() {
         initialFocusRunnable?.also(hostView::removeCallbacks)
         pendingContentFocusRunnable?.also(hostView::removeCallbacks)
         pendingContentFocusRunnable = null
+    }
+
+    private fun buildShellCallbacks(): MainShellCallbacks {
+        return MainShellCallbacks(
+            onRequestRailFocus = ::requestRailFocus,
+            onContentMovedDown = {
+                if (!isRailExpanded) {
+                    applyHeaderVisibility(false)
+                }
+            },
+            onContentMovedUp = {
+                applyHeaderVisibility(true)
+            },
+            onRequestHeaderFocus = ::requestHeaderFocus,
+            contentInteractionsEnabled = !isRailExpanded,
+        )
     }
 
     private companion object {

@@ -3,13 +3,10 @@
     <color name="white">#fff</color>
 
     <!-- DARK THEME -->
-    <color name="temp_red4">#8f2929</color>
-
-    <color name="temp_red_">@color/temp_red4</color>
     <color name="dark_colorPrimary">@color/dark_cardBackground</color>
     <color name="dark_colorPrimary1">#33000000</color>
     <color name="dark_colorPrimaryDark">@color/dark_cardBackground</color>
-    <color name="dark_colorAccent">@color/temp_red_</color>
+    <color name="dark_colorAccent">#8f2929</color>
 
     <color name="dark_windowBackground">#1E2124</color>
     <color name="dark_cardBackground">#2E3134</color>
@@ -21,10 +18,4 @@
     <color name="dark_textDefault">#EEEEEE</color>
     <color name="dark_textSecond">#B2B2B2</color>
     <color name="dark_textLink">#c23838</color>
-
-    <!-- Leanback -->
-
-    <color name="app_guidedstep_actions_background">@color/dark_colorPrimary</color>
-    <color name="app_guidedstep_subactions_background">#1A1A1A</color>
-
 </resources>

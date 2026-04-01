@@ -31,7 +31,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,6 +54,7 @@ import kotlin.math.max
 internal fun WatchingFavoritesScreen(
     cards: List<CardItem>,
     filters: TvCollectionFiltersUiState,
+    contentInteractionsEnabled: Boolean = true,
     focusRequestToken: Int,
     visibilityRestoreToken: Int,
     restoreFilterIndex: Int,
@@ -75,7 +78,9 @@ internal fun WatchingFavoritesScreen(
     onContentMovedUp: () -> Unit,
 ) {
     val palette = rememberWatchingPalette()
+    val configuration = LocalConfiguration.current
     val context = LocalContext.current
+    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val filtersRowState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -123,7 +128,7 @@ internal fun WatchingFavoritesScreen(
     var lastFocusedItemIndex by rememberSaveable { mutableIntStateOf(0) }
     var lastFocusedItemId by rememberSaveable { mutableIntStateOf(Int.MIN_VALUE) }
     var lastFocusWasGrid by rememberSaveable { mutableStateOf(false) }
-    val interactionsEnabled = pickerState == null
+    val interactionsEnabled = contentInteractionsEnabled && pickerState == null
     val nonContentCards = remember(cards) { cards.filter { it !is LibriaCard } }
     val stateCard = remember(nonContentCards) {
         nonContentCards.firstOrNull { it is LoadingCard && it.isError }
@@ -135,6 +140,24 @@ internal fun WatchingFavoritesScreen(
     val hasCustomFilters = remember(filterItems) { filterItems.any { it.emphasized } }
     val showStatePanel = cards.isEmpty() || (cards.isNotEmpty() && cards.none { it is LibriaCard })
     val hasContent = remember(itemIds, showStatePanel) { cards.any { it is LibriaCard } && !showStatePanel }
+    val columnsCount = remember(configuration.screenWidthDp) {
+        max(
+            1,
+            ((configuration.screenWidthDp.dp - (TvCardScreenHorizontalPadding * 2)) / TvPosterCardSlotWidth)
+                .toInt(),
+        )
+    }
+    val gridDescriptionInset = if (hasContent) TvGridBottomDescriptionInset else TvBottomContentInset
+    val gridBottomClearancePx = remember(hasContent, density) {
+        with(density) { if (hasContent) TvGridBottomDescriptionInset.roundToPx() else 0 }
+    }
+
+    fun gridAnchorIndex(index: Int): Int {
+        if (columnsCount <= 0) {
+            return index.coerceAtLeast(0)
+        }
+        return (index - (index % columnsCount)).coerceAtLeast(0)
+    }
 
     fun requestFilterFocus(index: Int): Boolean {
         if (filterRequesters.isEmpty()) {
@@ -165,7 +188,11 @@ internal fun WatchingFavoritesScreen(
         } else {
             val targetIndex = index.coerceIn(0, itemRequesters.lastIndex)
             scope.launch {
-                gridState.scrollItemIntoViewIfNeeded(targetIndex)
+                gridState.scrollItemIntoViewIfNeeded(
+                    index = targetIndex,
+                    anchorIndex = gridAnchorIndex(targetIndex),
+                    bottomClearancePx = gridBottomClearancePx,
+                )
                 requestWatchingFocusAfterAttach(itemRequesters.getOrNull(targetIndex))
             }
             true
@@ -194,7 +221,11 @@ internal fun WatchingFavoritesScreen(
         if (lastFocusWasGrid && cards.isNotEmpty() && !showStatePanel) {
             val targetIndex = cards.indexOfItemId(lastFocusedItemId)
                 ?: lastFocusedItemIndex.coerceIn(0, cards.lastIndex)
-            gridState.scrollItemIntoViewIfNeeded(targetIndex)
+            gridState.scrollItemIntoViewIfNeeded(
+                index = targetIndex,
+                anchorIndex = gridAnchorIndex(targetIndex),
+                bottomClearancePx = gridBottomClearancePx,
+            )
             selectedCard = cards.getOrNull(targetIndex) as? LibriaCard
         } else {
             filtersRowState.scrollItemIntoViewIfNeeded(lastFocusedFilterIndex)
@@ -234,8 +265,6 @@ internal fun WatchingFavoritesScreen(
             .tvAppBackground(palette)
             .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
     ) {
-        val columnsCount = max(1, (maxWidth / TvPosterCardSlotWidth).toInt())
-
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -354,7 +383,7 @@ internal fun WatchingFavoritesScreen(
                             state = gridState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(
-                                bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset
+                                bottom = gridDescriptionInset
                             ),
                             verticalArrangement = Arrangement.spacedBy(18.dp),
                             horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
@@ -370,6 +399,11 @@ internal fun WatchingFavoritesScreen(
                                         palette = palette,
                                         focusRequester = itemRequesters[index],
                                         enabled = interactionsEnabled,
+                                        scaleTransformOrigin = edgeAwareGridTransformOrigin(
+                                            index = index,
+                                            columnsCount = columnsCount,
+                                            itemsCount = cards.size,
+                                        ),
                                         onClick = { onItemClick(item) },
                                         onFocused = {
                                             selectedCard = item
@@ -377,7 +411,11 @@ internal fun WatchingFavoritesScreen(
                                             lastFocusedItemId = item.getId()
                                             lastFocusWasGrid = true
                                             scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(index)
+                                                gridState.scrollItemIntoViewIfNeeded(
+                                                    index = index,
+                                                    anchorIndex = gridAnchorIndex(index),
+                                                    bottomClearancePx = gridBottomClearancePx,
+                                                )
                                             }
                                         },
                                         onLeft = if (index % columnsCount == 0) onRequestRailFocus else null,
@@ -407,7 +445,11 @@ internal fun WatchingFavoritesScreen(
                                             lastFocusedItemId = item.getId()
                                             lastFocusWasGrid = true
                                             scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(index)
+                                                gridState.scrollItemIntoViewIfNeeded(
+                                                    index = index,
+                                                    anchorIndex = gridAnchorIndex(index),
+                                                    bottomClearancePx = gridBottomClearancePx,
+                                                )
                                             }
                                         },
                                         onLeft = onRequestRailFocus,
@@ -433,7 +475,11 @@ internal fun WatchingFavoritesScreen(
                                             lastFocusedItemId = item.getId()
                                             lastFocusWasGrid = true
                                             scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(index)
+                                                gridState.scrollItemIntoViewIfNeeded(
+                                                    index = index,
+                                                    anchorIndex = gridAnchorIndex(index),
+                                                    bottomClearancePx = gridBottomClearancePx,
+                                                )
                                             }
                                         },
                                         onLeft = onRequestRailFocus,
@@ -466,7 +512,11 @@ internal fun WatchingFavoritesScreen(
                                             lastFocusedItemId = item.getId()
                                             lastFocusWasGrid = true
                                             scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(index)
+                                                gridState.scrollItemIntoViewIfNeeded(
+                                                    index = index,
+                                                    anchorIndex = gridAnchorIndex(index),
+                                                    bottomClearancePx = gridBottomClearancePx,
+                                                )
                                             }
                                         },
                                         onLeft = onRequestRailFocus,
@@ -487,6 +537,7 @@ internal fun WatchingFavoritesScreen(
                                 title = card.title,
                                 subtitle = card.resolveDescription(context),
                                 palette = palette,
+                                solidSurface = true,
                                 modifier = Modifier.align(Alignment.BottomCenter),
                             )
                         }

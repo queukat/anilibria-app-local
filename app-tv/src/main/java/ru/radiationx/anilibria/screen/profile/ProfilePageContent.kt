@@ -46,6 +46,7 @@ internal class ProfilePageContent(
     override fun Render(callbacks: MainShellCallbacks) {
         ProfileScreen(
             profile = profileState,
+            interactionsEnabled = callbacks.contentInteractionsEnabled,
             focusRequestToken = focusRequestToken,
             onSignInClick = viewModel::onSignInClick,
             onSignOutClick = viewModel::onSignOutClick,

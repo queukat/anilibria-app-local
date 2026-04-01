@@ -256,45 +256,11 @@ class SearchFormViewModel @Inject constructor(
 
     fun applyFilterPicker() {
         val current = _filterPicker.value
-        val wasApplied = if (current != null && current.multiSelect) {
-            when (current.kind) {
-                TvCollectionFilterPickerKind.YEAR -> {
-                    searchController.yearsEvent.emit(
-                        current.selectedIndices
-                            .mapNotNull { availableYears.getOrNull(it) }
-                            .toSet()
-                    )
-                    true
-                }
-
-                TvCollectionFilterPickerKind.SEASON -> {
-                    searchController.seasonsEvent.emit(
-                        current.selectedIndices
-                            .mapNotNull { availableSeasons.getOrNull(it) }
-                            .toSet()
-                    )
-                    true
-                }
-
-                TvCollectionFilterPickerKind.GENRE -> {
-                    searchController.genresEvent.emit(
-                        current.selectedIndices
-                            .mapNotNull { availableGenres.getOrNull(it) }
-                            .toSet()
-                    )
-                    true
-                }
-
-                TvCollectionFilterPickerKind.SORT,
-                TvCollectionFilterPickerKind.COMPLETED,
-                -> false
-            }
-        } else {
-            false
+        val wasApplied = current?.takeIf { it.multiSelect }?.let(::applyMultiSelectPickerSelection) == true
+        if (current != null) {
+            _filterPicker.value = null
         }
-        if (wasApplied) {
-            dismissFilterPicker()
-        }
+        if (wasApplied) return
     }
 
     private fun resolveSortOption(index: Int): SearchForm.Sort? {
@@ -322,6 +288,7 @@ class SearchFormViewModel @Inject constructor(
     }
 
     fun dismissFilterPicker() {
+        currentMultiSelectPicker()?.let(::applyMultiSelectPickerSelection)
         _filterPicker.value = null
     }
 
@@ -364,6 +331,56 @@ class SearchFormViewModel @Inject constructor(
             TvCollectionFilterPickerKind.COMPLETED -> current.copy(
                 selectedIndices = setOf(if (searchForm.onlyCompleted) 1 else 0),
             )
+        }
+    }
+
+    private fun currentMultiSelectPicker(): TvCollectionFilterPickerState? {
+        return _filterPicker.value?.takeIf { it.multiSelect }
+    }
+
+    private fun applyMultiSelectPickerSelection(
+        picker: TvCollectionFilterPickerState,
+    ): Boolean {
+        return when (picker.kind) {
+            TvCollectionFilterPickerKind.YEAR -> {
+                val nextSelection = picker.selectedIndices
+                    .mapNotNull { availableYears.getOrNull(it) }
+                    .toSet()
+                if (nextSelection == searchForm.years.toSet()) {
+                    false
+                } else {
+                    searchController.yearsEvent.emit(nextSelection)
+                    true
+                }
+            }
+
+            TvCollectionFilterPickerKind.SEASON -> {
+                val nextSelection = picker.selectedIndices
+                    .mapNotNull { availableSeasons.getOrNull(it) }
+                    .toSet()
+                if (nextSelection == searchForm.seasons.toSet()) {
+                    false
+                } else {
+                    searchController.seasonsEvent.emit(nextSelection)
+                    true
+                }
+            }
+
+            TvCollectionFilterPickerKind.GENRE -> {
+                val nextSelection = picker.selectedIndices
+                    .mapNotNull { availableGenres.getOrNull(it) }
+                    .toSet()
+                if (nextSelection == searchForm.genres.toSet()) {
+                    false
+                } else {
+                    searchController.genresEvent.emit(nextSelection)
+                    true
+                }
+            }
+
+            TvCollectionFilterPickerKind.SORT,
+            TvCollectionFilterPickerKind.COMPLETED,
+            -> false
         }
     }
 

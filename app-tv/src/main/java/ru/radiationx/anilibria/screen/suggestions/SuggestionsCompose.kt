@@ -386,6 +386,7 @@ internal fun SuggestionsScreen(
                     title = description.title.toString(),
                     subtitle = description.subtitle.toString(),
                     palette = palette,
+                    solidSurface = true,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }

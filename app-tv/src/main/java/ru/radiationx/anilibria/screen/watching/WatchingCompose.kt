@@ -51,6 +51,7 @@ internal data class WatchingSectionUiModel(
 @Composable
 internal fun WatchingScreen(
     sections: List<WatchingSectionUiModel>,
+    interactionsEnabled: Boolean = true,
     focusRequestToken: Int,
     visibilityRestoreToken: Int,
     onItemClick: (Long, CardItem) -> Unit,
@@ -288,6 +289,7 @@ internal fun WatchingScreen(
                         title = section.title,
                         items = section.items,
                         palette = palette,
+                        interactionsEnabled = interactionsEnabled,
                         rowState = rowStates.getOrNull(sectionIndex) ?: LazyListState(),
                         requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty(),
                         onItemClick = { item ->
@@ -330,6 +332,7 @@ internal fun WatchingScreen(
                     title = card.title,
                     subtitle = card.resolveDescription(context),
                     palette = palette,
+                    solidSurface = true,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -342,6 +345,7 @@ private fun WatchingSectionBlock(
     title: String,
     items: List<CardItem>,
     palette: WatchingPalette,
+    interactionsEnabled: Boolean = true,
     rowState: LazyListState,
     requesters: List<androidx.compose.ui.focus.FocusRequester>,
     onItemClick: (CardItem) -> Unit,
@@ -397,7 +401,11 @@ private fun WatchingSectionBlock(
                 accent = stateItem is LoadingCard && stateItem.isError,
                 loading = stateItem is LoadingCard && !stateItem.isError,
                 focusRequester = if (stateActionLabel == null) {
-                    requesters.getOrNull(stateFocusIndex ?: -1)
+                    if (interactionsEnabled) {
+                        requesters.getOrNull(stateFocusIndex ?: -1)
+                    } else {
+                        null
+                    }
                 } else {
                     null
                 },
@@ -413,6 +421,7 @@ private fun WatchingSectionBlock(
                             focusRequester = requesters.getOrNull(stateFocusIndex ?: -1)
                                 ?: androidx.compose.ui.focus.FocusRequester.Default,
                             onClick = { onItemClick(stateFocusItem) },
+                            enabled = interactionsEnabled,
                             onFocused = {
                                 onMessageFocused(stateFocusIndex ?: 0, stateFocusItem)
                             },
@@ -439,6 +448,7 @@ private fun WatchingSectionBlock(
                             imageUrl = item.image,
                             palette = palette,
                             focusRequester = requesters[index],
+                            enabled = interactionsEnabled,
                             scaleTransformOrigin = edgeAwareHorizontalTransformOrigin(
                                 index = index,
                                 lastIndex = items.lastIndex,
@@ -459,6 +469,7 @@ private fun WatchingSectionBlock(
                             subtitle = "Нажмите, чтобы загрузить ещё",
                             palette = palette,
                             focusRequester = requesters[index],
+                            enabled = interactionsEnabled,
                             onClick = { onItemClick(item) },
                             onFocused = { onMessageFocused(index, item) },
                             onLeft = if (index == 0) onLeftEdge else null,
@@ -479,6 +490,7 @@ private fun WatchingSectionBlock(
                                 }
                             ),
                             focusRequester = requesters[index],
+                            enabled = interactionsEnabled,
                             loading = !item.isError,
                             onClick = { onItemClick(item) },
                             onFocused = { onMessageFocused(index, item) },
@@ -492,6 +504,7 @@ private fun WatchingSectionBlock(
                             subtitle = item.subtitle,
                             palette = palette,
                             focusRequester = requesters[index],
+                            enabled = interactionsEnabled,
                             onClick = { onItemClick(item) },
                             onFocused = { onMessageFocused(index, item) },
                             onLeft = if (index == 0) onLeftEdge else null,

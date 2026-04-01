@@ -159,6 +159,7 @@ internal fun PlayerScreenContent(
     skipsPart: PlayerSkipsPart?,
     onControlFocused: (PlayerOverlayFocusTarget) -> Unit,
     onShowControls: (PlayerOverlayFocusTarget?) -> Unit,
+    onShowControlsFromQuickActions: () -> Unit,
     onAutoHideControls: () -> Unit,
     onQuickActionHandled: () -> Unit,
     onBackRequested: () -> Unit,
@@ -183,8 +184,10 @@ internal fun PlayerScreenContent(
     val qualityControlsEnabled = availableQualities.isNotEmpty()
     val speedControlsEnabled = availableSpeeds.isNotEmpty()
     val aspectRatioControlEnabled = PlayerAspectRatioMode.entries.size > 1
+    val quickActionsControlsFocusToken = skipsPart?.controlsFocusTransferToken ?: 0
     var autoHideToken by remember { mutableIntStateOf(0) }
     var controlsPanelHeightPx by remember { mutableIntStateOf(0) }
+    var handledQuickActionsControlsFocusToken by remember { mutableIntStateOf(0) }
 
     fun registerInteraction() {
         autoHideToken += 1
@@ -342,11 +345,29 @@ internal fun PlayerScreenContent(
         null -> emptyList()
     }
 
-    LaunchedEffect(controlsVisible, controlsFocusToken, controlsFocusTarget, activePicker, skipVisible) {
-        if (!controlsVisible || activePicker != null || skipVisible) {
+    LaunchedEffect(
+        controlsVisible,
+        controlsFocusToken,
+        controlsFocusTarget,
+        activePicker,
+        skipVisible,
+        quickActionsControlsFocusToken,
+    ) {
+        val quickActionsTransferPending =
+            quickActionsControlsFocusToken > handledQuickActionsControlsFocusToken
+        if (!shouldRequestPlayerControlsFocus(
+                controlsVisible = controlsVisible,
+                hasActivePicker = activePicker != null,
+                skipVisible = skipVisible,
+                quickActionsTransferPending = quickActionsTransferPending,
+            )
+        ) {
             return@LaunchedEffect
         }
         requestWatchingFocusAfterAttach(requesterFor(resolveFocusTarget(controlsFocusTarget)))
+        if (quickActionsTransferPending) {
+            handledQuickActionsControlsFocusToken = quickActionsControlsFocusToken
+        }
     }
 
     LaunchedEffect(controlsVisible, skipVisible) {
@@ -587,9 +608,7 @@ internal fun PlayerScreenContent(
             skipsPart = skipsPart,
             onInteraction = ::registerInteraction,
             onQuickActionHandled = onQuickActionHandled,
-            onOpenControls = {
-                onShowControls(PlayerOverlayFocusTarget.PlayPause)
-            },
+            onOpenControls = onShowControlsFromQuickActions,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = PlayerPanelHorizontalInset),

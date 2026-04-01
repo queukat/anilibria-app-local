@@ -26,9 +26,13 @@ import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.Paginated
 import ru.radiationx.data.entity.domain.release.FavoriteInfo
+import ru.radiationx.data.entity.domain.release.GenreItem
 import ru.radiationx.data.entity.domain.release.Release
+import ru.radiationx.data.entity.domain.release.SeasonItem
+import ru.radiationx.data.entity.domain.release.YearItem
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
+import ru.radiationx.data.interactors.tv.TvSearchUseCase
 import ru.radiationx.data.repository.AuthRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -62,6 +66,7 @@ class WatchingFavoritesViewModelStream2Test {
 
         val viewModel = WatchingFavoritesViewModel(
             tvFavoritesUseCase = tvFavoritesUseCase,
+            tvSearchUseCase = catalogFilterUseCase(),
             authRepository = authRepository,
             converter = mockk<CardsDataConverter>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -90,6 +95,7 @@ class WatchingFavoritesViewModelStream2Test {
 
         val viewModel = WatchingFavoritesViewModel(
             tvFavoritesUseCase = tvFavoritesUseCase,
+            tvSearchUseCase = catalogFilterUseCase(),
             authRepository = authRepository,
             converter = mockk<CardsDataConverter>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -123,6 +129,7 @@ class WatchingFavoritesViewModelStream2Test {
 
         val viewModel = WatchingFavoritesViewModel(
             tvFavoritesUseCase = tvFavoritesUseCase,
+            tvSearchUseCase = catalogFilterUseCase(),
             authRepository = authRepository,
             converter = mockk<CardsDataConverter>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -148,6 +155,7 @@ class WatchingFavoritesViewModelStream2Test {
 
         val viewModel = WatchingFavoritesViewModel(
             tvFavoritesUseCase = tvFavoritesUseCase,
+            tvSearchUseCase = catalogFilterUseCase(),
             authRepository = authRepository,
             converter = favoriteConverter(),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -192,6 +200,7 @@ class WatchingFavoritesViewModelStream2Test {
 
         val viewModel = WatchingFavoritesViewModel(
             tvFavoritesUseCase = tvFavoritesUseCase,
+            tvSearchUseCase = catalogFilterUseCase(),
             authRepository = authRepository,
             converter = favoriteConverter(),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -221,6 +230,7 @@ class WatchingFavoritesViewModelStream2Test {
 
         val viewModel = WatchingFavoritesViewModel(
             tvFavoritesUseCase = tvFavoritesUseCase,
+            tvSearchUseCase = catalogFilterUseCase(),
             authRepository = authRepository,
             converter = mockk<CardsDataConverter>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -267,6 +277,7 @@ class WatchingFavoritesViewModelStream2Test {
 
         val viewModel = WatchingFavoritesViewModel(
             tvFavoritesUseCase = tvFavoritesUseCase,
+            tvSearchUseCase = catalogFilterUseCase(),
             authRepository = authRepository,
             converter = favoriteConverter(),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -315,6 +326,7 @@ class WatchingFavoritesViewModelStream2Test {
 
         val viewModel = WatchingFavoritesViewModel(
             tvFavoritesUseCase = tvFavoritesUseCase,
+            tvSearchUseCase = catalogFilterUseCase(years = listOf("2026", "2025", "2024")),
             authRepository = authRepository,
             converter = favoriteConverter(),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
@@ -341,7 +353,7 @@ class WatchingFavoritesViewModelStream2Test {
     }
 
     @Test
-    fun dateSort_prioritizesReleaseYearOverTorrentFreshness() = runBlocking {
+    fun defaultDateSort_prioritizesReleaseYearOverTorrentFreshness() = runBlocking {
         val authStateFlow = MutableStateFlow(AuthState.AUTH)
         val authRepository = mockk<AuthRepository>()
         every { authRepository.observeAuthState() } returns authStateFlow
@@ -373,15 +385,11 @@ class WatchingFavoritesViewModelStream2Test {
 
         val viewModel = WatchingFavoritesViewModel(
             tvFavoritesUseCase = tvFavoritesUseCase,
+            tvSearchUseCase = catalogFilterUseCase(seasons = listOf("Зима", "Осень")),
             authRepository = authRepository,
             converter = favoriteConverter(),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
         )
-
-        waitUntil { viewModel.cardsData.value.filterIsInstance<LibriaCard>().size == 2 }
-
-        viewModel.onSortClick()
-        viewModel.selectSinglePicker(1)
 
         waitUntil {
             viewModel.cardsData.value.filterIsInstance<LibriaCard>().map(LibriaCard::title) ==
@@ -393,8 +401,24 @@ class WatchingFavoritesViewModelStream2Test {
             .map(LibriaCard::title)
         assertEquals(listOf("newer-but-stale", "older-but-fresh"), titles)
         assertEquals("По новизне", viewModel.filtersUiState.value.sort.label)
-        assertTrue(viewModel.filtersUiState.value.sort.emphasized)
+        assertTrue(!viewModel.filtersUiState.value.sort.emphasized)
         viewModel.dispose()
+    }
+
+    private fun catalogFilterUseCase(
+        years: List<String> = emptyList(),
+        seasons: List<String> = emptyList(),
+        genres: List<String> = emptyList(),
+    ): TvSearchUseCase {
+        val useCase = mockk<TvSearchUseCase>()
+        coEvery { useCase.loadYears() } returns years.map { YearItem(title = it, value = it) }
+        coEvery { useCase.loadSeasons() } returns seasons.map {
+            SeasonItem(title = it, value = it.lowercase())
+        }
+        coEvery { useCase.loadGenres() } returns genres.map {
+            GenreItem(title = it, value = it.lowercase())
+        }
+        return useCase
     }
 
     private suspend fun waitUntil(predicate: () -> Boolean) {

@@ -47,10 +47,6 @@ class ConfiguringViewModel @Inject constructor(
         configuringInteractor.initCheck()
     }
 
-    fun endConfiguring() {
-        //router.exit()
-    }
-
     fun repeatCheck() = configuringInteractor.repeatCheck()
 
     fun nextCheck() = configuringInteractor.nextCheck()

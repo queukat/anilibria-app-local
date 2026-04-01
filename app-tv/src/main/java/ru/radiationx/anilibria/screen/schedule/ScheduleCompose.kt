@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.InfoCard
@@ -119,6 +120,9 @@ internal fun ScheduleScreen(
     var highlightedSectionIndex by remember(sectionKeys, initialSectionIndex) {
         mutableIntStateOf(initialSectionIndex)
     }
+    var pendingDayChipJump by remember(sectionKeys) {
+        mutableStateOf<Pair<Int, Int>?>(null)
+    }
     val hasContent = remember(sectionKeys, showStatePanel) {
         sections.any { section -> section.items.any { it is LibriaCard } } && !showStatePanel
     }
@@ -169,6 +173,13 @@ internal fun ScheduleScreen(
             requestWatchingFocusAfterAttach(dayChipRequesters.getOrNull(clampedSectionIndex))
         }
         return true
+    }
+
+    fun previewSection(sectionIndex: Int) {
+        highlightedSectionIndex = sectionIndex.coerceIn(0, sections.lastIndex)
+        scope.launch {
+            verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(highlightedSectionIndex))
+        }
     }
 
     fun targetInSection(
@@ -278,6 +289,16 @@ internal fun ScheduleScreen(
         onItemFocused(selectedItem)
     }
 
+    LaunchedEffect(pendingDayChipJump, sectionKeys) {
+        val jump = pendingDayChipJump ?: return@LaunchedEffect
+        delay(SCHEDULE_DAY_CHIP_FOCUS_DELAY_MS)
+        requestSectionItemFocus(
+            sectionIndex = jump.first,
+            preferredItemIndex = jump.second,
+        )
+        pendingDayChipJump = null
+    }
+
     LaunchedEffect(focusRequestToken, sectionKeys) {
         if (focusRequestToken <= handledFocusToken) {
             return@LaunchedEffect
@@ -353,7 +374,8 @@ internal fun ScheduleScreen(
                             } else {
                                 0
                             }
-                            requestSectionItemFocus(sectionIndex, preferredItemIndex)
+                            previewSection(sectionIndex)
+                            pendingDayChipJump = sectionIndex to preferredItemIndex
                         },
                         onChipDown = { sectionIndex ->
                             val preferredItemIndex = if (sectionIndex == lastFocusedSectionIndex) {
@@ -479,6 +501,7 @@ internal fun ScheduleScreen(
                         title = description.title.toString(),
                         subtitle = description.subtitle.toString(),
                         palette = palette,
+                        solidSurface = true,
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
@@ -590,3 +613,4 @@ private fun buildScheduleTimezoneLabel(timeZone: TimeZone): String {
 
 private const val MILLIS_IN_MINUTE = 60_000
 private const val MINUTES_IN_HOUR = 60
+private const val SCHEDULE_DAY_CHIP_FOCUS_DELAY_MS = 120L
