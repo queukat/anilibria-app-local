@@ -62,18 +62,16 @@ class SearchViewModelTest {
         )
         val searchRepository = mockk<SearchRepository>()
         coEvery { searchRepository.searchReleases(any(), any()) } returns paginatedResponse(emptyList())
-        val searchController = SearchController()
         val viewModel = SearchViewModel(
             tvSearchUseCase = tvSearchUseCase,
             converter = searchConverter(),
             router = mockk<Router>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
             searchRepository = searchRepository,
-            searchController = searchController,
         )
         viewModel.setLoaderDispatcherForTests(testDispatcher)
 
-        searchController.applyFormEvent.emit(SearchForm(onlyCompleted = true))
+        viewModel.submitSearchForm(SearchForm(onlyCompleted = true))
         waitUntil { viewModel.cardsData.value.filterIsInstance<LibriaCard>().size == 1 }
 
         val cards = viewModel.cardsData.value.filterIsInstance<LibriaCard>()
@@ -111,18 +109,16 @@ class SearchViewModelTest {
                 ),
             )
         )
-        val searchController = SearchController()
         val viewModel = SearchViewModel(
             tvSearchUseCase = tvSearchUseCase,
             converter = searchConverter(),
             router = mockk<Router>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
             searchRepository = searchRepository,
-            searchController = searchController,
         )
         viewModel.setLoaderDispatcherForTests(testDispatcher)
 
-        searchController.applyFormEvent.emit(SearchForm(onlyCompleted = true))
+        viewModel.submitSearchForm(SearchForm(onlyCompleted = true))
         waitUntil { viewModel.cardsData.value.filterIsInstance<LibriaCard>().size == 1 }
 
         val cards = viewModel.cardsData.value.filterIsInstance<LibriaCard>()
@@ -152,22 +148,47 @@ class SearchViewModelTest {
         )
         val searchRepository = mockk<SearchRepository>()
         coEvery { searchRepository.searchReleases(any(), any()) } returns paginatedResponse(emptyList())
-        val searchController = SearchController()
         val viewModel = SearchViewModel(
             tvSearchUseCase = tvSearchUseCase,
             converter = searchConverter(),
             router = mockk<Router>(relaxed = true),
             cardRouter = mockk<LibriaCardRouter>(relaxed = true),
             searchRepository = searchRepository,
-            searchController = searchController,
         )
         viewModel.setLoaderDispatcherForTests(testDispatcher)
 
-        searchController.applyFormEvent.emit(SearchForm(sort = SearchForm.Sort.DATE))
+        viewModel.submitSearchForm(SearchForm(sort = SearchForm.Sort.DATE))
         waitUntil { viewModel.cardsData.value.filterIsInstance<LibriaCard>().size == 2 }
 
         val cards = viewModel.cardsData.value.filterIsInstance<LibriaCard>()
         assertEquals(listOf("newer-but-stale", "older-but-fresh"), cards.map(LibriaCard::title))
+    }
+
+    @Test
+    fun sameForm_isNotReloadedTwice() = runBlocking {
+        val tvSearchUseCase = mockk<TvSearchUseCase>()
+        coEvery { tvSearchUseCase.searchReleases(any(), any()) } returns listOf(
+            fakeRelease(id = 1, title = "only-release"),
+        )
+        val searchRepository = mockk<SearchRepository>()
+        coEvery { searchRepository.searchReleases(any(), any()) } returns paginatedResponse(emptyList())
+        val viewModel = SearchViewModel(
+            tvSearchUseCase = tvSearchUseCase,
+            converter = searchConverter(),
+            router = mockk<Router>(relaxed = true),
+            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+            searchRepository = searchRepository,
+        )
+        viewModel.setLoaderDispatcherForTests(testDispatcher)
+
+        val form = SearchForm(sort = SearchForm.Sort.DATE)
+        viewModel.submitSearchForm(form)
+        waitUntil { viewModel.cardsData.value.filterIsInstance<LibriaCard>().size == 1 }
+
+        viewModel.submitSearchForm(form)
+
+        coVerify(exactly = 1) { tvSearchUseCase.searchReleases(match { it.sort == SearchForm.Sort.DATE }, 1) }
+        coVerify(exactly = 0) { searchRepository.searchReleases(any(), any()) }
     }
 
     private suspend fun waitUntil(predicate: () -> Boolean) {

@@ -1,12 +1,9 @@
 package ru.radiationx.anilibria.screen.search
 
-import androidx.lifecycle.viewModelScope
 import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import ru.radiationx.anilibria.common.isCompletedForTvCollectionFilters
 import ru.radiationx.anilibria.common.tvCollectionRecencyComparator
 import ru.radiationx.anilibria.common.BaseCardsViewModel
@@ -26,10 +23,10 @@ class SearchViewModel @Inject constructor(
     private val router: Router,
     private val cardRouter: LibriaCardRouter,
     private val searchRepository: SearchRepository,
-    searchController: SearchController,
 ) : BaseCardsViewModel() {
 
     private var searchForm = SearchForm()
+    private var hasSubmittedSearchForm = false
 
     private val _progressState = MutableStateFlow(false)
     val progressState: StateFlow<Boolean> = _progressState.asStateFlow()
@@ -38,11 +35,13 @@ class SearchViewModel @Inject constructor(
 
     override val progressOnRefresh: Boolean = false
 
-    init {
-        searchController.applyFormEvent.onEach {
-            searchForm = it
-            onRefreshClick()
-        }.launchIn(viewModelScope)
+    fun submitSearchForm(form: SearchForm) {
+        if (hasSubmittedSearchForm && searchForm == form) {
+            return
+        }
+        hasSubmittedSearchForm = true
+        searchForm = form
+        onRefreshClick()
     }
 
     override suspend fun getLoader(requestPage: Int): List<LibriaCard> {

@@ -54,6 +54,17 @@ Current selection:
 - первым и единственным medium step в этом проходе выбран `suggestions` controller seam;
 - остальные направления оставляются только при явном low-risk окне после верификации, иначе уходят в следующий этап.
 
+Current selection for the next pass:
+- после закрытия `suggestions` следующим узким кандидатом выбран `search` controller seam;
+- успехом считается либо локальное удаление `SearchController`/`SearchModule` с прямым flow `form VM -> fragment -> cards VM`, либо честная фиксация safe boundary без дальнейшего churn.
+
+Status update:
+- `search` controller seam выбран и закрыт как safe local simplification;
+- следующими кандидатами остаются только:
+  - shared filter/grid scaffold;
+  - shared section/focus coordinator;
+- брать их вместе в одном проходе не планируется.
+
 Execution rule:
 - брать только одно направление за раз;
 - перед началом каждой итерации перепроверять: "а не фигню ли я делаю?";

@@ -27,7 +27,6 @@ import timber.log.Timber
 import javax.inject.Inject
 
 class SearchFormViewModel @Inject constructor(
-    private val searchController: SearchController,
     private val tvSearchUseCase: TvSearchUseCase,
 ) : LifecycleViewModel() {
 
@@ -60,6 +59,8 @@ class SearchFormViewModel @Inject constructor(
 
     private val _filterPicker = MutableStateFlow<TvCollectionFilterPickerState?>(null)
     internal val filterPicker: StateFlow<TvCollectionFilterPickerState?> = _filterPicker.asStateFlow()
+    private val _searchFormData = MutableStateFlow(SearchForm())
+    internal val searchFormData: StateFlow<SearchForm> = _searchFormData.asStateFlow()
 
     private var searchForm = SearchForm()
     private var availableYears: List<YearItem> = emptyList()
@@ -67,37 +68,7 @@ class SearchFormViewModel @Inject constructor(
     private var availableGenres: List<GenreItem> = emptyList()
 
     init {
-        updateDataByForm(emitApply = true)
-
-        searchController.yearsEvent.onEach {
-            searchForm = searchForm.copy(years = it)
-            updateDataByForm()
-            syncFilterPicker()
-        }.launchIn(viewModelScope)
-
-        searchController.seasonsEvent.onEach {
-            searchForm = searchForm.copy(seasons = it)
-            updateDataByForm()
-            syncFilterPicker()
-        }.launchIn(viewModelScope)
-
-        searchController.genresEvent.onEach {
-            searchForm = searchForm.copy(genres = it)
-            updateDataByForm()
-            syncFilterPicker()
-        }.launchIn(viewModelScope)
-
-        searchController.sortEvent.onEach {
-            searchForm = searchForm.copy(sort = it)
-            updateDataByForm()
-            syncFilterPicker()
-        }.launchIn(viewModelScope)
-
-        searchController.completedEvent.onEach {
-            searchForm = searchForm.copy(onlyCompleted = it)
-            updateDataByForm()
-            syncFilterPicker()
-        }.launchIn(viewModelScope)
+        updateDataByForm()
 
         tvSearchUseCase.observeYears().onEach { years ->
             availableYears = years
@@ -232,14 +203,16 @@ class SearchFormViewModel @Inject constructor(
             when (current.kind) {
                 TvCollectionFilterPickerKind.SORT -> {
                     resolveSortOption(index)?.let { sort ->
-                        searchController.sortEvent.emit(sort)
+                        searchForm = searchForm.copy(sort = sort)
+                        updateDataByForm()
                         true
                     } ?: false
                 }
 
                 TvCollectionFilterPickerKind.COMPLETED -> {
                     resolveCompletedOption(index)?.let { onlyCompleted ->
-                        searchController.completedEvent.emit(onlyCompleted)
+                        searchForm = searchForm.copy(onlyCompleted = onlyCompleted)
+                        updateDataByForm()
                         true
                     } ?: false
                 }
@@ -349,7 +322,8 @@ class SearchFormViewModel @Inject constructor(
                 if (nextSelection == searchForm.years.toSet()) {
                     false
                 } else {
-                    searchController.yearsEvent.emit(nextSelection)
+                    searchForm = searchForm.copy(years = nextSelection)
+                    updateDataByForm()
                     true
                 }
             }
@@ -361,7 +335,8 @@ class SearchFormViewModel @Inject constructor(
                 if (nextSelection == searchForm.seasons.toSet()) {
                     false
                 } else {
-                    searchController.seasonsEvent.emit(nextSelection)
+                    searchForm = searchForm.copy(seasons = nextSelection)
+                    updateDataByForm()
                     true
                 }
             }
@@ -373,7 +348,8 @@ class SearchFormViewModel @Inject constructor(
                 if (nextSelection == searchForm.genres.toSet()) {
                     false
                 } else {
-                    searchController.genresEvent.emit(nextSelection)
+                    searchForm = searchForm.copy(genres = nextSelection)
+                    updateDataByForm()
                     true
                 }
             }
@@ -384,7 +360,7 @@ class SearchFormViewModel @Inject constructor(
         }
     }
 
-    private fun updateDataByForm(emitApply: Boolean = true) {
+    private fun updateDataByForm() {
         val yearLabel = searchForm.years
             .map(YearItem::title)
             .sortedDescending()
@@ -403,6 +379,7 @@ class SearchFormViewModel @Inject constructor(
         _genreData.value = genreLabel
         _sortData.value = sortLabel
         _onlyCompletedData.value = onlyCompletedLabel
+        _searchFormData.value = searchForm
         _filtersUiState.value = buildTvCollectionFiltersUiState(
             yearLabel = yearLabel,
             yearEmphasized = searchForm.years.isNotEmpty(),
@@ -415,9 +392,5 @@ class SearchFormViewModel @Inject constructor(
             onlyCompletedLabel = onlyCompletedLabel,
             onlyCompletedEmphasized = searchForm.onlyCompleted,
         )
-
-        if (emitApply) {
-            searchController.applyFormEvent.emit(searchForm)
-        }
     }
 }

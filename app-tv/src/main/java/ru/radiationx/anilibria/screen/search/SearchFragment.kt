@@ -131,6 +131,10 @@ class SearchFragment : Fragment() {
             cardsState = it
         }
 
+        subscribeTo(formViewModel.searchFormData) {
+            cardsViewModel.submitSearchForm(it)
+        }
+
         subscribeTo(formViewModel.filtersUiState) {
             filtersState = it
         }

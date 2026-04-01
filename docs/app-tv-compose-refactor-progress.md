@@ -136,3 +136,118 @@
 - есть завершённый набор quick wins;
 - есть один закрытый medium refactor с реальным упрощением feature flow;
 - дальше лучше идти отдельным этапом, а не докручивать scope вширь в текущем проходе.
+
+## New pass: `search` inventory
+
+Сначала перечитаны:
+- `docs/app-tv-compose-refactor-plan.md`
+- `docs/app-tv-compose-refactor-progress.md`
+- `docs/app-tv-compose-refactor-final-report.md`
+
+Проверено по текущему коду:
+- `SearchController` используется только внутри `search` feature и DI-модуля `SearchModule`.
+- `SearchViewModel` использует controller только для одного потока: `applyFormEvent`.
+- `SearchFormViewModel` использует controller как bus почти для всей фильтр-логики, включая пересылку части изменений обратно в собственный `searchForm`.
+- `SearchFragment` уже и так является coordinator между `SearchViewModel` и `SearchFormViewModel`, то есть локальный fragment-mediated flow здесь уже существует.
+- Отдельной row visibility VM, как было в `suggestions`, здесь нет.
+- `CatalogCompose` не зависит напрямую от controller seam; ему нужен только итоговый state из fragment/view models.
+- `SearchModule` нужен только для регистрации `SearchController`, а `MainActivity` ставит его только ради этого.
+
+### Проверка: а не фигню ли я делаю?
+
+- Это выглядит как реально следующий лучший шаг, а не как большой refactor: seam локальный и сравнимый по масштабу с уже упрощённым `suggestions`.
+- Упрощение data flow здесь должно быть прямым: вместо `form VM -> controller -> cards VM` и `form VM -> controller -> form VM` можно перейти к `form VM state -> fragment -> cards VM`.
+- Это не тянет автоматически rewrite `favorites`, shared filter engine или navigation, если держать scope только в `search`.
+
+### Риск
+
+- Самые опасные файлы:
+  - `SearchFormViewModel.kt`
+  - `SearchViewModel.kt`
+  - `SearchFragment.kt`
+- Основной риск роста churn:
+  - случайно начать строить общий filter engine под `favorites`;
+  - полезть в `CatalogCompose` глубже, чем нужно для state binding;
+  - сломать initial load / repeated submit поведение при пересоздании view.
+- Точка остановки:
+  - если для удаления controller придётся трогать `favorites`, shared TV filter abstractions или navigation/DI шире `search`, дальше идти нельзя.
+
+### Выбранный исход
+
+- Исход A: safe local simplification possible.
+- План на локальный refactor:
+  - убрать `SearchController` и `SearchModule`;
+  - дать `SearchFormViewModel` прямой `searchForm` state;
+  - дать `SearchViewModel` явный метод приёма form без event-bus;
+  - оставить coordination через `SearchFragment`, потому что он уже и так держит feature binding.
+
+## New pass: `search` execution
+
+Факт по текущему worktree:
+- к моменту этой проверки локальный refactor уже частично лежал в незакоммиченном состоянии;
+- поэтому сначала был перепроверен diff, чтобы не “делать то же самое второй раз” и не расширить scope задним числом.
+
+Что реально изменено в `search`:
+- удалены:
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/SearchController.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/di/SearchModule.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/SearchFormViewModel.kt`
+  - больше не зависит от controller/event-bus;
+  - держит прямой `searchFormData`;
+  - обновляет собственный `SearchForm` напрямую при sort/completed/year/season/genre изменениях.
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/SearchViewModel.kt`
+  - больше не подписывается на `applyFormEvent`;
+  - принимает form через явный `submitSearchForm`.
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/SearchFragment.kt`
+  - теперь связывает `formViewModel.searchFormData` с `cardsViewModel.submitSearchForm(...)`;
+  - при этом UI/focus/picker binding остался локальным и без переписывания `CatalogCompose`.
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/launcher/MainActivity.kt`
+  - больше не устанавливает `SearchModule`.
+- тесты:
+  - `app-tv/src/test/java/ru/radiationx/anilibria/screen/search/SearchViewModelTest.kt` переведён на новый API;
+  - добавлен `app-tv/src/test/java/ru/radiationx/anilibria/screen/search/SearchFormViewModelTest.kt` как smoke-check, что sort picker теперь обновляет direct form state без controller seam.
+- сопутствующий cleanup:
+  - `app-tv/detekt-baseline.xml` очищен от stale entries для уже удалённых `SearchController.kt`, `SearchModule.kt` и `SuggestionsController.kt`.
+
+### Проверка: а не фигню ли я делаю?
+
+- После просмотра diff ответ остаётся “нет”: refactor не вышел за пределы `search` плюс один DI-хвост в `MainActivity`.
+- Новый state flow проще старого seam:
+  - было: `form VM -> controller -> cards VM` и местами `form VM -> controller -> form VM`;
+  - стало: `form VM state -> fragment binding -> cards VM`.
+- В `favorites`, shared filter engine, navigation и player я не полез.
+
+### Риск
+
+- Самый тонкий участок здесь не удаление controller, а поведение при повторной подписке fragment на `searchFormData`.
+- Для этого в `SearchViewModel` добавлен guard от повторного reload одного и того же `SearchForm`.
+- Отдельно проверен stop point:
+  - не понадобилось менять `CatalogCompose`;
+  - не понадобилось вводить новый shared abstraction layer;
+  - дальше полировать `search` без новых фактов уже не нужно.
+
+### Почему продолжаю / почему останавливаюсь
+
+- Продолжаю:
+  - потому что текущий scope даёт прямое упрощение ownership и убирает migration bus.
+- Останавливаюсь на этой границе:
+  - потому что следующий шаг уже был бы либо про shared filter engine, либо про более широкий UI cleanup, а это другой проход.
+
+## Verification after `search` refactor
+
+Проверено:
+- `./gradlew.bat :app-tv:testDebugUnitTest --console=plain` — успешно после `search` refactor и обновления unit tests.
+
+Дополнительная проверка:
+- repo-wide поиск больше не находит source usages `SearchController`/`SearchModule`; оставшиеся совпадения только в audit/progress/final-report и в исторических формулировках.
+
+### Проверка: а не фигню ли я делаю?
+
+- Нет: после unit-test прогона и repo-wide usage check новый direct flow выглядит проще старого controller seam и не потянул лишние cross-feature зависимости.
+- Новый state holder не стал сложнее старого: лишний bus исчез, а fragment сохранил роль локального binder-а, которую и так уже выполнял.
+
+### Почему продолжаю / почему останавливаюсь
+
+- Останавливаюсь:
+  - потому что цель прохода закрыта;
+  - дальнейшие изменения в `search` уже были бы либо про shared abstractions, либо про UI-polish, а это вне safe local scope.

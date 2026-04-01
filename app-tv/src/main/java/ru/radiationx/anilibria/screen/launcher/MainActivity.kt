@@ -14,7 +14,6 @@ import ru.radiationx.shared.ktx.android.subscribeTo
 import ru.radiationx.anilibria.di.ActivityModule
 import ru.radiationx.anilibria.di.AppModule
 import ru.radiationx.anilibria.di.NavigationModule
-import ru.radiationx.anilibria.di.SearchModule
 import ru.radiationx.quill.inject
 
 class MainActivity : FragmentActivity() {
@@ -34,7 +33,6 @@ class MainActivity : FragmentActivity() {
             ActivityModule(this),
             AppModule(this),
             NavigationModule(),
-            SearchModule(),
         )
 
         super.onCreate(savedInstanceState)

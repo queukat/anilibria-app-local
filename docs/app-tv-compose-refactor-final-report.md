@@ -20,10 +20,17 @@
   - удалены `SuggestionsController` и `SuggestionsRowsViewModel`;
   - введён прямой `SuggestionsResultUiState`;
   - `SuggestionsFragment` теперь строит rows напрямую из feature state без event-bus/adaptor слоя.
+- Выполнен ещё один локальный medium refactor по `search`:
+  - удалены `SearchController` и `SearchModule`;
+  - `SearchFormViewModel` теперь публикует прямой `searchFormData` и обновляет `SearchForm` без bus-слоя;
+  - `SearchFragment` напрямую связывает form state с `SearchViewModel.submitSearchForm(...)`;
+  - `SearchViewModel` больше не зависит от controller и держит только cards/result ownership;
+  - unit tests обновлены под новый flow, добавлен отдельный smoke-test на direct form state в `SearchFormViewModel`.
+- Подчищен хвост после удаления controller seams:
+  - `app-tv/detekt-baseline.xml` больше не содержит stale entries на удалённые `SearchController.kt`, `SearchModule.kt` и `SuggestionsController.kt`.
 
 ## 2. Что не сделано
 
-- Не тронут `SearchController` и search flow в целом.
 - Не вынесен shared section/focus coordinator из `MainCompose` / `WatchingCompose` / `DetailCompose` / `SuggestionsCompose` / `ScheduleCompose`.
 - Не вынесен shared filter/grid scaffold между `CatalogCompose` и `WatchingFavoritesCompose`.
 - Не сокращён wrapper-layer в `MainPageContent` / `WatchingPageContent`.
@@ -41,24 +48,30 @@
 ## 4. Какие риски остались
 
 - Большие дубли по section/focus restore и filter/grid flow остались.
-- `search` по-прежнему использует controller seam, в отличие от уже упрощённого `suggestions`.
+- В `search` и `suggestions` controller seams уже убраны, но shared filter/grid и focus primitives всё ещё дублируются между фичами.
 - В worktree остаётся много чужих/предсуществующих изменений в крупных UI-файлах, поэтому любой следующий medium refactor надо снова начинать с локальной инвентаризации.
 - Smoke test теперь компилируется и опирается на актуальные текстовые маркеры, но сам `connectedAndroidTest` не запускался в этой сессии.
+- Для `search` прогнаны unit tests, но UI/runtime поведение на реальном TV-девайсе или эмуляторе в этом проходе не проверялось.
 
 ## 5. Что было самым полезным изменением
 
-Самым полезным изменением был локальный refactor `suggestions`:
-- он убрал лишний controller/event-bus слой;
-- сократил количество moving parts в feature;
-- при этом не потребовал трогать navigation, player runtime или shared TV infra.
+Самыми полезными изменениями были локальные refactors `suggestions` и `search`:
+- оба убрали controller/event-bus seam и свели feature flow к прямому state ownership;
+- в `suggestions` результат и row visibility теперь живут в одном `uiState`;
+- в `search` form coordination теперь идёт через `SearchFragment`, а не через отдельный bus;
+- оба шага обошлись без rewrite navigation, player runtime или shared TV infra.
 
 ## 6. Что стоит делать следующим этапом
 
-- Отдельным проходом разобрать `SearchController` и понять, можно ли схлопнуть search flow так же локально, как это удалось в `suggestions`.
-- После этого брать либо:
+- Следующим отдельным проходом брать либо:
   - shared filter/grid scaffold,
   - либо shared section/focus coordinator.
-- В обоих случаях идти только после повторной проверки текущего состояния больших файлов из dirty worktree.
+- В обоих случаях идти только после повторной проверки текущего состояния больших файлов и не тянуть оба направления в один проход.
+
+Сравнение `search` с уже упрощённым `suggestions`:
+- `suggestions` стал feature-first по `uiState` и rows;
+- `search` теперь тоже feature-first по form/result coordination;
+- разница в том, что `search` пока осознанно оставляет fragment как локальный binder между двумя VM, а не склеивает всё в один state holder. Для текущего scope это нормальный safe compromise.
 
 ## Not included (because ...)
 

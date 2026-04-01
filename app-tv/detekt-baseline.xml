@@ -59,11 +59,8 @@
     <ID>NewLineAtEndOfFile:NavigationModule.kt$ru.radiationx.anilibria.di.NavigationModule.kt</ID>
     <ID>NewLineAtEndOfFile:RowDiffCallback.kt$ru.radiationx.anilibria.common.RowDiffCallback.kt</ID>
     <ID>NewLineAtEndOfFile:Screens.kt$ru.radiationx.anilibria.screen.Screens.kt</ID>
-    <ID>NewLineAtEndOfFile:SearchController.kt$ru.radiationx.anilibria.screen.search.SearchController.kt</ID>
     <ID>NewLineAtEndOfFile:SearchFragment.kt$ru.radiationx.anilibria.screen.search.SearchFragment.kt</ID>
-    <ID>NewLineAtEndOfFile:SearchModule.kt$ru.radiationx.anilibria.di.SearchModule.kt</ID>
     <ID>NewLineAtEndOfFile:SpeedAction.kt$ru.radiationx.anilibria.screen.player.SpeedAction.kt</ID>
-    <ID>NewLineAtEndOfFile:SuggestionsController.kt$ru.radiationx.anilibria.screen.suggestions.SuggestionsController.kt</ID>
     <ID>NewLineAtEndOfFile:SystemSuggestionEntity.kt$ru.radiationx.anilibria.contentprovider.SystemSuggestionEntity.kt</ID>
     <ID>NewLineAtEndOfFile:TvCheckerSources.kt$ru.radiationx.anilibria.TvCheckerSources.kt</ID>
     <ID>NewLineAtEndOfFile:UpdateFragment.kt$ru.radiationx.anilibria.screen.update.UpdateFragment.kt</ID>
