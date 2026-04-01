@@ -23,13 +23,12 @@ import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
+import ru.radiationx.anilibria.common.shouldRequestTvCollectionPickerFocus
+import ru.radiationx.anilibria.common.tvCollectionFilterIndex
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
 import ru.radiationx.shared.ktx.android.subscribeTo
 import ru.radiationx.quill.viewModel
-
-private const val FILTER_INDEX_SORT = 3
-private const val FILTER_INDEX_COMPLETED = 4
 
 class SearchFragment : Fragment() {
 
@@ -143,10 +142,10 @@ class SearchFragment : Fragment() {
             val previous = pickerState
             pickerState = picker
             pickerBackCallback?.isEnabled = picker != null
-            if (picker != null && shouldRequestPickerFocus(previous, picker)) {
+            if (picker != null && shouldRequestTvCollectionPickerFocus(previous, picker)) {
                 pickerFocusRequestToken++
             } else if (previous != null) {
-                restoreFilterIndex = filterIndexFor(previous.kind)
+                restoreFilterIndex = tvCollectionFilterIndex(previous.kind)
                 restoreFilterToken++
             }
         }
@@ -170,23 +169,4 @@ class SearchFragment : Fragment() {
         }
     }
 
-    private fun filterIndexFor(kind: TvCollectionFilterPickerKind): Int {
-        return when (kind) {
-            TvCollectionFilterPickerKind.YEAR -> 0
-            TvCollectionFilterPickerKind.SEASON -> 1
-            TvCollectionFilterPickerKind.GENRE -> 2
-            TvCollectionFilterPickerKind.SORT -> FILTER_INDEX_SORT
-            TvCollectionFilterPickerKind.COMPLETED -> FILTER_INDEX_COMPLETED
-        }
-    }
-
-    private fun shouldRequestPickerFocus(
-        previous: TvCollectionFilterPickerState?,
-        next: TvCollectionFilterPickerState,
-    ): Boolean {
-        return previous == null ||
-            previous.kind != next.kind ||
-            previous.options != next.options ||
-            previous.multiSelect != next.multiSelect
-    }
 }

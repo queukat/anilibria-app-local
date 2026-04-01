@@ -53,6 +53,11 @@ import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.WatchingFilterChip
 import ru.radiationx.anilibria.screen.watching.WatchingFilterPickerDialog
+import ru.radiationx.anilibria.screen.watching.TvCollectionFilterAction
+import ru.radiationx.anilibria.screen.watching.TvCollectionFiltersRow
+import ru.radiationx.anilibria.screen.watching.TvCollectionGridStateContent
+import ru.radiationx.anilibria.screen.watching.TvCollectionMessageCardUiModel
+import ru.radiationx.anilibria.screen.watching.TvCollectionStatePanelUiModel
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.WatchingMessageCard
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
@@ -121,11 +126,11 @@ internal fun CatalogScreen(
     val gridState = rememberLazyGridState()
     val filterItems = remember(filters) {
         listOf(
-            CatalogFilterUiModel(filters.year.label, filters.year.emphasized, onYearClick),
-            CatalogFilterUiModel(filters.season.label, filters.season.emphasized, onSeasonClick),
-            CatalogFilterUiModel(filters.genre.label, filters.genre.emphasized, onGenreClick),
-            CatalogFilterUiModel(filters.sort.label, filters.sort.emphasized, onSortClick),
-            CatalogFilterUiModel(
+            TvCollectionFilterAction(filters.year.label, filters.year.emphasized, onYearClick),
+            TvCollectionFilterAction(filters.season.label, filters.season.emphasized, onSeasonClick),
+            TvCollectionFilterAction(filters.genre.label, filters.genre.emphasized, onGenreClick),
+            TvCollectionFilterAction(filters.sort.label, filters.sort.emphasized, onSortClick),
+            TvCollectionFilterAction(
                 filters.onlyCompleted.label,
                 filters.onlyCompleted.emphasized,
                 onOnlyCompletedClick,
@@ -178,6 +183,62 @@ internal fun CatalogScreen(
     val gridDescriptionInset = if (hasContent) TvGridBottomDescriptionInset else TvBottomContentInset
     val gridBottomClearancePx = remember(hasContent, density) {
         with(density) { if (hasContent) TvGridBottomDescriptionInset.roundToPx() else 0 }
+    }
+    val statePanel = remember(stateCard, progressVisible, hasCustomFilters, stateActionCard) {
+        val title: String
+        val subtitle: String
+        val accent: Boolean
+        val loading: Boolean
+        when (val item = stateCard) {
+            is LoadingCard -> {
+                title = item.title.ifBlank { "Ищем релизы" }
+                subtitle = item.description.ifBlank {
+                    if (item.isError) {
+                        "Проверьте подключение и попробуйте снова."
+                    } else {
+                        "Подождите, каталог обновляет результаты."
+                    }
+                }
+                accent = item.isError
+                loading = !item.isError
+            }
+
+            is InfoCard -> {
+                title = item.title
+                subtitle = item.subtitle
+                accent = false
+                loading = false
+            }
+
+            is LinkCard -> {
+                title = item.title
+                subtitle = "Выберите другой фильтр или откройте отдельный поиск."
+                accent = false
+                loading = false
+            }
+
+            else -> {
+                loading = progressVisible
+                accent = false
+                if (progressVisible) {
+                    title = "Ищем релизы"
+                    subtitle = "Подождите, каталог обновляет результаты."
+                } else if (hasCustomFilters) {
+                    title = "Ничего не найдено"
+                    subtitle = "Попробуйте ослабить фильтры или откройте отдельный поиск."
+                } else {
+                    title = "Каталог готов"
+                    subtitle = "Откройте поиск или настройте фильтры, чтобы быстро сузить список релизов."
+                }
+            }
+        }
+        TvCollectionStatePanelUiModel(
+            title = title,
+            subtitle = subtitle,
+            accent = accent,
+            loading = loading,
+            actionText = stateActionCard?.title,
+        )
     }
 
     fun gridAnchorIndex(index: Int): Int {
@@ -302,290 +363,141 @@ internal fun CatalogScreen(
                     },
                 )
 
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    state = filtersRowState,
-                    horizontalArrangement = Arrangement.spacedBy(TvFilterRowSpacing),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    lazyItemsIndexed(filterItems) { index, filter ->
-                        WatchingFilterChip(
-                            text = filter.label,
-                            palette = palette,
-                            focusRequester = filterRequesters[index],
-                            enabled = interactionsEnabled,
-                            emphasized = filter.emphasized,
-                            onClick = filter.onClick,
-                            onFocused = {
-                                lastFocusedFilterIndex = index
-                                lastFocusTarget = CatalogFocusTarget.Filter.name
-                                selectedItem = null
-                                scope.launch {
-                                    filtersRowState.scrollItemIntoViewIfNeeded(index)
-                                }
-                            },
-                            onLeft = if (index == 0) {
-                                { requestWatchingFocus(searchRequester) }
-                            } else {
-                                null
-                            },
-                            onDown = {
-                                requestGridFocus(lastFocusedItemIndex)
-                            },
-                        )
-                    }
-                }
-
-                Box(modifier = Modifier.fillMaxSize()) {
-                    if (showStatePanel) {
-                        val stateTitle: String
-                        val stateSubtitle: String
-                        val stateAccent: Boolean
-                        val stateLoading: Boolean
-                        when (val item = stateCard) {
-                            is LoadingCard -> {
-                                stateTitle = item.title.ifBlank { "Ищем релизы" }
-                                stateSubtitle = item.description.ifBlank {
-                                    if (item.isError) {
-                                        "Проверьте подключение и попробуйте снова."
-                                    } else {
-                                        "Подождите, каталог обновляет результаты."
-                                    }
-                                }
-                                stateAccent = item.isError
-                                stateLoading = !item.isError
-                            }
-
-                            is InfoCard -> {
-                                stateTitle = item.title
-                                stateSubtitle = item.subtitle
-                                stateAccent = false
-                                stateLoading = false
-                            }
-
-                            is LinkCard -> {
-                                stateTitle = item.title
-                                stateSubtitle = "Выберите другой фильтр или откройте отдельный поиск."
-                                stateAccent = false
-                                stateLoading = false
-                            }
-
-                            else -> {
-                                stateLoading = progressVisible
-                                stateAccent = false
-                                if (progressVisible) {
-                                    stateTitle = "Ищем релизы"
-                                    stateSubtitle = "Подождите, каталог обновляет результаты."
-                                } else if (hasCustomFilters) {
-                                    stateTitle = "Ничего не найдено"
-                                    stateSubtitle = "Попробуйте ослабить фильтры или откройте отдельный поиск."
-                                } else {
-                                    stateTitle = "Каталог готов"
-                                    stateSubtitle =
-                                        "Откройте поиск или настройте фильтры, чтобы быстро сузить список релизов."
-                                }
-                            }
+                TvCollectionFiltersRow(
+                    filters = filterItems,
+                    palette = palette,
+                    rowState = filtersRowState,
+                    filterRequesters = filterRequesters,
+                    interactionsEnabled = interactionsEnabled,
+                    onFilterFocused = { index ->
+                        lastFocusedFilterIndex = index
+                        lastFocusTarget = CatalogFocusTarget.Filter.name
+                        selectedItem = null
+                        scope.launch {
+                            filtersRowState.scrollItemIntoViewIfNeeded(index)
                         }
-
-                        TvContentStatePanel(
-                            title = stateTitle,
-                            subtitle = stateSubtitle,
-                            palette = palette,
-                            accent = stateAccent,
-                            loading = stateLoading,
-                            modifier = Modifier.align(Alignment.TopCenter),
-                            action = stateActionCard?.let { actionCard ->
-                                {
-                                    TvContentStateActionButton(
-                                        text = actionCard.title,
-                                        palette = palette,
-                                        focusRequester = stateActionRequester,
-                                        onClick = { onItemClick(actionCard) },
-                                        onLeft = { requestWatchingFocus(searchRequester) },
-                                        onUp = { requestFilterFocus(lastFocusedFilterIndex) },
-                                        onDown = { true },
-                                    )
-                                }
-                            },
-                        )
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(columnsCount),
-                            state = gridState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                bottom = gridDescriptionInset
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(18.dp),
-                            horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
-                        ) {
-                            itemsIndexed(
-                                items = cards,
-                                key = { _, item -> item.getId() },
-                                span = { _, item -> spanForCatalogItem(item) },
-                            ) { index, item ->
-                                when (item) {
-                                    is LibriaCard -> WatchingPosterCard(
-                                        imageUrl = item.image,
-                                        palette = palette,
-                                        focusRequester = itemRequesters[index],
-                                        enabled = interactionsEnabled,
-                                        scaleTransformOrigin = edgeAwareGridTransformOrigin(
-                                            index = index,
-                                            columnsCount = columnsCount,
-                                            itemsCount = cards.size,
-                                        ),
-                                        onClick = { onItemClick(item) },
-                                        onFocused = {
-                                            selectedItem = item
-                                            lastFocusedItemIndex = index
-                                            lastFocusedItemId = item.getId()
-                                            lastFocusTarget = CatalogFocusTarget.Grid.name
-                                            scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(
-                                                    index = index,
-                                                    anchorIndex = gridAnchorIndex(index),
-                                                    bottomClearancePx = gridBottomClearancePx,
-                                                )
-                                            }
-                                        },
-                                        onUp = if (index < columnsCount) {
-                                            {
-                                                requestWatchingFocus(
-                                                    filterRequesters.getOrNull(lastFocusedFilterIndex)
-                                                        ?: filterRequesters.firstOrNull()
-                                                )
-                                            }
-                                        } else {
-                                            null
-                                        },
-                                    )
-
-                                    is InfoCard -> WatchingWideMessageCard(
-                                        title = item.title,
-                                        subtitle = item.subtitle,
-                                        palette = palette,
-                                        focusRequester = itemRequesters[index],
-                                        enabled = interactionsEnabled,
-                                        onClick = { onItemClick(item) },
-                                        onFocused = {
-                                            selectedItem = null
-                                            lastFocusedItemIndex = index
-                                            lastFocusedItemId = item.getId()
-                                            lastFocusTarget = CatalogFocusTarget.Grid.name
-                                            scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(
-                                                    index = index,
-                                                    anchorIndex = gridAnchorIndex(index),
-                                                    bottomClearancePx = gridBottomClearancePx,
-                                                )
-                                            }
-                                        },
-                                        onUp = {
-                                            requestWatchingFocus(
-                                                filterRequesters.getOrNull(lastFocusedFilterIndex)
-                                                    ?: filterRequesters.firstOrNull()
-                                            )
-                                        },
-                                    )
-
-                                    is LinkCard -> WatchingWideMessageCard(
-                                        title = item.title,
-                                        subtitle = "Нажмите, чтобы выполнить действие",
-                                        palette = palette,
-                                        focusRequester = itemRequesters[index],
-                                        enabled = interactionsEnabled,
-                                        onClick = { onItemClick(item) },
-                                        onFocused = {
-                                            selectedItem = null
-                                            lastFocusedItemIndex = index
-                                            lastFocusedItemId = item.getId()
-                                            lastFocusTarget = CatalogFocusTarget.Grid.name
-                                            scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(
-                                                    index = index,
-                                                    anchorIndex = gridAnchorIndex(index),
-                                                    bottomClearancePx = gridBottomClearancePx,
-                                                )
-                                            }
-                                        },
-                                        onUp = {
-                                            requestWatchingFocus(
-                                                filterRequesters.getOrNull(lastFocusedFilterIndex)
-                                                    ?: filterRequesters.firstOrNull()
-                                            )
-                                        },
-                                    )
-
-                                    is LoadingCard -> WatchingWideMessageCard(
-                                        title = item.title.ifBlank { "Загрузка" },
-                                        subtitle = item.description.ifBlank {
-                                            if (item.isError) "Нажмите, чтобы повторить попытку" else ""
-                                        },
-                                        palette = palette.copy(
-                                            accentColor = if (item.isError) {
-                                                palette.accentColor
-                                            } else {
-                                                palette.textColor.copy(alpha = 0.4f)
-                                            }
-                                        ),
-                                        focusRequester = itemRequesters[index],
-                                        enabled = interactionsEnabled,
-                                        loading = !item.isError,
-                                        onClick = { onItemClick(item) },
-                                        onFocused = {
-                                            selectedItem = null
-                                            lastFocusedItemIndex = index
-                                            lastFocusedItemId = item.getId()
-                                            lastFocusTarget = CatalogFocusTarget.Grid.name
-                                            scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(
-                                                    index = index,
-                                                    anchorIndex = gridAnchorIndex(index),
-                                                    bottomClearancePx = gridBottomClearancePx,
-                                                )
-                                            }
-                                        },
-                                        onUp = {
-                                            requestWatchingFocus(
-                                                filterRequesters.getOrNull(lastFocusedFilterIndex)
-                                                    ?: filterRequesters.firstOrNull()
-                                            )
-                                        },
-                                    )
-                                }
-                            }
+                    },
+                    onFilterLeft = { index ->
+                        if (index == 0) {
+                            { requestWatchingFocus(searchRequester) }
+                        } else {
+                            null
                         }
-                    }
+                    },
+                    onFilterDown = {
+                        { requestGridFocus(lastFocusedItemIndex) }
+                    },
+                )
 
-                    if (progressVisible && !showStatePanel && cards.any { it is LibriaCard }) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(top = 8.dp, end = 8.dp),
-                            color = palette.accentColor,
-                            trackColor = palette.textColor.copy(alpha = 0.18f),
-                        )
-                    }
-
-                    if (!showStatePanel) {
-                        selectedItem?.let { item ->
-                            val description = item.toTvCardDescription { card ->
-                                card.resolveDescription(context)
-                            }
-                            if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
-                                WatchingDescriptionBar(
-                                    title = description.title.toString(),
-                                    subtitle = description.subtitle.toString(),
-                                    palette = palette,
-                                    solidSurface = true,
-                                    modifier = Modifier.align(Alignment.BottomCenter),
+                TvCollectionGridStateContent(
+                    cards = cards,
+                    palette = palette,
+                    showStatePanel = showStatePanel,
+                    gridState = gridState,
+                    itemRequesters = itemRequesters,
+                    stateActionRequester = stateActionRequester,
+                    interactionsEnabled = interactionsEnabled,
+                    columnsCount = columnsCount,
+                    bottomContentPadding = gridDescriptionInset,
+                    selectedCard = selectedItem,
+                    statePanel = statePanel,
+                    onStateActionClick = stateActionCard?.let { actionCard ->
+                        { onItemClick(actionCard) }
+                    },
+                    onStateActionLeft = { requestWatchingFocus(searchRequester) },
+                    onStateActionUp = { requestFilterFocus(lastFocusedFilterIndex) },
+                    onItemClick = onItemClick,
+                    onItemFocused = { item, index ->
+                        if (item is LibriaCard) {
+                            selectedItem = item
+                        } else {
+                            selectedItem = null
+                        }
+                        lastFocusedItemIndex = index
+                        lastFocusedItemId = item.getId()
+                        lastFocusTarget = CatalogFocusTarget.Grid.name
+                        scope.launch {
+                            gridState.scrollItemIntoViewIfNeeded(
+                                index = index,
+                                anchorIndex = gridAnchorIndex(index),
+                                bottomClearancePx = gridBottomClearancePx,
+                            )
+                        }
+                    },
+                    onItemUp = { index, item ->
+                        if (item !is LibriaCard || index < columnsCount) {
+                            {
+                                requestWatchingFocus(
+                                    filterRequesters.getOrNull(lastFocusedFilterIndex)
+                                        ?: filterRequesters.firstOrNull()
                                 )
                             }
+                        } else {
+                            null
                         }
-                    }
-                }
+                    },
+                    messageCardModel = { item, itemPalette ->
+                        when (item) {
+                            is InfoCard -> TvCollectionMessageCardUiModel(
+                                title = item.title,
+                                subtitle = item.subtitle,
+                                palette = itemPalette,
+                            )
+
+                            is LinkCard -> TvCollectionMessageCardUiModel(
+                                title = item.title,
+                                subtitle = "Нажмите, чтобы выполнить действие",
+                                palette = itemPalette,
+                            )
+
+                            is LoadingCard -> TvCollectionMessageCardUiModel(
+                                title = item.title.ifBlank { "Загрузка" },
+                                subtitle = item.description.ifBlank {
+                                    if (item.isError) {
+                                        "Нажмите, чтобы повторить попытку"
+                                    } else {
+                                        ""
+                                    }
+                                },
+                                palette = itemPalette.copy(
+                                    accentColor = if (item.isError) {
+                                        itemPalette.accentColor
+                                    } else {
+                                        itemPalette.textColor.copy(alpha = 0.4f)
+                                    }
+                                ),
+                                loading = !item.isError,
+                            )
+
+                            else -> null
+                        }
+                    },
+                    descriptionContent = { item ->
+                        val description = item.toTvCardDescription { card ->
+                            card.resolveDescription(context)
+                        }
+                        if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
+                            WatchingDescriptionBar(
+                                title = description.title.toString(),
+                                subtitle = description.subtitle.toString(),
+                                palette = palette,
+                                solidSurface = true,
+                                modifier = Modifier.align(Alignment.BottomCenter),
+                            )
+                        }
+                    },
+                    overlayContent = {
+                        if (progressVisible && hasContent) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = 8.dp, end = 8.dp),
+                                color = palette.accentColor,
+                                trackColor = palette.textColor.copy(alpha = 0.18f),
+                            )
+                        }
+                    },
+                )
             }
 
             pickerState?.let { dialogState ->
@@ -633,14 +545,4 @@ private fun CatalogHeader(
             )
         },
     )
-}
-
-private data class CatalogFilterUiModel(
-    val label: String,
-    val emphasized: Boolean,
-    val onClick: () -> Unit,
-)
-
-private fun LazyGridItemSpanScope.spanForCatalogItem(item: CardItem): GridItemSpan {
-    return if (item is LibriaCard) GridItemSpan(1) else GridItemSpan(maxLineSpan)
 }

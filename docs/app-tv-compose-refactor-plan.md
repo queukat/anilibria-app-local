@@ -65,6 +65,13 @@ Status update:
   - shared section/focus coordinator;
 - брать их вместе в одном проходе не планируется.
 
+Status update for current pass:
+- `shared filter/grid scaffold` выбран следующим отдельным шагом;
+- критерий успеха для этого прохода сужен до двух допустимых исходов:
+  - либо минимальный shared Compose scaffold между `search` и `favorites`;
+  - либо честная фиксация safe boundary без захода в section/focus rewrite;
+- VM/filter engines, shell navigation и shared TV primitives migration не входят в этот проход.
+
 Execution rule:
 - брать только одно направление за раз;
 - перед началом каждой итерации перепроверять: "а не фигню ли я делаю?";

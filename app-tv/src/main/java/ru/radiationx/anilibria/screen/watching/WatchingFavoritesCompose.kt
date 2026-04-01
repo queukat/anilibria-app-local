@@ -86,27 +86,27 @@ internal fun WatchingFavoritesScreen(
     val gridState = rememberLazyGridState()
     val filterItems = remember(filters) {
         listOf(
-            FavoritesFilterUiModel(
+            TvCollectionFilterAction(
                 label = filters.year.label,
                 emphasized = filters.year.emphasized,
                 onClick = onYearClick,
             ),
-            FavoritesFilterUiModel(
+            TvCollectionFilterAction(
                 label = filters.season.label,
                 emphasized = filters.season.emphasized,
                 onClick = onSeasonClick,
             ),
-            FavoritesFilterUiModel(
+            TvCollectionFilterAction(
                 label = filters.genre.label,
                 emphasized = filters.genre.emphasized,
                 onClick = onGenreClick,
             ),
-            FavoritesFilterUiModel(
+            TvCollectionFilterAction(
                 label = filters.sort.label,
                 emphasized = filters.sort.emphasized,
                 onClick = onSortClick,
             ),
-            FavoritesFilterUiModel(
+            TvCollectionFilterAction(
                 label = filters.onlyCompleted.label,
                 emphasized = filters.onlyCompleted.emphasized,
                 onClick = onOnlyCompletedClick,
@@ -150,6 +150,59 @@ internal fun WatchingFavoritesScreen(
     val gridDescriptionInset = if (hasContent) TvGridBottomDescriptionInset else TvBottomContentInset
     val gridBottomClearancePx = remember(hasContent, density) {
         with(density) { if (hasContent) TvGridBottomDescriptionInset.roundToPx() else 0 }
+    }
+    val statePanel = remember(stateCard, hasCustomFilters, stateActionCard) {
+        val title: String
+        val subtitle: String
+        val accent: Boolean
+        val loading: Boolean
+        when (val item = stateCard) {
+            is LoadingCard -> {
+                title = item.title.ifBlank { "Загружаем избранное" }
+                subtitle = item.description.ifBlank {
+                    if (item.isError) {
+                        "Проверьте подключение и попробуйте ещё раз."
+                    } else {
+                        "Подождите, список избранного обновляется."
+                    }
+                }
+                accent = item.isError
+                loading = !item.isError
+            }
+
+            is InfoCard -> {
+                title = item.title
+                subtitle = item.subtitle
+                accent = false
+                loading = false
+            }
+
+            is LinkCard -> {
+                title = item.title
+                subtitle = "Измените фильтры или попробуйте загрузить список ещё раз."
+                accent = false
+                loading = false
+            }
+
+            else -> {
+                loading = false
+                accent = false
+                if (hasCustomFilters) {
+                    title = "Ничего не найдено"
+                    subtitle = "Ослабьте фильтры, чтобы снова увидеть релизы из избранного."
+                } else {
+                    title = "Избранное пока пусто"
+                    subtitle = "Добавьте релизы в избранное, и они появятся здесь."
+                }
+            }
+        }
+        TvCollectionStatePanelUiModel(
+            title = title,
+            subtitle = subtitle,
+            accent = accent,
+            loading = loading,
+            actionText = stateActionCard?.title,
+        )
     }
 
     fun gridAnchorIndex(index: Int): Int {
@@ -270,279 +323,131 @@ internal fun WatchingFavoritesScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(TvPageHeaderSpacing),
             ) {
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    state = filtersRowState,
-                    horizontalArrangement = Arrangement.spacedBy(TvFilterRowSpacing),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    lazyItemsIndexed(filterItems) { index, filter ->
-                        WatchingFilterChip(
-                            text = filter.label,
-                            palette = palette,
-                            focusRequester = filterRequesters[index],
-                            enabled = interactionsEnabled,
-                            emphasized = filter.emphasized,
-                            onClick = filter.onClick,
-                            onFocused = {
-                                lastFocusedFilterIndex = index
-                                lastFocusWasGrid = false
-                                selectedCard = null
-                                scope.launch {
-                                    filtersRowState.scrollItemIntoViewIfNeeded(index)
-                                }
-                            },
-                            onLeft = if (index == 0) onRequestRailFocus else null,
-                            onUp = {
-                                onContentMovedUp()
-                                onRequestHeaderFocus()
-                            },
-                            onDown = {
-                                val moved = requestGridFocus(lastFocusedItemIndex)
-                                if (moved) {
-                                    onContentMovedDown()
-                                }
-                                moved
-                            },
-                        )
-                    }
-                }
-
-                Box(modifier = Modifier.fillMaxSize()) {
-                    if (showStatePanel) {
-                        val stateTitle: String
-                        val stateSubtitle: String
-                        val stateAccent: Boolean
-                        val stateLoading: Boolean
-                        when (val item = stateCard) {
-                            is LoadingCard -> {
-                                stateTitle = item.title.ifBlank { "Загружаем избранное" }
-                                stateSubtitle = item.description.ifBlank {
-                                    if (item.isError) {
-                                        "Проверьте подключение и попробуйте ещё раз."
-                                    } else {
-                                        "Подождите, список избранного обновляется."
-                                    }
-                                }
-                                stateAccent = item.isError
-                                stateLoading = !item.isError
-                            }
-
-                            is InfoCard -> {
-                                stateTitle = item.title
-                                stateSubtitle = item.subtitle
-                                stateAccent = false
-                                stateLoading = false
-                            }
-
-                            is LinkCard -> {
-                                stateTitle = item.title
-                                stateSubtitle = "Измените фильтры или попробуйте загрузить список ещё раз."
-                                stateAccent = false
-                                stateLoading = false
-                            }
-
-                            else -> {
-                                stateLoading = false
-                                stateAccent = false
-                                if (hasCustomFilters) {
-                                    stateTitle = "Ничего не найдено"
-                                    stateSubtitle = "Ослабьте фильтры, чтобы снова увидеть релизы из избранного."
-                                } else {
-                                    stateTitle = "Избранное пока пусто"
-                                    stateSubtitle = "Добавьте релизы в избранное, и они появятся здесь."
-                                }
-                            }
+                TvCollectionFiltersRow(
+                    filters = filterItems,
+                    palette = palette,
+                    rowState = filtersRowState,
+                    filterRequesters = filterRequesters,
+                    interactionsEnabled = interactionsEnabled,
+                    onFilterFocused = { index ->
+                        lastFocusedFilterIndex = index
+                        lastFocusWasGrid = false
+                        selectedCard = null
+                        scope.launch {
+                            filtersRowState.scrollItemIntoViewIfNeeded(index)
                         }
-
-                        TvContentStatePanel(
-                            title = stateTitle,
-                            subtitle = stateSubtitle,
-                            palette = palette,
-                            accent = stateAccent,
-                            loading = stateLoading,
-                            modifier = Modifier.align(Alignment.TopCenter),
-                            action = stateActionCard?.let { actionCard ->
-                                {
-                                    TvContentStateActionButton(
-                                        text = actionCard.title,
-                                        palette = palette,
-                                        focusRequester = stateActionRequester,
-                                        onClick = { onItemClick(actionCard) },
-                                        onLeft = onRequestRailFocus,
-                                        onUp = { requestFilterFocus(lastFocusedFilterIndex) },
-                                        onDown = { true },
-                                    )
-                                }
-                            },
-                        )
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(columnsCount),
-                            state = gridState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                bottom = gridDescriptionInset
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(18.dp),
-                            horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
-                        ) {
-                            itemsIndexed(
-                                items = cards,
-                                key = { _, item -> item.getId() },
-                                span = { _, item -> spanForFavoriteItem(item) },
-                            ) { index, item ->
-                                when (item) {
-                                    is LibriaCard -> WatchingPosterCard(
-                                        imageUrl = item.image,
-                                        palette = palette,
-                                        focusRequester = itemRequesters[index],
-                                        enabled = interactionsEnabled,
-                                        scaleTransformOrigin = edgeAwareGridTransformOrigin(
-                                            index = index,
-                                            columnsCount = columnsCount,
-                                            itemsCount = cards.size,
-                                        ),
-                                        onClick = { onItemClick(item) },
-                                        onFocused = {
-                                            selectedCard = item
-                                            lastFocusedItemIndex = index
-                                            lastFocusedItemId = item.getId()
-                                            lastFocusWasGrid = true
-                                            scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(
-                                                    index = index,
-                                                    anchorIndex = gridAnchorIndex(index),
-                                                    bottomClearancePx = gridBottomClearancePx,
-                                                )
-                                            }
-                                        },
-                                        onLeft = if (index % columnsCount == 0) onRequestRailFocus else null,
-                                        onUp = if (index < columnsCount) {
-                                            {
-                                                onContentMovedUp()
-                                                requestWatchingFocus(
-                                                    filterRequesters.getOrNull(lastFocusedFilterIndex)
-                                                        ?: filterRequesters.firstOrNull()
-                                                )
-                                            }
-                                        } else {
-                                            null
-                                        },
-                                    )
-
-                                    is InfoCard -> WatchingWideMessageCard(
-                                        title = item.title,
-                                        subtitle = item.subtitle,
-                                        palette = palette,
-                                        focusRequester = itemRequesters[index],
-                                        enabled = interactionsEnabled,
-                                        onClick = { onItemClick(item) },
-                                        onFocused = {
-                                            selectedCard = null
-                                            lastFocusedItemIndex = index
-                                            lastFocusedItemId = item.getId()
-                                            lastFocusWasGrid = true
-                                            scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(
-                                                    index = index,
-                                                    anchorIndex = gridAnchorIndex(index),
-                                                    bottomClearancePx = gridBottomClearancePx,
-                                                )
-                                            }
-                                        },
-                                        onLeft = onRequestRailFocus,
-                                        onUp = {
-                                            onContentMovedUp()
-                                            requestWatchingFocus(
-                                                filterRequesters.getOrNull(lastFocusedFilterIndex)
-                                                    ?: filterRequesters.firstOrNull()
-                                            )
-                                        },
-                                    )
-
-                                    is LinkCard -> WatchingWideMessageCard(
-                                        title = item.title,
-                                        subtitle = "Нажмите, чтобы выполнить действие",
-                                        palette = palette,
-                                        focusRequester = itemRequesters[index],
-                                        enabled = interactionsEnabled,
-                                        onClick = { onItemClick(item) },
-                                        onFocused = {
-                                            selectedCard = null
-                                            lastFocusedItemIndex = index
-                                            lastFocusedItemId = item.getId()
-                                            lastFocusWasGrid = true
-                                            scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(
-                                                    index = index,
-                                                    anchorIndex = gridAnchorIndex(index),
-                                                    bottomClearancePx = gridBottomClearancePx,
-                                                )
-                                            }
-                                        },
-                                        onLeft = onRequestRailFocus,
-                                        onUp = {
-                                            onContentMovedUp()
-                                            requestWatchingFocus(
-                                                filterRequesters.getOrNull(lastFocusedFilterIndex)
-                                                    ?: filterRequesters.firstOrNull()
-                                            )
-                                        },
-                                    )
-
-                                    is LoadingCard -> WatchingWideMessageCard(
-                                        title = item.title.ifBlank { "Загрузка" },
-                                        subtitle = item.description,
-                                        palette = palette.copy(
-                                            accentColor = if (item.isError) {
-                                                palette.accentColor
-                                            } else {
-                                                palette.textColor.copy(alpha = 0.4f)
-                                            }
-                                        ),
-                                        focusRequester = itemRequesters[index],
-                                        enabled = interactionsEnabled,
-                                        loading = !item.isError,
-                                        onClick = { onItemClick(item) },
-                                        onFocused = {
-                                            selectedCard = null
-                                            lastFocusedItemIndex = index
-                                            lastFocusedItemId = item.getId()
-                                            lastFocusWasGrid = true
-                                            scope.launch {
-                                                gridState.scrollItemIntoViewIfNeeded(
-                                                    index = index,
-                                                    anchorIndex = gridAnchorIndex(index),
-                                                    bottomClearancePx = gridBottomClearancePx,
-                                                )
-                                            }
-                                        },
-                                        onLeft = onRequestRailFocus,
-                                        onUp = {
-                                            onContentMovedUp()
-                                            requestWatchingFocus(
-                                                filterRequesters.getOrNull(lastFocusedFilterIndex)
-                                                    ?: filterRequesters.firstOrNull()
-                                            )
-                                        },
-                                    )
-                                }
-                            }
+                    },
+                    onFilterLeft = { index ->
+                        if (index == 0) onRequestRailFocus else null
+                    },
+                    onFilterUp = {
+                        {
+                            onContentMovedUp()
+                            onRequestHeaderFocus()
                         }
+                    },
+                    onFilterDown = {
+                        {
+                            val moved = requestGridFocus(lastFocusedItemIndex)
+                            if (moved) {
+                                onContentMovedDown()
+                            }
+                            moved
+                        }
+                    },
+                )
 
-                        selectedCard?.let { card ->
-                            WatchingDescriptionBar(
-                                title = card.title,
-                                subtitle = card.resolveDescription(context),
-                                palette = palette,
-                                solidSurface = true,
-                                modifier = Modifier.align(Alignment.BottomCenter),
+                TvCollectionGridStateContent(
+                    cards = cards,
+                    palette = palette,
+                    showStatePanel = showStatePanel,
+                    gridState = gridState,
+                    itemRequesters = itemRequesters,
+                    stateActionRequester = stateActionRequester,
+                    interactionsEnabled = interactionsEnabled,
+                    columnsCount = columnsCount,
+                    bottomContentPadding = gridDescriptionInset,
+                    selectedCard = selectedCard,
+                    statePanel = statePanel,
+                    onStateActionClick = stateActionCard?.let { actionCard ->
+                        { onItemClick(actionCard) }
+                    },
+                    onStateActionLeft = onRequestRailFocus,
+                    onStateActionUp = { requestFilterFocus(lastFocusedFilterIndex) },
+                    onItemClick = onItemClick,
+                    onItemFocused = { item, index ->
+                        selectedCard = item as? LibriaCard
+                        lastFocusedItemIndex = index
+                        lastFocusedItemId = item.getId()
+                        lastFocusWasGrid = true
+                        scope.launch {
+                            gridState.scrollItemIntoViewIfNeeded(
+                                index = index,
+                                anchorIndex = gridAnchorIndex(index),
+                                bottomClearancePx = gridBottomClearancePx,
                             )
                         }
-                    }
-                }
+                    },
+                    onItemLeft = { index, item ->
+                        if (item !is LibriaCard || index % columnsCount == 0) {
+                            onRequestRailFocus
+                        } else {
+                            null
+                        }
+                    },
+                    onItemUp = { index, item ->
+                        if (item !is LibriaCard || index < columnsCount) {
+                            {
+                                onContentMovedUp()
+                                requestWatchingFocus(
+                                    filterRequesters.getOrNull(lastFocusedFilterIndex)
+                                        ?: filterRequesters.firstOrNull()
+                                )
+                            }
+                        } else {
+                            null
+                        }
+                    },
+                    messageCardModel = { item, itemPalette ->
+                        when (item) {
+                            is InfoCard -> TvCollectionMessageCardUiModel(
+                                title = item.title,
+                                subtitle = item.subtitle,
+                                palette = itemPalette,
+                            )
+
+                            is LinkCard -> TvCollectionMessageCardUiModel(
+                                title = item.title,
+                                subtitle = "Нажмите, чтобы выполнить действие",
+                                palette = itemPalette,
+                            )
+
+                            is LoadingCard -> TvCollectionMessageCardUiModel(
+                                title = item.title.ifBlank { "Загрузка" },
+                                subtitle = item.description,
+                                palette = itemPalette.copy(
+                                    accentColor = if (item.isError) {
+                                        itemPalette.accentColor
+                                    } else {
+                                        itemPalette.textColor.copy(alpha = 0.4f)
+                                    }
+                                ),
+                                loading = !item.isError,
+                            )
+
+                            else -> null
+                        }
+                    },
+                    descriptionContent = { card ->
+                        WatchingDescriptionBar(
+                            title = card.title,
+                            subtitle = card.resolveDescription(context),
+                            palette = palette,
+                            solidSurface = true,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+                    },
+                )
             }
 
             pickerState?.let { dialogState ->
@@ -559,14 +464,4 @@ internal fun WatchingFavoritesScreen(
             }
         }
     }
-}
-
-private data class FavoritesFilterUiModel(
-    val label: String,
-    val emphasized: Boolean,
-    val onClick: () -> Unit,
-)
-
-private fun LazyGridItemSpanScope.spanForFavoriteItem(item: CardItem): GridItemSpan {
-    return if (item is LibriaCard) GridItemSpan(1) else GridItemSpan(maxLineSpan)
 }

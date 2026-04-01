@@ -251,3 +251,159 @@
 - Останавливаюсь:
   - потому что цель прохода закрыта;
   - дальнейшие изменения в `search` уже были бы либо про shared abstractions, либо про UI-polish, а это вне safe local scope.
+
+## New pass: `shared filter/grid scaffold` inventory
+
+Сначала перечитаны:
+- `docs/app-tv-compose-refactor-plan.md`
+- `docs/app-tv-compose-refactor-progress.md`
+- `docs/app-tv-compose-refactor-final-report.md`
+
+Проверено по текущему коду:
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/CatalogCompose.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingFavoritesCompose.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/SearchFormViewModel.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingFavoritesViewModel.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/common/TvCollectionFilters.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingFilterPickerDialog.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingFavoritesPageContent.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/SearchFragment.kt`
+
+Что реально общее между `search` и `favorites`:
+- один и тот же `TvCollectionFiltersUiState` / `TvCollectionFilterPickerState`;
+- одинаковый набор chips: year / season / genre / sort / completed;
+- одинаковый picker flow: open / toggle / apply / reset / dismiss;
+- одинаковый `WatchingFilterPickerDialog`;
+- почти одинаковый filter row UI на `WatchingFilterChip`;
+- почти одинаковый grid/state-panel body:
+  - `showStatePanel` logic;
+  - `WatchingPosterCard` / `WatchingWideMessageCard`;
+  - `TvContentStatePanel`;
+  - picker overlay;
+  - описание выбранной карточки снизу;
+  - restore after picker close через `restoreFilterIndex`/`restoreFilterToken`;
+- дублирующиеся helper-кусочки вокруг picker restore:
+  - mapping `TvCollectionFilterPickerKind -> filter index`;
+  - `shouldRequestPickerFocus(previous, next)`.
+
+Что НЕ является общим:
+- бизнес-логика фильтров и источники данных:
+  - `SearchFormViewModel` работает с `TvSearchUseCase` и `SearchForm`;
+  - `WatchingFavoritesViewModel` держит auth/sync/cache/rebuild flow и свои raw/available filters;
+- query/search behavior и переход в отдельный поиск;
+- favorites-specific auth/reload/rebuild behavior;
+- focus topology вокруг scaffold:
+  - `search` держит внутренний search button как отдельную focus target;
+  - `favorites` завязан на внешний rail/header shell и `onContentMovedUp/Down`;
+- state panel copy и progress semantics:
+  - `search` показывает overlay progress spinner поверх grid;
+  - `favorites` живёт через cache/reload states без такого overlay.
+
+Минимальная safe abstraction, которая выглядит реалистично:
+- общий Compose слой для:
+  - filter chips row;
+  - grid/state-panel body;
+  - picker restore helper-функций;
+- при этом оставить раздельными:
+  - VM/filter engines;
+  - shell/header/rail focus coordination;
+  - feature-specific state panel text и description logic.
+
+### Проверка: а не фигню ли я делаю?
+
+- Это реально уменьшает дублирование, если ограничиться UI/scaffold-слоем; если пытаться вынести ещё и focus topology целиком, получится abstraction впрок.
+- Вынести только UI/scaffold без смешивания business rules можно.
+- Полный общий экран автоматически тянет section/focus coordinator и shell/header coupling; этого делать нельзя.
+
+### Риск
+
+- Самые опасные файлы:
+  - `CatalogCompose.kt`
+  - `WatchingFavoritesCompose.kt`
+  - `WatchingFavoritesPageContent.kt`
+  - `SearchFragment.kt`
+- Основной риск:
+  - сделать shared scaffold умнее двух исходных реализаций;
+  - утащить внутрь shared слоя знания про search button или shell rail/header;
+  - случайно начать решать section/focus problems, которые к этому проходу не относятся.
+- Точка остановки:
+  - если общий слой начнёт требовать знания про shell callbacks, navigation или cross-feature state engines, дальше идти нельзя.
+
+### Выбранный исход
+
+- Исход B: можно вынести только часть.
+- План:
+  - вынести общий Compose scaffold для filter row + grid/state-panel body;
+  - вынести маленькие helper-функции для picker restore;
+  - оставить VM/filter state engine и внешний focus topology раздельными.
+
+## New pass: `shared filter/grid scaffold` execution
+
+Что реально вынесено:
+- добавлен `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/TvCollectionScaffoldCompose.kt`:
+  - `TvCollectionFiltersRow`
+  - `TvCollectionGridStateContent`
+  - минимальные shared UI models для filter actions, state panel и wide message cards
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/CatalogCompose.kt`
+  - переведён на shared filter row и shared grid/state-panel body;
+  - search-specific header, progress overlay, state panel copy и description logic оставлены локально;
+  - search-specific focus topology (`Search` / `Filter` / `Grid`) оставлена локально.
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingFavoritesCompose.kt`
+  - переведён на тот же shared filter row и shared grid/state-panel body;
+  - shell callbacks (`rail`, `header`, `onContentMovedUp/Down`) остались локальными;
+  - favorites-specific state panel copy и description logic остались локальными.
+- `app-tv/src/main/java/ru/radiationx/anilibria/common/TvCollectionFilters.kt`
+  - добавлены маленькие shared helper-функции для picker restore:
+    - `tvCollectionFilterIndex(...)`
+    - `shouldRequestTvCollectionPickerFocus(...)`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/search/SearchFragment.kt`
+  - переведён на shared picker restore helpers.
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingFavoritesPageContent.kt`
+  - переведён на shared picker restore helpers.
+
+Что сознательно оставлено раздельным:
+- `SearchFormViewModel` и `WatchingFavoritesViewModel` не объединялись;
+- filter engines и бизнес-правила не выносились в общий слой;
+- внешний focus shell (`search` button vs `rail/header`) не тащился в shared scaffold;
+- progress semantics `search` и cache/auth/reload semantics `favorites` остались feature-specific.
+
+### Проверка: а не фигню ли я делаю?
+
+- Новый shared слой правда проще, потому что он знает только про общий UI:
+  - chips row;
+  - grid/state-panel body;
+  - picker restore helpers.
+- Он не стал “умным” фреймворком:
+  - не знает про `SearchForm`;
+  - не знает про favorites auth/rebuild;
+  - не знает про navigation или shell selection.
+- Самый опасный момент был в directional behavior grid items:
+  - для `LibriaCard` и wide message cards пришлось сохранить разные `onUp`/`onLeft`;
+  - это перепроверено до тестового прогона и оставлено локальными callback-ами.
+
+### Почему продолжаю / почему останавливаюсь
+
+- Продолжаю:
+  - потому что shared UI слой дал заметное сокращение дублей без смешивания business rules.
+- Останавливаюсь на этой границе:
+  - потому что следующий шаг уже был бы про section/focus coordinator, а это отдельный проход.
+
+## Verification after `shared filter/grid scaffold`
+
+Проверено:
+- `./gradlew.bat :app-tv:testDebugUnitTest --console=plain` — успешно после выноса shared scaffold.
+
+Что не проверено:
+- TV runtime/focus behavior на реальном девайсе или эмуляторе;
+- `connectedAndroidTest` не запускался в этом проходе.
+
+### Проверка: а не фигню ли я делаю?
+
+- После сборки и unit tests ответ остаётся “нет”: новый слой не потянул соседние фичи и не потребовал новых shared VM/base classes.
+- Полного общего экрана не появилось; остался только общий UI scaffold и локальные callbacks.
+
+### Почему продолжаю / почему останавливаюсь
+
+- Останавливаюсь:
+  - потому что цель прохода достигнута в safe варианте `Исход B`;
+  - дальше без отдельного решения по section/focus coordinator будет уже другой тип рефактора.

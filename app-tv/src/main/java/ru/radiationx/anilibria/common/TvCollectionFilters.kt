@@ -94,6 +94,26 @@ internal fun selectedIndices(
     }.toSet()
 }
 
+internal fun tvCollectionFilterIndex(kind: TvCollectionFilterPickerKind): Int {
+    return when (kind) {
+        TvCollectionFilterPickerKind.YEAR -> 0
+        TvCollectionFilterPickerKind.SEASON -> 1
+        TvCollectionFilterPickerKind.GENRE -> 2
+        TvCollectionFilterPickerKind.SORT -> 3
+        TvCollectionFilterPickerKind.COMPLETED -> 4
+    }
+}
+
+internal fun shouldRequestTvCollectionPickerFocus(
+    previous: TvCollectionFilterPickerState?,
+    next: TvCollectionFilterPickerState,
+): Boolean {
+    return previous == null ||
+        previous.kind != next.kind ||
+        previous.options != next.options ||
+        previous.multiSelect != next.multiSelect
+}
+
 internal fun SearchForm.Sort.toTvCollectionSortLabel(): String {
     return when (this) {
         SearchForm.Sort.RATING -> TvCollectionFilterLabels.SORT_POPULARITY

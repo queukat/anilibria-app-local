@@ -18,6 +18,8 @@ import ru.radiationx.anilibria.common.TvCollectionFilterLabels
 import ru.radiationx.anilibria.common.TvCollectionFilterPickerKind
 import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
 import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
+import ru.radiationx.anilibria.common.shouldRequestTvCollectionPickerFocus
+import ru.radiationx.anilibria.common.tvCollectionFilterIndex
 import ru.radiationx.anilibria.screen.mainpages.MainShellCallbacks
 import ru.radiationx.anilibria.screen.mainpages.MainShellPageContent
 import ru.radiationx.anilibria.screen.mainpages.collectStarted
@@ -56,10 +58,10 @@ internal class WatchingFavoritesPageContent(
         owner.collectStarted(viewModel.filterPicker) { picker ->
             val previous = pickerState
             pickerState = picker
-            if (picker != null && shouldRequestPickerFocus(previous, picker)) {
+            if (picker != null && shouldRequestTvCollectionPickerFocus(previous, picker)) {
                 pickerFocusRequestToken++
             } else if (previous != null) {
-                restoreFilterIndex = filterIndexFor(previous.kind)
+                restoreFilterIndex = tvCollectionFilterIndex(previous.kind)
                 restoreFilterToken++
             }
         }
@@ -126,31 +128,4 @@ internal class WatchingFavoritesPageContent(
         }
     }
 
-    private fun filterIndexFor(kind: TvCollectionFilterPickerKind): Int {
-        return when (kind) {
-            TvCollectionFilterPickerKind.YEAR -> YEAR_FILTER_INDEX
-            TvCollectionFilterPickerKind.SEASON -> SEASON_FILTER_INDEX
-            TvCollectionFilterPickerKind.GENRE -> GENRE_FILTER_INDEX
-            TvCollectionFilterPickerKind.SORT -> SORT_FILTER_INDEX
-            TvCollectionFilterPickerKind.COMPLETED -> COMPLETED_FILTER_INDEX
-        }
-    }
-
-    private fun shouldRequestPickerFocus(
-        previous: TvCollectionFilterPickerState?,
-        next: TvCollectionFilterPickerState,
-    ): Boolean {
-        return previous == null ||
-            previous.kind != next.kind ||
-            previous.options != next.options ||
-            previous.multiSelect != next.multiSelect
-    }
-
-    private companion object {
-        private const val YEAR_FILTER_INDEX = 0
-        private const val SEASON_FILTER_INDEX = 1
-        private const val GENRE_FILTER_INDEX = 2
-        private const val SORT_FILTER_INDEX = 3
-        private const val COMPLETED_FILTER_INDEX = 4
-    }
 }
