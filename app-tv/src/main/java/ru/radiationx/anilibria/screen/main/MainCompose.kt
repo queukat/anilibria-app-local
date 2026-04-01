@@ -53,14 +53,18 @@ import ru.radiationx.anilibria.screen.watching.TvRowSpacing
 import ru.radiationx.anilibria.screen.watching.TvRowsScreenVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
+import ru.radiationx.anilibria.screen.watching.defaultTvSectionTargetIndex
 import ru.radiationx.anilibria.screen.watching.edgeAwareHorizontalTransformOrigin
+import ru.radiationx.anilibria.screen.watching.findAdjacentTvSectionTarget
+import ru.radiationx.anilibria.screen.watching.findTvSectionRestoreTarget
 import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
-import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.isTvStateOnlySection
+import ru.radiationx.anilibria.screen.watching.launchKeepTvSectionItemVisible
+import ru.radiationx.anilibria.screen.watching.launchTvSectionFocus
 import ru.radiationx.anilibria.screen.watching.primaryTvStateItem
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.screen.watching.restoreTvSectionFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
-import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
@@ -99,6 +103,7 @@ internal fun MainScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val verticalState = remember { LazyListState() }
+    val sectionItems = remember(sections) { sections.map(MainSectionUiModel::items) }
     val sectionIds = remember(sections) { sections.map(MainSectionUiModel::id) }
     val sectionKeys = remember(sections) {
         sections.map { section ->
@@ -127,93 +132,30 @@ internal fun MainScreen(
     var handledFocusToken by remember { mutableIntStateOf(0) }
     val hasContent = remember(sectionKeys) { sections.any { section -> section.items.hasTvPosterContent() } }
 
-    fun targetInSection(
-        sectionIndex: Int,
-        preferredItemIndex: Int,
-    ): Pair<Int, Int>? {
-        val items = sections.getOrNull(sectionIndex)?.items.orEmpty()
-        val requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty()
-        val targetItemIndex = requesters.takeIf { it.isNotEmpty() }?.let {
-            if (items.hasTvPosterContent()) {
-                preferredItemIndex.coerceIn(0, it.lastIndex)
-            } else {
-                items.tvStateFocusIndex()
-            }
-        }
-        return targetItemIndex?.let { sectionIndex to it.coerceIn(0, requesters.lastIndex) }
-    }
-
-    fun targetByItemId(preferredItemId: Int): Pair<Int, Int>? {
-        var target: Pair<Int, Int>? = null
-        sections.forEachIndexed { sectionIndex, section ->
-            if (target == null) {
-                val itemIndex = section.items.indexOfItemId(preferredItemId)
-                if (itemIndex != null) {
-                    target = sectionIndex to itemIndex
-                }
-            }
-        }
-        return target
-    }
-
-    fun findRestoreTarget(
-        preferredSectionIndex: Int,
-        preferredItemIndex: Int,
-        preferredItemId: Int = Int.MIN_VALUE,
-    ): Pair<Int, Int>? {
-        var target = if (preferredItemId != Int.MIN_VALUE) {
-            targetByItemId(preferredItemId)
-        } else {
-            null
-        }
-        val clampedSectionIndex = preferredSectionIndex.coerceIn(0, sections.lastIndex.coerceAtLeast(0))
-        for (offset in 0..sections.size) {
-            if (target == null) {
-                target = targetInSection(
-                    sectionIndex = clampedSectionIndex + offset,
-                    preferredItemIndex = preferredItemIndex,
-                )
-            }
-            if (target == null && offset > 0) {
-                target = targetInSection(
-                    sectionIndex = clampedSectionIndex - offset,
-                    preferredItemIndex = preferredItemIndex,
-                )
-            }
-        }
-        return target
-    }
-
     fun requestSectionFocus(
         currentSectionIndex: Int,
         direction: Int,
         preferredItemIndex: Int,
     ): Boolean {
-        var targetSectionIndex = currentSectionIndex + direction
-        while (targetSectionIndex in sections.indices) {
-            val requesters = sectionRequesters.getOrNull(targetSectionIndex).orEmpty()
-            if (requesters.isNotEmpty()) {
-                val targetItemIndex = preferredItemIndex.coerceIn(0, requesters.lastIndex)
-                if (direction > 0) {
-                    onContentMovedDown()
-                }
-                scope.launch {
-                    verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
-                    rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
-                    requestWatchingFocusAfterAttach(requesters.getOrNull(targetItemIndex))
-                }
-                return true
-            }
-            targetSectionIndex += direction
-        }
-        return false
-    }
-
-    fun keepItemVisible(sectionIndex: Int, itemIndex: Int) {
-        scope.launch {
-            verticalState.scrollItemIntoViewIfNeeded(sectionIndex)
-            rowStates.getOrNull(sectionIndex)?.scrollItemIntoViewIfNeeded(itemIndex)
-        }
+        val target = findAdjacentTvSectionTarget(
+            sections = sectionItems,
+            currentSectionIndex = currentSectionIndex,
+            direction = direction,
+            preferredItemIndex = preferredItemIndex,
+            resolveTargetIndex = ::defaultTvSectionTargetIndex,
+        ) ?: return false
+        return launchTvSectionFocus(
+            scope = scope,
+            verticalState = verticalState,
+            rowStates = rowStates,
+            sectionRequesters = sectionRequesters,
+            target = target,
+            onBeforeRequest = if (direction > 0) {
+                onContentMovedDown
+            } else {
+                null
+            },
+        )
     }
 
     LaunchedEffect(sectionKeys) {
@@ -230,16 +172,18 @@ internal fun MainScreen(
         selectedItem = visibleCards.firstOrNull { it.getId() == selectedId }
             ?: visibleCards.firstOrNull { it.getId() == preferredItemId }
         if (hadFocusedItem && !stillVisible) {
-            val restoreTarget = findRestoreTarget(
+            val restoreTarget = findTvSectionRestoreTarget(
+                sections = sectionItems,
                 preferredSectionIndex = contentRestoreState.preferredSectionIndex,
                 preferredItemIndex = contentRestoreState.preferredItemIndex,
+                resolveTargetIndex = ::defaultTvSectionTargetIndex,
             )
             if (restoreTarget != null) {
-                val (targetSectionIndex, targetItemIndex) = restoreTarget
-                verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
-                rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
-                requestWatchingFocusAfterAttach(
-                    sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
+                restoreTvSectionFocus(
+                    verticalState = verticalState,
+                    rowStates = rowStates,
+                    sectionRequesters = sectionRequesters,
+                    target = restoreTarget,
                 )
             }
         }
@@ -249,17 +193,22 @@ internal fun MainScreen(
         if (visibilityRestoreToken <= 0 || contentRestoreState.preferredItemId == Int.MIN_VALUE) {
             return@LaunchedEffect
         }
-        val restoreTarget = findRestoreTarget(
+        val restoreTarget = findTvSectionRestoreTarget(
+            sections = sectionItems,
             preferredSectionIndex = contentRestoreState.preferredSectionIndex,
             preferredItemIndex = contentRestoreState.preferredItemIndex,
             preferredItemId = contentRestoreState.preferredItemId,
+            resolveTargetIndex = ::defaultTvSectionTargetIndex,
         ) ?: return@LaunchedEffect
-        val (targetSectionIndex, targetItemIndex) = restoreTarget
-        selectedItem = sections.getOrNull(targetSectionIndex)
+        selectedItem = sections.getOrNull(restoreTarget.sectionIndex)
             ?.items
-            ?.getOrNull(targetItemIndex) as? LibriaCard
-        verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
-        rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
+            ?.getOrNull(restoreTarget.itemIndex) as? LibriaCard
+        restoreTvSectionFocus(
+            verticalState = verticalState,
+            rowStates = rowStates,
+            sectionRequesters = sectionRequesters,
+            target = restoreTarget,
+        )
     }
 
     LaunchedEffect(focusRequestToken, sectionKeys) {
@@ -267,33 +216,26 @@ internal fun MainScreen(
             return@LaunchedEffect
         }
         val restoreTarget = if (contentRestoreState.preferredItemId != Int.MIN_VALUE) {
-            findRestoreTarget(
+            findTvSectionRestoreTarget(
+                sections = sectionItems,
                 preferredSectionIndex = contentRestoreState.preferredSectionIndex,
                 preferredItemIndex = contentRestoreState.preferredItemIndex,
                 preferredItemId = contentRestoreState.preferredItemId,
+                resolveTargetIndex = ::defaultTvSectionTargetIndex,
             )
         } else {
             null
-        }
-        val (targetSectionIndex, targetItemIndex) = restoreTarget ?: run {
-            val firstSectionIndex = sections.indexOfFirst { section ->
-                section.items.hasTvPosterContent() || section.items.tvStateFocusIndex() != null
-            }
-            if (firstSectionIndex < 0) {
-                return@LaunchedEffect
-            }
-            val firstTargetIndex = if (sections[firstSectionIndex].items.hasTvPosterContent()) {
-                0
-            } else {
-                sections[firstSectionIndex].items.tvStateFocusIndex() ?: 0
-            }
-            firstSectionIndex to firstTargetIndex
-        }
-        verticalState.scrollItemIntoViewIfNeeded(targetSectionIndex)
-        rowStates.getOrNull(targetSectionIndex)?.scrollItemIntoViewIfNeeded(targetItemIndex)
-        if (
-            requestWatchingFocusAfterAttach(
-                sectionRequesters.getOrNull(targetSectionIndex)?.getOrNull(targetItemIndex)
+        } ?: findTvSectionRestoreTarget(
+            sections = sectionItems,
+            preferredSectionIndex = 0,
+            preferredItemIndex = 0,
+            resolveTargetIndex = ::defaultTvSectionTargetIndex,
+        ) ?: return@LaunchedEffect
+        if (restoreTvSectionFocus(
+                verticalState = verticalState,
+                rowStates = rowStates,
+                sectionRequesters = sectionRequesters,
+                target = restoreTarget,
             )
         ) {
             handledFocusToken = focusRequestToken
@@ -325,12 +267,18 @@ internal fun MainScreen(
                     interactionsEnabled = interactionsEnabled,
                     rowState = rowStates.getOrNull(sectionIndex) ?: LazyListState(),
                     requesters = sectionRequesters.getOrNull(sectionIndex).orEmpty(),
-                    onItemClick = { item -> onItemClick(section.id, item) },
-                    onItemFocused = { itemIndex, item ->
-                        selectedItem = item as? LibriaCard
-                        keepItemVisible(sectionIndex, itemIndex)
-                        onItemFocused(sectionIndex, itemIndex, item)
-                    },
+                        onItemClick = { item -> onItemClick(section.id, item) },
+                        onItemFocused = { itemIndex, item ->
+                            selectedItem = item as? LibriaCard
+                            launchKeepTvSectionItemVisible(
+                                scope = scope,
+                                verticalState = verticalState,
+                                rowStates = rowStates,
+                                sectionIndex = sectionIndex,
+                                itemIndex = itemIndex,
+                            )
+                            onItemFocused(sectionIndex, itemIndex, item)
+                        },
                     onLeftEdge = onRequestRailFocus,
                     onUp = { itemIndex ->
                         if (sectionIndex == 0) {

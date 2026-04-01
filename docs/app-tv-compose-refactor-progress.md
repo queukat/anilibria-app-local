@@ -407,3 +407,160 @@
 - Останавливаюсь:
   - потому что цель прохода достигнута в safe варианте `Исход B`;
   - дальше без отдельного решения по section/focus coordinator будет уже другой тип рефактора.
+
+## New pass: `shared section/focus coordinator` inventory
+
+Сначала перечитаны:
+- `docs/app-tv-compose-refactor-plan.md`
+- `docs/app-tv-compose-refactor-progress.md`
+- `docs/app-tv-compose-refactor-final-report.md`
+
+Проверено по текущему коду:
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/main/MainCompose.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingCompose.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/details/DetailCompose.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/suggestions/SuggestionsCompose.kt`
+- `app-tv/src/main/java/ru/radiationx/anilibria/screen/schedule/ScheduleCompose.kt`
+
+Что реально повторяется почти дословно:
+- restore target resolution:
+  - поиск по `preferredItemId`;
+  - fallback по ближайшей доступной section относительно `preferredSectionIndex`;
+  - clamp по `preferredItemIndex`;
+- vertical section transfer:
+  - поиск следующей/предыдущей section с фокусируемым item;
+  - scroll vertical row + horizontal row;
+  - `requestWatchingFocusAfterAttach(...)`;
+- visibility/scroll restore:
+  - `keepItemVisible(...)`;
+  - restore visible position после пересборки данных;
+- focus request token handling:
+  - `handledFocusToken` / `handledContentRestoreToken`;
+  - `LaunchedEffect(focusRequestToken, sectionKeys)` и похожие ветки restore;
+- ручной restore по item id/index:
+  - `lastFocusedSectionIndex`, `lastFocusedItemIndex`, `lastFocusedItemId`.
+
+Что только похоже, но реально feature-specific:
+- `detail` header/content page handoff и `contentRestoreState.focusToken`;
+- `suggestions` focus areas (`Field`, `Voice`, `Results`);
+- `schedule` quick day jump row и `sectionListIndex(...)`;
+- `main` / `watching` shell callbacks `onRequestRailFocus`, `onRequestHeaderFocus`, `onContentMovedUp/Down`;
+- разный способ выбора target внутри section:
+  - где-то нужен `tvStateFocusIndex()` для state-only rows;
+  - где-то нужен просто clamped index.
+
+Минимальная safe abstraction:
+- pure helper-функции для:
+  - target resolution внутри section;
+  - restore target поиска по секциям;
+  - adjacent section target;
+- маленькие scroll/focus helpers:
+  - launch focus to target;
+  - suspend restore focus to target;
+  - keep item visible.
+
+Что нельзя выносить сейчас:
+- shell/header/rail coupling;
+- feature-specific business state;
+- navigation decisions;
+- player-related focus behavior;
+- `detail` header page model и `schedule` day-chip model как часть “общего coordinator”.
+
+### Проверка: а не фигню ли я делаю?
+
+- Это реально повторяющийся scaffolding, а не чисто TV-специфика одного экрана.
+- Вынести только focus/restore mechanics без общего mega-screen можно.
+- Если пытаться вынести ещё и page-shell transitions, это автоматически потянет page-content cleanup и shared TV primitives migration; этого делать нельзя.
+
+### Риск
+
+- Самые опасные файлы:
+  - `MainCompose.kt`
+  - `WatchingCompose.kt`
+  - `DetailCompose.kt`
+  - `SuggestionsCompose.kt`
+  - `ScheduleCompose.kt`
+- Где abstraction может стать сложнее текущих реализаций:
+  - если общий слой начнёт знать про header/page transitions;
+  - если он начнёт различать `suggestions` field/voice focus или `schedule` day-chip semantics;
+  - если появится “универсальный focus engine” вместо набора helpers.
+- Точка остановки:
+  - helper/coordinator слой должен оставаться pure target + scroll/focus mechanics;
+  - всё, что требует знаний про page shell или feature topology, остаётся локально.
+
+### Выбранный исход
+
+- Исход B: можно вынести только часть.
+- План:
+  - вынести pure section target resolution helpers;
+  - вынести scroll/focus request helpers;
+  - оставить screen-specific focus topology и page transitions локальными.
+
+## New pass: `shared section/focus coordinator` execution
+
+Что реально вынесено:
+- добавлен `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/TvSectionFocusCoordinator.kt`:
+  - `TvSectionFocusTarget`
+  - `defaultTvSectionTargetIndex(...)`
+  - `clampedTvSectionTargetIndex(...)`
+  - `resolveTvSectionTargetInSection(...)`
+  - `findTvSectionRestoreTarget(...)`
+  - `findAdjacentTvSectionTarget(...)`
+  - `launchTvSectionFocus(...)`
+  - `restoreTvSectionFocus(...)`
+  - `launchKeepTvSectionItemVisible(...)`
+- на эти helper-ы переведены:
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/main/MainCompose.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/WatchingCompose.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/details/DetailCompose.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/suggestions/SuggestionsCompose.kt`
+  - `app-tv/src/main/java/ru/radiationx/anilibria/screen/schedule/ScheduleCompose.kt`
+
+Что оставлено локальным:
+- `detail` header/content page switching;
+- `suggestions` field/voice/results focus topology;
+- `schedule` quick day jump row и `sectionListIndex(...)`;
+- `main`/`watching` shell callbacks и `onContentMovedUp/Down`.
+
+### Проверка: а не фигню ли я делаю?
+
+- Новый coordinator проще, потому что он не рендерит UI и не хранит feature state.
+- Он не знает слишком много о конкретных экранах:
+  - знает только про section targets и scroll/focus mechanics;
+  - не знает про page shell, navigation или product-state transitions.
+- Соседние архитектурные проблемы я не трогал:
+  - page-content wrappers не менялись;
+  - shared TV primitives migration не начиналась;
+  - player/search/favorites wrapper cleanup не затрагивался.
+
+Найденный compile-side effect и исправление:
+- первый прогон сборки упал, потому что в `ScheduleCompose.kt` был слишком рано убран import `scrollItemIntoViewIfNeeded`, а day-chip preview всё ещё на него опирался;
+- исправлено локально, без расширения scope.
+
+### Почему продолжаю / почему останавливаюсь
+
+- Продолжаю:
+  - потому что helper-layer реально сократил дублирование в пяти экранах.
+- Останавливаюсь на этой границе:
+  - потому что следующий шаг уже был бы про page-shell coordination, а не про reusable focus helpers.
+
+## Verification after `shared section/focus coordinator`
+
+Проверено:
+- `./gradlew.bat :app-tv:testDebugUnitTest --console=plain` — успешно после выноса shared focus helpers.
+- после финальной локальной зачистки импортов и небольшого compile-fix в `ScheduleCompose.kt` тот же прогон повторён ещё раз и тоже успешен.
+
+Что не проверено:
+- реальный TV/D-pad runtime;
+- `connectedAndroidTest` не запускался.
+
+### Проверка: а не фигню ли я делаю?
+
+- После сборки ответ остаётся “нет”: helper-layer не стал общим base screen и не потянул page-content cleanup.
+- Safe boundary сохранена: общий код знает только про mechanics, а не про screen topology целиком.
+
+### Почему продолжаю / почему останавливаюсь
+
+- Останавливаюсь:
+  - потому что цель прохода закрыта в safe варианте `Исход B`;
+  - дальше уже либо page-content cleanup, либо более широкий TV infra refactor, а это преждевременно.

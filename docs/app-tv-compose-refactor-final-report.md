@@ -35,10 +35,16 @@
     - общий grid/state-panel body;
     - общие UI contracts для state panel / wide message cards;
   - `SearchFragment` и `WatchingFavoritesPageContent` теперь делят маленькие helper-функции для picker restore.
+- Выполнен partial shared section/focus refactor:
+  - добавлен helper-layer `app-tv/src/main/java/ru/radiationx/anilibria/screen/watching/TvSectionFocusCoordinator.kt`;
+  - `MainCompose`, `WatchingCompose`, `DetailCompose`, `SuggestionsCompose` и `ScheduleCompose` теперь делят:
+    - общий restore target resolution;
+    - общий adjacent section target search;
+    - общий scroll/focus request helper;
+    - общий keep-visible helper.
 
 ## 2. Что не сделано
 
-- Не вынесен shared section/focus coordinator из `MainCompose` / `WatchingCompose` / `DetailCompose` / `SuggestionsCompose` / `ScheduleCompose`.
 - Не сокращён wrapper-layer в `MainPageContent` / `WatchingPageContent`.
 - Не переносились общие TV primitives из `screen.watching` / `screen.main` в новый shared пакет.
 - Не делался player cleanup за пределами уже существующих изменений в worktree.
@@ -50,6 +56,12 @@
   - `favorites` rail/header callbacks через shell.
 - Feature-specific state panel copy, progress semantics и description behavior.
 
+Что осталось локальным внутри section/focus flow:
+- `detail` header/content page handoff;
+- `suggestions` field/voice/results focus topology;
+- `schedule` quick day jump row;
+- shell/header/rail callbacks в `main` и `watching`.
+
 ## 3. Что сознательно НЕ включено
 
 - Не делался rewrite Fragment/Cicerone navigation.
@@ -60,26 +72,28 @@
 
 ## 4. Какие риски остались
 
-- Большие дубли по section/focus restore остались.
+- Большие дубли по section/focus restore заметно уменьшены, но screen-specific focus topology всё ещё локальна, и это сознательный компромисс.
 - Shared filter/grid scaffold вынесен только частично: внешний focus topology и filter engines остались локальными, и это сознательный компромисс.
 - В worktree остаётся много чужих/предсуществующих изменений в крупных UI-файлах, поэтому любой следующий medium refactor надо снова начинать с локальной инвентаризации.
 - Smoke test теперь компилируется и опирается на актуальные текстовые маркеры, но сам `connectedAndroidTest` не запускался в этой сессии.
 - Для `search` прогнаны unit tests, но UI/runtime поведение на реальном TV-девайсе или эмуляторе в этом проходе не проверялось.
 - Для shared filter/grid scaffold прогнана только компиляция через `:app-tv:testDebugUnitTest`; реальный D-pad/focus runtime на TV не проверялся.
+- Для shared section/focus helpers тоже прогнана только сборка и unit tests; runtime behavior на TV не проверялся.
 
 ## 5. Что было самым полезным изменением
 
-Самыми полезными изменениями были локальные refactors `suggestions`, `search` и partial shared filter/grid scaffold:
+Самыми полезными изменениями были локальные refactors `suggestions`, `search`, partial shared filter/grid scaffold и partial shared section/focus helper layer:
 - оба убрали controller/event-bus seam и свели feature flow к прямому state ownership;
 - в `suggestions` результат и row visibility теперь живут в одном `uiState`;
 - в `search` form coordination теперь идёт через `SearchFragment`, а не через отдельный bus;
 - shared scaffold затем сократил явный UI duplicate code между `search` и `favorites`, не смешивая их VM/data rules;
+- shared section/focus helpers затем убрали почти дословный restore/adjacent-focus boilerplate из пяти экранов, не превращая это в общий base-screen;
 - все шаги обошлись без rewrite navigation, player runtime или shared TV infra.
 
 ## 6. Что стоит делать следующим этапом
 
-- Следующим отдельным проходом лучший кандидат теперь `shared section/focus coordinator`.
-- Идти в него стоит только после повторной проверки текущего состояния больших файлов и без попытки параллельно трогать player/navigation.
+- Следующим отдельным проходом можно смотреть либо на page-content cleanup, либо остановиться, если следующая польза уже требует большего churn.
+- Page-content cleanup всё ещё выглядит premature, если его нельзя сделать без пересборки shell coordination.
 
 Сравнение `search` с уже упрощённым `suggestions`:
 - `suggestions` стал feature-first по `uiState` и rows;
@@ -91,10 +105,17 @@
 - общий grid/state-panel body на `WatchingPosterCard`, `WatchingWideMessageCard`, `TvContentStatePanel`;
 - picker restore helpers для `filterIndex` и `shouldRequestPickerFocus`.
 
+Что именно вынесено в shared section/focus layer:
+- pure section target resolution helpers;
+- adjacent section traversal helpers;
+- scroll + focus request helpers;
+- keep-visible helper для section item.
+
 Что осталось раздельным и почему:
 - filter state engines и data sources, потому что `search` и `favorites` различаются по business rules;
 - внешний focus shell, потому что `search` и `favorites` имеют разную focus topology;
 - state panel copy и progress semantics, потому что они завязаны на разные product states.
+- screen-specific focus topology, потому что `detail`, `suggestions`, `schedule`, `main` и `watching` отличаются не данными, а именно устройством переходов между зонами.
 
 ## Not included (because ...)
 

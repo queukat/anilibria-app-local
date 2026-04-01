@@ -72,6 +72,13 @@ Status update for current pass:
   - либо честная фиксация safe boundary без захода в section/focus rewrite;
 - VM/filter engines, shell navigation и shared TV primitives migration не входят в этот проход.
 
+Status update for current pass:
+- `shared section/focus coordinator` выбран следующим отдельным шагом;
+- критерий успеха для этого прохода сужен до двух допустимых исходов:
+  - либо минимальный shared helper/coordinator layer для section restore/focus mechanics;
+  - либо честная фиксация safe boundary без page-content cleanup и без общего mega-engine;
+- player/navigation/page-content wrapper cleanup и shared TV primitives migration не входят в этот проход.
+
 Execution rule:
 - брать только одно направление за раз;
 - перед началом каждой итерации перепроверять: "а не фигню ли я делаю?";
