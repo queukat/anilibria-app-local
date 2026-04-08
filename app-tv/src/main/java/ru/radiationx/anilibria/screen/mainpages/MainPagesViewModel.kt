@@ -23,7 +23,8 @@ class MainPagesViewModel @Inject constructor(
     private val _hasUpdatesData = MutableStateFlow(false)
     val hasUpdatesData: StateFlow<Boolean> = _hasUpdatesData.asStateFlow()
 
-    init {
+    override fun onColdResume() {
+        super.onColdResume()
         viewModelScope.launch {
             coRunCatching {
                 checkerRepository.checkUpdate(true)

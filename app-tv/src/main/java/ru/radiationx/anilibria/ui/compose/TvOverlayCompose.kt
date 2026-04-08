@@ -87,6 +87,26 @@ private val TvOverlayPanelSpacing = 18.dp
 private const val TV_OVERLAY_FOCUS_RETRY_DELAY_MS = 120L
 private const val TV_OVERLAY_INITIAL_FOCUS_DELAY_MS = 120L
 
+internal enum class TvOverlayVerticalMoveAction {
+    MoveFocus,
+    Consume,
+}
+
+internal fun resolveTvOverlayVerticalMoveAction(hasTarget: Boolean): TvOverlayVerticalMoveAction {
+    return if (hasTarget) {
+        TvOverlayVerticalMoveAction.MoveFocus
+    } else {
+        TvOverlayVerticalMoveAction.Consume
+    }
+}
+
+private fun requestOverlayVerticalFocus(targetRequester: FocusRequester?): Boolean {
+    return when (resolveTvOverlayVerticalMoveAction(targetRequester != null)) {
+        TvOverlayVerticalMoveAction.MoveFocus -> requestWatchingFocus(targetRequester)
+        TvOverlayVerticalMoveAction.Consume -> true
+    }
+}
+
 @Composable
 internal fun TvOverlayPanelSurface(
     palette: WatchingPalette,
@@ -164,8 +184,8 @@ internal fun TvOverlayActionButton(
     palette: WatchingPalette,
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester = FocusRequester.Default,
-    upRequester: FocusRequester = FocusRequester.Default,
-    downRequester: FocusRequester = FocusRequester.Default,
+    upRequester: FocusRequester? = null,
+    downRequester: FocusRequester? = null,
     enabled: Boolean = true,
     destructive: Boolean = false,
     loading: Boolean = false,
@@ -194,10 +214,10 @@ internal fun TvOverlayActionButton(
         borderColor = colors.borderColor,
         onClick = onClick,
         onUp = {
-            requestWatchingFocus(upRequester)
+            requestOverlayVerticalFocus(upRequester)
         },
         onDown = {
-            requestWatchingFocus(downRequester)
+            requestOverlayVerticalFocus(downRequester)
         },
         modifier = modifier,
         paddingValues = TvUiDefaults.ActionButtonPadding,
@@ -502,10 +522,8 @@ internal fun TvOverlayChoiceList(
                         choice = entry.choice,
                         palette = palette,
                         focusRequester = focusRequesters[entry.choiceIndex],
-                        upRequester = focusRequesters.getOrNull(entry.choiceIndex - 1)
-                            ?: FocusRequester.Default,
-                        downRequester = focusRequesters.getOrNull(entry.choiceIndex + 1)
-                            ?: FocusRequester.Default,
+                        upRequester = focusRequesters.getOrNull(entry.choiceIndex - 1),
+                        downRequester = focusRequesters.getOrNull(entry.choiceIndex + 1),
                         onFocusChanged = { isFocused ->
                             if (isFocused) {
                                 focusedChoiceIndex = entry.choiceIndex
@@ -526,8 +544,8 @@ private fun TvOverlayChoiceButton(
     choice: TvOverlayChoiceItem,
     palette: WatchingPalette,
     focusRequester: FocusRequester,
-    upRequester: FocusRequester,
-    downRequester: FocusRequester,
+    upRequester: FocusRequester?,
+    downRequester: FocusRequester?,
     onFocusChanged: (Boolean) -> Unit,
     onClick: () -> Unit,
 ) {
@@ -548,10 +566,10 @@ private fun TvOverlayChoiceButton(
         onClick = onClick,
         onFocusChanged = onFocusChanged,
         onUp = {
-            requestWatchingFocus(upRequester)
+            requestOverlayVerticalFocus(upRequester)
         },
         onDown = {
-            requestWatchingFocus(downRequester)
+            requestOverlayVerticalFocus(downRequester)
         },
         modifier = Modifier.fillMaxWidth(),
         paddingValues = PaddingValues(horizontal = 20.dp, vertical = 16.dp),

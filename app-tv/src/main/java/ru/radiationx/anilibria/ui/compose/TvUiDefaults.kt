@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
+import kotlin.math.max
 
 internal data class TvFocusableSurfaceColors(
     val backgroundColor: Color,
@@ -70,7 +72,7 @@ internal object TvUiDefaults {
     val LargeSelectionIndicatorSize = 14.dp
     val FocusedScale = 1.035f
     val FocusedShadowElevation = 18.dp
-    const val AppBackgroundGlowAlpha = 0.18f
+    const val AppBackgroundGlowAlpha = 0.22f
 
     fun chipActionColors(
         palette: WatchingPalette,
@@ -216,11 +218,20 @@ internal fun Modifier.tvAppBackground(
             val overlayBrush = TvUiDefaults.appBackgroundBrush(palette, glowAlpha)
             val legacyBackdropBrush = Brush.linearGradient(
                 colors = listOf(
-                    Color(0xEE000000),
-                    Color(0x55000000),
+                    Color.Black.copy(alpha = 0.82f),
+                    Color.Black.copy(alpha = 0.18f),
                 ),
                 start = Offset(0f, size.height),
                 end = Offset(size.width * 0.9f, size.height * 0.14f),
+            )
+            val dynamicGlowBrush = Brush.radialGradient(
+                colors = listOf(
+                    lerp(dynamicBackground.baseColor, Color.White, 0.22f).copy(alpha = 0.34f),
+                    dynamicBackground.baseColor.copy(alpha = 0.16f),
+                    Color.Transparent,
+                ),
+                center = Offset(size.width * 0.28f, size.height * 0.16f),
+                radius = max(size.width, size.height) * 0.95f,
             )
             val foregroundColor = dynamicBackground.foregroundColor.copy(
                 alpha = dynamicBackground.foregroundAlpha,
@@ -231,6 +242,9 @@ internal fun Modifier.tvAppBackground(
                     drawRect(brush = legacyBackdropBrush)
                 }
                 drawRect(brush = overlayBrush)
+                if (dynamicBackground.enabled && dynamicBackground.foregroundAlpha < 1f) {
+                    drawRect(brush = dynamicGlowBrush)
+                }
                 if (dynamicBackground.enabled && dynamicBackground.foregroundAlpha > 0f) {
                     drawRect(color = foregroundColor)
                 }

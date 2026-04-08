@@ -8,6 +8,7 @@ import android.os.Looper
 import io.appmetrica.analytics.AppMetrica
 import io.appmetrica.analytics.AppMetricaConfig
 import kotlinx.coroutines.CompletableDeferred
+import ru.radiationx.anilibria.common.TvStartupTrace
 import ru.mintrocket.lib.mintpermissions.ext.initMintPermissions
 import ru.mintrocket.lib.mintpermissions.flows.ext.initMintPermissionsFlow
 import ru.radiationx.anilibria.di.AppModule
@@ -34,6 +35,7 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        TvStartupTrace.markOnce("app_on_create_start")
 
         if (!AndroidTestMode.enabled) {
             initYandexAppMetrica()
@@ -65,25 +67,28 @@ class App : Application() {
     }
 
     private fun initDependencies() {
-        Quill.getRootScope().installModules(
+        val rootScope = Quill.getRootScope()
+        rootScope.installModules(
             AppModule(this),
             DataModule(this)
         )
-        runCatching {
-            Quill.getRootScope().get(MigrationDataSource::class).update()
-        }.onFailure {
-            Timber.e(it, "Migration pipeline failed on startup.")
-        }
-        // Warm up image loader after first loop cycle to reduce startup work in onCreate.
+        TvStartupTrace.markOnce("app_dependencies_installed")
         Handler(Looper.getMainLooper()).post {
             runCatching {
-                Quill.getRootScope().get(LibriaImageLoader::class)
+                rootScope.get(MigrationDataSource::class).update()
+            }.onFailure {
+                Timber.e(it, "Migration pipeline failed after startup.")
+            }
+        }
+        Handler(Looper.getMainLooper()).post {
+            runCatching {
+                rootScope.get(LibriaImageLoader::class)
             }.onFailure {
                 Timber.w(it, "Image loader warmup failed.")
             }
         }
         if (AndroidTestMode.enabled) {
-            Quill.getRootScope().get(ApiConfig::class).needConfig = false
+            rootScope.get(ApiConfig::class).needConfig = false
         }
     }
 

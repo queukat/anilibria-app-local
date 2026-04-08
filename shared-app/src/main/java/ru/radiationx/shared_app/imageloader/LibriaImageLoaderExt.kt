@@ -3,6 +3,7 @@ package ru.radiationx.shared_app.imageloader
 import android.content.Context
 import android.graphics.Bitmap
 import android.widget.ImageView
+import coil.ImageLoader
 
 class ImageLoaderScope {
 
@@ -47,4 +48,21 @@ fun ImageView.showImageUrl(url: String?, block: ImageLoaderScope.() -> Unit = {}
 
 suspend fun Context.loadImageBitmap(url: String?): Bitmap {
     return LibriaImageLoaderRoot.getImpl().loadImageBitmap(this, url)
+}
+
+suspend fun Context.loadImageBitmap(
+    url: String?,
+    widthPx: Int,
+    heightPx: Int,
+): Bitmap {
+    return LibriaImageLoaderRoot.getImpl().loadImageBitmap(
+        context = this,
+        url = url,
+        widthPx = widthPx,
+        heightPx = heightPx,
+    )
+}
+
+fun Context.libriaImageLoader(): ImageLoader {
+    return LibriaImageLoaderRoot.getImpl().imageLoader()
 }

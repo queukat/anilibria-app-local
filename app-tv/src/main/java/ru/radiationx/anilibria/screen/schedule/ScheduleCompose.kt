@@ -52,6 +52,7 @@ import ru.radiationx.anilibria.screen.watching.findTvSectionRestoreTarget
 import ru.radiationx.anilibria.screen.watching.launchKeepTvSectionItemVisible
 import ru.radiationx.anilibria.screen.watching.launchTvSectionFocus
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.screen.watching.rememberTvDescriptionOverlayClearance
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.resolveTvSectionTargetInSection
@@ -133,6 +134,7 @@ internal fun ScheduleScreen(
     val hasContent = remember(sectionKeys, showStatePanel) {
         sections.any { section -> section.items.any { it is LibriaCard } } && !showStatePanel
     }
+    val descriptionOverlayClearance = rememberTvDescriptionOverlayClearance(hasContent = hasContent)
 
     fun requestStatePanelFocus(): Boolean {
         if (!showStatePanel) {
@@ -168,6 +170,7 @@ internal fun ScheduleScreen(
             rowStates = rowStates,
             sectionRequesters = sectionRequesters,
             target = target,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
             sectionListIndex = ::sectionListIndex,
         )
     }
@@ -193,6 +196,7 @@ internal fun ScheduleScreen(
             rowStates = rowStates,
             sectionIndex = highlightedSectionIndex,
             itemIndex = 0,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
             sectionListIndex = ::sectionListIndex,
         )
     }
@@ -219,6 +223,7 @@ internal fun ScheduleScreen(
             rowStates = rowStates,
             sectionRequesters = sectionRequesters,
             target = target,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
             sectionListIndex = ::sectionListIndex,
         )
     }
@@ -246,6 +251,7 @@ internal fun ScheduleScreen(
                     rowStates = rowStates,
                     sectionRequesters = sectionRequesters,
                     target = restoreTarget,
+                    verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                     sectionListIndex = ::sectionListIndex,
                 )
             }
@@ -299,6 +305,7 @@ internal fun ScheduleScreen(
                 rowStates = rowStates,
                 sectionRequesters = sectionRequesters,
                 target = restoreTarget,
+                verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                 sectionListIndex = ::sectionListIndex,
             )
         ) {
@@ -318,7 +325,11 @@ internal fun ScheduleScreen(
             verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
             contentPadding = PaddingValues(
                 top = 4.dp,
-                bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset,
+                bottom = if (hasContent) {
+                    descriptionOverlayClearance.bottomInset
+                } else {
+                    TvBottomContentInset
+                },
             ),
         ) {
             item(key = "schedule-header") {
@@ -459,6 +470,7 @@ internal fun ScheduleScreen(
                                 rowStates = rowStates,
                                 sectionIndex = sectionIndex,
                                 itemIndex = itemIndex,
+                                verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                                 sectionListIndex = ::sectionListIndex,
                             )
                         },
@@ -481,7 +493,9 @@ internal fun ScheduleScreen(
                         subtitle = description.subtitle.toString(),
                         palette = palette,
                         solidSurface = true,
-                        modifier = Modifier.align(Alignment.BottomCenter),
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .then(descriptionOverlayClearance.measureModifier),
                     )
                 }
             }

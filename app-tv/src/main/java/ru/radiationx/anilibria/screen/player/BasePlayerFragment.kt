@@ -506,9 +506,17 @@ open class BasePlayerFragment : Fragment() {
         activePickerState = null
     }
 
-    private fun handleQuickAction() {
-        suppressAutoShowControlsState = true
-        hideControls()
+    private fun handleQuickAction(handling: PlayerQuickActionHandling) {
+        when (handling) {
+            PlayerQuickActionHandling.HideControls -> {
+                suppressAutoShowControlsState = true
+                hideControls()
+            }
+
+            PlayerQuickActionHandling.KeepControlsVisible -> {
+                suppressAutoShowControlsState = false
+            }
+        }
     }
 
     private fun rememberFocusedControl(target: PlayerOverlayFocusTarget) {

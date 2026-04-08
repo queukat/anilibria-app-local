@@ -218,10 +218,14 @@ class WatchingContinueViewModel @Inject constructor(
             }
 
             val localAccess = localState.latestByRelease[releaseId]
-            if (localAccess == null) {
+            val sameEpisodeLocalAccess = localAccess?.takeIf {
+                shouldUseLocalProgressForRemoteContinueItem(item, it)
+            }
+            if (sameEpisodeLocalAccess == null) {
                 result += card
             } else {
-                result += card.copy(description = buildLocalContinueDescription(localAccess))
+                // Only refine remote continue text when local progress is for the same episode.
+                result += card.copy(description = buildLocalContinueDescription(sameEpisodeLocalAccess))
             }
         }
 

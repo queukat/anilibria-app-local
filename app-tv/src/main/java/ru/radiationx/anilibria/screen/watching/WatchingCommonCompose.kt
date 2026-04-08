@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -111,16 +113,80 @@ internal suspend fun requestWatchingFocusAfterAttach(
     return false
 }
 
+internal enum class TvCenterPressAction {
+    Ignore,
+    Consume,
+    Click,
+}
+
+internal fun resolveTvCenterPressAction(
+    canFocus: Boolean,
+    enabled: Boolean,
+    key: Key,
+    eventType: KeyEventType,
+): TvCenterPressAction {
+    if (!canFocus || !enabled) {
+        return TvCenterPressAction.Ignore
+    }
+    if (key != Key.DirectionCenter && key != Key.Enter && key != Key.NumPadEnter) {
+        return TvCenterPressAction.Ignore
+    }
+    return when (eventType) {
+        // Trigger TV actions on key-up so opening an overlay does not leak the same press
+        // into its first focused action and instantly close/select it.
+        KeyEventType.KeyDown -> TvCenterPressAction.Consume
+        KeyEventType.KeyUp -> TvCenterPressAction.Click
+        else -> TvCenterPressAction.Ignore
+    }
+}
+
 internal suspend fun LazyListState.scrollItemIntoViewIfNeeded(index: Int) {
+    scrollItemIntoViewIfNeeded(index = index, anchorIndex = (index - 1).coerceAtLeast(0))
+}
+
+internal suspend fun LazyListState.scrollItemIntoViewIfNeeded(
+    index: Int,
+    anchorIndex: Int = (index - 1).coerceAtLeast(0),
+    bottomClearancePx: Int = 0,
+) {
     if (index < 0) return
+
+    fun currentTarget() = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+
+    suspend fun adjustVisibleTarget(): Boolean {
+        val target = currentTarget() ?: return false
+        val viewportStart = layoutInfo.viewportStartOffset
+        val viewportEnd = (layoutInfo.viewportEndOffset - bottomClearancePx).coerceAtLeast(viewportStart)
+        val itemStart = target.offset
+        val itemEnd = target.offset + target.size
+        val delta = when {
+            itemStart < viewportStart -> itemStart - viewportStart
+            itemEnd > viewportEnd -> itemEnd - viewportEnd
+            else -> 0
+        }
+        if (delta != 0) {
+            scrollBy(delta.toFloat())
+            return true
+        }
+        return false
+    }
+
     val visibleItems = layoutInfo.visibleItemsInfo
-    if (visibleItems.none { it.index == index }) {
+    if (currentTarget() == null) {
         val targetIndex = when {
             visibleItems.isEmpty() -> index
             index < visibleItems.first().index -> index
-            else -> (index - 1).coerceAtLeast(0)
+            else -> anchorIndex.coerceAtLeast(0)
         }
         scrollToItem(targetIndex)
+        withFrameNanos { }
+    }
+
+    repeat(2) {
+        if (!adjustVisibleTarget()) {
+            return
+        }
+        withFrameNanos { }
     }
 }
 
@@ -335,6 +401,10 @@ internal fun WatchingDescriptionBar(
     palette: WatchingPalette,
     contentPadding: PaddingValues = TvDescriptionBarPadding,
     solidSurface: Boolean = false,
+    solidMinHeight: Dp = TvSolidDescriptionBarMinHeight,
+    solidHeight: Dp? = null,
+    solidInnerPadding: PaddingValues = TvSolidDescriptionBarInnerPadding,
+    showBackdropScrim: Boolean = !solidSurface,
     modifier: Modifier = Modifier,
 ) {
     val layoutDirection = LocalLayoutDirection.current
@@ -342,25 +412,35 @@ internal fun WatchingDescriptionBar(
     val endPadding = contentPadding.calculateRightPadding(layoutDirection)
     val topPadding = contentPadding.calculateTopPadding()
     val bottomPadding = contentPadding.calculateBottomPadding()
+    val solidStartPadding = solidInnerPadding.calculateLeftPadding(layoutDirection)
+    val solidEndPadding = solidInnerPadding.calculateRightPadding(layoutDirection)
+    val solidTopPadding = solidInnerPadding.calculateTopPadding()
+    val solidBottomPadding = solidInnerPadding.calculateBottomPadding()
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        if (solidSurface) {
-                            Color.Black.copy(alpha = 0.20f)
-                        } else {
-                            Color.Transparent
-                        },
-                        if (solidSurface) {
-                            Color.Black.copy(alpha = 0.96f)
-                        } else {
-                            Color.Black.copy(alpha = 0.88f)
-                        },
+            .then(
+                if (showBackdropScrim) {
+                    Modifier.background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                if (solidSurface) {
+                                    Color.Black.copy(alpha = 0.20f)
+                                } else {
+                                    Color.Transparent
+                                },
+                                if (solidSurface) {
+                                    Color.Black.copy(alpha = 0.96f)
+                                } else {
+                                    Color.Black.copy(alpha = 0.88f)
+                                },
+                            )
+                        )
                     )
-                )
+                } else {
+                    Modifier
+                }
             )
             .padding(top = topPadding, bottom = bottomPadding)
     ) {
@@ -377,11 +457,18 @@ internal fun WatchingDescriptionBar(
                                 color = palette.textColor.copy(alpha = 0.10f),
                                 shape = TvUiDefaults.ScreenPanelShape,
                             )
+                            .then(
+                                if (solidHeight != null) {
+                                    Modifier.height(solidHeight)
+                                } else {
+                                    Modifier.heightIn(min = solidMinHeight)
+                                }
+                            )
                             .padding(
-                                start = startPadding + 20.dp,
-                                end = endPadding + 20.dp,
-                                top = 16.dp,
-                                bottom = 16.dp,
+                                start = startPadding + solidStartPadding,
+                                end = endPadding + solidEndPadding,
+                                top = solidTopPadding,
+                                bottom = solidBottomPadding,
                             )
                     } else {
                         Modifier
@@ -395,6 +482,8 @@ internal fun WatchingDescriptionBar(
                 color = palette.textColor,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             if (subtitle.isNotBlank()) {
                 Text(
@@ -403,6 +492,7 @@ internal fun WatchingDescriptionBar(
                     fontSize = 16.sp,
                     lineHeight = 22.sp,
                     maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -492,25 +582,22 @@ internal fun WatchingFocusableSurface(
                 }
             }
             .onPreviewKeyEvent { event ->
-                if (!canFocus || event.type != KeyEventType.KeyDown) {
+                if (!canFocus) {
                     return@onPreviewKeyEvent false
                 }
-                when (event.key) {
-                    Key.DirectionCenter,
-                    Key.Enter,
-                    Key.NumPadEnter -> {
-                        if (enabled) {
-                            onClick()
-                            true
-                        } else {
-                            false
-                        }
+                when (resolveTvCenterPressAction(canFocus, enabled, event.key, event.type)) {
+                    TvCenterPressAction.Consume -> true
+                    TvCenterPressAction.Click -> {
+                        onClick()
+                        true
                     }
-                    Key.DirectionLeft -> onLeft?.invoke() == true
-                    Key.DirectionUp -> onUp?.invoke() == true
-                    Key.DirectionRight -> onRight?.invoke() == true
-                    Key.DirectionDown -> onDown?.invoke() == true
-                    else -> false
+                    TvCenterPressAction.Ignore -> when (event.key) {
+                        Key.DirectionLeft -> event.type == KeyEventType.KeyDown && onLeft?.invoke() == true
+                        Key.DirectionUp -> event.type == KeyEventType.KeyDown && onUp?.invoke() == true
+                        Key.DirectionRight -> event.type == KeyEventType.KeyDown && onRight?.invoke() == true
+                        Key.DirectionDown -> event.type == KeyEventType.KeyDown && onDown?.invoke() == true
+                        else -> false
+                    }
                 }
             }
             .then(
@@ -556,6 +643,8 @@ internal fun edgeAwareGridTransformOrigin(
         index == itemsCount - 1 || columnIndex == columnsCount - 1 -> 1f
         else -> 0.5f
     }
-    val y = if (index < columnsCount) 0f else 0.5f
+    // Keep grid cards vertically anchored from the top edge so horizontal focus
+    // moves don't make lower rows appear to hop up/down as scale is applied.
+    val y = 0f
     return TransformOrigin(x, y)
 }

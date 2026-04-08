@@ -380,7 +380,7 @@ class WatchingRowsSeparationTest {
     }
 
     @Test
-    fun remoteContinueDescriptionUsesLocalEpisodeAndTimeWhenDifferent() = runTest {
+    fun remoteContinueDescriptionKeepsRemoteEpisodeAndTimeWhenLocalEpisodeDiffers() = runTest {
         val deterministicDispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 88)
@@ -439,13 +439,13 @@ class WatchingRowsSeparationTest {
         val firstCard = continueVm.cardsData.value.first() as LibriaCard
         val description = firstCard.description
 
-        assertTrue("Description should use local episode ordinal", description.contains("серии 3"))
-        assertTrue("Description should use local playback time", description.contains("1:05"))
-        assertFalse("Description should not use stale remote episode/time", description.contains("серии 1"))
+        assertTrue("Description should keep remote episode ordinal", description.contains("серии 1"))
+        assertTrue("Description should keep remote playback time", description.contains("0:12"))
+        assertFalse("Description should not use local episode from another remote item", description.contains("серии 3"))
     }
 
     @Test
-    fun remoteContinueDescriptionResolvesUuidEpisodeIdToOrdinal() = runTest {
+    fun remoteContinueDescriptionDoesNotResolveLocalUuidWhenRemoteEpisodeDiffers() = runTest {
         val deterministicDispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(deterministicDispatcher)
         val release = release(id = 89)
@@ -505,9 +505,10 @@ class WatchingRowsSeparationTest {
         val firstCard = continueVm.cardsData.value.first() as LibriaCard
         val description = firstCard.description
 
-        assertTrue("Description should use resolved ordinal from UUID", description.contains("серии 9"))
-        assertTrue("Description should use local playback time", description.contains("1:05"))
+        assertTrue("Description should keep remote episode ordinal", description.contains("серии 1"))
+        assertTrue("Description should keep remote playback time", description.contains("0:12"))
         assertFalse("Description should not expose UUID as episode number", description.contains("9fa62e2e-f1aa"))
+        assertFalse("Description should not replace remote episode with local resolved ordinal", description.contains("серии 9"))
     }
 
     @Test

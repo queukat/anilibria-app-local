@@ -115,6 +115,7 @@ internal fun launchTvSectionFocus(
     rowStates: List<LazyListState>,
     sectionRequesters: List<List<FocusRequester>>,
     target: TvSectionFocusTarget,
+    verticalBottomClearancePx: Int = 0,
     sectionListIndex: (Int) -> Int = { it },
     onBeforeRequest: (() -> Unit)? = null,
 ): Boolean {
@@ -123,7 +124,10 @@ internal fun launchTvSectionFocus(
         ?: return false
     onBeforeRequest?.invoke()
     scope.launch {
-        verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(target.sectionIndex))
+        verticalState.scrollItemIntoViewIfNeeded(
+            index = sectionListIndex(target.sectionIndex),
+            bottomClearancePx = verticalBottomClearancePx,
+        )
         rowStates.getOrNull(target.sectionIndex)?.scrollItemIntoViewIfNeeded(target.itemIndex)
         requestWatchingFocusAfterAttach(requester)
     }
@@ -135,12 +139,16 @@ internal suspend fun restoreTvSectionFocus(
     rowStates: List<LazyListState>,
     sectionRequesters: List<List<FocusRequester>>,
     target: TvSectionFocusTarget,
+    verticalBottomClearancePx: Int = 0,
     sectionListIndex: (Int) -> Int = { it },
 ): Boolean {
     val requester = sectionRequesters.getOrNull(target.sectionIndex)
         ?.getOrNull(target.itemIndex)
         ?: return false
-    verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(target.sectionIndex))
+    verticalState.scrollItemIntoViewIfNeeded(
+        index = sectionListIndex(target.sectionIndex),
+        bottomClearancePx = verticalBottomClearancePx,
+    )
     rowStates.getOrNull(target.sectionIndex)?.scrollItemIntoViewIfNeeded(target.itemIndex)
     return requestWatchingFocusAfterAttach(requester)
 }
@@ -151,10 +159,14 @@ internal fun launchKeepTvSectionItemVisible(
     rowStates: List<LazyListState>,
     sectionIndex: Int,
     itemIndex: Int,
+    verticalBottomClearancePx: Int = 0,
     sectionListIndex: (Int) -> Int = { it },
 ) {
     scope.launch {
-        verticalState.scrollItemIntoViewIfNeeded(sectionListIndex(sectionIndex))
+        verticalState.scrollItemIntoViewIfNeeded(
+            index = sectionListIndex(sectionIndex),
+            bottomClearancePx = verticalBottomClearancePx,
+        )
         rowStates.getOrNull(sectionIndex)?.scrollItemIntoViewIfNeeded(itemIndex)
     }
 }

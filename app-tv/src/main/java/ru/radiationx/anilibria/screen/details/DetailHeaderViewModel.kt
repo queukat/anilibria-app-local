@@ -141,9 +141,9 @@ class DetailHeaderViewModel @Inject constructor(
         val release = currentRelease ?: return
         if (release.episodes.isEmpty()) return
 
-        // Если серия одна — просто запускаем плеер (episodeId = null безопасно).
+        // Если серия одна — открываем ее явно, чтобы плеер не падал в franchise-wide fallback.
         if (release.episodes.size == 1) {
-            router.navigateTo(PlayerScreen(releaseId, null))
+            router.navigateTo(PlayerScreen(releaseId, release.episodes.first().id))
             return
         }
 

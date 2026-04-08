@@ -6,13 +6,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
@@ -36,11 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.InfoCard
@@ -51,39 +43,32 @@ import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
 import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
 import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
-import ru.radiationx.anilibria.screen.watching.WatchingFilterChip
 import ru.radiationx.anilibria.screen.watching.WatchingFilterPickerDialog
 import ru.radiationx.anilibria.screen.watching.TvCollectionFilterAction
-import ru.radiationx.anilibria.screen.watching.TvCollectionFiltersRow
+import ru.radiationx.anilibria.screen.watching.TvCollectionDescriptionBarPadding
+import ru.radiationx.anilibria.screen.watching.TvCollectionGridTopContentPadding
 import ru.radiationx.anilibria.screen.watching.TvCollectionGridStateContent
+import ru.radiationx.anilibria.screen.watching.TvCollectionGridBottomDescriptionInset
 import ru.radiationx.anilibria.screen.watching.TvCollectionMessageCardUiModel
 import ru.radiationx.anilibria.screen.watching.TvCollectionStatePanelUiModel
-import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
-import ru.radiationx.anilibria.screen.watching.WatchingMessageCard
+import ru.radiationx.anilibria.screen.watching.TvCollectionTopAction
+import ru.radiationx.anilibria.screen.watching.TvCollectionTopFiltersPanel
+import ru.radiationx.anilibria.screen.watching.TvCollectionSolidDescriptionBarHeight
+import ru.radiationx.anilibria.screen.watching.TvCollectionSolidDescriptionBarInnerPadding
+import ru.radiationx.anilibria.screen.watching.TvCollectionSolidDescriptionBarMinHeight
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
-import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
 import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
-import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
-import ru.radiationx.anilibria.screen.watching.TvFilterRowSpacing
-import ru.radiationx.anilibria.screen.watching.TvGridBottomDescriptionInset
 import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvPosterCardSlotWidth
 import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvPickerTopInset
-import ru.radiationx.anilibria.screen.watching.TvRowSpacing
 import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
-import ru.radiationx.anilibria.screen.watching.WatchingWideMessageCard
-import ru.radiationx.anilibria.screen.watching.edgeAwareGridTransformOrigin
 import ru.radiationx.anilibria.screen.watching.indexOfItemId
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.screen.watching.rememberTvDescriptionOverlayClearance
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
-import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
-import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
-import ru.radiationx.anilibria.ui.compose.TvPageHeader
-import ru.radiationx.anilibria.ui.compose.TvTextActionButton
-import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import kotlin.math.max
 
@@ -120,7 +105,6 @@ internal fun CatalogScreen(
     val palette = rememberWatchingPalette()
     val configuration = LocalConfiguration.current
     val context = LocalContext.current
-    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val filtersRowState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -153,6 +137,7 @@ internal fun CatalogScreen(
     var lastFocusedItemIndex by rememberSaveable { mutableIntStateOf(0) }
     var lastFocusedItemId by rememberSaveable { mutableIntStateOf(Int.MIN_VALUE) }
     var lastFocusTarget by rememberSaveable { mutableStateOf(CatalogFocusTarget.Search.name) }
+    var lastAutoAppendToken by rememberSaveable { mutableStateOf("") }
     val interactionsEnabled = pickerState == null
     val nonContentCards = remember(cards) { cards.filter { it !is LibriaCard } }
     val stateCard = remember(nonContentCards) {
@@ -180,10 +165,16 @@ internal fun CatalogScreen(
                 .toInt(),
         )
     }
-    val gridDescriptionInset = if (hasContent) TvGridBottomDescriptionInset else TvBottomContentInset
-    val gridBottomClearancePx = remember(hasContent, density) {
-        with(density) { if (hasContent) TvGridBottomDescriptionInset.roundToPx() else 0 }
+    val descriptionOverlayClearance = rememberTvDescriptionOverlayClearance(
+        hasContent = hasContent,
+        fallbackInset = TvCollectionGridBottomDescriptionInset,
+    )
+    val gridDescriptionInset = if (hasContent) {
+        descriptionOverlayClearance.bottomInset
+    } else {
+        TvBottomContentInset
     }
+    val gridBottomClearancePx = descriptionOverlayClearance.bottomClearancePx
     val statePanel = remember(stateCard, progressVisible, hasCustomFilters, stateActionCard) {
         val title: String
         val subtitle: String
@@ -248,6 +239,13 @@ internal fun CatalogScreen(
         return (index - (index % columnsCount)).coerceAtLeast(0)
     }
 
+    fun requestSearchFocus(): Boolean {
+        scope.launch {
+            requestWatchingFocusAfterAttach(searchRequester)
+        }
+        return true
+    }
+
     fun requestFilterFocus(index: Int): Boolean {
         if (filterRequesters.isEmpty()) {
             return false
@@ -258,6 +256,14 @@ internal fun CatalogScreen(
             requestWatchingFocusAfterAttach(filterRequesters.getOrNull(targetIndex))
         }
         return true
+    }
+
+    fun requestTopFocus(): Boolean {
+        return when {
+            lastFocusTarget == CatalogFocusTarget.Search.name -> requestSearchFocus()
+            filterRequesters.isNotEmpty() -> requestFilterFocus(lastFocusedFilterIndex)
+            else -> requestSearchFocus()
+        }
     }
 
     fun requestStateActionFocus(): Boolean {
@@ -288,17 +294,46 @@ internal fun CatalogScreen(
         }
     }
 
+    fun triggerAutoAppendIfNeeded(index: Int, item: CardItem) {
+        if (item !is LibriaCard || progressVisible || !interactionsEnabled) {
+            return
+        }
+        val loadMoreCard = cards.lastOrNull() as? LinkCard ?: return
+        val lastContentIndex = cards.indexOfLast { it is LibriaCard }
+        if (lastContentIndex < 0) {
+            return
+        }
+        val triggerIndex = (lastContentIndex - columnsCount).coerceAtLeast(0)
+        if (index < triggerIndex) {
+            return
+        }
+        val requestToken = buildString {
+            append(cards.size)
+            append(':')
+            append(cards.firstOrNull()?.getId() ?: Int.MIN_VALUE)
+            append(':')
+            append(cards.lastOrNull()?.getId() ?: Int.MIN_VALUE)
+        }
+        if (lastAutoAppendToken == requestToken) {
+            return
+        }
+        lastAutoAppendToken = requestToken
+        onItemClick(loadMoreCard)
+    }
+
     LaunchedEffect(cards) {
         val selectedId = selectedItem?.getId()
         val stillVisible = selectedId != null && cards.any { it.getId() == selectedId }
         if (!stillVisible) {
             selectedItem = null
         }
+        if (cards.lastOrNull() !is LinkCard) {
+            lastAutoAppendToken = ""
+        }
         if (lastFocusedItemId != Int.MIN_VALUE && cards.none { it.getId() == lastFocusedItemId }) {
             when {
                 cards.isNotEmpty() -> requestGridFocus(lastFocusedItemIndex)
-                filterRequesters.isNotEmpty() -> requestFilterFocus(lastFocusedFilterIndex)
-                else -> requestWatchingFocus(searchRequester)
+                else -> requestTopFocus()
             }
         }
     }
@@ -309,6 +344,7 @@ internal fun CatalogScreen(
         }
         withFrameNanos { }
         val focused = when {
+            lastFocusTarget == CatalogFocusTarget.Search.name -> requestSearchFocus()
             lastFocusTarget == CatalogFocusTarget.Grid.name && lastFocusedItemId != Int.MIN_VALUE -> {
                 requestGridFocus(cards.indexOfItemId(lastFocusedItemId) ?: lastFocusedItemIndex)
             }
@@ -349,26 +385,27 @@ internal fun CatalogScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(TvPageHeaderSpacing),
             ) {
-                CatalogHeader(
+                TvCollectionTopFiltersPanel(
                     palette = palette,
-                    searchRequester = searchRequester,
-                    interactionsEnabled = interactionsEnabled,
-                    onSearchClick = onSearchClick,
-                    onSearchFocused = {
-                        lastFocusTarget = CatalogFocusTarget.Search.name
-                        selectedItem = null
-                    },
-                    onSearchDown = {
-                        requestFilterFocus(lastFocusedFilterIndex) || requestGridFocus(lastFocusedItemIndex)
-                    },
-                )
-
-                TvCollectionFiltersRow(
                     filters = filterItems,
-                    palette = palette,
                     rowState = filtersRowState,
                     filterRequesters = filterRequesters,
                     interactionsEnabled = interactionsEnabled,
+                    title = "Каталог",
+                    subtitle = "Фильтруйте релизы и переходите в экран поиска",
+                    headerExpanded = !hasContent || lastFocusTarget != CatalogFocusTarget.Grid.name,
+                    leadingAction = TvCollectionTopAction(
+                        label = "Поиск",
+                        focusRequester = searchRequester,
+                        onClick = onSearchClick,
+                        enabled = interactionsEnabled,
+                        onFocused = {
+                            lastFocusTarget = CatalogFocusTarget.Search.name
+                            selectedItem = null
+                        },
+                        onRight = { requestFilterFocus(0) },
+                        onDown = { requestGridFocus(lastFocusedItemIndex) },
+                    ),
                     onFilterFocused = { index ->
                         lastFocusedFilterIndex = index
                         lastFocusTarget = CatalogFocusTarget.Filter.name
@@ -379,9 +416,16 @@ internal fun CatalogScreen(
                     },
                     onFilterLeft = { index ->
                         if (index == 0) {
-                            { requestWatchingFocus(searchRequester) }
+                            { requestSearchFocus() }
                         } else {
+                            { requestFilterFocus(index - 1) }
+                        }
+                    },
+                    onFilterRight = { index ->
+                        if (index >= filterItems.lastIndex) {
                             null
+                        } else {
+                            { requestFilterFocus(index + 1) }
                         }
                     },
                     onFilterDown = {
@@ -389,115 +433,124 @@ internal fun CatalogScreen(
                     },
                 )
 
-                TvCollectionGridStateContent(
-                    cards = cards,
-                    palette = palette,
-                    showStatePanel = showStatePanel,
-                    gridState = gridState,
-                    itemRequesters = itemRequesters,
-                    stateActionRequester = stateActionRequester,
-                    interactionsEnabled = interactionsEnabled,
-                    columnsCount = columnsCount,
-                    bottomContentPadding = gridDescriptionInset,
-                    selectedCard = selectedItem,
-                    statePanel = statePanel,
-                    onStateActionClick = stateActionCard?.let { actionCard ->
-                        { onItemClick(actionCard) }
-                    },
-                    onStateActionLeft = { requestWatchingFocus(searchRequester) },
-                    onStateActionUp = { requestFilterFocus(lastFocusedFilterIndex) },
-                    onItemClick = onItemClick,
-                    onItemFocused = { item, index ->
-                        if (item is LibriaCard) {
-                            selectedItem = item
-                        } else {
-                            selectedItem = null
-                        }
-                        lastFocusedItemIndex = index
-                        lastFocusedItemId = item.getId()
-                        lastFocusTarget = CatalogFocusTarget.Grid.name
-                        scope.launch {
-                            gridState.scrollItemIntoViewIfNeeded(
-                                index = index,
-                                anchorIndex = gridAnchorIndex(index),
-                                bottomClearancePx = gridBottomClearancePx,
-                            )
-                        }
-                    },
-                    onItemUp = { index, item ->
-                        if (item !is LibriaCard || index < columnsCount) {
-                            {
-                                requestWatchingFocus(
-                                    filterRequesters.getOrNull(lastFocusedFilterIndex)
-                                        ?: filterRequesters.firstOrNull()
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    TvCollectionGridStateContent(
+                        cards = cards,
+                        palette = palette,
+                        showStatePanel = showStatePanel,
+                        gridState = gridState,
+                        itemRequesters = itemRequesters,
+                        stateActionRequester = stateActionRequester,
+                        interactionsEnabled = interactionsEnabled,
+                        columnsCount = columnsCount,
+                        topContentPadding = TvCollectionGridTopContentPadding,
+                        bottomContentPadding = gridDescriptionInset,
+                        selectedCard = selectedItem,
+                        statePanel = statePanel,
+                        onStateActionClick = stateActionCard?.let { actionCard ->
+                            { onItemClick(actionCard) }
+                        },
+                        onStateActionUp = ::requestTopFocus,
+                        onItemClick = onItemClick,
+                        onItemFocused = { item, index ->
+                            if (item is LibriaCard) {
+                                selectedItem = item
+                            } else {
+                                selectedItem = null
+                            }
+                            lastFocusedItemIndex = index
+                            lastFocusedItemId = item.getId()
+                            lastFocusTarget = CatalogFocusTarget.Grid.name
+                            triggerAutoAppendIfNeeded(index, item)
+                            scope.launch {
+                                gridState.scrollItemIntoViewIfNeeded(
+                                    index = index,
+                                    anchorIndex = gridAnchorIndex(index),
+                                    bottomClearancePx = gridBottomClearancePx,
                                 )
                             }
-                        } else {
-                            null
-                        }
-                    },
-                    messageCardModel = { item, itemPalette ->
-                        when (item) {
-                            is InfoCard -> TvCollectionMessageCardUiModel(
-                                title = item.title,
-                                subtitle = item.subtitle,
-                                palette = itemPalette,
-                            )
+                        },
+                        onItemLeft = { _, _ -> null },
+                        onItemUp = { index, item ->
+                            if (item !is LibriaCard || index < columnsCount) {
+                                ::requestTopFocus
+                            } else {
+                                null
+                            }
+                        },
+                        messageCardModel = { item, itemPalette ->
+                            when (item) {
+                                is InfoCard -> TvCollectionMessageCardUiModel(
+                                    title = item.title,
+                                    subtitle = item.subtitle,
+                                    palette = itemPalette,
+                                )
 
-                            is LinkCard -> TvCollectionMessageCardUiModel(
-                                title = item.title,
-                                subtitle = "Нажмите, чтобы выполнить действие",
-                                palette = itemPalette,
-                            )
+                                is LinkCard -> TvCollectionMessageCardUiModel(
+                                    title = item.title,
+                                    subtitle = "Нажмите, чтобы выполнить действие",
+                                    palette = itemPalette,
+                                )
 
-                            is LoadingCard -> TvCollectionMessageCardUiModel(
-                                title = item.title.ifBlank { "Загрузка" },
-                                subtitle = item.description.ifBlank {
-                                    if (item.isError) {
-                                        "Нажмите, чтобы повторить попытку"
-                                    } else {
-                                        ""
-                                    }
-                                },
-                                palette = itemPalette.copy(
-                                    accentColor = if (item.isError) {
-                                        itemPalette.accentColor
-                                    } else {
-                                        itemPalette.textColor.copy(alpha = 0.4f)
-                                    }
-                                ),
-                                loading = !item.isError,
-                            )
+                                is LoadingCard -> TvCollectionMessageCardUiModel(
+                                    title = item.title.ifBlank { "Загрузка" },
+                                    subtitle = item.description.ifBlank {
+                                        if (item.isError) {
+                                            "Нажмите, чтобы повторить попытку"
+                                        } else {
+                                            ""
+                                        }
+                                    },
+                                    palette = itemPalette.copy(
+                                        accentColor = if (item.isError) {
+                                            itemPalette.accentColor
+                                        } else {
+                                            itemPalette.textColor.copy(alpha = 0.4f)
+                                        }
+                                    ),
+                                    loading = !item.isError,
+                                )
 
-                            else -> null
-                        }
-                    },
-                    descriptionContent = { item ->
-                        val description = item.toTvCardDescription { card ->
-                            card.resolveDescription(context)
-                        }
-                        if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
-                            WatchingDescriptionBar(
-                                title = description.title.toString(),
-                                subtitle = description.subtitle.toString(),
-                                palette = palette,
-                                solidSurface = true,
-                                modifier = Modifier.align(Alignment.BottomCenter),
-                            )
-                        }
-                    },
-                    overlayContent = {
-                        if (progressVisible && hasContent) {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(top = 8.dp, end = 8.dp),
-                                color = palette.accentColor,
-                                trackColor = palette.textColor.copy(alpha = 0.18f),
-                            )
-                        }
-                    },
-                )
+                                else -> null
+                            }
+                        },
+                        descriptionContent = { item ->
+                            val description = item.toTvCardDescription { card ->
+                                card.resolveDescription(context)
+                            }
+                            if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
+                                WatchingDescriptionBar(
+                                    title = description.title.toString(),
+                                    subtitle = description.subtitle.toString(),
+                                    palette = palette,
+                                    contentPadding = TvCollectionDescriptionBarPadding,
+                                    solidSurface = true,
+                                    solidHeight = TvCollectionSolidDescriptionBarHeight,
+                                    solidMinHeight = TvCollectionSolidDescriptionBarMinHeight,
+                                    solidInnerPadding = TvCollectionSolidDescriptionBarInnerPadding,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .then(descriptionOverlayClearance.measureModifier),
+                                )
+                            }
+                        },
+                        overlayContent = {
+                            if (progressVisible && hasContent) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(top = 8.dp, end = 8.dp),
+                                    color = palette.accentColor,
+                                    trackColor = palette.textColor.copy(alpha = 0.18f),
+                                )
+                            }
+                        },
+                    )
+                }
             }
 
             pickerState?.let { dialogState ->
@@ -514,35 +567,4 @@ internal fun CatalogScreen(
             }
         }
     }
-}
-
-@Composable
-private fun CatalogHeader(
-    palette: WatchingPalette,
-    searchRequester: androidx.compose.ui.focus.FocusRequester,
-    interactionsEnabled: Boolean,
-    onSearchClick: () -> Unit,
-    onSearchFocused: () -> Unit,
-    onSearchDown: () -> Boolean,
-) {
-    TvPageHeader(
-        title = "Каталог",
-        subtitle = "Фильтруйте релизы и переходите в экран поиска",
-        palette = palette,
-        trailingContent = {
-            TvTextActionButton(
-                text = "Поиск",
-                palette = palette,
-                focusRequester = searchRequester,
-                onClick = onSearchClick,
-                enabled = interactionsEnabled,
-                colors = TvUiDefaults.chipActionColors(palette),
-                paddingValues = TvUiDefaults.CompactActionButtonPadding,
-                fontSize = 16.sp,
-                onFocused = onSearchFocused,
-                onDown = onSearchDown,
-                modifier = Modifier.width(148.dp),
-            )
-        },
-    )
 }

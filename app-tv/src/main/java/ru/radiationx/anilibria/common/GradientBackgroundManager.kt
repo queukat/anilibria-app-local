@@ -4,8 +4,10 @@ import androidx.annotation.ColorInt
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.palette.graphics.Palette
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,7 +36,11 @@ class GradientBackgroundManager @Inject constructor(
     private val foregroundColor = activity.getCompatColor(R.color.dark_windowBackground)
 
     private val defaultColorSelector = { palette: Palette ->
-        palette.getMutedColor(defaultColor)
+        palette.getVibrantColor(
+            palette.getDominantColor(
+                palette.getMutedColor(defaultColor)
+            )
+        )
     }
 
     private val defaultColorModifier = { color: Int -> color }
@@ -54,9 +60,11 @@ class GradientBackgroundManager @Inject constructor(
         CACHE_LOAD_FACTOR,
         true,
     )
+    private var pendingImageUrl: String? = null
 
     fun clearGradient() {
         imageApplierJob?.cancel()
+        pendingImageUrl = null
         _backgroundState.value = _backgroundState.value.copy(foregroundVisible = true)
     }
 
@@ -81,12 +89,21 @@ class GradientBackgroundManager @Inject constructor(
             updateBackgroundState(colorModifier(cachedColor), foregroundVisible = false)
             return
         }
+        if (pendingImageUrl == normalizedUrl && imageApplierJob?.isActive == true) {
+            return
+        }
 
         imageApplierJob?.cancel()
+        pendingImageUrl = normalizedUrl
         imageApplierJob = activity.lifecycleScope.launch {
+            delay(PALETTE_APPLY_DEBOUNCE_MS)
             coRunCatching {
                 val bitmap = withContext(Dispatchers.IO) {
-                    activity.loadImageBitmap(normalizedUrl)
+                    activity.loadImageBitmap(
+                        url = normalizedUrl,
+                        widthPx = PALETTE_BITMAP_SIZE_PX,
+                        heightPx = PALETTE_BITMAP_SIZE_PX,
+                    )
                 } ?: return@coRunCatching null
                 withContext(Dispatchers.Default) {
                     bitmap.asSoftware {
@@ -106,7 +123,14 @@ class GradientBackgroundManager @Inject constructor(
                 }
                 applyPalette(palette, colorSelector, colorModifier)
             }.onFailure {
+                if (it is CancellationException) {
+                    return@onFailure
+                }
                 Timber.e(it)
+            }.also {
+                if (pendingImageUrl == normalizedUrl) {
+                    pendingImageUrl = null
+                }
             }
         }
     }
@@ -145,5 +169,7 @@ class GradientBackgroundManager @Inject constructor(
     private companion object {
         const val MAX_COLOR_CACHE_SIZE = 48
         const val CACHE_LOAD_FACTOR = 0.75f
+        const val PALETTE_BITMAP_SIZE_PX = 96
+        const val PALETTE_APPLY_DEBOUNCE_MS = 90L
     }
 }

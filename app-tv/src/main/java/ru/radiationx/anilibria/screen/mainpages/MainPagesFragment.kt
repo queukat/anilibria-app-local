@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
+import ru.radiationx.anilibria.common.TvStartupTrace
 import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.screen.main.MainPageContent
 import ru.radiationx.anilibria.screen.profile.ProfilePageContent
@@ -35,14 +36,16 @@ class MainPagesFragment : Fragment() {
     }
     private val viewModel by viewModel<MainPagesViewModel>()
 
-    private val pageContents by lazy(LazyThreadSafetyMode.NONE) {
-        mapOf<Long, MainShellPageContent>(
-            MainPagesSpec.ID_MAIN to MainPageContent(this, backgroundManager),
-            MainPagesSpec.ID_MY to WatchingPageContent(this, backgroundManager),
-            MainPagesSpec.ID_FAVORITES to WatchingFavoritesPageContent(this, backgroundManager),
-            MainPagesSpec.ID_PROFILE to ProfilePageContent(this, backgroundManager),
+    private val pageContentFactories by lazy(LazyThreadSafetyMode.NONE) {
+        mapOf<Long, () -> MainShellPageContent>(
+            MainPagesSpec.ID_MAIN to { MainPageContent(this, backgroundManager) },
+            MainPagesSpec.ID_MY to { WatchingPageContent(this, backgroundManager) },
+            MainPagesSpec.ID_FAVORITES to { WatchingFavoritesPageContent(this, backgroundManager) },
+            MainPagesSpec.ID_PROFILE to { ProfilePageContent(this, backgroundManager) },
         )
     }
+    private val pageContents = mutableMapOf<Long, MainShellPageContent>()
+    private val boundPageIds = mutableSetOf<Long>()
 
     private var selectedPageId by mutableLongStateOf(MainPagesSpec.ids.first())
     private var hasUpdates by mutableStateOf(false)
@@ -77,6 +80,7 @@ class MainPagesFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
+        ensurePageContent(selectedPageId)
         return ComposeView(requireContext()).apply {
             isFocusable = true
             isFocusableInTouchMode = true
@@ -106,7 +110,7 @@ class MainPagesFragment : Fragment() {
                     ) {
                         MainPagesContentHost(
                             selectedPageId = selectedPageId,
-                            pageContents = pageContents,
+                            resolvePageContent = ::requirePageContent,
                             callbacks = buildShellCallbacks(),
                         )
                     }
@@ -117,9 +121,10 @@ class MainPagesFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        TvStartupTrace.markOnce("main_pages_view_created")
 
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
-        pageContents.values.forEach { it.bind(viewLifecycleOwner) }
+        bindPageContentIfNeeded(selectedPageId)
 
         listenerHostView = view
         installBackHandler()
@@ -169,6 +174,7 @@ class MainPagesFragment : Fragment() {
         initialFocusRunnable = null
         pendingContentFocusRunnable = null
         backPressedCallback = null
+        boundPageIds.clear()
         super.onDestroyView()
     }
 
@@ -185,11 +191,29 @@ class MainPagesFragment : Fragment() {
     }
 
     private fun showPage(pageId: Long) {
+        ensurePageContent(pageId)
+        bindPageContentIfNeeded(pageId)
         selectedPageId = pageId
         currentPageContent()?.onSelected()
     }
 
     private fun currentPageContent() = pageContents[selectedPageId]
+
+    private fun ensurePageContent(pageId: Long): MainShellPageContent {
+        return pageContents.getOrPut(pageId) {
+            pageContentFactories.getValue(pageId).invoke()
+        }
+    }
+
+    private fun requirePageContent(pageId: Long): MainShellPageContent {
+        return pageContents[pageId] ?: error("Page content $pageId must be created before render")
+    }
+
+    private fun bindPageContentIfNeeded(pageId: Long) {
+        if (boundPageIds.add(pageId)) {
+            ensurePageContent(pageId).bind(viewLifecycleOwner)
+        }
+    }
 
     private fun moveFocusToContent(): Boolean {
         val hostView = listenerHostView ?: return false
@@ -291,11 +315,11 @@ class MainPagesFragment : Fragment() {
 @Composable
 private fun MainPagesContentHost(
     selectedPageId: Long,
-    pageContents: Map<Long, MainShellPageContent>,
+    resolvePageContent: (Long) -> MainShellPageContent,
     callbacks: MainShellCallbacks,
 ) {
     val stateHolder = rememberSaveableStateHolder()
-    val selectedPage = remember(selectedPageId, pageContents) { pageContents.getValue(selectedPageId) }
+    val selectedPage = remember(selectedPageId) { resolvePageContent(selectedPageId) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         stateHolder.SaveableStateProvider(selectedPageId) {

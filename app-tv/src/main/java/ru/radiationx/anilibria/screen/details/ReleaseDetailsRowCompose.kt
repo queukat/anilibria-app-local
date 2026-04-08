@@ -119,6 +119,29 @@ internal data class ReleaseDetailsCallbacks(
     val otherClick: () -> Unit,
 )
 
+internal enum class ReleaseDetailsVerticalMoveAction {
+    MoveFocus,
+    Consume,
+}
+
+internal fun resolveReleaseDetailsVerticalMoveAction(hasTarget: Boolean): ReleaseDetailsVerticalMoveAction {
+    return if (hasTarget) {
+        ReleaseDetailsVerticalMoveAction.MoveFocus
+    } else {
+        ReleaseDetailsVerticalMoveAction.Consume
+    }
+}
+
+internal fun requestReleaseDetailsFocusOrConsumeBoundary(focusRequester: FocusRequester?): Boolean {
+    return when (resolveReleaseDetailsVerticalMoveAction(focusRequester != null)) {
+        ReleaseDetailsVerticalMoveAction.MoveFocus -> {
+            requestFocus(focusRequester)
+            true
+        }
+        ReleaseDetailsVerticalMoveAction.Consume -> true
+    }
+}
+
 private const val BOTTOM_ARROW_ALPHA = 0.75f
 
 private data class ScrollableTextMeasure(
@@ -134,7 +157,7 @@ internal fun ReleaseDetailsRowContent(
     callbacks: ReleaseDetailsCallbacks,
     modifier: Modifier = Modifier,
     showMoreHint: Boolean = false,
-    actionsDownRequester: FocusRequester = FocusRequester.Default,
+    actionsDownRequester: FocusRequester? = null,
     onInitialHeaderFocusApplied: () -> Unit = {},
 ) {
     val details = uiState.details
@@ -647,7 +670,7 @@ private fun ActionsRow(
     textColor: Color,
     backgroundColor: Color,
     focusUpRequester: FocusRequester,
-    focusDownRequester: FocusRequester,
+    focusDownRequester: FocusRequester?,
     continueRequester: FocusRequester,
     playRequester: FocusRequester,
     favoriteRequester: FocusRequester,
@@ -729,7 +752,7 @@ private fun ActionChipButton(
     backgroundColor: Color,
     focusRequester: FocusRequester,
     upRequester: FocusRequester,
-    downRequester: FocusRequester,
+    downRequester: FocusRequester?,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
@@ -744,7 +767,7 @@ private fun ActionChipButton(
             requestFocus(upRequester)
         },
         onDown = {
-            requestFocus(downRequester)
+            requestReleaseDetailsFocusOrConsumeBoundary(downRequester)
         },
         modifier = Modifier.heightIn(min = 54.dp),
         paddingValues = androidx.compose.foundation.layout.PaddingValues(
@@ -768,7 +791,7 @@ private fun IconChipButton(
     backgroundColor: Color,
     focusRequester: FocusRequester,
     upRequester: FocusRequester,
-    downRequester: FocusRequester,
+    downRequester: FocusRequester?,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
@@ -783,7 +806,7 @@ private fun IconChipButton(
             requestFocus(upRequester)
         },
         onDown = {
-            requestFocus(downRequester)
+            requestReleaseDetailsFocusOrConsumeBoundary(downRequester)
         },
         modifier = Modifier.heightIn(min = 54.dp),
         paddingValues = androidx.compose.foundation.layout.PaddingValues(
@@ -1021,7 +1044,10 @@ private fun Context.resolveThemeColor(@AttrRes attrRes: Int): Int {
     }
 }
 
-private fun requestFocus(focusRequester: FocusRequester): Boolean {
+private fun requestFocus(focusRequester: FocusRequester?): Boolean {
+    if (focusRequester == null) {
+        return false
+    }
     return runCatching {
         focusRequester.requestFocus()
         true

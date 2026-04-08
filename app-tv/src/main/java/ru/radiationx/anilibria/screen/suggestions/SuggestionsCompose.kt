@@ -68,6 +68,7 @@ import ru.radiationx.anilibria.screen.watching.findTvSectionRestoreTarget
 import ru.radiationx.anilibria.screen.watching.launchKeepTvSectionItemVisible
 import ru.radiationx.anilibria.screen.watching.launchTvSectionFocus
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.screen.watching.rememberTvDescriptionOverlayClearance
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.restoreTvSectionFocus
 import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
@@ -125,6 +126,7 @@ internal fun SuggestionsScreen(
     var lastFocusedItemId by remember { mutableIntStateOf(Int.MIN_VALUE) }
     var lastFocusArea by remember { mutableStateOf(SuggestionsFocusArea.Field) }
     val hasContent = remember(sectionKeys) { sections.any { section -> section.items.hasTvPosterContent() } }
+    val descriptionOverlayClearance = rememberTvDescriptionOverlayClearance(hasContent = hasContent)
 
     fun requestTextFieldFocus(): Boolean {
         return requestWatchingFocus(searchRequester)
@@ -144,6 +146,7 @@ internal fun SuggestionsScreen(
             rowStates = rowStates,
             sectionRequesters = sectionRequesters,
             target = restoreTarget,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
         )
     }
 
@@ -165,6 +168,7 @@ internal fun SuggestionsScreen(
             rowStates = rowStates,
             sectionRequesters = sectionRequesters,
             target = target,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
         )
     }
 
@@ -181,6 +185,7 @@ internal fun SuggestionsScreen(
             rowStates = rowStates,
             sectionRequesters = sectionRequesters,
             target = target,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
         )
     }
 
@@ -208,6 +213,7 @@ internal fun SuggestionsScreen(
                     rowStates = rowStates,
                     sectionRequesters = sectionRequesters,
                     target = restoreTarget,
+                    verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                 )
             }
         }
@@ -273,7 +279,11 @@ internal fun SuggestionsScreen(
                 verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
                 contentPadding = PaddingValues(
                     top = 4.dp,
-                    bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset,
+                    bottom = if (hasContent) {
+                        descriptionOverlayClearance.bottomInset
+                    } else {
+                        TvBottomContentInset
+                    },
                 ),
             ) {
                 itemsIndexed(
@@ -299,6 +309,7 @@ internal fun SuggestionsScreen(
                                 rowStates = rowStates,
                                 sectionIndex = sectionIndex,
                                 itemIndex = itemIndex,
+                                verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                             )
                         },
                         onUp = { itemIndex ->
@@ -326,7 +337,9 @@ internal fun SuggestionsScreen(
                     subtitle = description.subtitle.toString(),
                     palette = palette,
                     solidSurface = true,
-                    modifier = Modifier.align(Alignment.BottomCenter),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .then(descriptionOverlayClearance.measureModifier),
                 )
             }
         }

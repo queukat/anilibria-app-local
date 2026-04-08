@@ -126,6 +126,75 @@ class PlayerViewModelTest {
         assertNotNull(viewModel.videoData.value)
     }
 
+    @Test
+    fun init_withoutEpisodeId_startsFromFirstEpisodeOfCurrentRelease_notFirstEpisodeOfFranchise() = runBlocking {
+        val season1Id = ReleaseId(8498)
+        val season4Id = ReleaseId(10161)
+        val season1Episode = createEpisode("1", season1Id)
+        val season4Episode = createEpisode("1", season4Id)
+        val season1Release = createRelease(season1Id, listOf(season1Episode))
+        val season4Release = createRelease(season4Id, listOf(season4Episode))
+        val tvPlayerFacade = mockk<TvPlayerFacade>()
+
+        every { tvPlayerFacade.observeAuthState() } returns MutableStateFlow(AuthState.NO_AUTH)
+        coEvery { tvPlayerFacade.getAuthState() } returns AuthState.NO_AUTH
+        coEvery { tvPlayerFacade.loadWithFranchises(season4Id) } returns listOf(season1Release, season4Release)
+        coEvery { tvPlayerFacade.getLocalContinueEpisodeId(season4Id) } returns null
+        coEvery { tvPlayerFacade.getLocalEpisodeSeek(any()) } returns 0L
+        coEvery { tvPlayerFacade.saveLocalEpisodeSeek(any(), any()) } returns Unit
+        coEvery { tvPlayerFacade.getRemoteEpisodeSeek(any()) } returns 0L
+
+        val viewModel = PlayerViewModel(
+            argExtra = PlayerExtra(
+                releaseId = season4Id,
+                episodeId = null,
+            ),
+            tvPlayerFacade = tvPlayerFacade,
+            preferencesHolder = createPreferencesHolder(),
+        )
+
+        waitUntil { viewModel.selectedEpisodeId.value != null }
+
+        assertEquals(season4Episode.id, viewModel.selectedEpisodeId.value)
+    }
+
+    @Test
+    fun onReplaySeasonClick_restartsFromFirstEpisodeOfCurrentRelease_notFirstEpisodeOfFranchise() = runBlocking {
+        val season1Id = ReleaseId(8498)
+        val season4Id = ReleaseId(10161)
+        val season1Episode = createEpisode("1", season1Id)
+        val season4Episode = createEpisode("1", season4Id)
+        val season1Release = createRelease(season1Id, listOf(season1Episode))
+        val season4Release = createRelease(season4Id, listOf(season4Episode))
+        val tvPlayerFacade = mockk<TvPlayerFacade>()
+
+        every { tvPlayerFacade.observeAuthState() } returns MutableStateFlow(AuthState.NO_AUTH)
+        coEvery { tvPlayerFacade.getAuthState() } returns AuthState.NO_AUTH
+        coEvery { tvPlayerFacade.loadWithFranchises(season4Id) } returns listOf(season1Release, season4Release)
+        coEvery { tvPlayerFacade.getLocalEpisodeSeek(any()) } returns 0L
+        coEvery { tvPlayerFacade.saveLocalEpisodeSeek(any(), any()) } returns Unit
+        coEvery { tvPlayerFacade.getRemoteEpisodeSeek(any()) } returns 0L
+
+        val viewModel = PlayerViewModel(
+            argExtra = PlayerExtra(
+                releaseId = season4Id,
+                episodeId = season4Episode.id,
+            ),
+            tvPlayerFacade = tvPlayerFacade,
+            preferencesHolder = createPreferencesHolder(),
+        )
+
+        waitUntil { viewModel.selectedEpisodeId.value != null }
+
+        viewModel.onReplaySeasonClick()
+
+        waitUntil { viewModel.videoData.value?.seek == 0L }
+
+        assertEquals(season4Episode.id, viewModel.selectedEpisodeId.value)
+        coVerify(atLeast = 1) { tvPlayerFacade.saveLocalEpisodeSeek(season4Episode.id, 0L) }
+        coVerify(exactly = 0) { tvPlayerFacade.saveLocalEpisodeSeek(season1Episode.id, 0L) }
+    }
+
     private suspend fun waitUntil(predicate: () -> Boolean) {
         repeat(80) {
             if (predicate()) {
@@ -145,7 +214,7 @@ class PlayerViewModelTest {
             title = "Episode $ordinal",
             qualityInfo = QualityInfo(
                 urlSd = null,
-                urlHd = "https://example.com/$ordinal.m3u8",
+                urlHd = "https://example.com/${releaseId.id}/$ordinal.m3u8",
                 urlFullHd = null,
             ),
             updatedAt = null,

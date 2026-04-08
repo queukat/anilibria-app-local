@@ -6,6 +6,7 @@ import androidx.fragment.app.FragmentActivity
 import com.github.terrakok.cicerone.NavigatorHolder
 import com.github.terrakok.cicerone.androidx.AppNavigator
 import ru.radiationx.anilibria.R
+import ru.radiationx.anilibria.common.TvStartupTrace
 import ru.radiationx.anilibria.contentprovider.suggestions.SuggestionsContentProvider
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.installModules
@@ -36,6 +37,7 @@ class MainActivity : FragmentActivity() {
         )
 
         super.onCreate(savedInstanceState)
+        TvStartupTrace.markOnce("main_activity_created")
 
         lifecycle.addObserver(viewModel)
         subscribeTo(viewModel.commands) { _ ->

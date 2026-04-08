@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.widget.ImageView
+import androidx.core.graphics.drawable.toBitmap
 import coil.ImageLoader
 import coil.clear
 import coil.dispose
@@ -11,6 +12,7 @@ import coil.load
 import coil.request.ErrorResult
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import coil.size.Precision
 import okhttp3.OkHttpClient
 import ru.radiationx.data.di.providers.ApiClientWrapper
 import ru.radiationx.shared_app.R
@@ -107,18 +109,36 @@ class CoilLibriaImageLoaderImpl @Inject constructor(
         }
     }
 
-    override suspend fun loadImageBitmap(context: Context, url: String?): Bitmap {
+    override fun imageLoader(): ImageLoader {
+        return ensureImageLoader()
+    }
+
+    override suspend fun loadImageBitmap(
+        context: Context,
+        url: String?,
+        widthPx: Int?,
+        heightPx: Int?,
+    ): Bitmap {
         val safeUrl = url?.takeIf { it.isNotBlank() }
             ?: throw IllegalArgumentException("Image url is null or blank")
 
-        val request = ImageRequest.Builder(context)
+        val requestBuilder = ImageRequest.Builder(context)
             .diskCacheKey(safeUrl.toCacheKey())
             .memoryCacheKey(safeUrl.toCacheKey())
             .data(safeUrl)
-            .build()
+            .allowHardware(false)
 
-        val result = ensureImageLoader().execute(request)
-        return (result.drawable as BitmapDrawable).bitmap
+        if (widthPx != null && heightPx != null) {
+            requestBuilder
+                .size(widthPx, heightPx)
+                .precision(Precision.INEXACT)
+        }
+
+        val result = ensureImageLoader().execute(requestBuilder.build())
+        val drawable = requireNotNull(result.drawable) {
+            "Image request completed without drawable for $safeUrl"
+        }
+        return (drawable as? BitmapDrawable)?.bitmap ?: drawable.toBitmap()
     }
 
     private var ImageView.successUrl: String?

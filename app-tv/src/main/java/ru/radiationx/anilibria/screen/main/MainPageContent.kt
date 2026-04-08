@@ -11,25 +11,30 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.LifecycleOwner
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import coil.size.Precision
 import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.GradientBackgroundManager
+import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LoadingCard
+import ru.radiationx.anilibria.common.TvStartupTrace
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.screen.mainpages.MainShellCallbacks
 import ru.radiationx.anilibria.screen.mainpages.MainShellPageContent
 import ru.radiationx.anilibria.screen.mainpages.collectStarted
 import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvPosterCardWidth
 import ru.radiationx.quill.getViewModel
+import ru.radiationx.shared_app.imageloader.libriaImageLoader
+import ru.radiationx.shared_app.imageloader.utils.toCacheKey
+import kotlin.math.roundToInt
 
 internal class MainPageContent(
     private val fragment: Fragment,
     private val backgroundManager: GradientBackgroundManager,
 ) : MainShellPageContent {
-
-    private companion object {
-        val loadingItems = listOf<CardItem>(LoadingCard("Загрузка..."))
-    }
 
     private val mainViewModel = fragment.getViewModel(MainViewModel::class)
     private val feedViewModel = fragment.getViewModel(MainFeedViewModel::class)
@@ -73,6 +78,7 @@ internal class MainPageContent(
     private var restoreItemIndex by mutableIntStateOf(0)
     private var restoreItemId by mutableIntStateOf(Int.MIN_VALUE)
     private var selectedItemState by mutableStateOf<CardItem?>(null)
+    private val prefetchedPosterUrls = linkedSetOf<String>()
 
     override fun bind(owner: LifecycleOwner) {
         owner.lifecycle.addObserver(mainViewModel)
@@ -157,6 +163,12 @@ internal class MainPageContent(
         rowId: Long,
         items: List<CardItem>,
     ) {
+        if (items.any { it is LibriaCard }) {
+            TvStartupTrace.markOnce("main_real_cards_visible")
+        }
+        if (rowId == MainViewModel.FEED_ROW_ID) {
+            prefetchMainFeedPosters(items)
+        }
         updateSection(
             rowId = rowId,
             transform = { section ->
@@ -208,5 +220,40 @@ internal class MainPageContent(
         item: CardItem,
     ) {
         viewModel.onCardItemClick(item)
+    }
+
+    private fun prefetchMainFeedPosters(items: List<CardItem>) {
+        val context = fragment.context ?: return
+        val displayMetrics = context.resources.displayMetrics
+        val posterWidthPx = (TvPosterCardWidth.value * displayMetrics.density).roundToInt()
+        val posterHeightPx = (posterWidthPx / (130f / 185f)).roundToInt()
+        val imageLoader = context.libriaImageLoader()
+
+        items.asSequence()
+            .filterIsInstance<LibriaCard>()
+            .mapNotNull { card -> card.image.trim().takeIf { it.isNotEmpty() } }
+            .distinct()
+            .take(MAIN_FEED_PREFETCH_LIMIT)
+            .forEach { imageUrl ->
+                if (!prefetchedPosterUrls.add(imageUrl)) {
+                    return@forEach
+                }
+                imageLoader.enqueue(
+                    ImageRequest.Builder(context)
+                        .data(imageUrl)
+                        .diskCacheKey(imageUrl.toCacheKey())
+                        .memoryCacheKey(imageUrl.toCacheKey())
+                        .size(posterWidthPx, posterHeightPx)
+                        .precision(Precision.INEXACT)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .build()
+                )
+            }
+    }
+
+    private companion object {
+        val loadingItems = listOf<CardItem>(LoadingCard("Загрузка..."))
+        const val MAIN_FEED_PREFETCH_LIMIT = 6
     }
 }

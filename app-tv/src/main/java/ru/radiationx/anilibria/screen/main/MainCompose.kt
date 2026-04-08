@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
+import ru.radiationx.anilibria.common.TvStartupTrace
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.toTvCardDescription
@@ -45,7 +46,6 @@ import ru.radiationx.anilibria.screen.watching.WatchingMessageCard
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
 import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
-import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
 import ru.radiationx.anilibria.screen.watching.TvDescriptionBarPadding
 import ru.radiationx.anilibria.screen.watching.TvPosterCardWidth
 import ru.radiationx.anilibria.screen.watching.TvRowEndPadding
@@ -63,6 +63,7 @@ import ru.radiationx.anilibria.screen.watching.launchKeepTvSectionItemVisible
 import ru.radiationx.anilibria.screen.watching.launchTvSectionFocus
 import ru.radiationx.anilibria.screen.watching.primaryTvStateItem
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.screen.watching.rememberTvDescriptionOverlayClearance
 import ru.radiationx.anilibria.screen.watching.restoreTvSectionFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
@@ -99,6 +100,9 @@ internal fun MainScreen(
     onContentMovedUp: () -> Unit,
     onItemFocused: (Int, Int, CardItem) -> Unit,
 ) {
+    LaunchedEffect(Unit) {
+        TvStartupTrace.markOnce("main_loading_ui_visible")
+    }
     val palette = rememberWatchingPalette()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -131,6 +135,7 @@ internal fun MainScreen(
     var selectedItem by remember { mutableStateOf<LibriaCard?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     val hasContent = remember(sectionKeys) { sections.any { section -> section.items.hasTvPosterContent() } }
+    val descriptionOverlayClearance = rememberTvDescriptionOverlayClearance(hasContent = hasContent)
 
     fun requestSectionFocus(
         currentSectionIndex: Int,
@@ -150,6 +155,7 @@ internal fun MainScreen(
             rowStates = rowStates,
             sectionRequesters = sectionRequesters,
             target = target,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
             onBeforeRequest = if (direction > 0) {
                 onContentMovedDown
             } else {
@@ -184,6 +190,7 @@ internal fun MainScreen(
                     rowStates = rowStates,
                     sectionRequesters = sectionRequesters,
                     target = restoreTarget,
+                    verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                 )
             }
         }
@@ -208,6 +215,7 @@ internal fun MainScreen(
             rowStates = rowStates,
             sectionRequesters = sectionRequesters,
             target = restoreTarget,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
         )
     }
 
@@ -236,6 +244,7 @@ internal fun MainScreen(
                 rowStates = rowStates,
                 sectionRequesters = sectionRequesters,
                 target = restoreTarget,
+                verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
             )
         ) {
             handledFocusToken = focusRequestToken
@@ -253,7 +262,11 @@ internal fun MainScreen(
             verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
             contentPadding = PaddingValues(
                 top = 6.dp,
-                bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset,
+                bottom = if (hasContent) {
+                    descriptionOverlayClearance.bottomInset
+                } else {
+                    TvBottomContentInset
+                },
             ),
         ) {
             itemsIndexed(
@@ -276,6 +289,7 @@ internal fun MainScreen(
                                 rowStates = rowStates,
                                 sectionIndex = sectionIndex,
                                 itemIndex = itemIndex,
+                                verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                             )
                             onItemFocused(sectionIndex, itemIndex, item)
                         },
@@ -299,7 +313,9 @@ internal fun MainScreen(
             MainSelectedItemDescriptionBar(
                 item = item,
                 palette = palette,
-                modifier = Modifier.align(Alignment.BottomCenter),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .then(descriptionOverlayClearance.measureModifier),
             )
         }
     }

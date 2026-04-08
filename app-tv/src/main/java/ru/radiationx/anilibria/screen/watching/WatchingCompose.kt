@@ -45,6 +45,7 @@ import ru.radiationx.anilibria.screen.watching.findAdjacentTvSectionTarget
 import ru.radiationx.anilibria.screen.watching.findTvSectionRestoreTarget
 import ru.radiationx.anilibria.screen.watching.launchKeepTvSectionItemVisible
 import ru.radiationx.anilibria.screen.watching.launchTvSectionFocus
+import ru.radiationx.anilibria.screen.watching.rememberTvDescriptionOverlayClearance
 import ru.radiationx.anilibria.screen.watching.restoreTvSectionFocus
 
 internal data class WatchingSectionUiModel(
@@ -90,6 +91,7 @@ internal fun WatchingScreen(
     var lastFocusedItemIndex by rememberSaveable { mutableIntStateOf(0) }
     var lastFocusedItemId by rememberSaveable { mutableIntStateOf(Int.MIN_VALUE) }
     val hasContent = remember(sectionKeys) { sections.any { section -> section.items.hasTvPosterContent() } }
+    val descriptionOverlayClearance = rememberTvDescriptionOverlayClearance(hasContent = hasContent)
 
     fun requestSectionFocus(
         currentSectionIndex: Int,
@@ -109,6 +111,7 @@ internal fun WatchingScreen(
             rowStates = rowStates,
             sectionRequesters = sectionRequesters,
             target = target,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
             onBeforeRequest = if (direction > 0) {
                 onContentMovedDown
             } else {
@@ -147,6 +150,7 @@ internal fun WatchingScreen(
                     rowStates = rowStates,
                     sectionRequesters = sectionRequesters,
                     target = restoreTarget,
+                    verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                 )
             }
         }
@@ -169,6 +173,7 @@ internal fun WatchingScreen(
             rowStates = rowStates,
             sectionRequesters = sectionRequesters,
             target = restoreTarget,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
         )
         selectedCard = sections.getOrNull(restoreTarget.sectionIndex)
             ?.items
@@ -201,6 +206,7 @@ internal fun WatchingScreen(
             rowStates = rowStates,
             sectionRequesters = sectionRequesters,
             target = restoreTarget,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
         )
         if (restoredFocus) {
             handledFocusToken = focusRequestToken
@@ -220,7 +226,11 @@ internal fun WatchingScreen(
                 verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
                 contentPadding = PaddingValues(
                     top = 6.dp,
-                    bottom = if (hasContent) TvBottomDescriptionInset else TvBottomContentInset,
+                    bottom = if (hasContent) {
+                        descriptionOverlayClearance.bottomInset
+                    } else {
+                        TvBottomContentInset
+                    },
                 ),
             ) {
                 itemsIndexed(
@@ -248,6 +258,7 @@ internal fun WatchingScreen(
                                 rowStates = rowStates,
                                 sectionIndex = sectionIndex,
                                 itemIndex = itemIndex,
+                                verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                             )
                             onItemFocused(sectionIndex, itemIndex, card)
                         },
@@ -262,6 +273,7 @@ internal fun WatchingScreen(
                                 rowStates = rowStates,
                                 sectionIndex = sectionIndex,
                                 itemIndex = itemIndex,
+                                verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                             )
                             onItemFocused(sectionIndex, itemIndex, item)
                         },
@@ -287,7 +299,9 @@ internal fun WatchingScreen(
                     subtitle = card.resolveDescription(context),
                     palette = palette,
                     solidSurface = true,
-                    modifier = Modifier.align(Alignment.BottomCenter),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .then(descriptionOverlayClearance.measureModifier),
                 )
             }
         }

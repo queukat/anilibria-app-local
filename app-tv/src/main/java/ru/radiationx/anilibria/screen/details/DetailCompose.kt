@@ -47,6 +47,7 @@ import ru.radiationx.anilibria.screen.watching.findTvSectionRestoreTarget
 import ru.radiationx.anilibria.screen.watching.launchKeepTvSectionItemVisible
 import ru.radiationx.anilibria.screen.watching.launchTvSectionFocus
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.screen.watching.rememberTvDescriptionOverlayClearance
 import ru.radiationx.anilibria.screen.watching.resolveTvSectionTargetInSection
 import ru.radiationx.anilibria.screen.watching.restoreTvSectionFocus
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
@@ -59,6 +60,22 @@ internal data class DetailContentRestoreState(
     val preferredItemIndex: Int = 0,
     val preferredItemId: Int = Int.MIN_VALUE,
 )
+
+internal fun buildStableDetailSectionRequesters(
+    sections: List<MainSectionUiModel>,
+    requesterCache: MutableMap<Long, MutableMap<Int, androidx.compose.ui.focus.FocusRequester>>,
+): List<List<androidx.compose.ui.focus.FocusRequester>> {
+    return sections.map { section ->
+        val cachedRequesters = requesterCache.getOrPut(section.id) { mutableMapOf() }
+        val activeItemIds = section.items.map(CardItem::getId).toSet()
+        cachedRequesters.keys.retainAll(activeItemIds)
+        section.items.map { item ->
+            cachedRequesters.getOrPut(item.getId()) {
+                androidx.compose.ui.focus.FocusRequester()
+            }
+        }
+    }
+}
 
 @Composable
 internal fun DetailScreen(
@@ -78,16 +95,21 @@ internal fun DetailScreen(
     val verticalState = remember { LazyListState() }
     val detailCardBackground = palette.surfaceColor.copy(alpha = 0.86f)
     val sectionItems = remember(sections) { sections.map(MainSectionUiModel::items) }
+    val sectionIds = remember(sections) { sections.map(MainSectionUiModel::id) }
     val sectionKeys = remember(sections) {
         sections.map { section ->
             section.id to section.items.map(CardItem::getId)
         }
     }
-    val rowStates = remember(sectionKeys) { List(sections.size) { LazyListState() } }
+    val rowStates = remember(sectionIds) { List(sections.size) { LazyListState() } }
+    val requesterCache = remember {
+        mutableMapOf<Long, MutableMap<Int, androidx.compose.ui.focus.FocusRequester>>()
+    }
     val sectionRequesters = remember(sectionKeys) {
-        sections.map { section ->
-            List(section.items.size) { androidx.compose.ui.focus.FocusRequester() }
-        }
+        buildStableDetailSectionRequesters(
+            sections = sections,
+            requesterCache = requesterCache,
+        )
     }
     val firstContentRequester = remember(sectionKeys) {
         sections.indices.asSequence()
@@ -103,11 +125,12 @@ internal fun DetailScreen(
             .firstOrNull()
             ?: androidx.compose.ui.focus.FocusRequester.Default
     }
-    var selectedItem by remember(sectionKeys) { mutableStateOf<CardItem?>(null) }
+    var selectedItem by remember { mutableStateOf<CardItem?>(null) }
     var handledContentRestoreToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
     val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
+    val descriptionOverlayClearance = rememberTvDescriptionOverlayClearance(hasContent = hasContent)
     var isContentPageActive by remember { mutableStateOf(false) }
 
     fun requestHeaderFocus() {
@@ -134,6 +157,7 @@ internal fun DetailScreen(
             rowStates = rowStates,
             sectionRequesters = sectionRequesters,
             target = target,
+            verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
         )
     }
 
@@ -148,6 +172,7 @@ internal fun DetailScreen(
         val hadSelectedItem = selectedId != null
         val stillVisible = selectedId != null && visibleItems.any { it.getId() == selectedId }
         selectedItem = visibleItems.firstOrNull { it.getId() == selectedId }
+            ?: visibleItems.firstOrNull { it.getId() == contentRestoreState.preferredItemId }
         if (hadSelectedItem && !stillVisible) {
             val restoreTarget = findTvSectionRestoreTarget(
                 sections = sectionItems,
@@ -162,6 +187,7 @@ internal fun DetailScreen(
                     rowStates = rowStates,
                     sectionRequesters = sectionRequesters,
                     target = restoreTarget,
+                    verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                 )
             } else {
                 onRequestHeaderFocus()
@@ -190,6 +216,7 @@ internal fun DetailScreen(
                 rowStates = rowStates,
                 sectionRequesters = sectionRequesters,
                 target = restoreTarget,
+                verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
             )
         ) {
             handledContentRestoreToken = contentRestoreState.focusToken
@@ -245,7 +272,7 @@ internal fun DetailScreen(
                     verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
                     contentPadding = PaddingValues(
                         top = 36.dp,
-                        bottom = if (hasContent) TvBottomDescriptionInset else 0.dp,
+                        bottom = if (hasContent) descriptionOverlayClearance.bottomInset else 0.dp,
                     ),
                 ) {
                     itemsIndexed(
@@ -273,6 +300,7 @@ internal fun DetailScreen(
                                     rowStates = rowStates,
                                     sectionIndex = sectionIndex,
                                     itemIndex = itemIndex,
+                                    verticalBottomClearancePx = descriptionOverlayClearance.bottomClearancePx,
                                 )
                                 onContentItemFocused(sectionIndex, itemIndex, item)
                             },
@@ -310,7 +338,9 @@ internal fun DetailScreen(
                         palette = palette,
                         contentPadding = TvDetailDescriptionBarPadding,
                         solidSurface = true,
-                        modifier = Modifier.align(Alignment.BottomCenter),
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .then(descriptionOverlayClearance.measureModifier),
                     )
                 }
             }

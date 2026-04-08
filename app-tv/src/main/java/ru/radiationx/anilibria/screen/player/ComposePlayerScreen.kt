@@ -76,9 +76,11 @@ import kotlinx.coroutines.delay
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.watching.TvPlayerOverlayBottomPadding
 import ru.radiationx.anilibria.screen.watching.TvPlayerOverlayHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvCenterPressAction
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.screen.watching.resolveTvCenterPressAction
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.data.entity.common.PlayerQuality
@@ -122,6 +124,41 @@ internal enum class PlayerOverlayPicker(
     fun focusTarget(): PlayerOverlayFocusTarget = returnTarget
 }
 
+internal enum class PlayerControlSurfaceKeyAction {
+    Ignore,
+    Consume,
+    Click,
+    MoveLeft,
+    MoveUp,
+    MoveRight,
+    MoveDown,
+}
+
+internal fun resolvePlayerControlSurfaceKeyAction(
+    canFocus: Boolean,
+    enabled: Boolean,
+    key: Key,
+    eventType: KeyEventType,
+): PlayerControlSurfaceKeyAction {
+    return when (resolveTvCenterPressAction(canFocus, enabled, key, eventType)) {
+        TvCenterPressAction.Consume -> PlayerControlSurfaceKeyAction.Consume
+        TvCenterPressAction.Click -> PlayerControlSurfaceKeyAction.Click
+        TvCenterPressAction.Ignore -> {
+            if (!canFocus || eventType != KeyEventType.KeyDown) {
+                PlayerControlSurfaceKeyAction.Ignore
+            } else {
+                when (key) {
+                    Key.DirectionLeft -> PlayerControlSurfaceKeyAction.MoveLeft
+                    Key.DirectionUp -> PlayerControlSurfaceKeyAction.MoveUp
+                    Key.DirectionRight -> PlayerControlSurfaceKeyAction.MoveRight
+                    Key.DirectionDown -> PlayerControlSurfaceKeyAction.MoveDown
+                    else -> PlayerControlSurfaceKeyAction.Ignore
+                }
+            }
+        }
+    }
+}
+
 private data class PlayerPickerOption(
     val id: String,
     val label: String,
@@ -161,7 +198,7 @@ internal fun PlayerScreenContent(
     onShowControls: (PlayerOverlayFocusTarget?) -> Unit,
     onShowControlsFromQuickActions: () -> Unit,
     onAutoHideControls: () -> Unit,
-    onQuickActionHandled: () -> Unit,
+    onQuickActionHandled: (PlayerQuickActionHandling) -> Unit,
     onBackRequested: () -> Unit,
     onTogglePlayback: () -> Unit,
     onSeekBack: () -> Unit,
@@ -606,6 +643,7 @@ internal fun PlayerScreenContent(
 
         PlayerSkipsOverlay(
             skipsPart = skipsPart,
+            controlsVisible = controlsVisible,
             onInteraction = ::registerInteraction,
             onQuickActionHandled = onQuickActionHandled,
             onOpenControls = onShowControlsFromQuickActions,
@@ -1493,26 +1531,18 @@ private fun PlayerControlSurface(
                 }
             }
             .onPreviewKeyEvent { event ->
-                if (!canFocus || event.type != KeyEventType.KeyDown) {
-                    return@onPreviewKeyEvent false
-                }
-                when (event.key) {
-                    Key.DirectionCenter,
-                    Key.Enter,
-                    Key.NumPadEnter -> {
-                        if (enabled) {
-                            onClick()
-                            true
-                        } else {
-                            false
-                        }
+                when (resolvePlayerControlSurfaceKeyAction(canFocus, enabled, event.key, event.type)) {
+                    PlayerControlSurfaceKeyAction.Consume -> true
+                    PlayerControlSurfaceKeyAction.Click -> {
+                        onClick()
+                        true
                     }
 
-                    Key.DirectionLeft -> onLeft?.invoke() == true
-                    Key.DirectionUp -> onUp?.invoke() == true
-                    Key.DirectionRight -> onRight?.invoke() == true
-                    Key.DirectionDown -> onDown?.invoke() == true
-                    else -> false
+                    PlayerControlSurfaceKeyAction.MoveLeft -> onLeft?.invoke() == true
+                    PlayerControlSurfaceKeyAction.MoveUp -> onUp?.invoke() == true
+                    PlayerControlSurfaceKeyAction.MoveRight -> onRight?.invoke() == true
+                    PlayerControlSurfaceKeyAction.MoveDown -> onDown?.invoke() == true
+                    PlayerControlSurfaceKeyAction.Ignore -> false
                 }
             }
             .then(

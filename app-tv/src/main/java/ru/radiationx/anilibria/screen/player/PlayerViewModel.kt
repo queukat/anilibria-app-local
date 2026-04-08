@@ -131,6 +131,10 @@ class PlayerViewModel @Inject constructor(
 
             currentRelease = releases.firstOrNull { it.id == argExtra.releaseId } ?: releases.firstOrNull()
             currentEpisodes = releases.toPlaybackEpisodesOrder()
+            val releaseEpisodes = currentRelease
+                ?.episodes
+                ?.sortedByEpisodeOrdinalAsc()
+                .orEmpty()
 
             val initialEpisodeId = argExtra.episodeId
                 ?: runCatching {
@@ -145,6 +149,7 @@ class PlayerViewModel @Inject constructor(
                 }
 
             val episode = currentEpisodes.firstOrNull { it.id == initialEpisodeId }
+                ?: releaseEpisodes.firstOrNull()
                 ?: currentEpisodes.firstOrNull()
 
             if (episode == null) {
@@ -264,7 +269,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun onReplaySeasonClick() {
-        val firstEpisode = currentEpisodes.firstOrNull() ?: return
+        val firstEpisode = getCurrentReleaseFirstEpisode() ?: return
         replayEpisodeFromStart(firstEpisode)
     }
 
@@ -323,6 +328,13 @@ class PlayerViewModel @Inject constructor(
 
     private fun getCurrentRelease(): Release? {
         return currentRelease ?: currentReleases.firstOrNull()
+    }
+
+    private fun getCurrentReleaseFirstEpisode(): Episode? {
+        return getCurrentRelease()
+            ?.episodes
+            ?.sortedByEpisodeOrdinalAsc()
+            ?.firstOrNull()
     }
 
     private fun getNextEpisode(): Episode? {

@@ -113,8 +113,9 @@ class PlayerSkipsPart(
 @Composable
 internal fun PlayerSkipsOverlay(
     skipsPart: PlayerSkipsPart?,
+    controlsVisible: Boolean,
     onInteraction: () -> Unit,
-    onQuickActionHandled: () -> Unit,
+    onQuickActionHandled: (PlayerQuickActionHandling) -> Unit,
     onOpenControls: () -> Unit,
     modifier: Modifier = Modifier,
     bottomPadding: Dp = TvPlayerOverlayBottomPadding,
@@ -154,11 +155,11 @@ internal fun PlayerSkipsOverlay(
             },
             onSkipClick = {
                 skipsPart?.skipCurrent()
-                onQuickActionHandled()
+                onQuickActionHandled(resolvePlayerQuickActionHandling(controlsVisible))
             },
             onWatchClick = {
                 skipsPart?.cancelCurrent()
-                onQuickActionHandled()
+                onQuickActionHandled(resolvePlayerQuickActionHandling(controlsVisible))
             },
             panelWidthFraction = panelWidthFraction,
             bottomPadding = animatedBottomPadding,
