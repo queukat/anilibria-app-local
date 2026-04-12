@@ -11,17 +11,19 @@ data class Video(
     val skips: PlayerSkips?,
 )
 
-fun PlayerQuality.asPlayerLabel(): String = when (this) {
-    PlayerQuality.SD -> "480p"
-    PlayerQuality.HD -> "720p"
-    PlayerQuality.FULLHD -> "1080p"
-}
+fun PlayerQuality.asPlayerLabel(): String =
+    when (this) {
+        PlayerQuality.SD -> "480p"
+        PlayerQuality.HD -> "720p"
+        PlayerQuality.FULLHD -> "1080p"
+    }
 
 fun Float.asPlayerLabel(): String {
-    val normalized = if (this % 1f == 0f) {
-        this.toInt().toString()
-    } else {
-        toString()
-    }
+    val normalized =
+        if (this % 1f == 0f) {
+            this.toInt().toString()
+        } else {
+            toString()
+        }
     return "${normalized}x"
 }

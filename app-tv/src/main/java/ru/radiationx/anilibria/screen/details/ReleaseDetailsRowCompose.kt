@@ -3,7 +3,6 @@ package ru.radiationx.anilibria.screen.details
 import android.content.Context
 import android.util.TypedValue
 import androidx.annotation.AttrRes
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,13 +28,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -54,7 +52,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -86,7 +83,6 @@ import kotlinx.coroutines.withContext
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.DetailsState
 import ru.radiationx.anilibria.common.LibriaDetails
-import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvDetailHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
@@ -185,38 +181,40 @@ internal fun ReleaseDetailsRowContent(
     val favoriteRequester = remember { FocusRequester() }
     val otherRequester = remember { FocusRequester() }
 
-    val startActionRequester = remember(details) {
-        when {
-            details?.hasViewed == true -> continueRequester
-            details?.hasEpisodes == true -> playRequester
-            details != null -> favoriteRequester
-            else -> descriptionRequester
+    val startActionRequester =
+        remember(details) {
+            when {
+                details?.hasViewed == true -> continueRequester
+                details?.hasEpisodes == true -> playRequester
+                details != null -> favoriteRequester
+                else -> descriptionRequester
+            }
         }
-    }
-    val initialFocusRequester = remember(
-        details,
-        uiState.initialFocusTarget,
-    ) {
-        fun fallback(): FocusRequester = startActionRequester
-        when (uiState.initialFocusTarget) {
-            ReleaseDetailsFocusTarget.StartAction -> fallback()
-            ReleaseDetailsFocusTarget.Continue -> {
-                if (details?.hasViewed == true) continueRequester else fallback()
-            }
-            ReleaseDetailsFocusTarget.Play -> {
-                if (details?.hasEpisodes == true) playRequester else fallback()
-            }
-            ReleaseDetailsFocusTarget.Favorite -> favoriteRequester
-            ReleaseDetailsFocusTarget.Description -> descriptionRequester
-            ReleaseDetailsFocusTarget.Other -> {
-                if (details?.let { it.hasEpisodes || it.hasViewed } == true) {
-                    otherRequester
-                } else {
-                    fallback()
+    val initialFocusRequester =
+        remember(
+            details,
+            uiState.initialFocusTarget,
+        ) {
+            fun fallback(): FocusRequester = startActionRequester
+            when (uiState.initialFocusTarget) {
+                ReleaseDetailsFocusTarget.StartAction -> fallback()
+                ReleaseDetailsFocusTarget.Continue -> {
+                    if (details?.hasViewed == true) continueRequester else fallback()
+                }
+                ReleaseDetailsFocusTarget.Play -> {
+                    if (details?.hasEpisodes == true) playRequester else fallback()
+                }
+                ReleaseDetailsFocusTarget.Favorite -> favoriteRequester
+                ReleaseDetailsFocusTarget.Description -> descriptionRequester
+                ReleaseDetailsFocusTarget.Other -> {
+                    if (details?.let { it.hasEpisodes || it.hasViewed } == true) {
+                        otherRequester
+                    } else {
+                        fallback()
+                    }
                 }
             }
         }
-    }
 
     LaunchedEffect(uiState.initialFocusToken, progressState.loadingProgress) {
         if (uiState.initialFocusToken == 0 || progressState.loadingProgress) {
@@ -228,14 +226,16 @@ internal fun ReleaseDetailsRowContent(
     }
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(colorResource(R.color.dark_colorPrimary))
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(colorResource(R.color.dark_colorPrimary)),
     ) {
         ConstraintLayout(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = horizontalPadding, end = horizontalPadding)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(start = horizontalPadding, end = horizontalPadding),
         ) {
             val leftContent = createRef()
             val imageCard = createRef()
@@ -245,52 +245,58 @@ internal fun ReleaseDetailsRowContent(
             val loadingProgress = createRef()
 
             BoxWithConstraints(
-                modifier = Modifier.constrainAs(leftContent) {
-                    start.linkTo(parent.start)
-                    end.linkTo(imageCard.start, margin = horizontalPadding)
-                    top.linkTo(parent.top, margin = topPadding)
-                    bottom.linkTo(actionsRow.top, margin = 16.dp)
-                    width = Dimension.fillToConstraints
-                    height = Dimension.fillToConstraints
-                }
+                modifier =
+                    Modifier.constrainAs(leftContent) {
+                        start.linkTo(parent.start)
+                        end.linkTo(imageCard.start, margin = horizontalPadding)
+                        top.linkTo(parent.top, margin = topPadding)
+                        bottom.linkTo(actionsRow.top, margin = 16.dp)
+                        width = Dimension.fillToConstraints
+                        height = Dimension.fillToConstraints
+                    },
             ) {
                 val contentWidthPx = with(density) { maxWidth.roundToPx() }
                 val ruTitle = details?.titleRu?.normalizeTitleText()
                 val enTitle = details?.titleEn?.normalizeTitleText()
-                val ruTitleStyle = TextStyle(
-                    fontSize = 34.sp,
-                    lineHeight = 40.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = textColor,
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                )
-                val enTitleStyle = TextStyle(
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = textColor,
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                )
+                val ruTitleStyle =
+                    TextStyle(
+                        fontSize = 34.sp,
+                        lineHeight = 40.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = textColor,
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    )
+                val enTitleStyle =
+                    TextStyle(
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = textColor,
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    )
 
-                val ruMeasure = rememberScrollableTextMeasure(
-                    text = ruTitle,
-                    style = ruTitleStyle,
-                    widthPx = contentWidthPx,
-                    maxVisibleLines = 2,
-                )
-                val enMeasure = rememberScrollableTextMeasure(
-                    text = enTitle,
-                    style = enTitleStyle,
-                    widthPx = contentWidthPx,
-                    maxVisibleLines = 2,
-                )
+                val ruMeasure =
+                    rememberScrollableTextMeasure(
+                        text = ruTitle,
+                        style = ruTitleStyle,
+                        widthPx = contentWidthPx,
+                        maxVisibleLines = 2,
+                    )
+                val enMeasure =
+                    rememberScrollableTextMeasure(
+                        text = enTitle,
+                        style = enTitleStyle,
+                        widthPx = contentWidthPx,
+                        maxVisibleLines = 2,
+                    )
 
                 val hasRuFocusStop = interactionsEnabled && !ruTitle.isNullOrBlank() && ruMeasure.isScrollable
                 val hasEnFocusStop = interactionsEnabled && !enTitle.isNullOrBlank() && enMeasure.isScrollable
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .focusGroup(),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .focusGroup(),
                     verticalArrangement = Arrangement.Top,
                 ) {
                     if (!ruTitle.isNullOrBlank()) {
@@ -303,10 +309,11 @@ internal fun ReleaseDetailsRowContent(
                             enabled = interactionsEnabled,
                             canFocus = hasRuFocusStop,
                             upRequester = FocusRequester.Default,
-                            downRequester = when {
-                                hasEnFocusStop -> enTitleRequester
-                                else -> descriptionRequester
-                            },
+                            downRequester =
+                                when {
+                                    hasEnFocusStop -> enTitleRequester
+                                    else -> descriptionRequester
+                                },
                         )
                     }
 
@@ -351,16 +358,18 @@ internal fun ReleaseDetailsRowContent(
                         backgroundColor = cardBackground.copy(alpha = 0.86f),
                         focusRequester = descriptionRequester,
                         enabled = interactionsEnabled,
-                        upRequester = when {
-                            hasEnFocusStop -> enTitleRequester
-                            hasRuFocusStop -> ruTitleRequester
-                            else -> FocusRequester.Default
-                        },
+                        upRequester =
+                            when {
+                                hasEnFocusStop -> enTitleRequester
+                                hasRuFocusStop -> ruTitleRequester
+                                else -> FocusRequester.Default
+                            },
                         downRequester = startActionRequester,
                         onClick = callbacks.descriptionClick,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
                     )
                 }
             }
@@ -368,15 +377,16 @@ internal fun ReleaseDetailsRowContent(
             ReleasePosterImage(
                 imageUrl = details?.image.orEmpty(),
                 backgroundColor = cardBackground,
-                modifier = Modifier
-                    .constrainAs(imageCard) {
-                        end.linkTo(parent.end)
-                        top.linkTo(parent.top, margin = topPadding)
-                        bottom.linkTo(actionsRow.top, margin = 16.dp)
-                        height = Dimension.fillToConstraints
-                        width = Dimension.ratio("260:370")
-                    }
-                    .alpha(if (progressState.loadingProgress) 0f else 1f),
+                modifier =
+                    Modifier
+                        .constrainAs(imageCard) {
+                            end.linkTo(parent.end)
+                            top.linkTo(parent.top, margin = topPadding)
+                            bottom.linkTo(actionsRow.top, margin = 16.dp)
+                            height = Dimension.fillToConstraints
+                            width = Dimension.ratio("260:370")
+                        }
+                        .alpha(if (progressState.loadingProgress) 0f else 1f),
             )
 
             ActionsRow(
@@ -394,25 +404,27 @@ internal fun ReleaseDetailsRowContent(
                 onPlayClick = callbacks.playClick,
                 onFavoriteClick = callbacks.favoriteClick,
                 onOtherClick = callbacks.otherClick,
-                modifier = Modifier
-                    .constrainAs(actionsRow) {
-                        start.linkTo(parent.start)
-                        bottom.linkTo(parent.bottom, margin = actionRowBottomPadding)
-                    }
-                    .alpha(if (progressState.loadingProgress) 0f else 1f),
+                modifier =
+                    Modifier
+                        .constrainAs(actionsRow) {
+                            start.linkTo(parent.start)
+                            bottom.linkTo(parent.bottom, margin = actionRowBottomPadding)
+                        }
+                        .alpha(if (progressState.loadingProgress) 0f else 1f),
             )
 
             if (progressState.updateProgress && !progressState.loadingProgress) {
                 CircularProgressIndicator(
                     strokeWidth = 2.dp,
                     color = textColor,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .constrainAs(updateProgress) {
-                            bottom.linkTo(actionsRow.top, margin = 12.dp)
-                            start.linkTo(parent.start)
-                            end.linkTo(parent.end)
-                        }
+                    modifier =
+                        Modifier
+                            .size(24.dp)
+                            .constrainAs(updateProgress) {
+                                bottom.linkTo(actionsRow.top, margin = 12.dp)
+                                start.linkTo(parent.start)
+                                end.linkTo(parent.end)
+                            },
                 )
             }
 
@@ -421,28 +433,30 @@ internal fun ReleaseDetailsRowContent(
                     painter = painterResource(R.drawable.ic_wide_arrow_down),
                     contentDescription = null,
                     tint = textColor,
-                    modifier = Modifier
-                        .alpha(BOTTOM_ARROW_ALPHA)
-                        .constrainAs(bottomArrow) {
-                            top.linkTo(actionsRow.bottom, margin = bottomHintTopSpacing)
-                            bottom.linkTo(parent.bottom, margin = bottomHintBottomSpacing)
-                            start.linkTo(parent.start)
-                            end.linkTo(parent.end)
-                        }
+                    modifier =
+                        Modifier
+                            .alpha(BOTTOM_ARROW_ALPHA)
+                            .constrainAs(bottomArrow) {
+                                top.linkTo(actionsRow.bottom, margin = bottomHintTopSpacing)
+                                bottom.linkTo(parent.bottom, margin = bottomHintBottomSpacing)
+                                start.linkTo(parent.start)
+                                end.linkTo(parent.end)
+                            },
                 )
             }
 
             if (progressState.loadingProgress) {
                 CircularProgressIndicator(
                     color = textColor,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .constrainAs(loadingProgress) {
-                            start.linkTo(parent.start)
-                            end.linkTo(parent.end)
-                            top.linkTo(parent.top)
-                            bottom.linkTo(parent.bottom, margin = topPadding)
-                        }
+                    modifier =
+                        Modifier
+                            .size(56.dp)
+                            .constrainAs(loadingProgress) {
+                                start.linkTo(parent.start)
+                                end.linkTo(parent.end)
+                                top.linkTo(parent.top)
+                                bottom.linkTo(parent.bottom, margin = topPadding)
+                            },
                 )
             }
         }
@@ -485,13 +499,14 @@ private fun MetadataRow(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
-                    painter = painterResource(
-                        if (details.isFavorite) {
-                            R.drawable.ic_details_favorite_filled
-                        } else {
-                            R.drawable.ic_details_favorite
-                        }
-                    ),
+                    painter =
+                        painterResource(
+                            if (details.isFavorite) {
+                                R.drawable.ic_details_favorite_filled
+                            } else {
+                                R.drawable.ic_details_favorite
+                            },
+                        ),
                     contentDescription = null,
                     tint = textColor,
                     modifier = Modifier.size(18.dp),
@@ -508,15 +523,16 @@ private fun AnnounceChip(
     backgroundColor: Color,
 ) {
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(backgroundColor.copy(alpha = 0.18f))
-            .border(
-                width = 1.dp,
-                color = backgroundColor.copy(alpha = 0.34f),
-                shape = RoundedCornerShape(12.dp),
-            )
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(backgroundColor.copy(alpha = 0.18f))
+                .border(
+                    width = 1.dp,
+                    color = backgroundColor.copy(alpha = 0.34f),
+                    shape = RoundedCornerShape(12.dp),
+                )
+                .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {
         Text(
             text = text,
@@ -542,44 +558,47 @@ private fun ScrollableTitle(
     androidx.compose.runtime.key(text) {
         val scrollState = rememberScrollState()
         val viewportHeight = measure.viewportHeight
-        val modifier = if (enabled && canFocus) {
-            Modifier
-                .fillMaxWidth()
-                .height(viewportHeight)
-                .tvScrollableFocus(
-                    scrollState = scrollState,
-                    viewportHeightPx = measure.viewportHeightPx,
-                    scrollStepPx = measure.scrollStepPx,
-                    focusRequester = focusRequester,
-                    upRequester = upRequester,
-                    downRequester = downRequester,
-                )
-        } else {
-            Modifier
-                .fillMaxWidth()
-                .height(viewportHeight)
-        }
+        val modifier =
+            if (enabled && canFocus) {
+                Modifier
+                    .fillMaxWidth()
+                    .height(viewportHeight)
+                    .tvScrollableFocus(
+                        scrollState = scrollState,
+                        viewportHeightPx = measure.viewportHeightPx,
+                        scrollStepPx = measure.scrollStepPx,
+                        focusRequester = focusRequester,
+                        upRequester = upRequester,
+                        downRequester = downRequester,
+                    )
+            } else {
+                Modifier
+                    .fillMaxWidth()
+                    .height(viewportHeight)
+            }
 
         Box(modifier = modifier.clipToBounds()) {
             Text(
                 text = text,
                 style = style,
                 color = textColor,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(end = if (measure.isScrollable) 10.dp else 0.dp)
-                    .verticalScroll(
-                        state = scrollState,
-                        enabled = enabled && measure.isScrollable,
-                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(end = if (measure.isScrollable) 10.dp else 0.dp)
+                        .verticalScroll(
+                            state = scrollState,
+                            enabled = enabled && measure.isScrollable,
+                        ),
             )
             VerticalScrollIndicator(
                 scrollState = scrollState,
                 viewportHeightPx = measure.viewportHeightPx,
                 color = textColor,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 2.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 2.dp),
             )
         }
     }
@@ -601,63 +620,68 @@ private fun DescriptionCard(
         val scrollState = rememberScrollState()
         var viewportHeightPx by remember { mutableIntStateOf(0) }
         var isFocused by remember { mutableStateOf(false) }
-        val interactiveModifier = if (enabled) {
-            Modifier
-                .focusRequester(focusRequester)
-                .focusProperties {
-                    up = upRequester
-                    down = downRequester
-                }
-                .onFocusChanged { isFocused = it.isFocused }
-                .onSizeChanged { viewportHeightPx = it.height }
-                .tvScrollKeys(
-                    scrollState = scrollState,
-                    viewportHeightPx = viewportHeightPx,
-                )
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
-                )
-                .focusable()
-        } else {
-            Modifier
-        }
+        val interactiveModifier =
+            if (enabled) {
+                Modifier
+                    .focusRequester(focusRequester)
+                    .focusProperties {
+                        up = upRequester
+                        down = downRequester
+                    }
+                    .onFocusChanged { isFocused = it.isFocused }
+                    .onSizeChanged { viewportHeightPx = it.height }
+                    .tvScrollKeys(
+                        scrollState = scrollState,
+                        viewportHeightPx = viewportHeightPx,
+                    )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onClick,
+                    )
+                    .focusable()
+            } else {
+                Modifier
+            }
 
         Box(
-            modifier = modifier
-                .clip(RoundedCornerShape(18.dp))
-                .background(backgroundColor)
-                .border(
-                    width = if (isFocused) 2.dp else 1.dp,
-                    color = if (isFocused) {
-                        textColor.copy(alpha = 0.75f)
-                    } else {
-                        textColor.copy(alpha = 0.08f)
-                    },
-                    shape = RoundedCornerShape(18.dp),
-                )
-                .onSizeChanged { viewportHeightPx = it.height }
-                .then(interactiveModifier)
-                .padding(horizontal = 18.dp, vertical = 16.dp)
+            modifier =
+                modifier
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(backgroundColor)
+                    .border(
+                        width = if (isFocused) 2.dp else 1.dp,
+                        color =
+                            if (isFocused) {
+                                textColor.copy(alpha = 0.75f)
+                            } else {
+                                textColor.copy(alpha = 0.08f)
+                            },
+                        shape = RoundedCornerShape(18.dp),
+                    )
+                    .onSizeChanged { viewportHeightPx = it.height }
+                    .then(interactiveModifier)
+                    .padding(horizontal = 18.dp, vertical = 16.dp),
         ) {
             Text(
                 text = text,
                 color = textColor.copy(alpha = 0.9f),
                 fontSize = 17.sp,
                 lineHeight = 26.sp,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(end = if (scrollState.maxValue > 0) 10.dp else 0.dp)
-                    .verticalScroll(scrollState, enabled = enabled),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(end = if (scrollState.maxValue > 0) 10.dp else 0.dp)
+                        .verticalScroll(scrollState, enabled = enabled),
             )
             VerticalScrollIndicator(
                 scrollState = scrollState,
                 viewportHeightPx = viewportHeightPx,
                 color = textColor,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(vertical = 12.dp, horizontal = 2.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(vertical = 12.dp, horizontal = 2.dp),
                 minThumbHeight = 18.dp,
             )
         }
@@ -715,11 +739,12 @@ private fun ActionsRow(
         }
 
         ActionChipButton(
-            text = if (details?.isFavorite == true) {
-                "Убрать из избранного"
-            } else {
-                "Добавить в избранное"
-            },
+            text =
+                if (details?.isFavorite == true) {
+                    "Убрать из избранного"
+                } else {
+                    "Добавить в избранное"
+                },
             textColor = textColor,
             backgroundColor = backgroundColor,
             focusRequester = favoriteRequester,
@@ -770,10 +795,11 @@ private fun ActionChipButton(
             requestReleaseDetailsFocusOrConsumeBoundary(downRequester)
         },
         modifier = Modifier.heightIn(min = 54.dp),
-        paddingValues = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 22.dp,
-            vertical = 15.dp,
-        ),
+        paddingValues =
+            androidx.compose.foundation.layout.PaddingValues(
+                horizontal = 22.dp,
+                vertical = 15.dp,
+            ),
     ) {
         Text(
             text = text,
@@ -809,10 +835,11 @@ private fun IconChipButton(
             requestReleaseDetailsFocusOrConsumeBoundary(downRequester)
         },
         modifier = Modifier.heightIn(min = 54.dp),
-        paddingValues = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 20.dp,
-            vertical = 14.dp,
-        ),
+        paddingValues =
+            androidx.compose.foundation.layout.PaddingValues(
+                horizontal = 20.dp,
+                vertical = 14.dp,
+            ),
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -837,22 +864,24 @@ private fun ReleasePosterImage(
         initialValue = null,
         key1 = imageUrl,
     ) {
-        value = if (imageUrl.isBlank()) {
-            null
-        } else {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    context.loadImageBitmap(imageUrl).asImageBitmap()
-                }
-            }.getOrNull()
-        }
+        value =
+            if (imageUrl.isBlank()) {
+                null
+            } else {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        context.loadImageBitmap(imageUrl).asImageBitmap()
+                    }
+                }.getOrNull()
+            }
     }
 
     Box(
-        modifier = modifier
-            .shadow(16.dp, RoundedCornerShape(8.dp))
-            .clip(RoundedCornerShape(8.dp))
-            .background(backgroundColor)
+        modifier =
+            modifier
+                .shadow(16.dp, RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(8.dp))
+                .background(backgroundColor),
     ) {
         if (bitmap != null) {
             androidx.compose.foundation.Image(
@@ -880,10 +909,11 @@ private fun VerticalScrollIndicator(
     val density = LocalDensity.current
     val minThumbHeightPx = with(density) { minThumbHeight.roundToPx() }
     val contentHeightPx = viewportHeightPx + scrollState.maxValue
-    val thumbHeightPx = ((viewportHeightPx.toFloat() / contentHeightPx) * viewportHeightPx)
-        .roundToInt()
-        .coerceAtLeast(minThumbHeightPx)
-        .coerceAtMost(viewportHeightPx)
+    val thumbHeightPx =
+        ((viewportHeightPx.toFloat() / contentHeightPx) * viewportHeightPx)
+            .roundToInt()
+            .coerceAtLeast(minThumbHeightPx)
+            .coerceAtMost(viewportHeightPx)
     val thumbOffsetPx by remember(scrollState, viewportHeightPx, thumbHeightPx) {
         derivedStateOf {
             if (scrollState.maxValue == 0) {
@@ -896,19 +926,21 @@ private fun VerticalScrollIndicator(
     }
 
     Box(
-        modifier = modifier
-            .width(3.dp)
-            .height(with(density) { viewportHeightPx.toDp() })
-            .clip(RoundedCornerShape(percent = 50))
-            .background(color.copy(alpha = 0.16f)),
+        modifier =
+            modifier
+                .width(3.dp)
+                .height(with(density) { viewportHeightPx.toDp() })
+                .clip(RoundedCornerShape(percent = 50))
+                .background(color.copy(alpha = 0.16f)),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(with(density) { thumbHeightPx.toDp() })
-                .offset { IntOffset(x = 0, y = thumbOffsetPx) }
-                .clip(RoundedCornerShape(percent = 50))
-                .background(color.copy(alpha = 0.52f)),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(with(density) { thumbHeightPx.toDp() })
+                    .offset { IntOffset(x = 0, y = thumbOffsetPx) }
+                    .clip(RoundedCornerShape(percent = 50))
+                    .background(color.copy(alpha = 0.52f)),
         )
     }
 }
@@ -931,28 +963,31 @@ private fun rememberScrollableTextMeasure(
                 isScrollable = false,
             )
         } else {
-            val layoutResult = textMeasurer.measure(
-                text = AnnotatedString(text),
-                style = style,
-                overflow = TextOverflow.Clip,
-                softWrap = true,
-                maxLines = Int.MAX_VALUE,
-                constraints = Constraints(maxWidth = widthPx),
-            )
+            val layoutResult =
+                textMeasurer.measure(
+                    text = AnnotatedString(text),
+                    style = style,
+                    overflow = TextOverflow.Clip,
+                    softWrap = true,
+                    maxLines = Int.MAX_VALUE,
+                    constraints = Constraints(maxWidth = widthPx),
+                )
             val visibleLines = layoutResult.lineCount.coerceAtMost(maxVisibleLines)
-            val viewportHeightPx = if (visibleLines == 0) {
-                0
-            } else {
-                (layoutResult.getLineBottom(visibleLines - 1) - layoutResult.getLineTop(0))
-                    .roundToInt()
-            }
-            val scrollStepPx = if (layoutResult.lineCount == 0) {
-                0
-            } else {
-                (layoutResult.getLineBottom(0) - layoutResult.getLineTop(0))
-                    .roundToInt()
-                    .coerceAtLeast(1)
-            }
+            val viewportHeightPx =
+                if (visibleLines == 0) {
+                    0
+                } else {
+                    (layoutResult.getLineBottom(visibleLines - 1) - layoutResult.getLineTop(0))
+                        .roundToInt()
+                }
+            val scrollStepPx =
+                if (layoutResult.lineCount == 0) {
+                    0
+                } else {
+                    (layoutResult.getLineBottom(0) - layoutResult.getLineTop(0))
+                        .roundToInt()
+                        .coerceAtLeast(1)
+                }
             ScrollableTextMeasure(
                 viewportHeight = with(density) { viewportHeightPx.toDp() },
                 viewportHeightPx = viewportHeightPx,
@@ -1006,13 +1041,15 @@ private fun Modifier.tvScrollKeys(
         if (event.type != KeyEventType.KeyDown || viewportHeightPx <= 0) {
             return@onPreviewKeyEvent false
         }
-        val delta = when (event.key) {
-            Key.DirectionDown -> scrollStepPx
-            Key.DirectionUp -> -scrollStepPx
-            else -> return@onPreviewKeyEvent false
-        }
-        val targetValue = (scrollState.value + delta)
-            .coerceIn(0, scrollState.maxValue)
+        val delta =
+            when (event.key) {
+                Key.DirectionDown -> scrollStepPx
+                Key.DirectionUp -> -scrollStepPx
+                else -> return@onPreviewKeyEvent false
+            }
+        val targetValue =
+            (scrollState.value + delta)
+                .coerceIn(0, scrollState.maxValue)
         if (targetValue == scrollState.value) {
             false
         } else {
@@ -1025,14 +1062,18 @@ private fun Modifier.tvScrollKeys(
 }
 
 @Composable
-private fun rememberThemeColor(@AttrRes attrRes: Int): Color {
+private fun rememberThemeColor(
+    @AttrRes attrRes: Int,
+): Color {
     val context = LocalContext.current
     return remember(attrRes) {
         Color(context.resolveThemeColor(attrRes))
     }
 }
 
-private fun Context.resolveThemeColor(@AttrRes attrRes: Int): Int {
+private fun Context.resolveThemeColor(
+    @AttrRes attrRes: Int,
+): Int {
     val typedValue = TypedValue()
     check(theme.resolveAttribute(attrRes, typedValue, true)) {
         "Attribute $attrRes is not defined in the current theme"

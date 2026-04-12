@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class TvOverlayComposeTest {
-
     @Test
     fun verticalMoveAction_movesFocus_whenTargetExists() {
         val result = resolveTvOverlayVerticalMoveAction(hasTarget = true)

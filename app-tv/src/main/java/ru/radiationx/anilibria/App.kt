@@ -8,21 +8,20 @@ import android.os.Looper
 import io.appmetrica.analytics.AppMetrica
 import io.appmetrica.analytics.AppMetricaConfig
 import kotlinx.coroutines.CompletableDeferred
-import ru.radiationx.anilibria.common.TvStartupTrace
 import ru.mintrocket.lib.mintpermissions.ext.initMintPermissions
 import ru.mintrocket.lib.mintpermissions.flows.ext.initMintPermissionsFlow
+import ru.radiationx.anilibria.common.TvStartupTrace
 import ru.radiationx.anilibria.di.AppModule
-import ru.radiationx.data.di.DataModule
 import ru.radiationx.data.datasource.remote.address.ApiConfig
+import ru.radiationx.data.di.DataModule
 import ru.radiationx.data.migration.MigrationDataSource
-import ru.radiationx.data.system.ApplicationCoroutineScope
 import ru.radiationx.data.system.AndroidTestMode
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import ru.radiationx.quill.Quill
 import ru.radiationx.shared_app.imageloader.LibriaImageLoader
 import timber.log.Timber
 
 class App : Application() {
-
     companion object {
         /**
          * Завершается (`complete`) сразу после полной инициализации
@@ -50,16 +49,17 @@ class App : Application() {
     }
 
     private fun initYandexAppMetrica() {
-        val config = AppMetricaConfig
-            .newConfigBuilder("48d49aa0-6aad-407e-a738-717a6c77d603")
-            .build()
+        val config =
+            AppMetricaConfig
+                .newConfigBuilder("48d49aa0-6aad-407e-a738-717a6c77d603")
+                .build()
         AppMetrica.activate(applicationContext, config)
         AppMetrica.enableActivityAutoTracking(this)
     }
 
     private fun initInMainProcess() {
         if (BuildConfig.DEBUG) {
-            Timber.plant(Timber.DebugTree())   // единственный plant
+            Timber.plant(Timber.DebugTree()) // единственный plant
         }
         initDependencies()
         initMintPermissions()
@@ -70,7 +70,7 @@ class App : Application() {
         val rootScope = Quill.getRootScope()
         rootScope.installModules(
             AppModule(this),
-            DataModule(this)
+            DataModule(this),
         )
         TvStartupTrace.markOnce("app_dependencies_installed")
         Handler(Looper.getMainLooper()).post {

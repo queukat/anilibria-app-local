@@ -8,30 +8,33 @@ import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 
 class DetailComposeRequestersTest {
-
     @Test
     fun stableRequesters_areReusedForItemsWithSameIdAcrossRefresh() {
         val cache = mutableMapOf<Long, MutableMap<Int, FocusRequester>>()
-        val before = listOf(
-            MainSectionUiModel(
-                id = 101L,
-                title = "Related",
-                items = listOf(
-                    LoadingCard("same"),
-                    LoadingCard("removed"),
+        val before =
+            listOf(
+                MainSectionUiModel(
+                    id = 101L,
+                    title = "Related",
+                    items =
+                        listOf(
+                            LoadingCard("same"),
+                            LoadingCard("removed"),
+                        ),
                 ),
-            ),
-        )
-        val after = listOf(
-            MainSectionUiModel(
-                id = 101L,
-                title = "Related",
-                items = listOf(
-                    LoadingCard("same"),
-                    LoadingCard("added"),
+            )
+        val after =
+            listOf(
+                MainSectionUiModel(
+                    id = 101L,
+                    title = "Related",
+                    items =
+                        listOf(
+                            LoadingCard("same"),
+                            LoadingCard("added"),
+                        ),
                 ),
-            ),
-        )
+            )
 
         val firstRequesters = buildStableDetailSectionRequesters(before, cache)
         val secondRequesters = buildStableDetailSectionRequesters(after, cache)

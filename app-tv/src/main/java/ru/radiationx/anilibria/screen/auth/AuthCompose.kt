@@ -43,7 +43,7 @@ internal fun AuthMenuOverlay(
         subtitle = (
             "Основной способ для TV — вход по коду. " +
                 "Он быстрее и не требует вводить логин и пароль с пульта."
-            ),
+        ),
         panelMaxWidth = 680.dp,
     ) { palette ->
         val codeRequester = remember { FocusRequester() }
@@ -61,7 +61,7 @@ internal fun AuthMenuOverlay(
                         "1. Откройте AniLibria на телефоне или сайте.\n" +
                         "2. Выберите вход на устройстве.\n" +
                         "3. Подтвердите код на экране телевизора."
-                    ),
+                ),
                 palette = palette,
                 accent = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -213,14 +213,16 @@ internal fun AuthOtpOverlay(
     onPrimaryClick: () -> Unit,
     onBackClick: () -> Unit,
 ) {
-    val primaryTitle = when {
-        otpInfo == null && state.progress -> "Получаем код"
-        else -> when (state.buttonState) {
-            AuthOtpButtonState.COMPLETE -> "Проверить вход"
-            AuthOtpButtonState.EXPIRED -> "Показать новый код"
-            AuthOtpButtonState.REPEAT -> "Повторить запрос"
+    val primaryTitle =
+        when {
+            otpInfo == null && state.progress -> "Получаем код"
+            else ->
+                when (state.buttonState) {
+                    AuthOtpButtonState.COMPLETE -> "Проверить вход"
+                    AuthOtpButtonState.EXPIRED -> "Показать новый код"
+                    AuthOtpButtonState.REPEAT -> "Повторить запрос"
+                }
         }
-    }
     val expiresAtLabel = otpInfo?.let(::formatOtpExpiration)
 
     TvOverlayScreen(
@@ -244,14 +246,15 @@ internal fun AuthOtpOverlay(
                 )
             }
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp)
-                    .background(
-                        color = palette.accentColor.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(20.dp),
-                    )
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp)
+                        .background(
+                            color = palette.accentColor.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(20.dp),
+                        )
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),

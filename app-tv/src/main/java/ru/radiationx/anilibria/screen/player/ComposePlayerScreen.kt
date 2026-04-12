@@ -68,20 +68,20 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import kotlinx.coroutines.launch
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
+import ru.radiationx.anilibria.screen.watching.TvCenterPressAction
 import ru.radiationx.anilibria.screen.watching.TvPlayerOverlayBottomPadding
 import ru.radiationx.anilibria.screen.watching.TvPlayerOverlayHorizontalPadding
-import ru.radiationx.anilibria.screen.watching.TvCenterPressAction
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
-import ru.radiationx.anilibria.screen.watching.resolveTvCenterPressAction
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
+import ru.radiationx.anilibria.screen.watching.resolveTvCenterPressAction
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.data.entity.common.PlayerQuality
 
@@ -242,19 +242,20 @@ internal fun PlayerScreenContent(
     val speedRequester = remember { FocusRequester() }
     val aspectRatioRequester = remember { FocusRequester() }
 
-    fun requesterFor(target: PlayerOverlayFocusTarget): FocusRequester = when (target) {
-        PlayerOverlayFocusTarget.Root -> rootRequester
-        PlayerOverlayFocusTarget.Progress -> progressRequester
-        PlayerOverlayFocusTarget.PlayPause -> playPauseRequester
-        PlayerOverlayFocusTarget.SeekBack -> seekBackRequester
-        PlayerOverlayFocusTarget.SeekForward -> seekForwardRequester
-        PlayerOverlayFocusTarget.PreviousEpisode -> previousRequester
-        PlayerOverlayFocusTarget.NextEpisode -> nextRequester
-        PlayerOverlayFocusTarget.Episodes -> episodesRequester
-        PlayerOverlayFocusTarget.Quality -> qualityRequester
-        PlayerOverlayFocusTarget.Speed -> speedRequester
-        PlayerOverlayFocusTarget.AspectRatio -> aspectRatioRequester
-    }
+    fun requesterFor(target: PlayerOverlayFocusTarget): FocusRequester =
+        when (target) {
+            PlayerOverlayFocusTarget.Root -> rootRequester
+            PlayerOverlayFocusTarget.Progress -> progressRequester
+            PlayerOverlayFocusTarget.PlayPause -> playPauseRequester
+            PlayerOverlayFocusTarget.SeekBack -> seekBackRequester
+            PlayerOverlayFocusTarget.SeekForward -> seekForwardRequester
+            PlayerOverlayFocusTarget.PreviousEpisode -> previousRequester
+            PlayerOverlayFocusTarget.NextEpisode -> nextRequester
+            PlayerOverlayFocusTarget.Episodes -> episodesRequester
+            PlayerOverlayFocusTarget.Quality -> qualityRequester
+            PlayerOverlayFocusTarget.Speed -> speedRequester
+            PlayerOverlayFocusTarget.AspectRatio -> aspectRatioRequester
+        }
 
     fun firstAvailable(vararg targets: PlayerOverlayFocusTarget): PlayerOverlayFocusTarget {
         return targets.firstOrNull { target ->
@@ -274,113 +275,126 @@ internal fun PlayerScreenContent(
         } ?: PlayerOverlayFocusTarget.PlayPause
     }
 
-    fun resolveFocusTarget(target: PlayerOverlayFocusTarget): PlayerOverlayFocusTarget = when (target) {
-        PlayerOverlayFocusTarget.Root -> firstAvailable(
-            PlayerOverlayFocusTarget.PlayPause,
-            PlayerOverlayFocusTarget.Progress,
-            PlayerOverlayFocusTarget.SeekBack,
-            PlayerOverlayFocusTarget.SeekForward,
-            PlayerOverlayFocusTarget.PreviousEpisode,
-            PlayerOverlayFocusTarget.NextEpisode,
-            PlayerOverlayFocusTarget.Episodes,
-            PlayerOverlayFocusTarget.Quality,
-            PlayerOverlayFocusTarget.Speed,
-            PlayerOverlayFocusTarget.AspectRatio,
-        )
+    fun resolveFocusTarget(target: PlayerOverlayFocusTarget): PlayerOverlayFocusTarget =
+        when (target) {
+            PlayerOverlayFocusTarget.Root ->
+                firstAvailable(
+                    PlayerOverlayFocusTarget.PlayPause,
+                    PlayerOverlayFocusTarget.Progress,
+                    PlayerOverlayFocusTarget.SeekBack,
+                    PlayerOverlayFocusTarget.SeekForward,
+                    PlayerOverlayFocusTarget.PreviousEpisode,
+                    PlayerOverlayFocusTarget.NextEpisode,
+                    PlayerOverlayFocusTarget.Episodes,
+                    PlayerOverlayFocusTarget.Quality,
+                    PlayerOverlayFocusTarget.Speed,
+                    PlayerOverlayFocusTarget.AspectRatio,
+                )
 
-        PlayerOverlayFocusTarget.Progress -> PlayerOverlayFocusTarget.Progress
-        PlayerOverlayFocusTarget.PlayPause -> PlayerOverlayFocusTarget.PlayPause
-        PlayerOverlayFocusTarget.SeekBack -> PlayerOverlayFocusTarget.SeekBack
-        PlayerOverlayFocusTarget.SeekForward -> PlayerOverlayFocusTarget.SeekForward
-        PlayerOverlayFocusTarget.PreviousEpisode -> firstAvailable(
-            PlayerOverlayFocusTarget.PreviousEpisode,
-            PlayerOverlayFocusTarget.SeekForward,
-            PlayerOverlayFocusTarget.SeekBack,
-            PlayerOverlayFocusTarget.PlayPause,
-            PlayerOverlayFocusTarget.NextEpisode,
-        )
+            PlayerOverlayFocusTarget.Progress -> PlayerOverlayFocusTarget.Progress
+            PlayerOverlayFocusTarget.PlayPause -> PlayerOverlayFocusTarget.PlayPause
+            PlayerOverlayFocusTarget.SeekBack -> PlayerOverlayFocusTarget.SeekBack
+            PlayerOverlayFocusTarget.SeekForward -> PlayerOverlayFocusTarget.SeekForward
+            PlayerOverlayFocusTarget.PreviousEpisode ->
+                firstAvailable(
+                    PlayerOverlayFocusTarget.PreviousEpisode,
+                    PlayerOverlayFocusTarget.SeekForward,
+                    PlayerOverlayFocusTarget.SeekBack,
+                    PlayerOverlayFocusTarget.PlayPause,
+                    PlayerOverlayFocusTarget.NextEpisode,
+                )
 
-        PlayerOverlayFocusTarget.NextEpisode -> firstAvailable(
-            PlayerOverlayFocusTarget.NextEpisode,
-            PlayerOverlayFocusTarget.Episodes,
-            PlayerOverlayFocusTarget.Quality,
-            PlayerOverlayFocusTarget.Speed,
-            PlayerOverlayFocusTarget.AspectRatio,
-            PlayerOverlayFocusTarget.PlayPause,
-        )
+            PlayerOverlayFocusTarget.NextEpisode ->
+                firstAvailable(
+                    PlayerOverlayFocusTarget.NextEpisode,
+                    PlayerOverlayFocusTarget.Episodes,
+                    PlayerOverlayFocusTarget.Quality,
+                    PlayerOverlayFocusTarget.Speed,
+                    PlayerOverlayFocusTarget.AspectRatio,
+                    PlayerOverlayFocusTarget.PlayPause,
+                )
 
-        PlayerOverlayFocusTarget.Episodes -> firstAvailable(
-            PlayerOverlayFocusTarget.Episodes,
-            PlayerOverlayFocusTarget.Quality,
-            PlayerOverlayFocusTarget.Speed,
-            PlayerOverlayFocusTarget.AspectRatio,
-            PlayerOverlayFocusTarget.PlayPause,
-        )
+            PlayerOverlayFocusTarget.Episodes ->
+                firstAvailable(
+                    PlayerOverlayFocusTarget.Episodes,
+                    PlayerOverlayFocusTarget.Quality,
+                    PlayerOverlayFocusTarget.Speed,
+                    PlayerOverlayFocusTarget.AspectRatio,
+                    PlayerOverlayFocusTarget.PlayPause,
+                )
 
-        PlayerOverlayFocusTarget.Quality -> firstAvailable(
-            PlayerOverlayFocusTarget.Quality,
-            PlayerOverlayFocusTarget.Episodes,
-            PlayerOverlayFocusTarget.Speed,
-            PlayerOverlayFocusTarget.AspectRatio,
-            PlayerOverlayFocusTarget.PlayPause,
-        )
+            PlayerOverlayFocusTarget.Quality ->
+                firstAvailable(
+                    PlayerOverlayFocusTarget.Quality,
+                    PlayerOverlayFocusTarget.Episodes,
+                    PlayerOverlayFocusTarget.Speed,
+                    PlayerOverlayFocusTarget.AspectRatio,
+                    PlayerOverlayFocusTarget.PlayPause,
+                )
 
-        PlayerOverlayFocusTarget.Speed -> firstAvailable(
-            PlayerOverlayFocusTarget.Speed,
-            PlayerOverlayFocusTarget.Episodes,
-            PlayerOverlayFocusTarget.Quality,
-            PlayerOverlayFocusTarget.AspectRatio,
-            PlayerOverlayFocusTarget.PlayPause,
-        )
+            PlayerOverlayFocusTarget.Speed ->
+                firstAvailable(
+                    PlayerOverlayFocusTarget.Speed,
+                    PlayerOverlayFocusTarget.Episodes,
+                    PlayerOverlayFocusTarget.Quality,
+                    PlayerOverlayFocusTarget.AspectRatio,
+                    PlayerOverlayFocusTarget.PlayPause,
+                )
 
-        PlayerOverlayFocusTarget.AspectRatio -> firstAvailable(
-            PlayerOverlayFocusTarget.AspectRatio,
-            PlayerOverlayFocusTarget.Speed,
-            PlayerOverlayFocusTarget.Episodes,
-            PlayerOverlayFocusTarget.Quality,
-            PlayerOverlayFocusTarget.PlayPause,
-        )
-    }
-
-    val pickerOptions = when (activePicker) {
-        PlayerOverlayPicker.Episodes -> availableEpisodes.map { episode ->
-            PlayerPickerOption(
-                id = "${episode.episodeId.releaseId.id}:${episode.episodeId.id}",
-                label = episode.label,
-                selected = episode.episodeId == selectedEpisodeId,
-                onSelected = { onEpisodeSelected(episode.episodeId) },
-            )
+            PlayerOverlayFocusTarget.AspectRatio ->
+                firstAvailable(
+                    PlayerOverlayFocusTarget.AspectRatio,
+                    PlayerOverlayFocusTarget.Speed,
+                    PlayerOverlayFocusTarget.Episodes,
+                    PlayerOverlayFocusTarget.Quality,
+                    PlayerOverlayFocusTarget.PlayPause,
+                )
         }
 
-        PlayerOverlayPicker.Quality -> availableQualities.map { quality ->
-            PlayerPickerOption(
-                id = "quality_${quality.name}",
-                label = quality.asPlayerLabel(),
-                selected = quality == selectedQuality,
-                onSelected = { onQualitySelected(quality) },
-            )
-        }
+    val pickerOptions =
+        when (activePicker) {
+            PlayerOverlayPicker.Episodes ->
+                availableEpisodes.map { episode ->
+                    PlayerPickerOption(
+                        id = "${episode.episodeId.releaseId.id}:${episode.episodeId.id}",
+                        label = episode.label,
+                        selected = episode.episodeId == selectedEpisodeId,
+                        onSelected = { onEpisodeSelected(episode.episodeId) },
+                    )
+                }
 
-        PlayerOverlayPicker.Speed -> availableSpeeds.map { speed ->
-            PlayerPickerOption(
-                id = "speed_$speed",
-                label = speed.asPlayerLabel(),
-                selected = kotlin.math.abs(speed - selectedSpeed) < 0.001f,
-                onSelected = { onSpeedSelected(speed) },
-            )
-        }
+            PlayerOverlayPicker.Quality ->
+                availableQualities.map { quality ->
+                    PlayerPickerOption(
+                        id = "quality_${quality.name}",
+                        label = quality.asPlayerLabel(),
+                        selected = quality == selectedQuality,
+                        onSelected = { onQualitySelected(quality) },
+                    )
+                }
 
-        PlayerOverlayPicker.AspectRatio -> PlayerAspectRatioMode.entries.map { mode ->
-            PlayerPickerOption(
-                id = "aspect_${mode.name}",
-                label = stringResource(mode.titleRes),
-                selected = mode == aspectRatioMode,
-                onSelected = { onAspectRatioSelected(mode) },
-            )
-        }
+            PlayerOverlayPicker.Speed ->
+                availableSpeeds.map { speed ->
+                    PlayerPickerOption(
+                        id = "speed_$speed",
+                        label = speed.asPlayerLabel(),
+                        selected = kotlin.math.abs(speed - selectedSpeed) < 0.001f,
+                        onSelected = { onSpeedSelected(speed) },
+                    )
+                }
 
-        null -> emptyList()
-    }
+            PlayerOverlayPicker.AspectRatio ->
+                PlayerAspectRatioMode.entries.map { mode ->
+                    PlayerPickerOption(
+                        id = "aspect_${mode.name}",
+                        label = stringResource(mode.titleRes),
+                        selected = mode == aspectRatioMode,
+                        onSelected = { onAspectRatioSelected(mode) },
+                    )
+                }
+
+            null -> emptyList()
+        }
 
     LaunchedEffect(
         controlsVisible,
@@ -437,104 +451,108 @@ internal fun PlayerScreenContent(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .focusRequester(rootRequester)
-            .focusable()
-            .onPreviewKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) {
-                    return@onPreviewKeyEvent false
-                }
-                when (event.key) {
-                    Key.Back,
-                    Key.Escape -> {
-                        registerInteraction()
-                        if (activePicker != null) {
-                            onDismissPicker(activePicker)
-                        } else {
-                            onBackRequested()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .focusRequester(rootRequester)
+                .focusable()
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) {
+                        return@onPreviewKeyEvent false
+                    }
+                    when (event.key) {
+                        Key.Back,
+                        Key.Escape,
+                        -> {
+                            registerInteraction()
+                            if (activePicker != null) {
+                                onDismissPicker(activePicker)
+                            } else {
+                                onBackRequested()
+                            }
+                            true
                         }
-                        true
-                    }
 
-                    Key.MediaPlayPause -> {
-                        registerInteraction()
-                        onShowControls(PlayerOverlayFocusTarget.PlayPause)
-                        onTogglePlayback()
-                        true
-                    }
-
-                    Key.MediaPlay -> {
-                        if (!isPlaying) {
+                        Key.MediaPlayPause -> {
                             registerInteraction()
                             onShowControls(PlayerOverlayFocusTarget.PlayPause)
                             onTogglePlayback()
                             true
-                        } else {
-                            false
                         }
-                    }
 
-                    Key.MediaPause -> {
-                        if (isPlaying) {
-                            registerInteraction()
-                            onShowControls(PlayerOverlayFocusTarget.PlayPause)
-                            onTogglePlayback()
-                            true
-                        } else {
-                            false
+                        Key.MediaPlay -> {
+                            if (!isPlaying) {
+                                registerInteraction()
+                                onShowControls(PlayerOverlayFocusTarget.PlayPause)
+                                onTogglePlayback()
+                                true
+                            } else {
+                                false
+                            }
                         }
-                    }
 
-                    Key.DirectionCenter,
-                    Key.Enter,
-                    Key.NumPadEnter -> {
-                        if (!controlsVisible && !skipVisible) {
-                            registerInteraction()
-                            onShowControls(PlayerOverlayFocusTarget.PlayPause)
-                            true
-                        } else {
-                            false
+                        Key.MediaPause -> {
+                            if (isPlaying) {
+                                registerInteraction()
+                                onShowControls(PlayerOverlayFocusTarget.PlayPause)
+                                onTogglePlayback()
+                                true
+                            } else {
+                                false
+                            }
                         }
-                    }
 
-                    Key.DirectionUp,
-                    Key.DirectionDown -> {
-                        if (!controlsVisible && !skipVisible) {
-                            registerInteraction()
-                            onShowControls(PlayerOverlayFocusTarget.PlayPause)
-                            true
-                        } else {
-                            false
+                        Key.DirectionCenter,
+                        Key.Enter,
+                        Key.NumPadEnter,
+                        -> {
+                            if (!controlsVisible && !skipVisible) {
+                                registerInteraction()
+                                onShowControls(PlayerOverlayFocusTarget.PlayPause)
+                                true
+                            } else {
+                                false
+                            }
                         }
-                    }
 
-                    Key.DirectionLeft -> {
-                        if (!controlsVisible && !skipVisible) {
-                            registerInteraction()
-                            onSeekBack()
-                            onShowControls(PlayerOverlayFocusTarget.Progress)
-                            true
-                        } else {
-                            false
+                        Key.DirectionUp,
+                        Key.DirectionDown,
+                        -> {
+                            if (!controlsVisible && !skipVisible) {
+                                registerInteraction()
+                                onShowControls(PlayerOverlayFocusTarget.PlayPause)
+                                true
+                            } else {
+                                false
+                            }
                         }
-                    }
 
-                    Key.DirectionRight -> {
-                        if (!controlsVisible && !skipVisible) {
-                            registerInteraction()
-                            onSeekForward()
-                            onShowControls(PlayerOverlayFocusTarget.Progress)
-                            true
-                        } else {
-                            false
+                        Key.DirectionLeft -> {
+                            if (!controlsVisible && !skipVisible) {
+                                registerInteraction()
+                                onSeekBack()
+                                onShowControls(PlayerOverlayFocusTarget.Progress)
+                                true
+                            } else {
+                                false
+                            }
                         }
-                    }
 
-                    else -> false
-                }
-            },
+                        Key.DirectionRight -> {
+                            if (!controlsVisible && !skipVisible) {
+                                registerInteraction()
+                                onSeekForward()
+                                onShowControls(PlayerOverlayFocusTarget.Progress)
+                                true
+                            } else {
+                                false
+                            }
+                        }
+
+                        else -> false
+                    }
+                },
     ) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
@@ -561,10 +579,11 @@ internal fun PlayerScreenContent(
                 title = title,
                 subtitle = subtitle,
                 palette = palette,
-                contentPadding = PaddingValues(
-                    horizontal = TvPlayerOverlayHorizontalPadding,
-                    vertical = 24.dp,
-                ),
+                contentPadding =
+                    PaddingValues(
+                        horizontal = TvPlayerOverlayHorizontalPadding,
+                        vertical = 24.dp,
+                    ),
             )
         }
 
@@ -572,13 +591,14 @@ internal fun PlayerScreenContent(
             visible = controlsVisible,
             enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(
-                    start = PlayerPanelHorizontalInset,
-                    end = PlayerPanelHorizontalInset,
-                    bottom = TvPlayerOverlayBottomPadding,
-                ),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        start = PlayerPanelHorizontalInset,
+                        end = PlayerPanelHorizontalInset,
+                        bottom = TvPlayerOverlayBottomPadding,
+                    ),
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(PlayerControlsRuntimeLayout.panelWidthFraction),
@@ -591,10 +611,11 @@ internal fun PlayerScreenContent(
                         options = pickerOptions,
                         palette = palette,
                         onInteraction = ::registerInteraction,
-                        modifier = Modifier.widthIn(
-                            min = PlayerOverlayUiDefaults.PickerMinWidth,
-                            max = PlayerOverlayUiDefaults.PickerMaxWidth,
-                        ),
+                        modifier =
+                            Modifier.widthIn(
+                                min = PlayerOverlayUiDefaults.PickerMinWidth,
+                                max = PlayerOverlayUiDefaults.PickerMaxWidth,
+                            ),
                     )
                 }
 
@@ -634,9 +655,10 @@ internal fun PlayerScreenContent(
                     onQualityClick = onQualityClick,
                     onSpeedClick = onSpeedClick,
                     onAspectRatioClick = onAspectRatioClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onSizeChanged { controlsPanelHeightPx = it.height },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .onSizeChanged { controlsPanelHeightPx = it.height },
                 )
             }
         }
@@ -647,25 +669,28 @@ internal fun PlayerScreenContent(
             onInteraction = ::registerInteraction,
             onQuickActionHandled = onQuickActionHandled,
             onOpenControls = onShowControlsFromQuickActions,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = PlayerPanelHorizontalInset),
-            bottomPadding = if (controlsVisible) {
-                with(LocalDensity.current) {
-                    controlsPanelHeightPx.toDp() + 52.dp
-                }
-            } else {
-                52.dp
-            },
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = PlayerPanelHorizontalInset),
+            bottomPadding =
+                if (controlsVisible) {
+                    with(LocalDensity.current) {
+                        controlsPanelHeightPx.toDp() + 52.dp
+                    }
+                } else {
+                    52.dp
+                },
             panelWidthFraction = PlayerControlsRuntimeLayout.panelWidthFraction,
         )
 
         if (isLoading || isBuffering) {
-            val loadingPanelStyle = PlayerOverlayUiDefaults.loadingPanelStyle(palette)
+            val loadingPanelStyle = PlayerOverlayUiDefaults.loadingPanelStyle()
             Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .playerPanelSurface(loadingPanelStyle),
+                modifier =
+                    Modifier
+                        .align(Alignment.Center)
+                        .playerPanelSurface(loadingPanelStyle),
             ) {
                 Row(
                     modifier = Modifier.padding(PlayerOverlayUiDefaults.LoadingPanelPadding),
@@ -688,9 +713,7 @@ internal fun PlayerScreenContent(
     }
 }
 
-private fun Modifier.playerPanelSurface(
-    style: PlayerPanelSurfaceStyle,
-): Modifier {
+private fun Modifier.playerPanelSurface(style: PlayerPanelSurfaceStyle): Modifier {
     return clip(style.shape)
         .background(style.backgroundColor)
         .border(
@@ -750,33 +773,38 @@ private fun PlayerControlsPanel(
     val speedButtonLayout = layout.button(PlayerControlButtonId.Speed)
     val aspectRatioButtonLayout = layout.button(PlayerControlButtonId.AspectRatio)
 
-    val focusableButtonTargets = buildList {
-        add(PlayerOverlayFocusTarget.PlayPause)
-        add(PlayerOverlayFocusTarget.SeekBack)
-        add(PlayerOverlayFocusTarget.SeekForward)
-        if (canPrevious) add(PlayerOverlayFocusTarget.PreviousEpisode)
-        if (canNext) add(PlayerOverlayFocusTarget.NextEpisode)
-        if (episodesEnabled) add(PlayerOverlayFocusTarget.Episodes)
-        if (qualityEnabled) add(PlayerOverlayFocusTarget.Quality)
-        if (speedEnabled) add(PlayerOverlayFocusTarget.Speed)
-        if (aspectRatioEnabled) add(PlayerOverlayFocusTarget.AspectRatio)
-    }
+    val focusableButtonTargets =
+        buildList {
+            add(PlayerOverlayFocusTarget.PlayPause)
+            add(PlayerOverlayFocusTarget.SeekBack)
+            add(PlayerOverlayFocusTarget.SeekForward)
+            if (canPrevious) add(PlayerOverlayFocusTarget.PreviousEpisode)
+            if (canNext) add(PlayerOverlayFocusTarget.NextEpisode)
+            if (episodesEnabled) add(PlayerOverlayFocusTarget.Episodes)
+            if (qualityEnabled) add(PlayerOverlayFocusTarget.Quality)
+            if (speedEnabled) add(PlayerOverlayFocusTarget.Speed)
+            if (aspectRatioEnabled) add(PlayerOverlayFocusTarget.AspectRatio)
+        }
 
-    fun requesterFor(target: PlayerOverlayFocusTarget): FocusRequester = when (target) {
-        PlayerOverlayFocusTarget.Root -> playPauseRequester
-        PlayerOverlayFocusTarget.Progress -> progressRequester
-        PlayerOverlayFocusTarget.PlayPause -> playPauseRequester
-        PlayerOverlayFocusTarget.SeekBack -> seekBackRequester
-        PlayerOverlayFocusTarget.SeekForward -> seekForwardRequester
-        PlayerOverlayFocusTarget.PreviousEpisode -> previousRequester
-        PlayerOverlayFocusTarget.NextEpisode -> nextRequester
-        PlayerOverlayFocusTarget.Episodes -> episodesRequester
-        PlayerOverlayFocusTarget.Quality -> qualityRequester
-        PlayerOverlayFocusTarget.Speed -> speedRequester
-        PlayerOverlayFocusTarget.AspectRatio -> aspectRatioRequester
-    }
+    fun requesterFor(target: PlayerOverlayFocusTarget): FocusRequester =
+        when (target) {
+            PlayerOverlayFocusTarget.Root -> playPauseRequester
+            PlayerOverlayFocusTarget.Progress -> progressRequester
+            PlayerOverlayFocusTarget.PlayPause -> playPauseRequester
+            PlayerOverlayFocusTarget.SeekBack -> seekBackRequester
+            PlayerOverlayFocusTarget.SeekForward -> seekForwardRequester
+            PlayerOverlayFocusTarget.PreviousEpisode -> previousRequester
+            PlayerOverlayFocusTarget.NextEpisode -> nextRequester
+            PlayerOverlayFocusTarget.Episodes -> episodesRequester
+            PlayerOverlayFocusTarget.Quality -> qualityRequester
+            PlayerOverlayFocusTarget.Speed -> speedRequester
+            PlayerOverlayFocusTarget.AspectRatio -> aspectRatioRequester
+        }
 
-    fun requestAdjacent(current: PlayerOverlayFocusTarget, step: Int): Boolean {
+    fun requestAdjacent(
+        current: PlayerOverlayFocusTarget,
+        step: Int,
+    ): Boolean {
         val currentIndex = focusableButtonTargets.indexOf(current)
         if (currentIndex < 0) {
             return false
@@ -791,14 +819,15 @@ private fun PlayerControlsPanel(
     }
 
     Column(
-        modifier = modifier
-            .playerPanelSurface(PlayerOverlayUiDefaults.controlsPanelStyle(palette))
-            .padding(
-                start = layout.controlsHorizontalPadding,
-                end = layout.controlsHorizontalPadding,
-                top = layout.rowsTopPadding,
-                bottom = layout.controlsBottomPadding,
-            ),
+        modifier =
+            modifier
+                .playerPanelSurface(PlayerOverlayUiDefaults.controlsPanelStyle())
+                .padding(
+                    start = layout.controlsHorizontalPadding,
+                    end = layout.controlsHorizontalPadding,
+                    top = layout.rowsTopPadding,
+                    bottom = layout.controlsBottomPadding,
+                ),
         verticalArrangement = Arrangement.spacedBy(layout.rowsVerticalSpacing),
     ) {
         PlayerProgressDisplay(
@@ -818,27 +847,30 @@ private fun PlayerControlsPanel(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(
-                space = layout.primaryRowSpacing,
-                alignment = Alignment.CenterHorizontally,
-            ),
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    space = layout.primaryRowSpacing,
+                    alignment = Alignment.CenterHorizontally,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PlayerActionButton(
-                contentDescription = stringResource(
-                    if (isPlaying) {
-                        R.string.player_action_pause
-                    } else {
-                        R.string.player_action_play
-                    }
-                ),
+                contentDescription =
+                    stringResource(
+                        if (isPlaying) {
+                            R.string.player_action_pause
+                        } else {
+                            R.string.player_action_play
+                        },
+                    ),
                 focusRequester = playPauseRequester,
                 palette = palette,
-                iconRes = if (isPlaying) {
-                    R.drawable.ic_player_pause
-                } else {
-                    R.drawable.ic_player_play
-                },
+                iconRes =
+                    if (isPlaying) {
+                        R.drawable.ic_player_pause
+                    } else {
+                        R.drawable.ic_player_play
+                    },
                 emphasized = true,
                 minWidth = playPauseButtonLayout.minWidth,
                 horizontalPadding = playPauseButtonLayout.horizontalPadding,
@@ -1098,11 +1130,12 @@ private fun PlayerControlsPanel(
 
             PlayerActionButton(
                 text = stringResource(aspectRatioMode.compactTitleRes),
-                contentDescription = buildString {
-                    append(stringResource(R.string.player_action_aspect_ratio))
-                    append(' ')
-                    append(stringResource(aspectRatioMode.titleRes))
-                },
+                contentDescription =
+                    buildString {
+                        append(stringResource(R.string.player_action_aspect_ratio))
+                        append(' ')
+                        append(stringResource(aspectRatioMode.titleRes))
+                    },
                 focusRequester = aspectRatioRequester,
                 palette = palette,
                 enabled = aspectRatioEnabled,
@@ -1149,16 +1182,18 @@ private fun PlayerProgressDisplay(
     modifier: Modifier = Modifier,
 ) {
     val safeDuration = durationMs.coerceAtLeast(0L)
-    val progressFraction = if (safeDuration > 0L) {
-        currentPositionMs.coerceIn(0L, safeDuration).toFloat() / safeDuration.toFloat()
-    } else {
-        0f
-    }
-    val bufferedFraction = if (safeDuration > 0L) {
-        bufferedPositionMs.coerceIn(0L, safeDuration).toFloat() / safeDuration.toFloat()
-    } else {
-        0f
-    }
+    val progressFraction =
+        if (safeDuration > 0L) {
+            currentPositionMs.coerceIn(0L, safeDuration).toFloat() / safeDuration.toFloat()
+        } else {
+            0f
+        }
+    val bufferedFraction =
+        if (safeDuration > 0L) {
+            bufferedPositionMs.coerceIn(0L, safeDuration).toFloat() / safeDuration.toFloat()
+        } else {
+            0f
+        }
 
     val progressStyle = PlayerOverlayUiDefaults.progressDisplayStyle()
 
@@ -1208,25 +1243,28 @@ private fun PlayerProgressDisplay(
                 modifier = Modifier.width(PlayerOverlayUiDefaults.ProgressTimeWidth),
             )
             Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(PlayerOverlayUiDefaults.ProgressTrackHeight)
-                    .clip(PlayerOverlayUiDefaults.ProgressBarShape)
-                    .background(PlayerOverlayUiDefaults.progressTrackColor()),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(bufferedFraction.coerceIn(0f, 1f))
-                        .height(PlayerOverlayUiDefaults.ProgressBufferedTrackHeight)
-                        .clip(PlayerOverlayUiDefaults.ProgressBarShape)
-                        .background(PlayerOverlayUiDefaults.progressBufferedTrackColor()),
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(progressFraction.coerceIn(0f, 1f))
+                modifier =
+                    Modifier
+                        .weight(1f)
                         .height(PlayerOverlayUiDefaults.ProgressTrackHeight)
                         .clip(PlayerOverlayUiDefaults.ProgressBarShape)
-                        .background(PlayerOverlayUiDefaults.progressFillBrush(palette)),
+                        .background(PlayerOverlayUiDefaults.progressTrackColor()),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(bufferedFraction.coerceIn(0f, 1f))
+                            .height(PlayerOverlayUiDefaults.ProgressBufferedTrackHeight)
+                            .clip(PlayerOverlayUiDefaults.ProgressBarShape)
+                            .background(PlayerOverlayUiDefaults.progressBufferedTrackColor()),
+                )
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(progressFraction.coerceIn(0f, 1f))
+                            .height(PlayerOverlayUiDefaults.ProgressTrackHeight)
+                            .clip(PlayerOverlayUiDefaults.ProgressBarShape)
+                            .background(PlayerOverlayUiDefaults.progressFillBrush(palette)),
                 )
             }
             Text(
@@ -1256,9 +1294,10 @@ private fun PlayerPickerMenu(
     val optionRequesters = remember(optionIds) { List(optionIds.size) { FocusRequester() } }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val selectedIndex = remember(options) {
-        options.indexOfFirst { it.selected }.takeIf { it >= 0 } ?: 0
-    }
+    val selectedIndex =
+        remember(options) {
+            options.indexOfFirst { it.selected }.takeIf { it >= 0 } ?: 0
+        }
 
     fun requestOptionFocus(targetIndex: Int): Boolean {
         if (options.isEmpty()) {
@@ -1278,9 +1317,10 @@ private fun PlayerPickerMenu(
     }
 
     Column(
-        modifier = modifier
-            .playerPanelSurface(PlayerOverlayUiDefaults.pickerPanelStyle(palette))
-            .padding(PlayerOverlayUiDefaults.PickerPanelPadding),
+        modifier =
+            modifier
+                .playerPanelSurface(PlayerOverlayUiDefaults.pickerPanelStyle())
+                .padding(PlayerOverlayUiDefaults.PickerPanelPadding),
         verticalArrangement = Arrangement.spacedBy(PlayerOverlayUiDefaults.PickerSectionSpacing),
     ) {
         Text(
@@ -1336,10 +1376,11 @@ private fun PlayerPickerOptionButton(
     onUp: () -> Boolean,
     onDown: () -> Boolean,
 ) {
-    val optionColors = PlayerOverlayUiDefaults.pickerOptionColors(
-        palette = palette,
-        selected = option.selected,
-    )
+    val optionColors =
+        PlayerOverlayUiDefaults.pickerOptionColors(
+            palette = palette,
+            selected = option.selected,
+        )
 
     PlayerControlSurface(
         focusRequester = focusRequester,
@@ -1366,25 +1407,27 @@ private fun PlayerPickerOptionButton(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (option.selected) {
-                            palette.accentColor
-                        } else {
-                            Color.Transparent
-                        },
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (option.selected) {
-                            palette.accentColor
-                        } else {
-                            Color.White.copy(alpha = 0.28f)
-                        },
-                        shape = CircleShape,
-                    ),
+                modifier =
+                    Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (option.selected) {
+                                palette.accentColor
+                            } else {
+                                Color.Transparent
+                            },
+                        )
+                        .border(
+                            width = 1.dp,
+                            color =
+                                if (option.selected) {
+                                    palette.accentColor
+                                } else {
+                                    Color.White.copy(alpha = 0.28f)
+                                },
+                            shape = CircleShape,
+                        ),
             )
             Text(
                 text = option.label,
@@ -1419,10 +1462,11 @@ private fun PlayerActionButton(
     onUp: (() -> Boolean)? = null,
     onDown: (() -> Boolean)? = null,
 ) {
-    val buttonColors = PlayerOverlayUiDefaults.actionButtonColors(
-        palette = palette,
-        emphasized = emphasized,
-    )
+    val buttonColors =
+        PlayerOverlayUiDefaults.actionButtonColors(
+            palette = palette,
+            emphasized = emphasized,
+        )
     PlayerControlSurface(
         focusRequester = focusRequester,
         enabled = enabled,
@@ -1435,22 +1479,25 @@ private fun PlayerActionButton(
         onRight = onRight,
         onUp = onUp,
         onDown = onDown,
-        modifier = modifier
-            .width(minWidth)
-            .semantics { this.contentDescription = contentDescription },
+        modifier =
+            modifier
+                .width(minWidth)
+                .semantics { this.contentDescription = contentDescription },
         paddingValues = PaddingValues(horizontal = horizontalPadding, vertical = verticalPadding),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(
-                space = if (text != null && iconRes != null) {
-                    PlayerOverlayUiDefaults.ActionButtonContentSpacing
-                } else {
-                    0.dp
-                },
-                alignment = Alignment.CenterHorizontally,
-            ),
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    space =
+                        if (text != null && iconRes != null) {
+                            PlayerOverlayUiDefaults.ActionButtonContentSpacing
+                        } else {
+                            0.dp
+                        },
+                    alignment = Alignment.CenterHorizontally,
+                ),
         ) {
             if (iconRes != null) {
                 Icon(
@@ -1500,64 +1547,67 @@ private fun PlayerControlSurface(
     val canFocus = enabled
 
     Box(
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = if (isFocused) PlayerOverlayUiDefaults.PlayerFocusScale else 1f
-                scaleY = if (isFocused) PlayerOverlayUiDefaults.PlayerFocusScale else 1f
-                shadowElevation = if (isFocused) {
-                    PlayerOverlayUiDefaults.PlayerFocusShadowElevation.toPx()
-                } else {
-                    0f
+        modifier =
+            modifier
+                .graphicsLayer {
+                    scaleX = if (isFocused) PlayerOverlayUiDefaults.PLAYER_FOCUS_SCALE else 1f
+                    scaleY = if (isFocused) PlayerOverlayUiDefaults.PLAYER_FOCUS_SCALE else 1f
+                    shadowElevation =
+                        if (isFocused) {
+                            PlayerOverlayUiDefaults.PlayerFocusShadowElevation.toPx()
+                        } else {
+                            0f
+                        }
+                    this.shape = shape
+                    this.clip = false
                 }
-                this.shape = shape
-                this.clip = false
-            }
-            .clip(shape)
-            .background(if (isFocused) focusedBackgroundColor else backgroundColor)
-            .border(
-                width = if (isFocused || selected) 2.dp else 1.dp,
-                color = when {
-                    isFocused -> borderColor
-                    selected -> selectedBorderColor
-                    else -> Color.Transparent
-                },
-                shape = shape,
-            )
-            .then(if (canFocus) Modifier.focusRequester(focusRequester) else Modifier)
-            .onFocusChanged { state ->
-                isFocused = state.isFocused
-                if (state.isFocused) {
-                    onFocused?.invoke()
-                }
-            }
-            .onPreviewKeyEvent { event ->
-                when (resolvePlayerControlSurfaceKeyAction(canFocus, enabled, event.key, event.type)) {
-                    PlayerControlSurfaceKeyAction.Consume -> true
-                    PlayerControlSurfaceKeyAction.Click -> {
-                        onClick()
-                        true
+                .clip(shape)
+                .background(if (isFocused) focusedBackgroundColor else backgroundColor)
+                .border(
+                    width = if (isFocused || selected) 2.dp else 1.dp,
+                    color =
+                        when {
+                            isFocused -> borderColor
+                            selected -> selectedBorderColor
+                            else -> Color.Transparent
+                        },
+                    shape = shape,
+                )
+                .then(if (canFocus) Modifier.focusRequester(focusRequester) else Modifier)
+                .onFocusChanged { state ->
+                    isFocused = state.isFocused
+                    if (state.isFocused) {
+                        onFocused?.invoke()
                     }
+                }
+                .onPreviewKeyEvent { event ->
+                    when (resolvePlayerControlSurfaceKeyAction(canFocus, enabled, event.key, event.type)) {
+                        PlayerControlSurfaceKeyAction.Consume -> true
+                        PlayerControlSurfaceKeyAction.Click -> {
+                            onClick()
+                            true
+                        }
 
-                    PlayerControlSurfaceKeyAction.MoveLeft -> onLeft?.invoke() == true
-                    PlayerControlSurfaceKeyAction.MoveUp -> onUp?.invoke() == true
-                    PlayerControlSurfaceKeyAction.MoveRight -> onRight?.invoke() == true
-                    PlayerControlSurfaceKeyAction.MoveDown -> onDown?.invoke() == true
-                    PlayerControlSurfaceKeyAction.Ignore -> false
+                        PlayerControlSurfaceKeyAction.MoveLeft -> onLeft?.invoke() == true
+                        PlayerControlSurfaceKeyAction.MoveUp -> onUp?.invoke() == true
+                        PlayerControlSurfaceKeyAction.MoveRight -> onRight?.invoke() == true
+                        PlayerControlSurfaceKeyAction.MoveDown -> onDown?.invoke() == true
+                        PlayerControlSurfaceKeyAction.Ignore -> false
+                    }
                 }
-            }
-            .then(
-                if (enabled) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onClick,
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            .then(if (canFocus) Modifier.focusable() else Modifier)
-            .padding(paddingValues),
+                .then(
+                    if (enabled) {
+                        Modifier.clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = onClick,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
+                .then(if (canFocus) Modifier.focusable() else Modifier)
+                .padding(paddingValues),
     ) {
         content()
     }

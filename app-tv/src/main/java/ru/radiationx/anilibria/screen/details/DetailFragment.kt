@@ -26,8 +26,8 @@ import ru.radiationx.anilibria.common.LibriaDetails
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.extension.applyCard
-import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.screen.details.other.DetailOtherViewModel
+import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.QuillExtra
@@ -38,17 +38,17 @@ import ru.radiationx.shared.ktx.android.putExtra
 import ru.radiationx.shared.ktx.android.subscribeTo
 
 data class DetailExtra(
-    val id: ReleaseId
+    val id: ReleaseId,
 ) : QuillExtra
 
 class DetailFragment : Fragment() {
-
     companion object {
         private const val ARG_ID = "id"
 
-        fun newInstance(releaseId: ReleaseId) = DetailFragment().putExtra {
-            putParcelable(ARG_ID, releaseId)
-        }
+        fun newInstance(releaseId: ReleaseId) =
+            DetailFragment().putExtra {
+                putParcelable(ARG_ID, releaseId)
+            }
     }
 
     private val argExtra by lazy {
@@ -94,50 +94,54 @@ class DetailFragment : Fragment() {
             isFocusable = true
             isFocusableInTouchMode = true
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
-                if (hasFocus && isHeaderSelected) {
-                    requestHeaderFocus()
+            onFocusChangeListener =
+                View.OnFocusChangeListener { _, hasFocus ->
+                    if (hasFocus && isHeaderSelected) {
+                        requestHeaderFocus()
+                    }
                 }
-            }
             setContent {
                 ProvideGradientBackground(backgroundManager) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         DetailScreen(
-                            headerUiState = ReleaseDetailsRowUiState(
-                                details = detailsState,
-                                progressState = progressState,
-                                initialFocusToken = headerFocusToken,
-                                initialFocusTarget = headerFocusTargetState,
-                            ),
-                            headerCallbacks = ReleaseDetailsCallbacks(
-                                continueClick = {
-                                    headerFocusTargetState = ReleaseDetailsFocusTarget.Continue
-                                    headerViewModel.onContinueClick()
-                                },
-                                playClick = {
-                                    headerFocusTargetState = ReleaseDetailsFocusTarget.Play
-                                    headerViewModel.onPlayClick()
-                                },
-                                favoriteClick = {
-                                    headerFocusTargetState = ReleaseDetailsFocusTarget.Favorite
-                                    headerViewModel.onFavoriteClick()
-                                },
-                                descriptionClick = {
-                                    headerFocusTargetState = ReleaseDetailsFocusTarget.Description
-                                    headerViewModel.onDescriptionClick()
-                                },
-                                otherClick = {
-                                    headerFocusTargetState = ReleaseDetailsFocusTarget.Other
-                                    headerViewModel.onOtherClick()
-                                },
-                            ),
+                            headerUiState =
+                                ReleaseDetailsRowUiState(
+                                    details = detailsState,
+                                    progressState = progressState,
+                                    initialFocusToken = headerFocusToken,
+                                    initialFocusTarget = headerFocusTargetState,
+                                ),
+                            headerCallbacks =
+                                ReleaseDetailsCallbacks(
+                                    continueClick = {
+                                        headerFocusTargetState = ReleaseDetailsFocusTarget.Continue
+                                        headerViewModel.onContinueClick()
+                                    },
+                                    playClick = {
+                                        headerFocusTargetState = ReleaseDetailsFocusTarget.Play
+                                        headerViewModel.onPlayClick()
+                                    },
+                                    favoriteClick = {
+                                        headerFocusTargetState = ReleaseDetailsFocusTarget.Favorite
+                                        headerViewModel.onFavoriteClick()
+                                    },
+                                    descriptionClick = {
+                                        headerFocusTargetState = ReleaseDetailsFocusTarget.Description
+                                        headerViewModel.onDescriptionClick()
+                                    },
+                                    otherClick = {
+                                        headerFocusTargetState = ReleaseDetailsFocusTarget.Other
+                                        headerViewModel.onOtherClick()
+                                    },
+                                ),
                             sections = buildSections(),
-                            contentRestoreState = DetailContentRestoreState(
-                                focusToken = contentRestoreToken,
-                                preferredSectionIndex = restoreSectionIndex,
-                                preferredItemIndex = restoreItemIndex,
-                                preferredItemId = restoreItemId,
-                            ),
+                            contentRestoreState =
+                                DetailContentRestoreState(
+                                    focusToken = contentRestoreToken,
+                                    preferredSectionIndex = restoreSectionIndex,
+                                    preferredItemIndex = restoreItemIndex,
+                                    preferredItemId = restoreItemId,
+                                ),
                             contentSelectionEnabled = allowContentSelectionCapture,
                             onRequestHeaderFocus = ::requestHeaderFocus,
                             onHeaderFocusSettled = {
@@ -154,8 +158,8 @@ class DetailFragment : Fragment() {
                                 restoreItemId = item.getId()
                                 restoreItemState = item
                                 isHeaderSelected = false
-                                backgroundManager.applyCard(item)
                             },
+                            onBackdropItemFocused = { item -> backgroundManager.applyCard(item) },
                         )
 
                         overlayState?.let { currentOverlay ->
@@ -189,7 +193,10 @@ class DetailFragment : Fragment() {
         }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
 
         backgroundManager.clearGradient()
@@ -199,21 +206,22 @@ class DetailFragment : Fragment() {
         viewLifecycleOwner.lifecycle.addObserver(otherViewModel)
         viewLifecycleOwner.lifecycle.addObserver(relatedViewModel)
         viewLifecycleOwner.lifecycle.addObserver(recommendsViewModel)
-        backPressedCallback = object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (overlayState != null) {
-                    dismissOverlay(requestHeaderFocus = true)
-                    return
+        backPressedCallback =
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (overlayState != null) {
+                        dismissOverlay(requestHeaderFocus = true)
+                        return
+                    }
+                    if (!isHeaderSelected) {
+                        requestHeaderFocus()
+                        return
+                    }
+                    router.exit()
                 }
-                if (!isHeaderSelected) {
-                    requestHeaderFocus()
-                    return
-                }
-                router.exit()
+            }.also {
+                requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
             }
-        }.also {
-            requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
-        }
 
         relatedTitleState = relatedViewModel.defaultTitle
         recommendsTitleState = recommendsViewModel.defaultTitle
@@ -269,17 +277,19 @@ class DetailFragment : Fragment() {
     private fun buildSections(): List<MainSectionUiModel> {
         return rowIdsState.mapNotNull { rowId ->
             when (rowId) {
-                DetailsViewModel.RELATED_ROW_ID -> MainSectionUiModel(
-                    id = rowId,
-                    title = relatedTitleState,
-                    items = relatedCardsState,
-                )
+                DetailsViewModel.RELATED_ROW_ID ->
+                    MainSectionUiModel(
+                        id = rowId,
+                        title = relatedTitleState,
+                        items = relatedCardsState,
+                    )
 
-                DetailsViewModel.RECOMMENDS_ROW_ID -> MainSectionUiModel(
-                    id = rowId,
-                    title = recommendsTitleState,
-                    items = recommendsCardsState,
-                )
+                DetailsViewModel.RECOMMENDS_ROW_ID ->
+                    MainSectionUiModel(
+                        id = rowId,
+                        title = recommendsTitleState,
+                        items = recommendsCardsState,
+                    )
 
                 else -> null
             }
@@ -290,18 +300,20 @@ class DetailFragment : Fragment() {
         rowId: Long,
         item: CardItem,
     ) {
-        val viewModel = when (rowId) {
-            DetailsViewModel.RELATED_ROW_ID -> relatedViewModel
-            DetailsViewModel.RECOMMENDS_ROW_ID -> recommendsViewModel
-            else -> null
-        } ?: return
+        val viewModel =
+            when (rowId) {
+                DetailsViewModel.RELATED_ROW_ID -> relatedViewModel
+                DetailsViewModel.RECOMMENDS_ROW_ID -> recommendsViewModel
+                else -> null
+            } ?: return
 
         when (item) {
             is LibriaCard -> viewModel.onLibriaCardClick(item)
             is LinkCard -> viewModel.onLinkCardClick()
-            is LoadingCard -> if (item.isError) {
-                viewModel.onLoadingCardClick()
-            }
+            is LoadingCard ->
+                if (item.isError) {
+                    viewModel.onLoadingCardClick()
+                }
             is InfoCard -> Unit
         }
     }
@@ -323,7 +335,6 @@ class DetailFragment : Fragment() {
         allowContentSelectionCapture = true
         isHeaderSelected = false
         contentRestoreToken++
-        restoreItemState?.let(backgroundManager::applyCard)
     }
 
     private fun applyImage(image: String) {

@@ -13,9 +13,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
@@ -30,7 +30,6 @@ import ru.radiationx.data.repository.AuthRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppLauncherViewModelCommandsTest {
-
     private val testDispatcher = UnconfinedTestDispatcher()
     private val router = mockk<Router>(relaxed = true)
 
@@ -46,38 +45,44 @@ class AppLauncherViewModelCommandsTest {
     }
 
     @Test
-    fun coldLaunch_emitsAppReadyOnceForActiveCollector() = runBlocking {
-        val viewModel = createViewModel()
-        val firstCommandDeferred = async(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.commands.first()
-        }
+    fun coldLaunch_emitsAppReadyOnceForActiveCollector() =
+        runTest {
+            val viewModel = createViewModel()
+            val firstCommandDeferred =
+                async(start = CoroutineStart.UNDISPATCHED) {
+                    viewModel.commands.first()
+                }
 
-        viewModel.coldLaunch()
+            viewModel.coldLaunch()
 
-        val firstCommand = withTimeoutOrNull(1_000) {
-            firstCommandDeferred.await()
+            val firstCommand =
+                withTimeoutOrNull(1_000) {
+                    firstCommandDeferred.await()
+                }
+            assertEquals(AppLauncherViewModel.AppLauncherCommand.AppReady, firstCommand)
         }
-        assertEquals(AppLauncherViewModel.AppLauncherCommand.AppReady, firstCommand)
-    }
 
     @Test
-    fun coldLaunch_doesNotReplayAppReadyToLateCollector() = runBlocking {
-        val viewModel = createViewModel()
-        viewModel.coldLaunch()
-        delay(150)
+    fun coldLaunch_doesNotReplayAppReadyToLateCollector() =
+        runTest {
+            val viewModel = createViewModel()
+            viewModel.coldLaunch()
+            delay(150)
 
-        val replayed = withTimeoutOrNull(150) {
-            viewModel.commands.first()
+            val replayed =
+                withTimeoutOrNull(150) {
+                    viewModel.commands.first()
+                }
+
+            assertNull(replayed)
         }
-
-        assertNull(replayed)
-    }
 
     private fun createViewModel(): AppLauncherViewModel {
         val apiConfig = mockk<ApiConfig>()
-        val needConfigEvents = MutableSharedFlow<Boolean>(extraBufferCapacity = 1).apply {
-            tryEmit(false)
-        }
+        val needConfigEvents =
+            MutableSharedFlow<Boolean>(extraBufferCapacity = 1).apply {
+                tryEmit(false)
+            }
         every { apiConfig.observeNeedConfig() } returns needConfigEvents
         every { apiConfig.needConfig } returns false
 

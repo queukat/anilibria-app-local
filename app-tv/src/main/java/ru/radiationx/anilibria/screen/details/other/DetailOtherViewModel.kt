@@ -11,28 +11,29 @@ import ru.radiationx.data.interactors.ReleaseInteractor
 import ru.radiationx.data.repository.UserViewsRepository
 import javax.inject.Inject
 
-class DetailOtherViewModel @Inject constructor(
-    private val argExtra: DetailExtra,
-    private val releaseInteractor: ReleaseInteractor,
-    private val userViewsRepository: UserViewsRepository,
-) : LifecycleViewModel() {
+class DetailOtherViewModel
+    @Inject
+    constructor(
+        private val argExtra: DetailExtra,
+        private val releaseInteractor: ReleaseInteractor,
+        private val userViewsRepository: UserViewsRepository,
+    ) : LifecycleViewModel() {
+        private val _dismissEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        val dismissEvents: SharedFlow<Unit> = _dismissEvents.asSharedFlow()
 
-    private val _dismissEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val dismissEvents: SharedFlow<Unit> = _dismissEvents.asSharedFlow()
+        fun onClearClick() {
+            viewModelScope.launch {
+                releaseInteractor.resetAccessHistory(argExtra.id)
+                userViewsRepository.deleteAllTimecodesForRelease(argExtra.id)
+                _dismissEvents.emit(Unit)
+            }
+        }
 
-    fun onClearClick() {
-        viewModelScope.launch {
-            releaseInteractor.resetAccessHistory(argExtra.id)
-            userViewsRepository.deleteAllTimecodesForRelease(argExtra.id)
-            _dismissEvents.emit(Unit)
+        fun onMarkClick() {
+            viewModelScope.launch {
+                releaseInteractor.markAllViewed(argExtra.id)
+                userViewsRepository.markAllWatchedForRelease(argExtra.id)
+                _dismissEvents.emit(Unit)
+            }
         }
     }
-
-    fun onMarkClick() {
-        viewModelScope.launch {
-            releaseInteractor.markAllViewed(argExtra.id)
-            userViewsRepository.markAllWatchedForRelease(argExtra.id)
-            _dismissEvents.emit(Unit)
-        }
-    }
-}

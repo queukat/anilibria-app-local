@@ -56,57 +56,65 @@ internal enum class PlayerControlButtonId {
     AspectRatio,
 }
 
-private val transportIconButtonLayout = PlayerActionButtonLayout(
-    minWidth = 64.dp,
-    horizontalPadding = 12.dp,
-    verticalPadding = 11.dp,
-    iconSize = 18.dp,
-)
+private val transportIconButtonLayout =
+    PlayerActionButtonLayout(
+        minWidth = 64.dp,
+        horizontalPadding = 12.dp,
+        verticalPadding = 11.dp,
+        iconSize = 18.dp,
+    )
 
-internal val PlayerControlsRuntimeLayout = PlayerControlsLayoutSpec(
-    panelWidthFraction = 1f,
-    controlsHorizontalPadding = 20.dp,
-    controlsBottomPadding = 20.dp,
-    rowsTopPadding = 18.dp,
-    rowsVerticalSpacing = 14.dp,
-    primaryRowSpacing = 10.dp,
-    buttonLayouts = mapOf(
-        PlayerControlButtonId.Previous to transportIconButtonLayout,
-        PlayerControlButtonId.SeekBack to transportIconButtonLayout,
-        PlayerControlButtonId.SeekForward to transportIconButtonLayout,
-        PlayerControlButtonId.PlayPause to PlayerActionButtonLayout(
-            minWidth = 72.dp,
-            horizontalPadding = 14.dp,
-            verticalPadding = 11.dp,
-            iconSize = 20.dp,
-        ),
-        PlayerControlButtonId.Next to transportIconButtonLayout,
-        PlayerControlButtonId.Episodes to PlayerActionButtonLayout(
-            minWidth = 84.dp,
-            horizontalPadding = 16.dp,
-            verticalPadding = 11.dp,
-            textFontSize = 15.sp,
-        ),
-        PlayerControlButtonId.Quality to PlayerActionButtonLayout(
-            minWidth = 96.dp,
-            horizontalPadding = 16.dp,
-            verticalPadding = 11.dp,
-            textFontSize = 15.sp,
-        ),
-        PlayerControlButtonId.Speed to PlayerActionButtonLayout(
-            minWidth = 84.dp,
-            horizontalPadding = 16.dp,
-            verticalPadding = 11.dp,
-            textFontSize = 15.sp,
-        ),
-        PlayerControlButtonId.AspectRatio to PlayerActionButtonLayout(
-            minWidth = 116.dp,
-            horizontalPadding = 16.dp,
-            verticalPadding = 11.dp,
-            textFontSize = 15.sp,
-        ),
-    ),
-)
+internal val PlayerControlsRuntimeLayout =
+    PlayerControlsLayoutSpec(
+        panelWidthFraction = 1f,
+        controlsHorizontalPadding = 20.dp,
+        controlsBottomPadding = 20.dp,
+        rowsTopPadding = 18.dp,
+        rowsVerticalSpacing = 14.dp,
+        primaryRowSpacing = 10.dp,
+        buttonLayouts =
+            mapOf(
+                PlayerControlButtonId.Previous to transportIconButtonLayout,
+                PlayerControlButtonId.SeekBack to transportIconButtonLayout,
+                PlayerControlButtonId.SeekForward to transportIconButtonLayout,
+                PlayerControlButtonId.PlayPause to
+                    PlayerActionButtonLayout(
+                        minWidth = 72.dp,
+                        horizontalPadding = 14.dp,
+                        verticalPadding = 11.dp,
+                        iconSize = 20.dp,
+                    ),
+                PlayerControlButtonId.Next to transportIconButtonLayout,
+                PlayerControlButtonId.Episodes to
+                    PlayerActionButtonLayout(
+                        minWidth = 84.dp,
+                        horizontalPadding = 16.dp,
+                        verticalPadding = 11.dp,
+                        textFontSize = 15.sp,
+                    ),
+                PlayerControlButtonId.Quality to
+                    PlayerActionButtonLayout(
+                        minWidth = 96.dp,
+                        horizontalPadding = 16.dp,
+                        verticalPadding = 11.dp,
+                        textFontSize = 15.sp,
+                    ),
+                PlayerControlButtonId.Speed to
+                    PlayerActionButtonLayout(
+                        minWidth = 84.dp,
+                        horizontalPadding = 16.dp,
+                        verticalPadding = 11.dp,
+                        textFontSize = 15.sp,
+                    ),
+                PlayerControlButtonId.AspectRatio to
+                    PlayerActionButtonLayout(
+                        minWidth = 116.dp,
+                        horizontalPadding = 16.dp,
+                        verticalPadding = 11.dp,
+                        textFontSize = 15.sp,
+                    ),
+            ),
+    )
 
 internal object PlayerOverlayUiDefaults {
     val ControlsPanelShape = RoundedCornerShape(18.dp)
@@ -132,10 +140,10 @@ internal object PlayerOverlayUiDefaults {
     val ProgressTimeWidth = 78.dp
     val LoadingIndicatorSize = 22.dp
     val LoadingIndicatorStrokeWidth = 2.dp
-    const val PlayerFocusScale = 1f
+    const val PLAYER_FOCUS_SCALE = 1f
     val PlayerFocusShadowElevation = 0.dp
 
-    fun controlsPanelStyle(palette: WatchingPalette): PlayerPanelSurfaceStyle {
+    fun controlsPanelStyle(): PlayerPanelSurfaceStyle {
         return PlayerPanelSurfaceStyle(
             shape = ControlsPanelShape,
             backgroundColor = Color(0xD932363D),
@@ -143,7 +151,7 @@ internal object PlayerOverlayUiDefaults {
         )
     }
 
-    fun loadingPanelStyle(palette: WatchingPalette): PlayerPanelSurfaceStyle {
+    fun loadingPanelStyle(): PlayerPanelSurfaceStyle {
         return PlayerPanelSurfaceStyle(
             shape = LoadingPanelShape,
             backgroundColor = Color(0xCC2C3037),
@@ -151,7 +159,7 @@ internal object PlayerOverlayUiDefaults {
         )
     }
 
-    fun pickerPanelStyle(palette: WatchingPalette): PlayerPanelSurfaceStyle {
+    fun pickerPanelStyle(): PlayerPanelSurfaceStyle {
         return PlayerPanelSurfaceStyle(
             shape = ControlsPanelShape,
             backgroundColor = Color(0xF03B4048),
@@ -230,10 +238,11 @@ internal object PlayerOverlayUiDefaults {
 
     fun progressFillBrush(palette: WatchingPalette): Brush {
         return Brush.horizontalGradient(
-            colors = listOf(
-                palette.accentColor.copy(alpha = 0.86f),
-                palette.textColor.copy(alpha = 0.96f),
-            ),
+            colors =
+                listOf(
+                    palette.accentColor.copy(alpha = 0.86f),
+                    palette.textColor.copy(alpha = 0.96f),
+                ),
         )
     }
 }

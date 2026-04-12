@@ -37,8 +37,8 @@ import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvAsyncImage
-import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.anilibria.ui.compose.TvFocusableSurfaceColors
+import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
@@ -68,10 +68,11 @@ internal fun ProfileScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .tvAppBackground(palette)
-            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .tvAppBackground(palette)
+                .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -79,12 +80,13 @@ internal fun ProfileScreen(
         ) {
             TvPageHeader(
                 title = "Профиль",
-                subtitle = if (profile != null) {
-                    "Управляйте аккаунтом на этом устройстве и быстро выходите из профиля без лишних шагов."
-                } else {
-                    "Подключите аккаунт, чтобы синхронизировать историю, избранное " +
-                        "и продолжение просмотра между устройствами."
-                },
+                subtitle =
+                    if (profile != null) {
+                        "Управляйте аккаунтом на этом устройстве и быстро выходите из профиля без лишних шагов."
+                    } else {
+                        "Подключите аккаунт, чтобы синхронизировать историю, избранное " +
+                            "и продолжение просмотра между устройствами."
+                    },
                 palette = palette,
             )
 
@@ -93,11 +95,12 @@ internal fun ProfileScreen(
                 contentAlignment = Alignment.TopCenter,
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth(PROFILE_PANEL_WIDTH_FRACTION)
-                        .widthIn(min = 480.dp, max = 760.dp)
-                        .tvPanelSurface(TvUiDefaults.profilePanelStyle(palette))
-                        .padding(TvUiDefaults.ProfilePanelPadding),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(PROFILE_PANEL_WIDTH_FRACTION)
+                            .widthIn(min = 480.dp, max = 760.dp)
+                            .tvPanelSurface(TvUiDefaults.profilePanelStyle(palette))
+                            .padding(TvUiDefaults.ProfilePanelPadding),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     ProfileAvatar(
@@ -119,11 +122,12 @@ internal fun ProfileScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = if (profile != null) {
-                            "Аккаунт подключен. Можно выйти из профиля на этом устройстве."
-                        } else {
-                            "Подключите аккаунт, чтобы продолжать просмотр между устройствами и не терять избранное."
-                        },
+                        text =
+                            if (profile != null) {
+                                "Аккаунт подключен. Можно выйти из профиля на этом устройстве."
+                            } else {
+                                "Подключите аккаунт, чтобы продолжать просмотр между устройствами и не терять избранное."
+                            },
                         color = palette.secondaryTextColor,
                         fontSize = 17.sp,
                         lineHeight = 24.sp,
@@ -139,11 +143,12 @@ internal fun ProfileScreen(
                         onClick = if (profile != null) onSignOutClick else onSignInClick,
                         enabled = interactionsEnabled,
                         minWidth = 240.dp,
-                        colors = TvFocusableSurfaceColors(
-                            backgroundColor = palette.chipColor.copy(alpha = 0.94f),
-                            focusedBackgroundColor = palette.chipColor.copy(alpha = 0.94f),
-                            borderColor = accentColor.copy(alpha = 0.9f),
-                        ),
+                        colors =
+                            TvFocusableSurfaceColors(
+                                backgroundColor = palette.chipColor.copy(alpha = 0.94f),
+                                focusedBackgroundColor = palette.chipColor.copy(alpha = 0.94f),
+                                borderColor = accentColor.copy(alpha = 0.9f),
+                            ),
                         paddingValues = TvUiDefaults.ActionButtonPadding,
                         fontSize = 18.sp,
                         onLeft = onRequestRailFocus,
@@ -162,15 +167,16 @@ private fun ProfileAvatar(
     backgroundColor: Color,
 ) {
     Box(
-        modifier = Modifier
-            .size(140.dp)
-            .clip(CircleShape)
-            .background(backgroundColor.copy(alpha = 0.92f))
-            .border(
-                width = 2.dp,
-                color = accentColor.copy(alpha = 0.55f),
-                shape = CircleShape,
-            ),
+        modifier =
+            Modifier
+                .size(140.dp)
+                .clip(CircleShape)
+                .background(backgroundColor.copy(alpha = 0.92f))
+                .border(
+                    width = 2.dp,
+                    color = accentColor.copy(alpha = 0.55f),
+                    shape = CircleShape,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         if (avatarUrl.isNullOrBlank()) {

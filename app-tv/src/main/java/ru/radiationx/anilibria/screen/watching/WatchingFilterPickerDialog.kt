@@ -1,7 +1,6 @@
 package ru.radiationx.anilibria.screen.watching
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,14 +25,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -67,7 +63,7 @@ internal fun WatchingFilterPickerDialog(
     val scope = rememberCoroutineScope()
     var lastFocusedOptionIndex by remember(state.options) {
         mutableIntStateOf(
-            state.selectedIndices.minOrNull()?.coerceIn(0, state.options.lastIndex.coerceAtLeast(0)) ?: 0
+            state.selectedIndices.minOrNull()?.coerceIn(0, state.options.lastIndex.coerceAtLeast(0)) ?: 0,
         )
     }
 
@@ -127,32 +123,34 @@ internal fun WatchingFilterPickerDialog(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(TvUiDefaults.modalScrimColor(palette))
-            .onPreviewKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) {
-                    return@onPreviewKeyEvent false
-                }
-                when (event.key) {
-                    Key.Back,
-                    Key.Escape,
-                    -> {
-                        onDismiss()
-                        true
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(TvUiDefaults.modalScrimColor(palette))
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) {
+                        return@onPreviewKeyEvent false
                     }
+                    when (event.key) {
+                        Key.Back,
+                        Key.Escape,
+                        -> {
+                            onDismiss()
+                            true
+                        }
 
-                    else -> false
-                }
-            },
+                        else -> false
+                    }
+                },
         contentAlignment = Alignment.TopCenter,
     ) {
         TvOverlayPanelSurface(
             palette = palette,
-            modifier = Modifier
-                .padding(top = TvPickerTopInset)
-                .fillMaxWidth(TV_COLLECTION_FILTER_PICKER_WIDTH_FRACTION)
-                .heightIn(max = 640.dp),
+            modifier =
+                Modifier
+                    .padding(top = TvPickerTopInset)
+                    .fillMaxWidth(TV_COLLECTION_FILTER_PICKER_WIDTH_FRACTION)
+                    .heightIn(max = 640.dp),
             contentPadding = TvOverlayOuterPadding,
         ) {
             Column(
@@ -167,11 +165,12 @@ internal fun WatchingFilterPickerDialog(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = if (state.multiSelect) {
-                            "Можно выбрать несколько значений"
-                        } else {
-                            "Выберите одно значение"
-                        },
+                        text =
+                            if (state.multiSelect) {
+                                "Можно выбрать несколько значений"
+                            } else {
+                                "Выберите одно значение"
+                            },
                         color = palette.secondaryTextColor,
                         fontSize = 15.sp,
                         lineHeight = 21.sp,
@@ -185,33 +184,35 @@ internal fun WatchingFilterPickerDialog(
                 ) {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 320.dp, max = 420.dp),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .heightIn(min = 320.dp, max = 420.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         itemsIndexed(
-                        items = state.options,
-                        key = { index, option -> option.hashCode() * 31 + index },
-                    ) { index, option ->
-                        val isSelected = index in state.selectedIndices
-                        val surfaceColors = if (isSelected) {
-                            TvUiDefaults.accentActionColors(
-                                palette = palette,
-                                borderAlpha = 0.82f,
-                            )
-                        } else {
-                            TvUiDefaults.chipActionColors(
-                                palette = palette,
-                                backgroundAlpha = 0.74f,
-                                borderAlpha = 0.12f,
-                            )
-                        }
-                        WatchingFocusableSurface(
-                            focusRequester = optionRequesters[index],
-                            backgroundColor = surfaceColors.backgroundColor,
-                            focusedBackgroundColor = surfaceColors.focusedBackgroundColor,
-                            borderColor = surfaceColors.borderColor,
+                            items = state.options,
+                            key = { index, option -> option.hashCode() * 31 + index },
+                        ) { index, option ->
+                            val isSelected = index in state.selectedIndices
+                            val surfaceColors =
+                                if (isSelected) {
+                                    TvUiDefaults.accentActionColors(
+                                        palette = palette,
+                                        borderAlpha = 0.82f,
+                                    )
+                                } else {
+                                    TvUiDefaults.chipActionColors(
+                                        palette = palette,
+                                        backgroundAlpha = 0.74f,
+                                        borderAlpha = 0.12f,
+                                    )
+                                }
+                            WatchingFocusableSurface(
+                                focusRequester = optionRequesters[index],
+                                backgroundColor = surfaceColors.backgroundColor,
+                                focusedBackgroundColor = surfaceColors.focusedBackgroundColor,
+                                borderColor = surfaceColors.borderColor,
                                 onClick = {
                                     if (state.multiSelect) {
                                         onToggleOption(index)
@@ -222,29 +223,32 @@ internal fun WatchingFilterPickerDialog(
                                 onFocused = {
                                     lastFocusedOptionIndex = index
                                 },
-                                onUp = if (index > 0) {
-                                    { requestOptionFocus(index - 1) }
-                                } else {
-                                    { true }
-                                },
-                                onRight = if (state.multiSelect) {
-                                    ::requestApplyFocus
-                                } else {
-                                    null
-                                },
-                                onDown = when {
-                                    index < state.options.lastIndex -> {
-                                        { requestOptionFocus(index + 1) }
-                                    }
-
-                                    state.multiSelect -> {
-                                        ::requestApplyFocus
-                                    }
-
-                                    else -> {
+                                onUp =
+                                    if (index > 0) {
+                                        { requestOptionFocus(index - 1) }
+                                    } else {
                                         { true }
-                                    }
-                                },
+                                    },
+                                onRight =
+                                    if (state.multiSelect) {
+                                        ::requestApplyFocus
+                                    } else {
+                                        null
+                                    },
+                                onDown =
+                                    when {
+                                        index < state.options.lastIndex -> {
+                                            { requestOptionFocus(index + 1) }
+                                        }
+
+                                        state.multiSelect -> {
+                                            ::requestApplyFocus
+                                        }
+
+                                        else -> {
+                                            { true }
+                                        }
+                                    },
                                 modifier = Modifier.fillMaxWidth(),
                                 paddingValues = TvUiDefaults.ChoiceRowPadding,
                             ) {
@@ -257,11 +261,12 @@ internal fun WatchingFilterPickerDialog(
                                         text = option,
                                         color = palette.textColor,
                                         fontSize = 17.sp,
-                                        fontWeight = if (isSelected) {
-                                            FontWeight.SemiBold
-                                        } else {
-                                            FontWeight.Normal
-                                        },
+                                        fontWeight =
+                                            if (isSelected) {
+                                                FontWeight.SemiBold
+                                            } else {
+                                                FontWeight.Normal
+                                            },
                                     )
                                     TvSelectionIndicator(
                                         selected = isSelected,
@@ -288,12 +293,13 @@ internal fun WatchingFilterPickerDialog(
                                 focusRequester = applyRequester,
                                 onClick = onApply,
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = TvUiDefaults.accentActionColors(
-                                    palette = palette,
-                                    backgroundAlpha = 0.22f,
-                                    focusedBackgroundAlpha = 0.28f,
-                                    borderAlpha = 0.86f,
-                                ),
+                                colors =
+                                    TvUiDefaults.accentActionColors(
+                                        palette = palette,
+                                        backgroundAlpha = 0.22f,
+                                        focusedBackgroundAlpha = 0.28f,
+                                        borderAlpha = 0.86f,
+                                    ),
                                 paddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                                 onLeft = {
                                     requestOptionFocus(lastFocusedOptionIndex)
@@ -308,11 +314,12 @@ internal fun WatchingFilterPickerDialog(
                                 focusRequester = resetRequester,
                                 onClick = onReset,
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = TvUiDefaults.chipActionColors(
-                                    palette = palette,
-                                    backgroundAlpha = 0.82f,
-                                    borderAlpha = 0.72f,
-                                ),
+                                colors =
+                                    TvUiDefaults.chipActionColors(
+                                        palette = palette,
+                                        backgroundAlpha = 0.82f,
+                                        borderAlpha = 0.72f,
+                                    ),
                                 paddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                                 fontWeight = FontWeight.Normal,
                                 onUp = {

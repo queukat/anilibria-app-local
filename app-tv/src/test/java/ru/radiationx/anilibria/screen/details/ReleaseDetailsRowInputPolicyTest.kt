@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReleaseDetailsRowInputPolicyTest {
-
     @Test
     fun missingTarget_consumesBoundaryMove() {
         val result = resolveReleaseDetailsVerticalMoveAction(hasTarget = false)

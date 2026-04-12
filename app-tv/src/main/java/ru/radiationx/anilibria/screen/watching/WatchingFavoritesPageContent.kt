@@ -15,7 +15,6 @@ import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.TvCollectionFilterChipState
 import ru.radiationx.anilibria.common.TvCollectionFilterLabels
-import ru.radiationx.anilibria.common.TvCollectionFilterPickerKind
 import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
 import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
 import ru.radiationx.anilibria.common.shouldRequestTvCollectionPickerFocus
@@ -29,7 +28,6 @@ internal class WatchingFavoritesPageContent(
     private val fragment: Fragment,
     private val backgroundManager: GradientBackgroundManager,
 ) : MainShellPageContent {
-
     private val viewModel = fragment.getViewModel(WatchingFavoritesViewModel::class)
 
     private var cardsState by mutableStateOf<List<CardItem>>(emptyList())
@@ -40,7 +38,7 @@ internal class WatchingFavoritesPageContent(
             genre = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL_GENRES, emphasized = false),
             sort = TvCollectionFilterChipState(TvCollectionFilterLabels.SORT_DATE, emphasized = false),
             onlyCompleted = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL, emphasized = false),
-        )
+        ),
     )
     private var pickerState by mutableStateOf<TvCollectionFilterPickerState?>(null)
     private var focusRequestToken by mutableIntStateOf(0)
@@ -127,5 +125,4 @@ internal class WatchingFavoritesPageContent(
             is InfoCard -> Unit
         }
     }
-
 }

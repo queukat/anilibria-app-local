@@ -18,14 +18,12 @@ import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-
 class LinearGradientDrawable(
     private var angle: Float = 0f,
     private var colorValues: IntArray? = null,
     private var colorPositions: FloatArray? = null,
     private var withCoercing: Boolean = false,
 ) : Drawable() {
-
     companion object {
         private const val DEBUG = false
         private val red by lazy {
@@ -44,28 +42,35 @@ class LinearGradientDrawable(
     private var startPoint: PointF = PointF()
     private val gradientPaint = Paint()
 
+    private val blue =
+        Paint().apply {
+            color = Color.BLUE
+            isAntiAlias = true
+        }
 
-    private val blue = Paint().apply {
-        color = Color.BLUE
-        isAntiAlias = true
-    }
-
-    fun setColors(@ColorInt colorStart: Int, @ColorInt colorEnd: Int) {
+    fun setColors(
+        @ColorInt colorStart: Int,
+        @ColorInt colorEnd: Int,
+    ) {
         colorValues = intArrayOf(colorStart, colorEnd)
         colorPositions = floatArrayOf(0f, 1f)
         invalidateSelf()
     }
 
     fun setMultipleColors(colors: IntArray?) {
-        val positions = colors?.mapIndexed { index: Int, _: Int ->
-            (index + 1) / (colors.size.toFloat())
-        }
+        val positions =
+            colors?.mapIndexed { index: Int, _: Int ->
+                (index + 1) / (colors.size.toFloat())
+            }
         colorValues = colors?.copyOf()
         colorPositions = positions?.toFloatArray()
         invalidateSelf()
     }
 
-    fun setMultipleColors(colors: IntArray?, positions: FloatArray? = null) {
+    fun setMultipleColors(
+        colors: IntArray?,
+        positions: FloatArray? = null,
+    ) {
         colorValues = colors?.copyOf()
         colorPositions = positions?.copyOf()
         invalidateSelf()
@@ -89,15 +94,16 @@ class LinearGradientDrawable(
 
         centerPoint = PointF(floatBounds.centerX(), floatBounds.centerY())
         startPoint = PointF(floatBounds.centerX(), radius + floatBounds.centerY())
-        //val point = PointF(bounds.centerX(), bounds.bottom)
+        // val point = PointF(bounds.centerX(), bounds.bottom)
     }
 
     override fun draw(canvas: Canvas) {
         val colors = colorValues ?: return
         val piece = 1f / (colors.size - 1)
-        val positions = colorPositions ?: colors.mapIndexed { index: Int, _: Int ->
-            piece * (index)
-        }.toFloatArray()
+        val positions =
+            colorPositions ?: colors.mapIndexed { index: Int, _: Int ->
+                piece * (index)
+            }.toFloatArray()
 
         if (colorPositions == null) {
             colorPositions = positions
@@ -120,7 +126,10 @@ class LinearGradientDrawable(
             canvas.drawText(
                 "${
                     angle.toInt()
-                }, $radius, ${bounds.right}, $rotatedPoint", 100f, 100f, red
+                }, $radius, ${bounds.right}, $rotatedPoint",
+                100f,
+                100f,
+                red,
             )
         }
     }
@@ -130,15 +139,21 @@ class LinearGradientDrawable(
         end: PointF,
         colors: IntArray,
         positions: FloatArray,
-    ): Shader = LinearGradient(
-        start.x, start.y,
-        end.x, end.y,
-        colors,
-        positions,
-        Shader.TileMode.CLAMP
-    )
+    ): Shader =
+        LinearGradient(
+            start.x,
+            start.y,
+            end.x,
+            end.y,
+            colors,
+            positions,
+            Shader.TileMode.CLAMP,
+        )
 
-    private fun PointF.rotate(center: PointF, rotationAngle: Float): PointF {
+    private fun PointF.rotate(
+        center: PointF,
+        rotationAngle: Float,
+    ): PointF {
         val translatedAngle = 360 - rotationAngle
         val radianAngle = translatedAngle * Math.PI / 180
         val deltaX = x - center.x
@@ -148,7 +163,10 @@ class LinearGradientDrawable(
         return PointF(rotatedDeltaX + center.x, rotatedDeltaY + center.y)
     }
 
-    private fun PointF.scale(center: PointF, scale: Float): PointF {
+    private fun PointF.scale(
+        center: PointF,
+        scale: Float,
+    ): PointF {
         val centerDeltaX = x - center.x
         val centerDeltaY = y - center.y
         val scaledDeltaX = abs(abs(centerDeltaX) - abs(centerDeltaX) * scale)
@@ -168,16 +186,17 @@ class LinearGradientDrawable(
         return PointF(x + scaledTranslationX, y + scaledTranslationY)
     }
 
-    private fun PointF.coerceInBounds(): PointF = PointF(
-        x.coerceIn(floatBounds.left, floatBounds.right),
-        y.coerceIn(floatBounds.top, floatBounds.bottom)
-    )
+    private fun PointF.coerceInBounds(): PointF =
+        PointF(
+            x.coerceIn(floatBounds.left, floatBounds.right),
+            y.coerceIn(floatBounds.top, floatBounds.bottom),
+        )
 
     override fun setAlpha(alpha: Int) {}
 
     @Deprecated(
         "Deprecated in Java",
-        ReplaceWith("PixelFormat.TRANSLUCENT", "android.graphics.PixelFormat")
+        ReplaceWith("PixelFormat.TRANSLUCENT", "android.graphics.PixelFormat"),
     )
     override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
 

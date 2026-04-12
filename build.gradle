@@ -1,3 +1,7 @@
+import org.gradle.api.tasks.compile.JavaCompile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+
 buildscript {
     ext {
         // main
@@ -14,6 +18,7 @@ buildscript {
 
         // java
         jvm_toolchain_version = 17
+        jvm_bytecode_version = 11
     }
 }
 
@@ -24,6 +29,8 @@ plugins {
     alias libs.plugins.kotlin.jvm apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias libs.plugins.ksp apply false
+    alias(libs.plugins.detekt) apply false
+    alias(libs.plugins.ktlint) apply false
     alias libs.plugins.gms apply false
     alias libs.plugins.appmetrica apply false
     alias(libs.plugins.version.catalog.update)
@@ -38,4 +45,42 @@ allprojects {
 
 tasks.register('clean', Delete) {
     delete rootProject.layout.buildDirectory
+}
+
+def analyzeDependencyProjects = [
+    project(":app-tv"),
+    project(":data"),
+    project(":shared-android-ktx"),
+    project(":shared-app"),
+    project(":quill-di"),
+    project(":shared-ktx"),
+]
+
+configure(analyzeDependencyProjects) { Project moduleProject ->
+    tasks.withType(KotlinJvmCompile).configureEach {
+        compilerOptions.jvmTarget.set(JvmTarget.fromTarget(jvm_bytecode_version.toString()))
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        sourceCompatibility = jvm_bytecode_version.toString()
+        targetCompatibility = jvm_bytecode_version.toString()
+    }
+
+    pluginManager.withPlugin("com.android.application") {
+        moduleProject.extensions.configure("android") { androidExtension ->
+            androidExtension.compileOptions {
+                sourceCompatibility = JavaVersion.toVersion(jvm_bytecode_version)
+                targetCompatibility = JavaVersion.toVersion(jvm_bytecode_version)
+            }
+        }
+    }
+
+    pluginManager.withPlugin("com.android.library") {
+        moduleProject.extensions.configure("android") { androidExtension ->
+            androidExtension.compileOptions {
+                sourceCompatibility = JavaVersion.toVersion(jvm_bytecode_version)
+                targetCompatibility = JavaVersion.toVersion(jvm_bytecode_version)
+            }
+        }
+    }
 }

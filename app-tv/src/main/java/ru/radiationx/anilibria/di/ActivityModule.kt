@@ -8,9 +8,8 @@ import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.quill.QuillModule
 import ru.radiationx.shared_app.common.SystemUtils
 
-//todo remove activity from DI
+// todo remove activity from DI
 class ActivityModule(activity: FragmentActivity) : QuillModule() {
-
     init {
         instance<Context> { activity }
         instance { SystemUtils(activity) }

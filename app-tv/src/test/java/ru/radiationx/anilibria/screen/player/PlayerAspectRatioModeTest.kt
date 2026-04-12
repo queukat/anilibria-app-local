@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PlayerAspectRatioModeTest {
-
     @Test
     fun entries_keepExpectedPickerOrder() {
         assertEquals(

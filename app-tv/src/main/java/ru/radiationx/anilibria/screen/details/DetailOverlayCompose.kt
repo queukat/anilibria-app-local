@@ -5,10 +5,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvOverlayActionButton
 import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceItem
 import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceList
@@ -17,7 +18,6 @@ import ru.radiationx.anilibria.ui.compose.TvOverlayInfoBlock
 import ru.radiationx.anilibria.ui.compose.TvOverlayScreen
 import ru.radiationx.anilibria.ui.compose.TvOverlayScrollableText
 import ru.radiationx.data.entity.domain.types.EpisodeId
-import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 
 internal sealed interface DetailOverlayState {
     data class Description(
@@ -102,8 +102,9 @@ internal fun DetailOverlayHost(
                 panelMaxWidth = 700.dp,
             ) { palette ->
                 TvOverlayInfoBlock(
-                    text = "Используйте их только если хотите быстро очистить прогресс " +
-                        "или отметить весь релиз как просмотренный.",
+                    text =
+                        "Используйте их только если хотите быстро очистить прогресс " +
+                            "или отметить весь релиз как просмотренный.",
                     palette = palette,
                 )
                 TvOverlayActionButton(
@@ -133,19 +134,21 @@ internal fun DetailOverlayHost(
                 panelMaxWidth = 860.dp,
             ) { _ ->
                 TvOverlayChoiceList(
-                    sections = overlayState.groups.map { group ->
-                        TvOverlayChoiceSection(
-                            title = if (overlayState.groups.size > 1) group.title else null,
-                            items = group.actions.map { action ->
-                                TvOverlayChoiceItem(
-                                    id = action.id,
-                                    title = action.title,
-                                    subtitle = action.description,
-                                    selected = action.id == overlayState.selectedActionId,
-                                )
-                            },
-                        )
-                    },
+                    sections =
+                        overlayState.groups.map { group ->
+                            TvOverlayChoiceSection(
+                                title = if (overlayState.groups.size > 1) group.title else null,
+                                items =
+                                    group.actions.map { action ->
+                                        TvOverlayChoiceItem(
+                                            id = action.id,
+                                            title = action.title,
+                                            subtitle = action.description,
+                                            selected = action.id == overlayState.selectedActionId,
+                                        )
+                                    },
+                            )
+                        },
                     onItemClick = { choice ->
                         onEpisodeSelected(choice.id)
                     },

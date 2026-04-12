@@ -6,7 +6,6 @@ import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.quill.QuillModule
 
 class NavigationModule : QuillModule() {
-
     init {
         val cicerone by lazy { Cicerone.create(Router()) }
         instance<Router> { cicerone.router }

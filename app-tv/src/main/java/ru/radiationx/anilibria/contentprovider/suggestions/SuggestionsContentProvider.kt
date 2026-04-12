@@ -15,7 +15,6 @@ import ru.radiationx.data.interactors.tv.TvSuggestionsUseCase
 import ru.radiationx.quill.Quill
 
 class SuggestionsContentProvider : ContentProvider() {
-
     companion object {
         /**
          * Для Leanback/GlobalSearch. Оставляем как есть, чтобы не ломать интеграцию на ТВ,
@@ -23,10 +22,12 @@ class SuggestionsContentProvider : ContentProvider() {
          */
         const val INTENT_ACTION = "GLOBALSEARCH"
 
-        private val queryProjection = SystemSuggestionEntity.projection + arrayOf(
-            SearchManager.SUGGEST_COLUMN_INTENT_ACTION,
-            SearchManager.SUGGEST_COLUMN_INTENT_DATA_ID
-        )
+        private val queryProjection =
+            SystemSuggestionEntity.projection +
+                arrayOf(
+                    SearchManager.SUGGEST_COLUMN_INTENT_ACTION,
+                    SearchManager.SUGGEST_COLUMN_INTENT_DATA_ID,
+                )
 
         private const val AUTHORITY = "ru.radiationx.anilibria.contentprovider.suggestions"
         private const val SEARCH_SUGGEST = 1
@@ -44,24 +45,25 @@ class SuggestionsContentProvider : ContentProvider() {
 
     private val uriMatcher by lazy { buildUriMatcher() }
     private val suggestionsUseCase by lazy { Quill.getRootScope().get(TvSuggestionsUseCase::class) }
-    private val queryHandlerLazy = lazy(LazyThreadSafetyMode.NONE) {
-        SuggestionsContentProviderQueryHandler<Uri>(
-            minQueryLength = MIN_QUERY_LENGTH,
-            maxResults = MAX_SUGGESTIONS,
-            timeoutMs = QUERY_TIMEOUT_MS,
-            cacheTtlMs = CACHE_TTL_MS,
-            minRequestIntervalMs = MIN_REQUEST_INTERVAL_MS,
-            loadSuggestionsBlocking = { query ->
-                runBlocking { suggestionsUseCase.loadSuggestions(query) }
-            },
-            awaitAppInitializedBlocking = {
-                runBlocking { App.appInitialized.await() }
-            },
-            onRefreshReady = { refreshUri ->
-                context?.contentResolver?.notifyChange(refreshUri, null)
-            },
-        )
-    }
+    private val queryHandlerLazy =
+        lazy(LazyThreadSafetyMode.NONE) {
+            SuggestionsContentProviderQueryHandler<Uri>(
+                minQueryLength = MIN_QUERY_LENGTH,
+                maxResults = MAX_SUGGESTIONS,
+                timeoutMs = QUERY_TIMEOUT_MS,
+                cacheTtlMs = CACHE_TTL_MS,
+                minRequestIntervalMs = MIN_REQUEST_INTERVAL_MS,
+                loadSuggestionsBlocking = { query ->
+                    runBlocking { suggestionsUseCase.loadSuggestions(query) }
+                },
+                awaitAppInitializedBlocking = {
+                    runBlocking { App.appInitialized.await() }
+                },
+                onRefreshReady = { refreshUri ->
+                    context?.contentResolver?.notifyChange(refreshUri, null)
+                },
+            )
+        }
     private val queryHandler get() = queryHandlerLazy.value
 
     override fun onCreate(): Boolean = true
@@ -73,27 +75,27 @@ class SuggestionsContentProvider : ContentProvider() {
         selectionArgs: Array<out String>?,
         sortOrder: String?,
     ): Cursor {
-        if (uriMatcher.match(uri) == SEARCH_SUGGEST) {
-            val query = uri.lastPathSegment.orEmpty().trim()
-            val items = queryHandler.query(uri, query)
-            return MatrixCursor(queryProjection).apply {
-                items.forEach {
-                    val entity = it.convertToEntity()
-                    addRow(entity.getRow() + INTENT_ACTION + entity.id)
-                }
-                context?.contentResolver?.let { resolver ->
-                    setNotificationUri(resolver, uri)
-                }
+        require(uriMatcher.match(uri) == SEARCH_SUGGEST) { "Unknown Uri: $uri" }
+
+        val query = uri.lastPathSegment.orEmpty().trim()
+        val items = queryHandler.query(uri, query)
+        return MatrixCursor(queryProjection).apply {
+            items.forEach {
+                val entity = it.convertToEntity()
+                addRow(entity.getRow() + INTENT_ACTION + entity.id)
             }
-        } else {
-            throw IllegalArgumentException("Unknown Uri: $uri")
+            context?.contentResolver?.let { resolver ->
+                setNotificationUri(resolver, uri)
+            }
         }
     }
 
     override fun getType(uri: Uri): String? = null
 
-    override fun insert(uri: Uri, values: ContentValues?): Uri? =
-        throw UnsupportedOperationException("insert is not implemented.")
+    override fun insert(
+        uri: Uri,
+        values: ContentValues?,
+    ): Uri? = throw UnsupportedOperationException("insert is not implemented.")
 
     override fun update(
         uri: Uri,
@@ -102,8 +104,11 @@ class SuggestionsContentProvider : ContentProvider() {
         selectionArgs: Array<out String>?,
     ): Int = throw UnsupportedOperationException("update is not implemented.")
 
-    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int =
-        throw UnsupportedOperationException("delete is not implemented.")
+    override fun delete(
+        uri: Uri,
+        selection: String?,
+        selectionArgs: Array<out String>?,
+    ): Int = throw UnsupportedOperationException("delete is not implemented.")
 
     override fun shutdown() {
         if (queryHandlerLazy.isInitialized()) {
@@ -112,17 +117,19 @@ class SuggestionsContentProvider : ContentProvider() {
         super.shutdown()
     }
 
-    private fun SuggestionItem.convertToEntity() = SystemSuggestionEntity(
-        id.id,
-        names.joinToString(),
-        duration = -1,
-        productionYear = -1,
-        cardImage = poster
-    )
+    private fun SuggestionItem.convertToEntity() =
+        SystemSuggestionEntity(
+            id.id,
+            names.joinToString(),
+            duration = -1,
+            productionYear = -1,
+            cardImage = poster,
+        )
 
-    private fun buildUriMatcher() = UriMatcher(UriMatcher.NO_MATCH).apply {
-        // UriMatcher ожидает path без ведущего "/"
-        addURI(AUTHORITY, "search/${SearchManager.SUGGEST_URI_PATH_QUERY}", SEARCH_SUGGEST)
-        addURI(AUTHORITY, "search/${SearchManager.SUGGEST_URI_PATH_QUERY}/*", SEARCH_SUGGEST)
-    }
+    private fun buildUriMatcher() =
+        UriMatcher(UriMatcher.NO_MATCH).apply {
+            // UriMatcher ожидает path без ведущего "/"
+            addURI(AUTHORITY, "search/${SearchManager.SUGGEST_URI_PATH_QUERY}", SEARCH_SUGGEST)
+            addURI(AUTHORITY, "search/${SearchManager.SUGGEST_URI_PATH_QUERY}/*", SEARCH_SUGGEST)
+        }
 }

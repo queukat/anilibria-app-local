@@ -1,6 +1,5 @@
 package ru.radiationx.anilibria.screen.suggestions
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +13,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,51 +35,47 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.toTvCardDescription
+import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
+import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
+import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvRowEndPadding
+import ru.radiationx.anilibria.screen.watching.TvRowSpacing
+import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
+import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.WatchingFilterChip
 import ru.radiationx.anilibria.screen.watching.WatchingMessageCard
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
-import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
-import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
-import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
-import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
-import ru.radiationx.anilibria.screen.watching.TvRowEndPadding
-import ru.radiationx.anilibria.screen.watching.TvRowSpacing
-import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
-import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
-import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
 import ru.radiationx.anilibria.screen.watching.defaultTvSectionTargetIndex
-import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
-import ru.radiationx.anilibria.screen.watching.isTvStateOnlySection
-import ru.radiationx.anilibria.screen.watching.primaryTvStateItem
 import ru.radiationx.anilibria.screen.watching.edgeAwareHorizontalTransformOrigin
 import ru.radiationx.anilibria.screen.watching.findAdjacentTvSectionTarget
 import ru.radiationx.anilibria.screen.watching.findTvSectionRestoreTarget
+import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
+import ru.radiationx.anilibria.screen.watching.isTvStateOnlySection
 import ru.radiationx.anilibria.screen.watching.launchKeepTvSectionItemVisible
 import ru.radiationx.anilibria.screen.watching.launchTvSectionFocus
-import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
+import ru.radiationx.anilibria.screen.watching.primaryTvStateItem
 import ru.radiationx.anilibria.screen.watching.rememberTvDescriptionOverlayClearance
+import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.restoreTvSectionFocus
 import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
+import ru.radiationx.anilibria.ui.compose.DebouncedCardBackdropEffect
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
-import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
-import ru.radiationx.anilibria.ui.compose.TvSectionHeader
 import ru.radiationx.anilibria.ui.compose.TvOverlayTextField
+import ru.radiationx.anilibria.ui.compose.TvPageHeader
+import ru.radiationx.anilibria.ui.compose.TvSectionHeader
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
 
 internal data class SuggestionsSectionUiModel(
@@ -87,7 +84,7 @@ internal data class SuggestionsSectionUiModel(
     val items: List<CardItem>,
 )
 
-private const val SuggestionsQueryMinLength = 3
+private const val SUGGESTIONS_QUERY_MIN_LENGTH = 3
 
 @Composable
 internal fun SuggestionsScreen(
@@ -108,17 +105,19 @@ internal fun SuggestionsScreen(
     val searchRequester = remember { FocusRequester() }
     val voiceRequester = remember { FocusRequester() }
     val sectionItems = remember(sections) { sections.map(SuggestionsSectionUiModel::items) }
-    val sectionKeys = remember(sections) {
-        sections.map { section ->
-            section.id to section.items.map(CardItem::getId)
+    val sectionKeys =
+        remember(sections) {
+            sections.map { section ->
+                section.id to section.items.map(CardItem::getId)
+            }
         }
-    }
     val rowStates = remember(sectionKeys) { List(sections.size) { LazyListState() } }
-    val sectionRequesters = remember(sectionKeys) {
-        sections.map { section ->
-            List(section.items.size) { FocusRequester() }
+    val sectionRequesters =
+        remember(sectionKeys) {
+            sections.map { section ->
+                List(section.items.size) { FocusRequester() }
+            }
         }
-    }
     var selectedItem by remember(sectionKeys) { mutableStateOf<LibriaCard?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
@@ -133,13 +132,14 @@ internal fun SuggestionsScreen(
     }
 
     fun requestLastContentFocus(): Boolean {
-        val restoreTarget = findTvSectionRestoreTarget(
-            sections = sectionItems,
-            preferredSectionIndex = lastFocusedSectionIndex,
-            preferredItemIndex = lastFocusedItemIndex,
-            preferredItemId = lastFocusedItemId,
-            resolveTargetIndex = ::defaultTvSectionTargetIndex,
-        ) ?: return false
+        val restoreTarget =
+            findTvSectionRestoreTarget(
+                sections = sectionItems,
+                preferredSectionIndex = lastFocusedSectionIndex,
+                preferredItemIndex = lastFocusedItemIndex,
+                preferredItemId = lastFocusedItemId,
+                resolveTargetIndex = ::defaultTvSectionTargetIndex,
+            ) ?: return false
         return launchTvSectionFocus(
             scope = scope,
             verticalState = verticalState,
@@ -155,13 +155,14 @@ internal fun SuggestionsScreen(
         direction: Int,
         preferredItemIndex: Int,
     ): Boolean {
-        val target = findAdjacentTvSectionTarget(
-            sections = sectionItems,
-            currentSectionIndex = currentSectionIndex,
-            direction = direction,
-            preferredItemIndex = preferredItemIndex,
-            resolveTargetIndex = ::defaultTvSectionTargetIndex,
-        ) ?: return false
+        val target =
+            findAdjacentTvSectionTarget(
+                sections = sectionItems,
+                currentSectionIndex = currentSectionIndex,
+                direction = direction,
+                preferredItemIndex = preferredItemIndex,
+                resolveTargetIndex = ::defaultTvSectionTargetIndex,
+            ) ?: return false
         return launchTvSectionFocus(
             scope = scope,
             verticalState = verticalState,
@@ -173,12 +174,13 @@ internal fun SuggestionsScreen(
     }
 
     fun requestFirstSectionFocus(): Boolean {
-        val target = findTvSectionRestoreTarget(
-            sections = sectionItems,
-            preferredSectionIndex = 0,
-            preferredItemIndex = 0,
-            resolveTargetIndex = ::defaultTvSectionTargetIndex,
-        ) ?: return false
+        val target =
+            findTvSectionRestoreTarget(
+                sections = sectionItems,
+                preferredSectionIndex = 0,
+                preferredItemIndex = 0,
+                resolveTargetIndex = ::defaultTvSectionTargetIndex,
+            ) ?: return false
         return launchTvSectionFocus(
             scope = scope,
             verticalState = verticalState,
@@ -200,13 +202,14 @@ internal fun SuggestionsScreen(
             lastFocusedItemId = Int.MIN_VALUE
         }
         if (selectedId != null && !stillVisible) {
-            val restoreTarget = findTvSectionRestoreTarget(
-                sections = sectionItems,
-                preferredSectionIndex = lastFocusedSectionIndex,
-                preferredItemIndex = lastFocusedItemIndex,
-                preferredItemId = lastFocusedItemId,
-                resolveTargetIndex = ::defaultTvSectionTargetIndex,
-            )
+            val restoreTarget =
+                findTvSectionRestoreTarget(
+                    sections = sectionItems,
+                    preferredSectionIndex = lastFocusedSectionIndex,
+                    preferredItemIndex = lastFocusedItemIndex,
+                    preferredItemId = lastFocusedItemId,
+                    resolveTargetIndex = ::defaultTvSectionTargetIndex,
+                )
             if (restoreTarget != null) {
                 restoreTvSectionFocus(
                     verticalState = verticalState,
@@ -219,30 +222,33 @@ internal fun SuggestionsScreen(
         }
     }
 
-    LaunchedEffect(selectedItem) {
-        onItemFocused(selectedItem)
-    }
+    DebouncedCardBackdropEffect(
+        card = selectedItem,
+        onCardSettled = { item -> onItemFocused(item) },
+    )
 
     LaunchedEffect(focusRequestToken, sectionKeys) {
         if (focusRequestToken <= handledFocusToken) {
             return@LaunchedEffect
         }
         withFrameNanos { }
-        val focused = when (lastFocusArea) {
-            SuggestionsFocusArea.Results -> requestLastContentFocus()
-            SuggestionsFocusArea.Voice -> voiceSearchAvailable && requestWatchingFocus(voiceRequester)
-            SuggestionsFocusArea.Field -> false
-        }
+        val focused =
+            when (lastFocusArea) {
+                SuggestionsFocusArea.Results -> requestLastContentFocus()
+                SuggestionsFocusArea.Voice -> voiceSearchAvailable && requestWatchingFocus(voiceRequester)
+                SuggestionsFocusArea.Field -> false
+            }
         if ((focused || requestTextFieldFocus())) {
             handledFocusToken = focusRequestToken
         }
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .tvAppBackground(palette)
-            .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .tvAppBackground(palette)
+                .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -277,14 +283,16 @@ internal fun SuggestionsScreen(
                 state = verticalState,
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
-                contentPadding = PaddingValues(
-                    top = 4.dp,
-                    bottom = if (hasContent) {
-                        descriptionOverlayClearance.bottomInset
-                    } else {
-                        TvBottomContentInset
-                    },
-                ),
+                contentPadding =
+                    PaddingValues(
+                        top = 4.dp,
+                        bottom =
+                            if (hasContent) {
+                                descriptionOverlayClearance.bottomInset
+                            } else {
+                                TvBottomContentInset
+                            },
+                    ),
             ) {
                 itemsIndexed(
                     items = sections,
@@ -328,18 +336,20 @@ internal fun SuggestionsScreen(
         }
 
         selectedItem?.let { item ->
-            val description = item.toTvCardDescription { card ->
-                card.resolveDescription(context)
-            }
+            val description =
+                item.toTvCardDescription { card ->
+                    card.resolveDescription(context)
+                }
             if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
                 WatchingDescriptionBar(
                     title = description.title.toString(),
                     subtitle = description.subtitle.toString(),
                     palette = palette,
                     solidSurface = true,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .then(descriptionOverlayClearance.measureModifier),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .then(descriptionOverlayClearance.measureModifier),
                 )
             }
         }
@@ -361,11 +371,12 @@ private fun SuggestionsSearchField(
     onDown: () -> Boolean,
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val helperText = if (value.length < SuggestionsQueryMinLength) {
-        "Введите минимум $SuggestionsQueryMinLength символа, чтобы показать точные результаты."
-    } else {
-        "Результаты обновляются по мере ввода."
-    }
+    val helperText =
+        if (value.length < SUGGESTIONS_QUERY_MIN_LENGTH) {
+            "Введите минимум $SUGGESTIONS_QUERY_MIN_LENGTH символа, чтобы показать точные результаты."
+        } else {
+            "Результаты обновляются по мере ввода."
+        }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -380,27 +391,28 @@ private fun SuggestionsSearchField(
             singleLine = true,
             minLines = 1,
             maxLines = 1,
-            modifier = Modifier
-                .fillMaxWidth()
-                .onFocusChanged {
-                    isFocused = it.isFocused
-                    if (it.isFocused) {
-                        onFieldFocused()
-                    }
-                }
-                .onPreviewKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown) {
-                        return@onPreviewKeyEvent false
-                    }
-                    when (event.key) {
-                        Key.DirectionRight -> {
-                            voiceSearchAvailable && requestWatchingFocus(voiceRequester)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged {
+                        isFocused = it.isFocused
+                        if (it.isFocused) {
+                            onFieldFocused()
                         }
-
-                        Key.DirectionDown -> onDown()
-                        else -> false
                     }
-                },
+                    .onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) {
+                            return@onPreviewKeyEvent false
+                        }
+                        when (event.key) {
+                            Key.DirectionRight -> {
+                                voiceSearchAvailable && requestWatchingFocus(voiceRequester)
+                            }
+
+                            Key.DirectionDown -> onDown()
+                            else -> false
+                        }
+                    },
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -458,9 +470,10 @@ private fun SuggestionsSectionBlock(
 ) {
     val stateItem = remember(items) { items.primaryTvStateItem() }
     val stateFocusIndex = remember(items) { items.tvStateFocusIndex() }
-    val stateFocusItem = remember(items, stateFocusIndex) {
-        stateFocusIndex?.let(items::getOrNull)
-    }
+    val stateFocusItem =
+        remember(items, stateFocusIndex) {
+            stateFocusIndex?.let(items::getOrNull)
+        }
     val stateActionItem = remember(items) { items.filterIsInstance<LinkCard>().firstOrNull() }
 
     Column(
@@ -474,53 +487,59 @@ private fun SuggestionsSectionBlock(
 
         if (items.isTvStateOnlySection() && stateItem != null && stateFocusItem != null) {
             TvContentStatePanel(
-                title = when (stateItem) {
-                    is LoadingCard -> stateItem.title.ifBlank { "Загрузка результатов" }
-                    is LinkCard -> stateItem.title
-                    is InfoCard -> stateItem.title
-                    else -> title
-                },
-                subtitle = when (stateItem) {
-                    is LoadingCard -> stateItem.description.ifBlank {
-                        if (stateItem.isError) {
-                            "Проверьте подключение и попробуйте ещё раз."
-                        } else {
-                            "Результаты обновятся автоматически."
-                        }
-                    }
-                    is LinkCard -> "Уточните запрос или повторите действие позже."
-                    is InfoCard -> stateItem.subtitle
-                    else -> ""
-                },
+                title =
+                    when (stateItem) {
+                        is LoadingCard -> stateItem.title.ifBlank { "Загрузка результатов" }
+                        is LinkCard -> stateItem.title
+                        is InfoCard -> stateItem.title
+                        else -> title
+                    },
+                subtitle =
+                    when (stateItem) {
+                        is LoadingCard ->
+                            stateItem.description.ifBlank {
+                                if (stateItem.isError) {
+                                    "Проверьте подключение и попробуйте ещё раз."
+                                } else {
+                                    "Результаты обновятся автоматически."
+                                }
+                            }
+                        is LinkCard -> "Уточните запрос или повторите действие позже."
+                        is InfoCard -> stateItem.subtitle
+                        else -> ""
+                    },
                 palette = palette,
                 accent = stateItem is LoadingCard && stateItem.isError,
                 loading = stateItem is LoadingCard && !stateItem.isError,
-                focusRequester = if (stateActionItem == null) {
-                    requesters.getOrNull(stateFocusIndex ?: -1)
-                } else {
-                    null
-                },
+                focusRequester =
+                    if (stateActionItem == null) {
+                        requesters.getOrNull(stateFocusIndex ?: -1)
+                    } else {
+                        null
+                    },
                 onFocused = {
                     onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
                 },
                 onUp = { onUp(stateFocusIndex ?: 0) },
                 onDown = { onDown(stateFocusIndex ?: 0) },
-                action = stateActionItem?.let { actionItem ->
-                    {
-                        TvContentStateActionButton(
-                            text = actionItem.title,
-                            palette = palette,
-                            focusRequester = requesters.getOrNull(stateFocusIndex ?: -1)
-                                ?: FocusRequester.Default,
-                            onClick = { onItemClick(actionItem) },
-                            onFocused = {
-                                onItemFocused(stateFocusIndex ?: 0, actionItem)
-                            },
-                            onUp = { onUp(stateFocusIndex ?: 0) },
-                            onDown = { onDown(stateFocusIndex ?: 0) },
-                        )
-                    }
-                },
+                action =
+                    stateActionItem?.let { actionItem ->
+                        {
+                            TvContentStateActionButton(
+                                text = actionItem.title,
+                                palette = palette,
+                                focusRequester =
+                                    requesters.getOrNull(stateFocusIndex ?: -1)
+                                        ?: FocusRequester.Default,
+                                onClick = { onItemClick(actionItem) },
+                                onFocused = {
+                                    onItemFocused(stateFocusIndex ?: 0, actionItem)
+                                },
+                                onUp = { onUp(stateFocusIndex ?: 0) },
+                                onDown = { onDown(stateFocusIndex ?: 0) },
+                            )
+                        }
+                    },
             )
         } else {
             LazyRow(
@@ -534,61 +553,69 @@ private fun SuggestionsSectionBlock(
                     key = { _, item -> item.getId() },
                 ) { index, item ->
                     when (item) {
-                        is LibriaCard -> WatchingPosterCard(
-                            imageUrl = item.image,
-                            palette = palette,
-                            focusRequester = requesters[index],
-                            scaleTransformOrigin = edgeAwareHorizontalTransformOrigin(
-                                index = index,
-                                lastIndex = items.lastIndex,
-                            ),
-                            onClick = { onItemClick(item) },
-                            onFocused = { onItemFocused(index, item) },
-                            onUp = { onUp(index) },
-                            onDown = { onDown(index) },
-                        )
+                        is LibriaCard ->
+                            WatchingPosterCard(
+                                imageUrl = item.image,
+                                palette = palette,
+                                focusRequester = requesters[index],
+                                scaleTransformOrigin =
+                                    edgeAwareHorizontalTransformOrigin(
+                                        index = index,
+                                        lastIndex = items.lastIndex,
+                                    ),
+                                onClick = { onItemClick(item) },
+                                onFocused = { onItemFocused(index, item) },
+                                onUp = { onUp(index) },
+                                onDown = { onDown(index) },
+                            )
 
-                        is InfoCard -> WatchingMessageCard(
-                            title = item.title,
-                            subtitle = item.subtitle,
-                            palette = palette,
-                            focusRequester = requesters[index],
-                            onClick = { onItemClick(item) },
-                            onFocused = { onItemFocused(index, item) },
-                            onUp = { onUp(index) },
-                            onDown = { onDown(index) },
-                        )
+                        is InfoCard ->
+                            WatchingMessageCard(
+                                title = item.title,
+                                subtitle = item.subtitle,
+                                palette = palette,
+                                focusRequester = requesters[index],
+                                onClick = { onItemClick(item) },
+                                onFocused = { onItemFocused(index, item) },
+                                onUp = { onUp(index) },
+                                onDown = { onDown(index) },
+                            )
 
-                        is LinkCard -> WatchingMessageCard(
-                            title = item.title,
-                            subtitle = "Нажмите, чтобы выполнить действие",
-                            palette = palette,
-                            focusRequester = requesters[index],
-                            onClick = { onItemClick(item) },
-                            onFocused = { onItemFocused(index, item) },
-                            onUp = { onUp(index) },
-                            onDown = { onDown(index) },
-                        )
+                        is LinkCard ->
+                            WatchingMessageCard(
+                                title = item.title,
+                                subtitle = "Нажмите, чтобы выполнить действие",
+                                palette = palette,
+                                focusRequester = requesters[index],
+                                onClick = { onItemClick(item) },
+                                onFocused = { onItemFocused(index, item) },
+                                onUp = { onUp(index) },
+                                onDown = { onDown(index) },
+                            )
 
-                        is LoadingCard -> WatchingMessageCard(
-                            title = item.title.ifBlank { "Загрузка" },
-                            subtitle = item.description.ifBlank {
-                                if (item.isError) "Нажмите, чтобы повторить попытку" else ""
-                            },
-                            palette = palette.copy(
-                                accentColor = if (item.isError) {
-                                    palette.accentColor
-                                } else {
-                                    palette.textColor.copy(alpha = 0.4f)
-                                }
-                            ),
-                            focusRequester = requesters[index],
-                            loading = !item.isError,
-                            onClick = { onItemClick(item) },
-                            onFocused = { onItemFocused(index, item) },
-                            onUp = { onUp(index) },
-                            onDown = { onDown(index) },
-                        )
+                        is LoadingCard ->
+                            WatchingMessageCard(
+                                title = item.title.ifBlank { "Загрузка" },
+                                subtitle =
+                                    item.description.ifBlank {
+                                        if (item.isError) "Нажмите, чтобы повторить попытку" else ""
+                                    },
+                                palette =
+                                    palette.copy(
+                                        accentColor =
+                                            if (item.isError) {
+                                                palette.accentColor
+                                            } else {
+                                                palette.textColor.copy(alpha = 0.4f)
+                                            },
+                                    ),
+                                focusRequester = requesters[index],
+                                loading = !item.isError,
+                                onClick = { onItemClick(item) },
+                                onFocused = { onItemFocused(index, item) },
+                                onUp = { onUp(index) },
+                                onDown = { onDown(index) },
+                            )
                     }
                 }
             }

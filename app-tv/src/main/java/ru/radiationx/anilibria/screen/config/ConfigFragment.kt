@@ -15,7 +15,6 @@ import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
 
 class ConfigFragment : Fragment() {
-
     private val viewModel: ConfiguringViewModel by viewModel()
 
     private var screenState by mutableStateOf<ConfigScreenState?>(null)
@@ -40,7 +39,10 @@ class ConfigFragment : Fragment() {
         }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
 
         viewLifecycleOwner.lifecycle.addObserver(viewModel)

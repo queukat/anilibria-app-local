@@ -5,7 +5,7 @@
     youtube = 188f / 335f
     height = 370f
     -->
-    <dimen name="main_pages_header_height">96dp</dimen>
-    <dimen name="main_pages_header_spacing">10dp</dimen>
+    <dimen name="main_pages_header_height">88dp</dimen>
+    <dimen name="main_pages_header_spacing">8dp</dimen>
     <dimen name="main_pages_rail_width">288dp</dimen>
 </resources>

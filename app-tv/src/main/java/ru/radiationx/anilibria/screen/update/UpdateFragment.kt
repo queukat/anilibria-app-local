@@ -14,14 +14,13 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import ru.radiationx.anilibria.common.GradientBackgroundManager
-import ru.radiationx.data.entity.domain.updater.UpdateData
 import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
+import ru.radiationx.data.entity.domain.updater.UpdateData
 import ru.radiationx.quill.inject
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
 
 class UpdateFragment : Fragment() {
-
     private val backgroundManager by inject<GradientBackgroundManager>()
     private val viewModel by viewModel<UpdateViewModel>()
 
@@ -42,11 +41,12 @@ class UpdateFragment : Fragment() {
             isFocusable = true
             isFocusableInTouchMode = true
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
-                if (hasFocus) {
-                    focusRequestToken++
+            onFocusChangeListener =
+                View.OnFocusChangeListener { _, hasFocus ->
+                    if (hasFocus) {
+                        focusRequestToken++
+                    }
                 }
-            }
             setContent {
                 ProvideGradientBackground(backgroundManager) {
                     UpdateScreen(
@@ -69,24 +69,28 @@ class UpdateFragment : Fragment() {
         focusRequestToken++
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
 
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
         backgroundManager.clearGradient()
-        backPressedCallback = object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (sourceChooserVisibleState) {
-                    viewModel.dismissSourceChooser()
-                    return
+        backPressedCallback =
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (sourceChooserVisibleState) {
+                        viewModel.dismissSourceChooser()
+                        return
+                    }
+                    isEnabled = false
+                    requireActivity().onBackPressedDispatcher.onBackPressed()
+                    isEnabled = true
                 }
-                isEnabled = false
-                requireActivity().onBackPressedDispatcher.onBackPressed()
-                isEnabled = true
+            }.also {
+                requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
             }
-        }.also {
-            requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
-        }
 
         subscribeTo(viewModel.updateData) {
             updateDataState = it

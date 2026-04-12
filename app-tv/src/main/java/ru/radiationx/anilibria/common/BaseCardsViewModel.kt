@@ -16,14 +16,13 @@ import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
 
 abstract class BaseCardsViewModel : LifecycleViewModel() {
-
     /** Итоговые карточки для показа (LibriaCard, LinkCard, LoadingCard и т.д.) */
-    protected val _cardsData = MutableStateFlow<List<CardItem>>(emptyList())
-    val cardsData: StateFlow<List<CardItem>> = _cardsData.asStateFlow()
+    protected val cardsDataMutable = MutableStateFlow<List<CardItem>>(emptyList())
+    val cardsData: StateFlow<List<CardItem>> = cardsDataMutable.asStateFlow()
 
     /** Заголовок ряда. */
-    protected val _rowTitle = MutableStateFlow("")
-    val rowTitle: StateFlow<String> = _rowTitle.asStateFlow()
+    protected val rowTitleMutable = MutableStateFlow("")
+    val rowTitle: StateFlow<String> = rowTitleMutable.asStateFlow()
 
     /** С какой страницы начинаем загрузку. Обычно 1. */
     protected open val firstPage = 1
@@ -73,7 +72,7 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
 
     override fun onColdCreate() {
         super.onColdCreate()
-        _rowTitle.value = defaultTitle
+        rowTitleMutable.value = defaultTitle
         if (loadOnCreate) {
             onRefreshClick()
         }
@@ -145,7 +144,7 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
         return LoadingCard(
             title = "Повторить загрузку",
             description = "Произошла ошибка: ${error.message}",
-            isError = true
+            isError = true,
         )
     }
 
@@ -178,52 +177,60 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
                 canLoadMore = canLoadMore,
                 error = error,
                 currentPage = currentPage.takeIf { it >= firstPage },
-            )
+            ),
         )
     }
 
     /** Главный метод для загрузки (первая или следующая страница). */
     private fun loadPage(requestPage: Int) {
         if (requestJob?.isActive == true) return
-        requestJob = viewModelScope.launch {
-            // Показываем «loadingCard», если (не первая страница) или при принуд. прогрессе
-            val showLoadingState = if (requestPage == firstPage) {
-                progressOnRefresh
-            } else {
-                progressOnAppend
-            }
-            if (showLoadingState) {
-                _cardsData.value = composeCards(
-                    cards = currentCards.toList(),
-                    isLoading = true,
-                )
-            }
-            coRunCatching {
-                withContext(loaderDispatcher) { getLoader(requestPage) }
-            }.onSuccess { newCards ->
-                val isFirstPage = requestPage == firstPage
-                val allowModify = if (isFirstPage) {
-                    needsModify(newCards, currentCards)
-                } else true
+        requestJob =
+            viewModelScope.launch {
+                // Показываем «loadingCard», если (не первая страница) или при принуд. прогрессе
+                val showLoadingState =
+                    if (requestPage == firstPage) {
+                        progressOnRefresh
+                    } else {
+                        progressOnAppend
+                    }
+                if (showLoadingState) {
+                    cardsDataMutable.value =
+                        composeCards(
+                            cards = currentCards.toList(),
+                            isLoading = true,
+                        )
+                }
+                coRunCatching {
+                    withContext(loaderDispatcher) { getLoader(requestPage) }
+                }.onSuccess { newCards ->
+                    val isFirstPage = requestPage == firstPage
+                    val allowModify =
+                        if (isFirstPage) {
+                            needsModify(newCards, currentCards)
+                        } else {
+                            true
+                        }
 
-                if (isFirstPage && allowModify) {
-                    currentCards.clear()
+                    if (isFirstPage && allowModify) {
+                        currentCards.clear()
+                    }
+                    if (allowModify) {
+                        currentPage = requestPage
+                        currentCards.addAll(newCards)
+                    }
+                    cardsDataMutable.value =
+                        composeCards(
+                            cards = currentCards.toList(),
+                            canLoadMore = hasMoreCards(newCards, currentCards),
+                        )
+                }.onFailure { error ->
+                    Timber.e(error)
+                    cardsDataMutable.value =
+                        composeCards(
+                            cards = currentCards.toList(),
+                            error = error,
+                        )
                 }
-                if (allowModify) {
-                    currentPage = requestPage
-                    currentCards.addAll(newCards)
-                }
-                _cardsData.value = composeCards(
-                    cards = currentCards.toList(),
-                    canLoadMore = hasMoreCards(newCards, currentCards),
-                )
-            }.onFailure { error ->
-                Timber.e(error)
-                _cardsData.value = composeCards(
-                    cards = currentCards.toList(),
-                    error = error,
-                )
             }
-        }
     }
 }

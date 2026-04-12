@@ -14,6 +14,7 @@ import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.screen.mainpages.MainShellCallbacks
 import ru.radiationx.anilibria.screen.mainpages.MainShellPageContent
+import ru.radiationx.anilibria.screen.mainpages.MainShellPageSectionsState
 import ru.radiationx.anilibria.screen.mainpages.collectStarted
 import ru.radiationx.quill.getViewModel
 
@@ -21,7 +22,6 @@ internal class WatchingPageContent(
     private val fragment: Fragment,
     private val backgroundManager: GradientBackgroundManager,
 ) : MainShellPageContent {
-
     private companion object {
         val loadingItems = listOf<CardItem>(LoadingCard("Загрузка..."))
     }
@@ -31,31 +31,36 @@ internal class WatchingPageContent(
     private val continueViewModel = fragment.getViewModel(WatchingContinueViewModel::class)
     private val recommendsViewModel = fragment.getViewModel(WatchingRecommendsViewModel::class)
 
-    private var rowOrderState by mutableStateOf(
-        listOf(
-            WatchingViewModel.CONTINUE_ROW_ID,
-            WatchingViewModel.HISTORY_ROW_ID,
-            WatchingViewModel.RECOMMENDS_ROW_ID,
+    private val sectionsState =
+        MainShellPageSectionsState(
+            initialOrder =
+                listOf(
+                    WatchingViewModel.CONTINUE_ROW_ID,
+                    WatchingViewModel.HISTORY_ROW_ID,
+                    WatchingViewModel.RECOMMENDS_ROW_ID,
+                ),
+            initialSections =
+                linkedMapOf(
+                    WatchingViewModel.CONTINUE_ROW_ID to
+                        WatchingSectionUiModel(
+                            id = WatchingViewModel.CONTINUE_ROW_ID,
+                            title = "Продолжить просмотр",
+                            items = loadingItems,
+                        ),
+                    WatchingViewModel.HISTORY_ROW_ID to
+                        WatchingSectionUiModel(
+                            id = WatchingViewModel.HISTORY_ROW_ID,
+                            title = "История просмотров",
+                            items = loadingItems,
+                        ),
+                    WatchingViewModel.RECOMMENDS_ROW_ID to
+                        WatchingSectionUiModel(
+                            id = WatchingViewModel.RECOMMENDS_ROW_ID,
+                            title = "Рекомендации",
+                            items = loadingItems,
+                        ),
+                ),
         )
-    )
-    private val sectionStateById = linkedMapOf(
-        WatchingViewModel.CONTINUE_ROW_ID to WatchingSectionUiModel(
-            id = WatchingViewModel.CONTINUE_ROW_ID,
-            title = "Продолжить просмотр",
-            items = loadingItems,
-        ),
-        WatchingViewModel.HISTORY_ROW_ID to WatchingSectionUiModel(
-            id = WatchingViewModel.HISTORY_ROW_ID,
-            title = "История просмотров",
-            items = loadingItems,
-        ),
-        WatchingViewModel.RECOMMENDS_ROW_ID to WatchingSectionUiModel(
-            id = WatchingViewModel.RECOMMENDS_ROW_ID,
-            title = "Рекомендации",
-            items = loadingItems,
-        ),
-    )
-    private var sectionsState by mutableStateOf(buildOrderedSections(rowOrderState))
     private var focusRequestToken by mutableIntStateOf(0)
     private var visibilityRestoreToken by mutableIntStateOf(0)
     private var selectedItemState by mutableStateOf<CardItem?>(null)
@@ -64,17 +69,24 @@ internal class WatchingPageContent(
         backgroundManager.clearGradient()
 
         owner.lifecycle.addObserver(watchingViewModel)
-        owner.lifecycle.addObserver(historyViewModel)
-        owner.lifecycle.addObserver(continueViewModel)
-        owner.lifecycle.addObserver(recommendsViewModel)
-
-        owner.collectStarted(watchingViewModel.rowListData, ::updateRowOrder)
-        owner.collectStarted(continueViewModel.rowTitle) { updateSectionTitle(WatchingViewModel.CONTINUE_ROW_ID, it) }
-        owner.collectStarted(historyViewModel.rowTitle) { updateSectionTitle(WatchingViewModel.HISTORY_ROW_ID, it) }
-        owner.collectStarted(recommendsViewModel.rowTitle) { updateSectionTitle(WatchingViewModel.RECOMMENDS_ROW_ID, it) }
-        owner.collectStarted(continueViewModel.cardsData) { updateSectionItems(WatchingViewModel.CONTINUE_ROW_ID, it) }
-        owner.collectStarted(historyViewModel.cardsData) { updateSectionItems(WatchingViewModel.HISTORY_ROW_ID, it) }
-        owner.collectStarted(recommendsViewModel.cardsData) { updateSectionItems(WatchingViewModel.RECOMMENDS_ROW_ID, it) }
+        owner.collectStarted(watchingViewModel.rowListData) { rowIds ->
+            sectionsState.updateRowOrder(rowIds)
+        }
+        bindSection(
+            owner = owner,
+            rowId = WatchingViewModel.CONTINUE_ROW_ID,
+            viewModel = continueViewModel,
+        )
+        bindSection(
+            owner = owner,
+            rowId = WatchingViewModel.HISTORY_ROW_ID,
+            viewModel = historyViewModel,
+        )
+        bindSection(
+            owner = owner,
+            rowId = WatchingViewModel.RECOMMENDS_ROW_ID,
+            viewModel = recommendsViewModel,
+        )
     }
 
     override fun onSelected() {
@@ -84,13 +96,13 @@ internal class WatchingPageContent(
 
     override fun requestContentFocus(): Boolean {
         focusRequestToken++
-        return sectionsState.any { section -> section.items.isNotEmpty() }
+        return sectionsState.orderedSections.any { section -> section.items.isNotEmpty() }
     }
 
     @Composable
     override fun Render(callbacks: MainShellCallbacks) {
         WatchingScreen(
-            sections = sectionsState,
+            sections = sectionsState.orderedSections,
             interactionsEnabled = callbacks.contentInteractionsEnabled,
             focusRequestToken = focusRequestToken,
             visibilityRestoreToken = visibilityRestoreToken,
@@ -101,63 +113,27 @@ internal class WatchingPageContent(
             onContentMovedUp = callbacks.onContentMovedUp,
             onItemFocused = { _, _, item ->
                 selectedItemState = item
-                backgroundManager.applyCard(item)
             },
+            onBackdropItemFocused = { item -> backgroundManager.applyCard(item) },
         )
     }
 
-    private fun updateRowOrder(rowIds: List<Long>) {
-        if (rowOrderState == rowIds) {
-            return
-        }
-        rowOrderState = rowIds
-        syncSectionsState()
-    }
-
-    private fun updateSectionTitle(
+    private fun bindSection(
+        owner: LifecycleOwner,
         rowId: Long,
-        title: String,
+        viewModel: BaseCardsViewModel,
     ) {
-        updateSection(
-            rowId = rowId,
-            transform = { section -> section.copy(title = title) },
-        )
-    }
-
-    private fun updateSectionItems(
-        rowId: Long,
-        items: List<CardItem>,
-    ) {
-        updateSection(
-            rowId = rowId,
-            transform = { section -> section.copy(items = items.ifEmpty { loadingItems }) },
-        )
-    }
-
-    private fun updateSection(
-        rowId: Long,
-        transform: (WatchingSectionUiModel) -> WatchingSectionUiModel,
-    ) {
-        val current = sectionStateById[rowId] ?: return
-        val updated = transform(current)
-        if (updated == current) {
-            return
+        owner.lifecycle.addObserver(viewModel)
+        owner.collectStarted(viewModel.rowTitle) { title ->
+            sectionsState.updateSection(rowId) { section ->
+                section.copy(title = title)
+            }
         }
-        sectionStateById[rowId] = updated
-        syncSectionsState()
-    }
-
-    private fun syncSectionsState() {
-        val orderedSections = buildOrderedSections(rowOrderState)
-        if (sectionsState != orderedSections) {
-            sectionsState = orderedSections
+        owner.collectStarted(viewModel.cardsData) { items ->
+            sectionsState.updateSection(rowId) { section ->
+                section.copy(items = items.ifEmpty { loadingItems })
+            }
         }
-    }
-
-    private fun buildOrderedSections(
-        rowIds: List<Long>,
-    ): List<WatchingSectionUiModel> {
-        return rowIds.mapNotNull(sectionStateById::get)
     }
 
     private fun handleItemClick(

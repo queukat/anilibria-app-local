@@ -28,248 +28,266 @@ import ru.radiationx.data.interactors.tv.TvReleaseUseCase
 import timber.log.Timber
 import javax.inject.Inject
 
-class DetailHeaderViewModel @Inject constructor(
-    argExtra: DetailExtra,
-    private val releaseInteractor: ReleaseInteractor,
-    private val tvReleaseUseCase: TvReleaseUseCase,
-    private val tvDetailHeaderUseCase: TvDetailHeaderUseCase,
-    private val converter: DetailDataConverter,
-    private val router: Router,
-    private val tvContentUseCase: TvContentUseCase,
-) : LifecycleViewModel() {
+class DetailHeaderViewModel
+    @Inject
+    constructor(
+        argExtra: DetailExtra,
+        private val releaseInteractor: ReleaseInteractor,
+        private val tvReleaseUseCase: TvReleaseUseCase,
+        private val tvDetailHeaderUseCase: TvDetailHeaderUseCase,
+        private val converter: DetailDataConverter,
+        private val router: Router,
+        private val tvContentUseCase: TvContentUseCase,
+    ) : LifecycleViewModel() {
+        private val releaseId: ReleaseId = argExtra.id
 
-    private val releaseId: ReleaseId = argExtra.id
+        private val _releaseData = MutableStateFlow<LibriaDetails?>(null)
+        val releaseData: StateFlow<LibriaDetails?> = _releaseData.asStateFlow()
+        private val _progressState = MutableStateFlow(DetailsState(loadingProgress = true))
+        val progressState: StateFlow<DetailsState> = _progressState.asStateFlow()
+        private val _overlayState = MutableStateFlow<DetailOverlayState?>(null)
+        internal val overlayState: StateFlow<DetailOverlayState?> = _overlayState.asStateFlow()
 
-    private val _releaseData = MutableStateFlow<LibriaDetails?>(null)
-    val releaseData: StateFlow<LibriaDetails?> = _releaseData.asStateFlow()
-    private val _progressState = MutableStateFlow(DetailsState(loadingProgress = true))
-    val progressState: StateFlow<DetailsState> = _progressState.asStateFlow()
-    private val _overlayState = MutableStateFlow<DetailOverlayState?>(null)
-    internal val overlayState: StateFlow<DetailOverlayState?> = _overlayState.asStateFlow()
+        private val remoteFavoriteState = MutableStateFlow<Boolean?>(null)
 
-    private val remoteFavoriteState = MutableStateFlow<Boolean?>(null)
+        private var currentRelease: Release? = null
 
-    private var currentRelease: Release? = null
+        private var favoriteJob: Job? = null
+        private var favoriteStateJob: Job? = null
 
-    private var favoriteJob: Job? = null
-    private var favoriteStateJob: Job? = null
+        init {
+            combine(
+                tvReleaseUseCase.observeRelease(releaseId),
+                releaseInteractor.observeAccesses(releaseId),
+                remoteFavoriteState,
+            ) { release, accesses, remoteFavorite ->
+                Triple(release, accesses, remoteFavorite)
+            }
+                .onEach { (release, accesses, remoteFavorite) ->
+                    val cachedIsFavorite =
+                        releaseInteractor
+                            .getItem(releaseId = releaseId)
+                            ?.favoriteInfo
+                            ?.isAdded == true
 
-    init {
-        combine(
-            tvReleaseUseCase.observeRelease(releaseId),
-            releaseInteractor.observeAccesses(releaseId),
-            remoteFavoriteState,
-        ) { release, accesses, remoteFavorite ->
-            Triple(release, accesses, remoteFavorite)
-        }
-            .onEach { (release, accesses, remoteFavorite) ->
-                val cachedIsFavorite = releaseInteractor
-                    .getItem(releaseId = releaseId)
-                    ?.favoriteInfo
-                    ?.isAdded == true
+                    val resolvedIsFavorite = remoteFavorite ?: (cachedIsFavorite || release.favoriteInfo.isAdded)
+                    val shouldPatch = release.favoriteInfo.isAdded != resolvedIsFavorite
+                    val resolvedRelease =
+                        if (shouldPatch) {
+                            release.copy(
+                                favoriteInfo =
+                                    release.favoriteInfo.copy(
+                                        isAdded = resolvedIsFavorite,
+                                    ),
+                            )
+                        } else {
+                            release
+                        }
 
-                val resolvedIsFavorite = remoteFavorite ?: (cachedIsFavorite || release.favoriteInfo.isAdded)
-                val shouldPatch = release.favoriteInfo.isAdded != resolvedIsFavorite
-                val resolvedRelease = if (shouldPatch) {
-                    release.copy(
-                        favoriteInfo = release.favoriteInfo.copy(
-                            isAdded = resolvedIsFavorite
+                    if (shouldPatch) {
+                        releaseInteractor.updateFullCache(resolvedRelease)
+                    }
+
+                    currentRelease = resolvedRelease
+
+                    _releaseData.value =
+                        converter.toDetailsUiState(
+                            releaseItem = resolvedRelease,
+                            accesses = accesses,
                         )
-                    )
-                } else {
-                    release
+                    if (_progressState.value.loadingProgress) {
+                        _progressState.value = _progressState.value.copy(loadingProgress = false)
+                    }
                 }
+                .launchIn(viewModelScope)
 
-                if (shouldPatch) {
-                    releaseInteractor.updateFullCache(resolvedRelease)
+            favoriteStateJob =
+                viewModelScope.launch {
+                    if (!tvDetailHeaderUseCase.isAuthorized()) return@launch
+
+                    val isFavorite: Boolean? =
+                        runCatching {
+                            tvContentUseCase.loadFavoriteState(releaseId)
+                        }.getOrElse { error ->
+                            Timber.w(error, "AniLiberty: failed to load favorite ids for $releaseId")
+                            null
+                        }
+
+                    remoteFavoriteState.value = isFavorite
                 }
-
-                currentRelease = resolvedRelease
-
-                _releaseData.value = converter.toDetailsUiState(
-                    releaseItem = resolvedRelease,
-                    accesses = accesses,
-                )
-                if (_progressState.value.loadingProgress) {
-                    _progressState.value = _progressState.value.copy(loadingProgress = false)
-                }
-            }
-            .launchIn(viewModelScope)
-
-        favoriteStateJob = viewModelScope.launch {
-            if (!tvDetailHeaderUseCase.isAuthorized()) return@launch
-
-            val isFavorite: Boolean? = runCatching {
-                tvContentUseCase.loadFavoriteState(releaseId)
-            }.getOrElse { error ->
-                Timber.w(error, "AniLiberty: failed to load favorite ids for $releaseId")
-                null
-            }
-
-            remoteFavoriteState.value = isFavorite
-        }
-    }
-
-    fun onContinueClick() {
-        viewModelScope.launch {
-            // 1) local progress (legacy) — primary
-            val localEpisodeId = runCatching {
-                releaseInteractor
-                    .getAccesses(releaseId)
-                    .maxByOrNull { it.lastAccessRaw }
-                    ?.id
-            }.getOrNull()
-
-            if (localEpisodeId != null) {
-                router.navigateTo(PlayerScreen(releaseId, localEpisodeId))
-                return@launch
-            }
-
-            // 2) remote progress (AniLiberty) — fallback ("continue on another device")
-            if (tvDetailHeaderUseCase.isAuthorized()) {
-                val remoteEpisodeId =
-                    runCatching { tvDetailHeaderUseCase.findLatestNotWatchedEpisodeIdForRelease(releaseId) }
-                        .getOrNull()
-                if (remoteEpisodeId != null) {
-                    router.navigateTo(PlayerScreen(releaseId, remoteEpisodeId))
-                }
-            }
-        }
-    }
-
-    fun onPlayClick() {
-        val release = currentRelease ?: return
-        if (release.episodes.isEmpty()) return
-
-        // Если серия одна — открываем ее явно, чтобы плеер не падал в franchise-wide fallback.
-        if (release.episodes.size == 1) {
-            router.navigateTo(PlayerScreen(releaseId, release.episodes.first().id))
-            return
         }
 
-        viewModelScope.launch {
-            val localEpisodeId = runCatching {
-                releaseInteractor
-                    .getAccesses(releaseId)
-                    .maxByOrNull { it.lastAccessRaw }
-                    ?.id
-            }.getOrNull()
+        fun onContinueClick() {
+            viewModelScope.launch {
+                // 1) local progress (legacy) — primary
+                val localEpisodeId =
+                    runCatching {
+                        releaseInteractor
+                            .getAccesses(releaseId)
+                            .maxByOrNull { it.lastAccessRaw }
+                            ?.id
+                    }.getOrNull()
 
-            val seedEpisodeId = localEpisodeId ?: run {
+                if (localEpisodeId != null) {
+                    router.navigateTo(PlayerScreen(releaseId, localEpisodeId))
+                    return@launch
+                }
+
+                // 2) remote progress (AniLiberty) — fallback ("continue on another device")
                 if (tvDetailHeaderUseCase.isAuthorized()) {
-                    runCatching { tvDetailHeaderUseCase.findLatestEpisodeIdForRelease(releaseId) }.getOrNull()
-                } else {
-                    null
+                    val remoteEpisodeId =
+                        runCatching { tvDetailHeaderUseCase.findLatestNotWatchedEpisodeIdForRelease(releaseId) }
+                            .getOrNull()
+                    if (remoteEpisodeId != null) {
+                        router.navigateTo(PlayerScreen(releaseId, remoteEpisodeId))
+                    }
                 }
             }
-
-            _overlayState.value = release.toEpisodePickerOverlay(seedEpisodeId)
         }
-    }
 
-    fun onFavoriteClick() {
-        val release = currentRelease ?: return
+        fun onPlayClick() {
+            val release = currentRelease ?: return
+            if (release.episodes.isEmpty()) return
 
-        favoriteJob?.cancel()
-        favoriteJob = viewModelScope.launch {
-            if (!tvDetailHeaderUseCase.isAuthorized()) {
-                router.navigateTo(AuthScreen())
-                return@launch
+            // Если серия одна — открываем ее явно, чтобы плеер не падал в franchise-wide fallback.
+            if (release.episodes.size == 1) {
+                router.navigateTo(PlayerScreen(releaseId, release.episodes.first().id))
+                return
             }
 
-            _progressState.value = _progressState.value.copy(updateProgress = true)
+            viewModelScope.launch {
+                val localEpisodeId =
+                    runCatching {
+                        releaseInteractor
+                            .getAccesses(releaseId)
+                            .maxByOrNull { it.lastAccessRaw }
+                            ?.id
+                    }.getOrNull()
 
-            try {
-                val wasFavorite = _releaseData.value?.isFavorite ?: release.favoriteInfo.isAdded
+                val seedEpisodeId =
+                    localEpisodeId ?: run {
+                        if (tvDetailHeaderUseCase.isAuthorized()) {
+                            runCatching { tvDetailHeaderUseCase.findLatestEpisodeIdForRelease(releaseId) }.getOrNull()
+                        } else {
+                            null
+                        }
+                    }
 
-                if (wasFavorite) {
-                    tvDetailHeaderUseCase.deleteFavorite(releaseId)
-                } else {
-                    tvDetailHeaderUseCase.addFavorite(releaseId)
+                _overlayState.value = release.toEpisodePickerOverlay(seedEpisodeId)
+            }
+        }
+
+        fun onFavoriteClick() {
+            val release = currentRelease ?: return
+
+            favoriteJob?.cancel()
+            favoriteJob =
+                viewModelScope.launch {
+                    if (!tvDetailHeaderUseCase.isAuthorized()) {
+                        router.navigateTo(AuthScreen())
+                        return@launch
+                    }
+
+                    _progressState.value = _progressState.value.copy(updateProgress = true)
+
+                    try {
+                        val wasFavorite = _releaseData.value?.isFavorite ?: release.favoriteInfo.isAdded
+
+                        if (wasFavorite) {
+                            tvDetailHeaderUseCase.deleteFavorite(releaseId)
+                        } else {
+                            tvDetailHeaderUseCase.addFavorite(releaseId)
+                        }
+
+                        remoteFavoriteState.value = !wasFavorite
+
+                        val rating = release.favoriteInfo.rating
+                        val newRating =
+                            when {
+                                wasFavorite -> (rating - 1).coerceAtLeast(0)
+                                else -> rating + 1
+                            }
+
+                        val updatedRelease =
+                            release.copy(
+                                favoriteInfo =
+                                    release.favoriteInfo.copy(
+                                        rating = newRating,
+                                        isAdded = !wasFavorite,
+                                    ),
+                            )
+
+                        currentRelease = updatedRelease
+                        releaseInteractor.updateFullCache(updatedRelease)
+                    } catch (error: Throwable) {
+                        Timber.e(error)
+                    } finally {
+                        _progressState.value = _progressState.value.copy(updateProgress = false)
+                    }
                 }
+        }
 
-                remoteFavoriteState.value = !wasFavorite
+        fun onDescriptionClick() {
+            val details = _releaseData.value ?: return
 
-                val rating = release.favoriteInfo.rating
-                val newRating = when {
-                    wasFavorite -> (rating - 1).coerceAtLeast(0)
-                    else -> rating + 1
-                }
+            val title = details.titleRu.ifBlank { "Описание" }
+            val message = details.description.ifBlank { "Описание отсутствует" }
 
-                val updatedRelease = release.copy(
-                    favoriteInfo = release.favoriteInfo.copy(
-                        rating = newRating,
-                        isAdded = !wasFavorite,
-                    )
+            _overlayState.value =
+                DetailOverlayState.Description(
+                    title = title,
+                    message = message,
                 )
-
-                currentRelease = updatedRelease
-                releaseInteractor.updateFullCache(updatedRelease)
-            } catch (error: Throwable) {
-                Timber.e(error)
-            } finally {
-                _progressState.value = _progressState.value.copy(updateProgress = false)
-            }
         }
-    }
 
-    fun onDescriptionClick() {
-        val details = _releaseData.value ?: return
+        fun onOtherClick() {
+            _overlayState.value = DetailOverlayState.Other
+        }
 
-        val title = details.titleRu.ifBlank { "Описание" }
-        val message = details.description.ifBlank { "Описание отсутствует" }
+        fun onEpisodeSelected(actionId: Long) {
+            val overlay = _overlayState.value as? DetailOverlayState.EpisodePicker ?: return
+            val action =
+                overlay.groups
+                    .asSequence()
+                    .flatMap { it.actions.asSequence() }
+                    .firstOrNull { it.id == actionId }
+                    ?: return
+            dismissOverlay()
+            router.navigateTo(PlayerScreen(action.episodeId.releaseId, action.episodeId))
+        }
 
-        _overlayState.value = DetailOverlayState.Description(
-            title = title,
-            message = message,
-        )
-    }
+        fun dismissOverlay() {
+            _overlayState.value = null
+        }
 
-    fun onOtherClick() {
-        _overlayState.value = DetailOverlayState.Other
-    }
+        override fun onCleared() {
+            super.onCleared()
+            favoriteJob?.cancel()
+            favoriteStateJob?.cancel()
+        }
 
-    fun onEpisodeSelected(actionId: Long) {
-        val overlay = _overlayState.value as? DetailOverlayState.EpisodePicker ?: return
-        val action = overlay.groups
-            .asSequence()
-            .flatMap { it.actions.asSequence() }
-            .firstOrNull { it.id == actionId }
-            ?: return
-        dismissOverlay()
-        router.navigateTo(PlayerScreen(action.episodeId.releaseId, action.episodeId))
-    }
-
-    fun dismissOverlay() {
-        _overlayState.value = null
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        favoriteJob?.cancel()
-        favoriteStateJob?.cancel()
-    }
-
-    private suspend fun Release.toEpisodePickerOverlay(seedEpisodeId: EpisodeId?): DetailOverlayState.EpisodePicker {
-        val accesses = releaseInteractor.getAccesses(id).associateBy { it.id }
-        var nextId = 0L
-        val actions = episodes.sortedByEpisodeOrdinalAsc().map { episode ->
-            DetailOverlayState.EpisodePicker.Action(
-                id = nextId++,
-                episodeId = episode.id,
-                title = episode.title.orEmpty(),
-                description = accesses[episode.id]?.let(::formatEpisodeAccessDescription),
+        private suspend fun Release.toEpisodePickerOverlay(seedEpisodeId: EpisodeId?): DetailOverlayState.EpisodePicker {
+            val accesses = releaseInteractor.getAccesses(id).associateBy { it.id }
+            var nextId = 0L
+            val actions =
+                episodes.sortedByEpisodeOrdinalAsc().map { episode ->
+                    DetailOverlayState.EpisodePicker.Action(
+                        id = nextId++,
+                        episodeId = episode.id,
+                        title = episode.title.orEmpty(),
+                        description = accesses[episode.id]?.let(::formatEpisodeAccessDescription),
+                    )
+                }
+            return DetailOverlayState.EpisodePicker(
+                groups =
+                    listOf(
+                        DetailOverlayState.EpisodePicker.Group(
+                            id = 0L,
+                            title = title.orEmpty(),
+                            actions = actions,
+                        ),
+                    ),
+                selectedActionId = actions.firstOrNull { it.episodeId == seedEpisodeId }?.id ?: -1L,
             )
         }
-        return DetailOverlayState.EpisodePicker(
-            groups = listOf(
-                DetailOverlayState.EpisodePicker.Group(
-                    id = 0L,
-                    title = title.orEmpty(),
-                    actions = actions,
-                )
-            ),
-            selectedActionId = actions.firstOrNull { it.episodeId == seedEpisodeId }?.id ?: -1L,
-        )
     }
-}

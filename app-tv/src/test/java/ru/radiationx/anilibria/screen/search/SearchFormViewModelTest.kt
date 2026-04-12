@@ -22,7 +22,6 @@ import ru.radiationx.data.interactors.tv.TvSearchUseCase
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchFormViewModelTest {
-
     private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before
@@ -36,22 +35,23 @@ class SearchFormViewModelTest {
     }
 
     @Test
-    fun selectSinglePicker_updatesSearchFormStateWithoutController() = runTest(testDispatcher) {
-        val tvSearchUseCase = mockk<TvSearchUseCase>()
-        every { tvSearchUseCase.observeYears() } returns emptyFlow()
-        every { tvSearchUseCase.observeGenres() } returns emptyFlow()
-        coEvery { tvSearchUseCase.loadYears() } returns emptyList()
-        coEvery { tvSearchUseCase.loadGenres() } returns emptyList()
-        coEvery { tvSearchUseCase.loadSeasons() } returns emptyList()
+    fun selectSinglePicker_updatesSearchFormStateWithoutController() =
+        runTest(testDispatcher) {
+            val tvSearchUseCase = mockk<TvSearchUseCase>()
+            every { tvSearchUseCase.observeYears() } returns emptyFlow()
+            every { tvSearchUseCase.observeGenres() } returns emptyFlow()
+            coEvery { tvSearchUseCase.loadYears() } returns emptyList()
+            coEvery { tvSearchUseCase.loadGenres() } returns emptyList()
+            coEvery { tvSearchUseCase.loadSeasons() } returns emptyList()
 
-        val viewModel = SearchFormViewModel(tvSearchUseCase)
-        runCurrent()
+            val viewModel = SearchFormViewModel(tvSearchUseCase)
+            runCurrent()
 
-        viewModel.onSortClick()
-        viewModel.selectSinglePicker(1)
+            viewModel.onSortClick()
+            viewModel.selectSinglePicker(1)
 
-        assertEquals(SearchForm.Sort.DATE, viewModel.searchFormData.value.sort)
-        assertEquals(SearchForm.Sort.DATE.toTvCollectionSortLabel(), viewModel.filtersUiState.value.sort.label)
-        assertNull(viewModel.filterPicker.value)
-    }
+            assertEquals(SearchForm.Sort.DATE, viewModel.searchFormData.value.sort)
+            assertEquals(SearchForm.Sort.DATE.toTvCollectionSortLabel(), viewModel.filtersUiState.value.sort.label)
+            assertNull(viewModel.filterPicker.value)
+        }
 }

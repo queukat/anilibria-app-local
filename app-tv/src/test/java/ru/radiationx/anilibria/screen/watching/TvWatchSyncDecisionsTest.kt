@@ -9,7 +9,6 @@ import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 
 class TvWatchSyncDecisionsTest {
-
     @Test
     fun shouldUseLocalProgressForRemoteContinueItem_returnsTrue_forSameEpisodeOrdinal() {
         val remoteItem = remoteHistoryItem(episodeOrdinal = 1.0)

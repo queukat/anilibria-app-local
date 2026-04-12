@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,7 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -34,14 +32,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
@@ -50,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.radiationx.anilibria.R
@@ -110,24 +103,27 @@ internal fun MainPagesRoot(
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .tvAppBackground(palette, glowAlpha = 0.22f)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .tvAppBackground(palette, glowAlpha = 0.22f),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = contentTopOffset),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(top = contentTopOffset),
         ) {
             content()
         }
 
         AnimatedVisibility(
             visible = headerVisible,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .height(headerHeight),
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .height(headerHeight),
         ) {
             MainPagesHeader(
                 selectedPageTitle = MainPagesSpec.titles.getValue(selectedPageId),
@@ -143,12 +139,13 @@ internal fun MainPagesRoot(
         }
 
         Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxHeight()
-                .width(railWidth)
-                .clipToBounds()
-                .padding(top = shellTopOffset),
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxHeight()
+                    .width(railWidth)
+                    .clipToBounds()
+                    .padding(top = shellTopOffset),
         ) {
             MainPagesShell(
                 items = items,
@@ -190,11 +187,12 @@ internal fun MainPagesHeader(
         if (headerFocusRequestToken <= 0) {
             return@LaunchedEffect
         }
-        val preferredRequester = when (preferredAction) {
-            MainHeaderAction.Search -> searchRequester
-            MainHeaderAction.Catalog -> catalogRequester
-            MainHeaderAction.Update -> if (hasUpdates) updateRequester else catalogRequester
-        }
+        val preferredRequester =
+            when (preferredAction) {
+                MainHeaderAction.Search -> searchRequester
+                MainHeaderAction.Catalog -> catalogRequester
+                MainHeaderAction.Update -> if (hasUpdates) updateRequester else catalogRequester
+            }
         requestWatchingFocusAfterAttach(
             requester = preferredRequester,
             attempts = 12,
@@ -202,27 +200,30 @@ internal fun MainPagesHeader(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(TvUiDefaults.shellHeaderBrush(palette))
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(TvUiDefaults.shellHeaderBrush(palette)),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(TvUiDefaults.ShellHeaderPadding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(TvUiDefaults.ShellHeaderPadding),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(accentColor.copy(alpha = 0.20f))
-                    .border(
-                        width = 1.dp,
-                        color = accentColor.copy(alpha = 0.32f),
-                        shape = RoundedCornerShape(22.dp),
-                    )
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(accentColor.copy(alpha = 0.20f))
+                        .border(
+                            width = 1.dp,
+                            color = accentColor.copy(alpha = 0.32f),
+                            shape = RoundedCornerShape(22.dp),
+                        )
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
             ) {
                 Image(
                     painter = painterResource(R.drawable.ic_anilibria_splash),
@@ -330,44 +331,50 @@ internal fun MainPagesShell(
 
     if (expanded) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(surfaceColor.copy(alpha = 0.16f))
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(surfaceColor.copy(alpha = 0.16f)),
         )
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .offset { IntOffset(x = panelOffset.roundToPx(), y = 0) }
-            .clip(TvUiDefaults.ShellRailShape)
-            .background(TvUiDefaults.shellRailBrush(palette))
-            .border(
-                width = 1.dp,
-                color = textColor.copy(alpha = 0.08f),
-                shape = TvUiDefaults.ShellRailShape,
-            )
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .offset { IntOffset(x = panelOffset.roundToPx(), y = 0) }
+                .clip(TvUiDefaults.ShellRailShape)
+                .background(TvUiDefaults.shellRailBrush(palette))
+                .border(
+                    width = 1.dp,
+                    color = textColor.copy(alpha = 0.08f),
+                    shape = TvUiDefaults.ShellRailShape,
+                ),
     ) {
         Box(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .width(42.dp)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            accentColor.copy(alpha = 0.28f),
-                            accentColor.copy(alpha = 0.14f),
-                            Color.Transparent,
-                        )
-                    )
-                ),
+            modifier =
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .width(42.dp)
+                    .background(
+                        brush =
+                            Brush.verticalGradient(
+                                colors =
+                                    listOf(
+                                        accentColor.copy(alpha = 0.28f),
+                                        accentColor.copy(alpha = 0.14f),
+                                        Color.Transparent,
+                                    ),
+                            ),
+                    ),
             contentAlignment = Alignment.TopCenter,
         ) {
             Column(
-                modifier = Modifier
-                    .padding(top = 28.dp)
-                    .width(24.dp),
+                modifier =
+                    Modifier
+                        .padding(top = 28.dp)
+                        .width(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -377,18 +384,20 @@ internal fun MainPagesShell(
                     modifier = Modifier.width(18.dp),
                 )
                 Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .weight(1f)
-                        .background(textColor.copy(alpha = 0.28f))
+                    modifier =
+                        Modifier
+                            .width(2.dp)
+                            .weight(1f)
+                            .background(textColor.copy(alpha = 0.28f)),
                 )
             }
         }
 
         Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                .padding(TvUiDefaults.ShellRailPadding),
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .padding(TvUiDefaults.ShellRailPadding),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
@@ -436,7 +445,6 @@ internal fun MainPagesShell(
     }
 }
 
-
 @Composable
 private fun HeaderActionButton(
     text: String,
@@ -461,7 +469,7 @@ private fun HeaderActionButton(
         modifier = Modifier.width(TvUiDefaults.ShellHeaderActionWidth),
         focusRequester = focusRequester,
         horizontalPadding = 18.dp,
-        verticalPadding = 11.dp,
+        verticalPadding = 10.dp,
         minWidth = TvUiDefaults.ShellHeaderActionWidth,
         textAlign = TextAlign.Center,
     )
@@ -486,11 +494,12 @@ private fun RailPageButton(
         text = text,
         enabled = enabled,
         backgroundColor = if (selected) selectedColor else backgroundColor,
-        focusedBackgroundColor = if (selected) {
-            selectedColor
-        } else {
-            secondaryTextColor.copy(alpha = 0.18f)
-        },
+        focusedBackgroundColor =
+            if (selected) {
+                selectedColor
+            } else {
+                secondaryTextColor.copy(alpha = 0.18f)
+            },
         textColor = textColor,
         borderColor = borderColor,
         onClick = onFocused,
@@ -538,26 +547,27 @@ private fun ShellFocusableButton(
         modifier = modifier.widthIn(min = minWidth),
         selected = selected,
         selectedBorderColor = borderColor,
-        selectedBorderWidth = TvUiDefaults.FocusedBorderWidth,
+        selectedBorderWidth = TvUiDefaults.FOCUSED_BORDER_WIDTH,
         onFocused = onFocused,
         onLeft = onLeft,
         onUp = onUp,
         onRight = onRight,
         onDown = onDown,
-        paddingValues = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = horizontalPadding,
-            vertical = verticalPadding,
-        ),
-        ) {
-            Text(
-                text = text,
-                modifier = Modifier.fillMaxWidth(),
-                color = textColor,
-                fontSize = 18.sp,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                textAlign = textAlign,
-            )
-        }
+        paddingValues =
+            androidx.compose.foundation.layout.PaddingValues(
+                horizontal = horizontalPadding,
+                vertical = verticalPadding,
+            ),
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.fillMaxWidth(),
+            color = textColor,
+            fontSize = 18.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            textAlign = textAlign,
+        )
+    }
 }
 
 @Preview(
@@ -586,14 +596,15 @@ internal fun MainPagesHomeRailPreview() {
 
 @Composable
 private fun MainPagesPreviewScene(railExpanded: Boolean) {
-    val shellItems = remember {
-        MainPagesSpec.ids.map { pageId ->
-            MainShellItem(
-                id = pageId,
-                title = MainPagesSpec.titles.getValue(pageId),
-            )
+    val shellItems =
+        remember {
+            MainPagesSpec.ids.map { pageId ->
+                MainShellItem(
+                    id = pageId,
+                    title = MainPagesSpec.titles.getValue(pageId),
+                )
+            }
         }
-    }
     val selectedPageId = MainPagesSpec.ID_MAIN
     // Preview should not depend on generated R.dimen fields because layoutlib can lag behind resource stubs.
     val headerHeight = 96.dp
@@ -602,38 +613,43 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
     val shellTopOffset = headerHeight + headerSpacing
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colorResource(R.color.dark_windowBackground))
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colorResource(R.color.dark_windowBackground)),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = TvCardScreenHorizontalPadding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = TvCardScreenHorizontalPadding),
         ) {
             MainScreen(
                 sections = previewMainSections(),
                 focusRequestToken = 0,
                 visibilityRestoreToken = 0,
-                contentRestoreState = MainContentRestoreState(
-                    preferredSectionIndex = 0,
-                    preferredItemIndex = 1,
-                    preferredItemId = 1002,
-                ),
+                contentRestoreState =
+                    MainContentRestoreState(
+                        preferredSectionIndex = 0,
+                        preferredItemIndex = 1,
+                        preferredItemId = 1002,
+                    ),
                 onItemClick = { _, _ -> },
                 onRequestRailFocus = { true },
                 onRequestHeaderFocus = { true },
                 onContentMovedDown = {},
                 onContentMovedUp = {},
                 onItemFocused = { _, _, _ -> },
+                onBackdropItemFocused = { _ -> },
             )
         }
 
         Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .height(headerHeight),
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .height(headerHeight),
         ) {
             MainPagesHeader(
                 selectedPageTitle = MainPagesSpec.titles.getValue(selectedPageId),
@@ -649,11 +665,12 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
         }
 
         Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxHeight()
-                .width(railWidth)
-                .padding(top = shellTopOffset),
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxHeight()
+                    .width(railWidth)
+                    .padding(top = shellTopOffset),
         ) {
             MainPagesShell(
                 items = shellItems,
@@ -674,46 +691,50 @@ private fun previewMainSections(): List<MainSectionUiModel> {
         MainSectionUiModel(
             id = PREVIEW_MAIN_SECTION_ID,
             title = MainSectionTitles.FEED,
-            items = listOf(
-                previewReleaseCard(PREVIEW_RELEASE_ID_1, "Врата Штейна", "На неделе вышла 7 серия"),
-                previewReleaseCard(PREVIEW_RELEASE_ID_2, "Frieren", "Новый эпизод сегодня в 20:00"),
-                previewReleaseCard(PREVIEW_RELEASE_ID_3, "Провожающая в последний путь", "Перевод завершен"),
-                previewReleaseCard(PREVIEW_RELEASE_ID_4, "Blue Box", "Онгоинг • обновлено 2 часа назад"),
-                LinkCard("Открыть весь список"),
-            ),
+            items =
+                listOf(
+                    previewReleaseCard(PREVIEW_RELEASE_ID_1, "Врата Штейна", "На неделе вышла 7 серия"),
+                    previewReleaseCard(PREVIEW_RELEASE_ID_2, "Frieren", "Новый эпизод сегодня в 20:00"),
+                    previewReleaseCard(PREVIEW_RELEASE_ID_3, "Провожающая в последний путь", "Перевод завершен"),
+                    previewReleaseCard(PREVIEW_RELEASE_ID_4, "Blue Box", "Онгоинг • обновлено 2 часа назад"),
+                    LinkCard("Открыть весь список"),
+                ),
         ),
         MainSectionUiModel(
             id = PREVIEW_FAVORITES_SECTION_ID,
             title = MainSectionTitles.FAVORITES,
-            items = listOf(
-                previewReleaseCard(PREVIEW_FAVORITE_ID_1, "Solo Leveling", "Добавлена 10 серия"),
-                previewReleaseCard(PREVIEW_FAVORITE_ID_2, "Kaiju No. 8", "Вышла новая озвучка"),
-                previewReleaseCard(PREVIEW_FAVORITE_ID_3, "Dandadan", "Новый релиз уже доступен"),
-                previewReleaseCard(PREVIEW_FAVORITE_ID_4, "Re:Zero", "Следующая серия завтра"),
-            ),
+            items =
+                listOf(
+                    previewReleaseCard(PREVIEW_FAVORITE_ID_1, "Solo Leveling", "Добавлена 10 серия"),
+                    previewReleaseCard(PREVIEW_FAVORITE_ID_2, "Kaiju No. 8", "Вышла новая озвучка"),
+                    previewReleaseCard(PREVIEW_FAVORITE_ID_3, "Dandadan", "Новый релиз уже доступен"),
+                    previewReleaseCard(PREVIEW_FAVORITE_ID_4, "Re:Zero", "Следующая серия завтра"),
+                ),
         ),
         MainSectionUiModel(
             id = PREVIEW_SCHEDULE_SECTION_ID,
             title = MainSectionTitles.SCHEDULE,
-            items = listOf(
-                previewReleaseCard(PREVIEW_SCHEDULE_ID_1, "Dr. Stone", "Премьера в 18:30"),
-                previewReleaseCard(PREVIEW_SCHEDULE_ID_2, "Wind Breaker", "Сегодня вечером"),
-                previewReleaseCard(PREVIEW_SCHEDULE_ID_3, "Made in Abyss", "Пока без точного времени"),
-                InfoCard(
-                    title = "Ещё несколько релизов позже вечером",
-                    subtitle = "Откройте расписание, чтобы посмотреть весь список на сегодня.",
+            items =
+                listOf(
+                    previewReleaseCard(PREVIEW_SCHEDULE_ID_1, "Dr. Stone", "Премьера в 18:30"),
+                    previewReleaseCard(PREVIEW_SCHEDULE_ID_2, "Wind Breaker", "Сегодня вечером"),
+                    previewReleaseCard(PREVIEW_SCHEDULE_ID_3, "Made in Abyss", "Пока без точного времени"),
+                    InfoCard(
+                        title = "Ещё несколько релизов позже вечером",
+                        subtitle = "Откройте расписание, чтобы посмотреть весь список на сегодня.",
+                    ),
                 ),
-            ),
         ),
         MainSectionUiModel(
             id = PREVIEW_YOUTUBE_SECTION_ID,
             title = MainSectionTitles.YOUTUBE,
-            items = listOf(
-                previewYoutubeCard(PREVIEW_YOUTUBE_ID_1, "Итоги недели AniLibria"),
-                previewYoutubeCard(PREVIEW_YOUTUBE_ID_2, "Разбор сезона и ожидания"),
-                previewYoutubeCard(PREVIEW_YOUTUBE_ID_3, "Новости студий и лицензий"),
-                LoadingCard("Следующий ролик уже подгружается"),
-            ),
+            items =
+                listOf(
+                    previewYoutubeCard(PREVIEW_YOUTUBE_ID_1, "Итоги недели AniLibria"),
+                    previewYoutubeCard(PREVIEW_YOUTUBE_ID_2, "Разбор сезона и ожидания"),
+                    previewYoutubeCard(PREVIEW_YOUTUBE_ID_3, "Новости студий и лицензий"),
+                    LoadingCard("Следующий ролик уже подгружается"),
+                ),
         ),
     )
 }

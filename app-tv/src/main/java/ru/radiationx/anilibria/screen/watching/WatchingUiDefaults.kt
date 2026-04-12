@@ -1,14 +1,14 @@
 package ru.radiationx.anilibria.screen.watching
 
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -24,10 +24,11 @@ import kotlin.math.max
 internal val TvScreenHorizontalPadding = 10.dp
 internal val TvCardScreenHorizontalPadding = TvScreenHorizontalPadding
 internal val TvDetailHorizontalPadding = 28.dp
-internal val TvCollectionTopFiltersPanelPadding = PaddingValues(
-    horizontal = 20.dp,
-    vertical = 18.dp,
-)
+internal val TvCollectionTopFiltersPanelPadding =
+    PaddingValues(
+        horizontal = 20.dp,
+        vertical = 18.dp,
+    )
 internal val TvCollectionTopFiltersSpacing = 14.dp
 internal val TvCollectionTopFiltersActionSpacing = 14.dp
 internal val TvCollectionTopFiltersActionWidth = 148.dp
@@ -40,20 +41,21 @@ internal val TvCollectionGridTopContentPadding = 12.dp
 internal val TvCollectionGridBottomDescriptionInset = 144.dp
 internal val TvBottomContentInset = 28.dp
 internal val TvFocusedItemBottomGap = 24.dp
-internal val TvCollectionDescriptionBarPadding = PaddingValues(
-    start = 20.dp,
-    top = 4.dp,
-    end = 20.dp,
-    bottom = 6.dp,
-)
-internal val TvCollectionSolidDescriptionBarMinHeight = 96.dp
-internal val TvCollectionSolidDescriptionBarHeight = 104.dp
-internal val TvCollectionSolidDescriptionBarInnerPadding = PaddingValues(
-    start = 20.dp,
-    top = 10.dp,
-    end = 20.dp,
-    bottom = 10.dp,
-)
+internal val TvCollectionDescriptionBarPadding =
+    PaddingValues(
+        start = 20.dp,
+        top = 4.dp,
+        end = 20.dp,
+        bottom = 6.dp,
+    )
+internal val TvCollectionSolidDescriptionBarMinHeight = 84.dp
+internal val TvCollectionSolidDescriptionBarInnerPadding =
+    PaddingValues(
+        start = 20.dp,
+        top = 8.dp,
+        end = 20.dp,
+        bottom = 8.dp,
+    )
 internal val TvSectionSpacing = 26.dp
 internal val TvSectionHeaderSpacing = 12.dp
 internal val TvFilterRowSpacing = 10.dp
@@ -62,25 +64,30 @@ internal val TvRowEndPadding = 0.dp
 internal val TvPosterCardWidth = 152.dp
 internal val TvPosterCardSlotWidth = 168.dp
 internal val TvPickerTopInset = 72.dp
-internal val TvDescriptionBarPadding = PaddingValues(
-    start = 20.dp,
-    top = 8.dp,
-    end = 20.dp,
-    bottom = 10.dp,
-)
-internal val TvSolidDescriptionBarMinHeight = 112.dp
-internal val TvSolidDescriptionBarInnerPadding = PaddingValues(
-    start = 20.dp,
-    top = 16.dp,
-    end = 20.dp,
-    bottom = 16.dp,
-)
-internal val TvDetailDescriptionBarPadding = PaddingValues(
-    start = TvDetailHorizontalPadding,
-    top = 8.dp,
-    end = TvDetailHorizontalPadding,
-    bottom = 10.dp,
-)
+internal val TvDescriptionBarPadding =
+    PaddingValues(
+        start = 20.dp,
+        top = 8.dp,
+        end = 20.dp,
+        bottom = 10.dp,
+    )
+internal val TvSolidDescriptionBarMinHeight = 92.dp
+internal val TvSolidDescriptionBarInnerPadding =
+    PaddingValues(
+        start = 20.dp,
+        top = 12.dp,
+        end = 20.dp,
+        bottom = 12.dp,
+    )
+internal val TvSolidDescriptionBarVerticalOffset = 4.dp
+internal val TvSolidDescriptionBarContentVerticalOffset = 2.dp
+internal val TvDetailDescriptionBarPadding =
+    PaddingValues(
+        start = TvDetailHorizontalPadding,
+        top = 8.dp,
+        end = TvDetailHorizontalPadding,
+        bottom = 10.dp,
+    )
 internal val TvPlayerOverlayHorizontalPadding = 48.dp
 internal val TvPlayerOverlayBottomPadding = 28.dp
 
@@ -98,27 +105,32 @@ internal fun rememberTvDescriptionOverlayClearance(
 ): TvDescriptionOverlayClearance {
     val density = LocalDensity.current
     var overlayHeightPx by remember(hasContent) { mutableIntStateOf(0) }
-    val fallbackInsetPx = remember(density, fallbackInset) {
-        with(density) { fallbackInset.roundToPx() }
-    }
-    val extraGapPx = remember(density, extraGap) {
-        with(density) { extraGap.roundToPx() }
-    }
-    val bottomClearancePx = remember(hasContent, overlayHeightPx, fallbackInsetPx, extraGapPx) {
-        if (!hasContent) {
-            0
-        } else {
-            max(fallbackInsetPx, overlayHeightPx + extraGapPx)
+    val fallbackInsetPx =
+        remember(density, fallbackInset) {
+            with(density) { fallbackInset.roundToPx() }
         }
-    }
-    val bottomInset = remember(density, bottomClearancePx) {
-        with(density) { bottomClearancePx.toDp() }
-    }
-    val measureModifier = if (hasContent) {
-        Modifier.onSizeChanged { overlayHeightPx = it.height }
-    } else {
-        Modifier
-    }
+    val extraGapPx =
+        remember(density, extraGap) {
+            with(density) { extraGap.roundToPx() }
+        }
+    val bottomClearancePx =
+        remember(hasContent, overlayHeightPx, fallbackInsetPx, extraGapPx) {
+            if (!hasContent) {
+                0
+            } else {
+                max(fallbackInsetPx, overlayHeightPx + extraGapPx)
+            }
+        }
+    val bottomInset =
+        remember(density, bottomClearancePx) {
+            with(density) { bottomClearancePx.toDp() }
+        }
+    val measureModifier =
+        if (hasContent) {
+            Modifier.onSizeChanged { overlayHeightPx = it.height }
+        } else {
+            Modifier
+        }
     return TvDescriptionOverlayClearance(
         bottomInset = bottomInset,
         bottomClearancePx = bottomClearancePx,
@@ -173,11 +185,12 @@ internal suspend fun LazyGridState.scrollItemIntoViewIfNeeded(
         val viewportEnd = (layoutInfo.viewportEndOffset - bottomClearancePx).coerceAtLeast(viewportStart)
         val itemStart = target.offset.y
         val itemEnd = target.offset.y + target.size.height
-        val delta = when {
-            itemStart < viewportStart -> itemStart - viewportStart
-            itemEnd > viewportEnd -> itemEnd - viewportEnd
-            else -> 0
-        }
+        val delta =
+            when {
+                itemStart < viewportStart -> itemStart - viewportStart
+                itemEnd > viewportEnd -> itemEnd - viewportEnd
+                else -> 0
+            }
         if (delta != 0) {
             scrollBy(delta.toFloat())
             return true
@@ -187,11 +200,12 @@ internal suspend fun LazyGridState.scrollItemIntoViewIfNeeded(
 
     val visibleItems = layoutInfo.visibleItemsInfo
     if (currentTarget() == null) {
-        val targetIndex = when {
-            visibleItems.isEmpty() -> index
-            index < visibleItems.first().index -> index
-            else -> anchorIndex.coerceAtLeast(0)
-        }
+        val targetIndex =
+            when {
+                visibleItems.isEmpty() -> index
+                index < visibleItems.first().index -> index
+                else -> anchorIndex.coerceAtLeast(0)
+            }
         scrollToItem(targetIndex)
         withFrameNanos { }
     }

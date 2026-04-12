@@ -12,7 +12,6 @@ import kotlin.math.roundToLong
  * Keeps formatting logic (ordinal/time/title/poster) in one place to reuse across TV screens.
  */
 internal object AniLibertyViewHistoryCardMapper {
-
     fun toContinueCardOrNull(item: UserViewHistoryItem): LibriaCard? {
         // Continue = "not watched yet" entries (filter is usually done by caller).
         return toBaseCardOrNull(item) { episodeOrdinal, timeText, _ ->
@@ -53,14 +52,16 @@ internal object AniLibertyViewHistoryCardMapper {
         descriptionBuilder: (episodeOrdinal: String?, timeText: String?, isWatched: Boolean) -> String,
     ): LibriaCard? {
         val releaseId = item.releaseId.id
-        val title = item.titleMain
-            ?: item.titleEnglish
-            ?: item.titleAlternative
-            ?: "id$releaseId"
+        val title =
+            item.titleMain
+                ?: item.titleEnglish
+                ?: item.titleAlternative
+                ?: "id$releaseId"
 
-        val imageRaw = item.posterPreview
-            ?: item.posterThumbnail
-            ?: ""
+        val imageRaw =
+            item.posterPreview
+                ?: item.posterThumbnail
+                ?: ""
 
         // Важно: AniLiberty может отдавать относительные пути `/...`
         val image = imageRaw.toAbsoluteAniLibertyUrl().orEmpty()
@@ -77,8 +78,7 @@ internal object AniLibertyViewHistoryCardMapper {
         )
     }
 
-    private fun formatEpisodeOrdinal(value: Double): String =
-        BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
+    private fun formatEpisodeOrdinal(value: Double): String = BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
 
     private fun formatSeconds(value: Double): String {
         val totalSeconds = value.roundToLong().coerceAtLeast(0L)

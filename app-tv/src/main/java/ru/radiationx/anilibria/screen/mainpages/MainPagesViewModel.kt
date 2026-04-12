@@ -15,36 +15,37 @@ import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
 import javax.inject.Inject
 
-class MainPagesViewModel @Inject constructor(
-    private val checkerRepository: CheckerRepository,
-    private val router: Router,
-) : LifecycleViewModel() {
+class MainPagesViewModel
+    @Inject
+    constructor(
+        private val checkerRepository: CheckerRepository,
+        private val router: Router,
+    ) : LifecycleViewModel() {
+        private val _hasUpdatesData = MutableStateFlow(false)
+        val hasUpdatesData: StateFlow<Boolean> = _hasUpdatesData.asStateFlow()
 
-    private val _hasUpdatesData = MutableStateFlow(false)
-    val hasUpdatesData: StateFlow<Boolean> = _hasUpdatesData.asStateFlow()
-
-    override fun onColdResume() {
-        super.onColdResume()
-        viewModelScope.launch {
-            coRunCatching {
-                checkerRepository.checkUpdate(true)
-            }.onSuccess {
-                _hasUpdatesData.value = it.hasUpdate
-            }.onFailure {
-                Timber.e(it)
+        override fun onColdResume() {
+            super.onColdResume()
+            viewModelScope.launch {
+                coRunCatching {
+                    checkerRepository.checkUpdate(true)
+                }.onSuccess {
+                    _hasUpdatesData.value = it.hasUpdate
+                }.onFailure {
+                    Timber.e(it)
+                }
             }
         }
-    }
 
-    fun onAppUpdateClick() {
-        router.navigateTo(UpdateScreen())
-    }
+        fun onAppUpdateClick() {
+            router.navigateTo(UpdateScreen())
+        }
 
-    fun onCatalogClick() {
-        router.navigateTo(SearchScreen())
-    }
+        fun onCatalogClick() {
+            router.navigateTo(SearchScreen())
+        }
 
-    fun onSearchClick() {
-        router.navigateTo(SuggestionsScreen())
+        fun onSearchClick() {
+            router.navigateTo(SuggestionsScreen())
+        }
     }
-}

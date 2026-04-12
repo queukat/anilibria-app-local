@@ -6,16 +6,16 @@ import org.junit.Test
 import ru.radiationx.data.entity.domain.types.ReleaseId
 
 class TvCardInteractionsTest {
-
     @Test
     fun toTvCardDescription_mapsSupportedCardTypes() {
         val libriaCard = releaseCard()
         val linkCard = LinkCard("Еще")
-        val loadingCard = LoadingCard(
-            title = "Ошибка",
-            description = "Попробуйте снова",
-            isError = true,
-        )
+        val loadingCard =
+            LoadingCard(
+                title = "Ошибка",
+                description = "Попробуйте снова",
+                isError = true,
+            )
 
         assertEquals(
             TvCardDescription(title = "Наруто", subtitle = "Описание"),
@@ -34,9 +34,10 @@ class TvCardInteractionsTest {
 
     @Test
     fun toTvCardDescription_usesCustomLibriaSubtitleResolver() {
-        val description = releaseCard().toTvCardDescription { card ->
-            "${card.title} (dynamic)"
-        }
+        val description =
+            releaseCard().toTvCardDescription { card ->
+                "${card.title} (dynamic)"
+            }
 
         assertEquals(
             TvCardDescription(title = "Наруто", subtitle = "Наруто (dynamic)"),
@@ -64,14 +65,16 @@ class TvCardInteractionsTest {
         val rows = mutableMapOf<Long, RowMarker>()
         var created = 0
 
-        val first = rows.getOrPutRow(42L) {
-            created += 1
-            RowMarker(it)
-        }
-        val second = rows.getOrPutRow(42L) {
-            created += 1
-            RowMarker(it)
-        }
+        val first =
+            rows.getOrPutRow(42L) {
+                created += 1
+                RowMarker(it)
+            }
+        val second =
+            rows.getOrPutRow(42L) {
+                created += 1
+                RowMarker(it)
+            }
 
         assertEquals(1, created)
         assertSame(first, second)

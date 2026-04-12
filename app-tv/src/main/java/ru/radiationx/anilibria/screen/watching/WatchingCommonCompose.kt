@@ -1,5 +1,6 @@
 package ru.radiationx.anilibria.screen.watching
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,47 +12,44 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -60,10 +58,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.R
-import androidx.compose.animation.core.animateFloatAsState
 import ru.radiationx.anilibria.ui.compose.TvAsyncImage
+import ru.radiationx.anilibria.ui.compose.TvPosterCardFocusStyle
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 
@@ -159,11 +156,12 @@ internal suspend fun LazyListState.scrollItemIntoViewIfNeeded(
         val viewportEnd = (layoutInfo.viewportEndOffset - bottomClearancePx).coerceAtLeast(viewportStart)
         val itemStart = target.offset
         val itemEnd = target.offset + target.size
-        val delta = when {
-            itemStart < viewportStart -> itemStart - viewportStart
-            itemEnd > viewportEnd -> itemEnd - viewportEnd
-            else -> 0
-        }
+        val delta =
+            when {
+                itemStart < viewportStart -> itemStart - viewportStart
+                itemEnd > viewportEnd -> itemEnd - viewportEnd
+                else -> 0
+            }
         if (delta != 0) {
             scrollBy(delta.toFloat())
             return true
@@ -173,11 +171,12 @@ internal suspend fun LazyListState.scrollItemIntoViewIfNeeded(
 
     val visibleItems = layoutInfo.visibleItemsInfo
     if (currentTarget() == null) {
-        val targetIndex = when {
-            visibleItems.isEmpty() -> index
-            index < visibleItems.first().index -> index
-            else -> anchorIndex.coerceAtLeast(0)
-        }
+        val targetIndex =
+            when {
+                visibleItems.isEmpty() -> index
+                index < visibleItems.first().index -> index
+                else -> anchorIndex.coerceAtLeast(0)
+            }
         scrollToItem(targetIndex)
         withFrameNanos { }
     }
@@ -206,11 +205,12 @@ internal fun WatchingFilterChip(
     onRight: (() -> Boolean)? = null,
     onDown: (() -> Boolean)? = null,
 ) {
-    val colors = if (emphasized) {
-        TvUiDefaults.accentActionColors(palette)
-    } else {
-        TvUiDefaults.chipActionColors(palette)
-    }
+    val colors =
+        if (emphasized) {
+            TvUiDefaults.accentActionColors(palette)
+        } else {
+            TvUiDefaults.chipActionColors(palette)
+        }
     TvTextActionButton(
         text = text,
         palette = palette,
@@ -244,10 +244,7 @@ internal fun WatchingPosterCard(
     enabled: Boolean = true,
     cardWidth: Dp = TvPosterCardWidth,
     contentAspectRatio: Float = WATCHING_CARD_ASPECT_RATIO,
-    focusedBackgroundColor: Color = palette.accentColor.copy(alpha = 0.12f),
-    focusedBorderColor: Color = palette.accentColor.copy(alpha = 0.92f),
-    focusedBorderWidth: Dp = 2.dp,
-    unfocusedBorderWidth: Dp = 1.dp,
+    focusStyle: TvPosterCardFocusStyle = TvUiDefaults.defaultPosterCardFocusStyle(palette),
     scaleTransformOrigin: TransformOrigin = TransformOrigin.Center,
     onFocused: (() -> Unit)? = null,
     onLeft: (() -> Boolean)? = null,
@@ -258,10 +255,11 @@ internal fun WatchingPosterCard(
         focusRequester = focusRequester,
         enabled = enabled,
         backgroundColor = Color.Transparent,
-        focusedBackgroundColor = focusedBackgroundColor,
-        borderColor = focusedBorderColor,
-        focusedBorderWidth = focusedBorderWidth,
-        unfocusedBorderWidth = unfocusedBorderWidth,
+        focusedBackgroundColor = focusStyle.focusedBackgroundColor,
+        borderColor = focusStyle.borderColor,
+        focusedBorderWidth = focusStyle.focusedBorderWidth,
+        unfocusedBorderWidth = focusStyle.unfocusedBorderWidth,
+        focusedScale = focusStyle.focusedScale,
         scaleTransformOrigin = scaleTransformOrigin,
         onClick = onClick,
         onFocused = onFocused,
@@ -270,13 +268,15 @@ internal fun WatchingPosterCard(
         onDown = onDown,
         modifier = modifier.width(cardWidth),
         paddingValues = PaddingValues(8.dp),
+        focusedShadowElevation = 0.dp,
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(contentAspectRatio)
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color.Black.copy(alpha = 0.18f)),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(contentAspectRatio)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color.Black.copy(alpha = 0.18f)),
         ) {
             TvAsyncImage(
                 imageUrl = imageUrl,
@@ -381,9 +381,10 @@ internal fun WatchingWideMessageCard(
             palette = palette,
             focusRequester = focusRequester,
             onClick = onClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 720.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 720.dp),
             enabled = enabled,
             loading = loading,
             onFocused = onFocused,
@@ -416,89 +417,136 @@ internal fun WatchingDescriptionBar(
     val solidEndPadding = solidInnerPadding.calculateRightPadding(layoutDirection)
     val solidTopPadding = solidInnerPadding.calculateTopPadding()
     val solidBottomPadding = solidInnerPadding.calculateBottomPadding()
+    val solidContainerVerticalOffset =
+        if (solidSurface) {
+            TvSolidDescriptionBarVerticalOffset
+        } else {
+            0.dp
+        }
+    val solidContentVerticalOffset =
+        if (solidSurface) {
+            TvSolidDescriptionBarContentVerticalOffset
+        } else {
+            0.dp
+        }
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(
-                if (showBackdropScrim) {
-                    Modifier.background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                if (solidSurface) {
-                                    Color.Black.copy(alpha = 0.20f)
-                                } else {
-                                    Color.Transparent
-                                },
-                                if (solidSurface) {
-                                    Color.Black.copy(alpha = 0.96f)
-                                } else {
-                                    Color.Black.copy(alpha = 0.88f)
-                                },
-                            )
-                        )
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            .padding(top = topPadding, bottom = bottomPadding)
-    ) {
-        Column(
-            modifier = Modifier
+        modifier =
+            modifier
                 .fillMaxWidth()
+                .offset(y = solidContainerVerticalOffset)
                 .then(
-                    if (solidSurface) {
+                    if (showBackdropScrim) {
+                        Modifier.background(
+                            brush =
+                                Brush.verticalGradient(
+                                    colors =
+                                        listOf(
+                                            if (solidSurface) {
+                                                Color.Black.copy(alpha = 0.20f)
+                                            } else {
+                                                Color.Transparent
+                                            },
+                                            if (solidSurface) {
+                                                Color.Black.copy(alpha = 0.96f)
+                                            } else {
+                                                Color.Black.copy(alpha = 0.88f)
+                                            },
+                                        ),
+                                ),
+                        )
+                    } else {
                         Modifier
-                            .clip(TvUiDefaults.ScreenPanelShape)
-                            .background(palette.backgroundColor.copy(alpha = 0.94f))
-                            .border(
-                                width = 1.dp,
-                                color = palette.textColor.copy(alpha = 0.10f),
-                                shape = TvUiDefaults.ScreenPanelShape,
-                            )
-                            .then(
-                                if (solidHeight != null) {
-                                    Modifier.height(solidHeight)
-                                } else {
-                                    Modifier.heightIn(min = solidMinHeight)
-                                }
-                            )
+                    },
+                )
+                .padding(top = topPadding, bottom = bottomPadding),
+    ) {
+        if (solidSurface) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(TvUiDefaults.ScreenPanelShape)
+                        .background(palette.backgroundColor.copy(alpha = 0.94f))
+                        .border(
+                            width = 1.dp,
+                            color = palette.textColor.copy(alpha = 0.10f),
+                            shape = TvUiDefaults.ScreenPanelShape,
+                        )
+                        .then(
+                            if (solidHeight != null) {
+                                Modifier.height(solidHeight)
+                            } else {
+                                Modifier.heightIn(min = solidMinHeight)
+                            },
+                        ),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
                             .padding(
                                 start = startPadding + solidStartPadding,
                                 end = endPadding + solidEndPadding,
                                 top = solidTopPadding,
                                 bottom = solidBottomPadding,
                             )
-                    } else {
-                        Modifier
-                            .padding(start = startPadding, end = endPadding)
+                            .offset(y = solidContentVerticalOffset),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = title,
+                        color = palette.textColor,
+                        fontSize = 22.sp,
+                        lineHeight = 26.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (subtitle.isNotBlank()) {
+                        Text(
+                            text = subtitle,
+                            color = palette.secondaryTextColor,
+                            fontSize = 16.sp,
+                            lineHeight = 22.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
-                ),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = title,
-                color = palette.textColor,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (subtitle.isNotBlank()) {
+                }
+            }
+        } else {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = startPadding, end = endPadding),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 Text(
-                    text = subtitle,
-                    color = palette.secondaryTextColor,
-                    fontSize = 16.sp,
-                    lineHeight = 22.sp,
+                    text = title,
+                    color = palette.textColor,
+                    fontSize = 22.sp,
+                    lineHeight = 26.sp,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        text = subtitle,
+                        color = palette.secondaryTextColor,
+                        fontSize = 16.sp,
+                        lineHeight = 22.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
 }
-
 
 @Composable
 internal fun WatchingFocusableSurface(
@@ -511,11 +559,11 @@ internal fun WatchingFocusableSurface(
     enabled: Boolean = true,
     allowFocusWhenDisabled: Boolean = false,
     shape: Shape = TvUiDefaults.FocusableSurfaceShape,
-    focusedBorderWidth: Dp = TvUiDefaults.FocusedBorderWidth,
-    unfocusedBorderWidth: Dp = TvUiDefaults.UnfocusedBorderWidth,
+    focusedBorderWidth: Dp = TvUiDefaults.FOCUSED_BORDER_WIDTH,
+    unfocusedBorderWidth: Dp = TvUiDefaults.UNFOCUSED_BORDER_WIDTH,
     unfocusedBorderColor: Color = Color.Transparent,
-    focusedScale: Float = TvUiDefaults.FocusedScale,
-    focusedShadowElevation: Dp = TvUiDefaults.FocusedShadowElevation,
+    focusedScale: Float = TvUiDefaults.FOCUSED_SCALE,
+    focusedShadowElevation: Dp = TvUiDefaults.FOCUSED_SHADOW_ELEVATION,
     scaleTransformOrigin: TransformOrigin = TransformOrigin.Center,
     selected: Boolean = false,
     selectedBorderColor: Color = borderColor,
@@ -538,81 +586,86 @@ internal fun WatchingFocusableSurface(
     )
 
     Box(
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = focusScale
-                scaleY = focusScale
-                transformOrigin = scaleTransformOrigin
-                shadowElevation = if (isFocused) {
-                    focusedShadowElevation.toPx()
-                } else {
-                    0f
+        modifier =
+            modifier
+                .graphicsLayer {
+                    scaleX = focusScale
+                    scaleY = focusScale
+                    transformOrigin = scaleTransformOrigin
+                    shadowElevation =
+                        if (isFocused) {
+                            focusedShadowElevation.toPx()
+                        } else {
+                            0f
+                        }
+                    this.shape = shape
+                    this.clip = false
                 }
-                this.shape = shape
-                this.clip = false
-            }
-            .clip(shape)
-            .background(if (isFocused) focusedBackgroundColor else backgroundColor)
-            .border(
-                width = when {
-                    isFocused -> focusedBorderWidth
-                    selected -> selectedBorderWidth
-                    else -> unfocusedBorderWidth
-                },
-                color = when {
-                    isFocused -> borderColor
-                    selected -> selectedBorderColor
-                    else -> unfocusedBorderColor
-                },
-                shape = shape,
-            )
-            .then(
-                if (canFocus) {
-                    Modifier.focusRequester(focusRequester)
-                } else {
-                    Modifier
-                }
-            )
-            .onFocusChanged {
-                val nowFocused = it.isFocused
-                isFocused = nowFocused
-                onFocusChanged?.invoke(nowFocused)
-                if (nowFocused) {
-                    onFocused?.invoke()
-                }
-            }
-            .onPreviewKeyEvent { event ->
-                if (!canFocus) {
-                    return@onPreviewKeyEvent false
-                }
-                when (resolveTvCenterPressAction(canFocus, enabled, event.key, event.type)) {
-                    TvCenterPressAction.Consume -> true
-                    TvCenterPressAction.Click -> {
-                        onClick()
-                        true
-                    }
-                    TvCenterPressAction.Ignore -> when (event.key) {
-                        Key.DirectionLeft -> event.type == KeyEventType.KeyDown && onLeft?.invoke() == true
-                        Key.DirectionUp -> event.type == KeyEventType.KeyDown && onUp?.invoke() == true
-                        Key.DirectionRight -> event.type == KeyEventType.KeyDown && onRight?.invoke() == true
-                        Key.DirectionDown -> event.type == KeyEventType.KeyDown && onDown?.invoke() == true
-                        else -> false
+                .clip(shape)
+                .background(if (isFocused) focusedBackgroundColor else backgroundColor)
+                .border(
+                    width =
+                        when {
+                            isFocused -> focusedBorderWidth
+                            selected -> selectedBorderWidth
+                            else -> unfocusedBorderWidth
+                        },
+                    color =
+                        when {
+                            isFocused -> borderColor
+                            selected -> selectedBorderColor
+                            else -> unfocusedBorderColor
+                        },
+                    shape = shape,
+                )
+                .then(
+                    if (canFocus) {
+                        Modifier.focusRequester(focusRequester)
+                    } else {
+                        Modifier
+                    },
+                )
+                .onFocusChanged {
+                    val nowFocused = it.isFocused
+                    isFocused = nowFocused
+                    onFocusChanged?.invoke(nowFocused)
+                    if (nowFocused) {
+                        onFocused?.invoke()
                     }
                 }
-            }
-            .then(
-                if (enabled) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onClick,
-                    )
-                } else {
-                    Modifier
+                .onPreviewKeyEvent { event ->
+                    if (!canFocus) {
+                        return@onPreviewKeyEvent false
+                    }
+                    when (resolveTvCenterPressAction(canFocus, enabled, event.key, event.type)) {
+                        TvCenterPressAction.Consume -> true
+                        TvCenterPressAction.Click -> {
+                            onClick()
+                            true
+                        }
+                        TvCenterPressAction.Ignore ->
+                            when (event.key) {
+                                Key.DirectionLeft -> event.type == KeyEventType.KeyDown && onLeft?.invoke() == true
+                                Key.DirectionUp -> event.type == KeyEventType.KeyDown && onUp?.invoke() == true
+                                Key.DirectionRight -> event.type == KeyEventType.KeyDown && onRight?.invoke() == true
+                                Key.DirectionDown -> event.type == KeyEventType.KeyDown && onDown?.invoke() == true
+                                else -> false
+                            }
+                    }
                 }
-            )
-            .then(if (canFocus) Modifier.focusable() else Modifier)
-            .padding(paddingValues),
+                .then(
+                    if (enabled) {
+                        Modifier.clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = onClick,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
+                .then(if (canFocus) Modifier.focusable() else Modifier)
+                .padding(paddingValues),
     ) {
         content()
     }
@@ -638,11 +691,12 @@ internal fun edgeAwareGridTransformOrigin(
         return TransformOrigin.Center
     }
     val columnIndex = index % columnsCount
-    val x = when {
-        columnIndex == 0 -> 0f
-        index == itemsCount - 1 || columnIndex == columnsCount - 1 -> 1f
-        else -> 0.5f
-    }
+    val x =
+        when {
+            columnIndex == 0 -> 0f
+            index == itemsCount - 1 || columnIndex == columnsCount - 1 -> 1f
+            else -> 0.5f
+        }
     // Keep grid cards vertically anchored from the top edge so horizontal focus
     // moves don't make lower rows appear to hop up/down as scale is applied.
     val y = 0f

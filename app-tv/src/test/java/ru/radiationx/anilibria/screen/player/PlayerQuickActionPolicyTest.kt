@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PlayerQuickActionPolicyTest {
-
     @Test
     fun hiddenControls_quickActionHidesControls() {
         val result = resolvePlayerQuickActionHandling(controlsVisible = false)

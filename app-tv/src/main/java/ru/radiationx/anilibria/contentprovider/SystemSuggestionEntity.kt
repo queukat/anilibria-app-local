@@ -25,7 +25,6 @@ class SystemSuggestionEntity(
     ratingStyle: Int? = null,
     ratingScore: Double? = null,
 ) {
-
     companion object {
         const val KEY_ID = BaseColumns._ID
         const val KEY_TITLE = SearchManager.SUGGEST_COLUMN_TEXT_1
@@ -43,23 +42,24 @@ class SystemSuggestionEntity(
         const val KEY_PRODUCTION_YEAR = SearchManager.SUGGEST_COLUMN_PRODUCTION_YEAR
         const val KEY_COLUMN_DURATION = SearchManager.SUGGEST_COLUMN_DURATION
 
-        val projection = arrayOf(
-            KEY_ID,
-            KEY_TITLE,
-            KEY_DESCRIPTION,
-            KEY_CARD_IMAGE,
-            KEY_DATA_TYPE,
-            KEY_IS_LIVE,
-            KEY_VIDEO_WIDTH,
-            KEY_VIDEO_HEIGHT,
-            KEY_AUDIO_CHANNEL_CONFIG,
-            KEY_PURCHASE_PRICE,
-            KEY_RENTAL_PRICE,
-            KEY_RATING_STYLE,
-            KEY_RATING_SCORE,
-            KEY_PRODUCTION_YEAR,
-            KEY_COLUMN_DURATION
-        )
+        val projection =
+            arrayOf(
+                KEY_ID,
+                KEY_TITLE,
+                KEY_DESCRIPTION,
+                KEY_CARD_IMAGE,
+                KEY_DATA_TYPE,
+                KEY_IS_LIVE,
+                KEY_VIDEO_WIDTH,
+                KEY_VIDEO_HEIGHT,
+                KEY_AUDIO_CHANNEL_CONFIG,
+                KEY_PURCHASE_PRICE,
+                KEY_RENTAL_PRICE,
+                KEY_RATING_STYLE,
+                KEY_RATING_SCORE,
+                KEY_PRODUCTION_YEAR,
+                KEY_COLUMN_DURATION,
+            )
     }
 
     private val keysMap = mutableMapOf<String, Any?>()

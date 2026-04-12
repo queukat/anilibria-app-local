@@ -21,7 +21,6 @@ import ru.radiationx.anilibria.screen.mainpages.MainPagesFragment
 
 @RunWith(AndroidJUnit4::class)
 class AppTvSmokeTest {
-
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val device: UiDevice = UiDevice.getInstance(instrumentation)
 
@@ -30,8 +29,9 @@ class AppTvSmokeTest {
     @Before
     fun setUp() {
         val context = instrumentation.targetContext
-        val intent = Intent(context, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        val intent =
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         scenario = ActivityScenario.launch(intent)
     }
 

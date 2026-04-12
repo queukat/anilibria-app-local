@@ -58,16 +58,18 @@ internal fun ConfigScreenContent(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .tvAppBackground(palette, glowAlpha = 0.22f)
-            .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .tvAppBackground(palette, glowAlpha = 0.22f)
+                .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
     ) {
         Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .widthIn(max = CONFIG_PANEL_MAX_WIDTH.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth()
+                    .widthIn(max = CONFIG_PANEL_MAX_WIDTH.dp),
         ) {
             TvOverlayPanelSurface(
                 palette = palette,
@@ -127,16 +129,18 @@ private fun ConfigStatusContent(
     val state = screenState
     val showActions = state?.needRefresh == true && !isCompleting
     val actionState = state?.takeIf { showActions }
-    val titleText = when {
-        isCompleting -> "Завершаем настройку"
-        showActions -> "Нужна ручная проверка"
-        else -> "Проверяем конфигурацию"
-    }
+    val titleText =
+        when {
+            isCompleting -> "Завершаем настройку"
+            showActions -> "Нужна ручная проверка"
+            else -> "Проверяем конфигурацию"
+        }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .widthIn(max = 520.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .widthIn(max = 520.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -167,11 +171,12 @@ private fun ConfigStatusContent(
                 modifier = Modifier.size(48.dp),
             )
             Text(
-                text = if (isCompleting) {
-                    "Сохраняем результат и подготавливаем следующий экран."
-                } else {
-                    "Подождите немного: если понадобится ручное действие, кнопки появятся ниже."
-                },
+                text =
+                    if (isCompleting) {
+                        "Сохраняем результат и подготавливаем следующий экран."
+                    } else {
+                        "Подождите немного: если понадобится ручное действие, кнопки появятся ниже."
+                    },
                 color = palette.secondaryTextColor,
                 fontSize = 16.sp,
                 lineHeight = 23.sp,
@@ -208,13 +213,14 @@ private fun ConfigStatusContent(
                     downRequester = nextRequester,
                 )
                 TvOverlayActionButton(
-                    text = stringResource(
-                        if (actionState.hasNext) {
-                            R.string.config_action_next
-                        } else {
-                            R.string.config_action_restart
-                        }
-                    ),
+                    text =
+                        stringResource(
+                            if (actionState.hasNext) {
+                                R.string.config_action_next
+                            } else {
+                                R.string.config_action_restart
+                            },
+                        ),
                     palette = palette,
                     focusRequester = nextRequester,
                     onClick = onNextClick,

@@ -22,72 +22,73 @@ import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
 import javax.inject.Inject
 
-class AppLauncherViewModel @Inject constructor(
-    private val apiConfig: ApiConfig,
-    private val router: Router,
-    private val authRepository: AuthRepository,
-) : LifecycleViewModel() {
+class AppLauncherViewModel
+    @Inject
+    constructor(
+        private val apiConfig: ApiConfig,
+        private val router: Router,
+        private val authRepository: AuthRepository,
+    ) : LifecycleViewModel() {
+        sealed interface AppLauncherCommand {
+            data object AppReady : AppLauncherCommand
+        }
 
-    sealed interface AppLauncherCommand {
-        data object AppReady : AppLauncherCommand
-    }
+        private var firstLaunch = true
 
-    private var firstLaunch = true
+        private val _commands =
+            MutableSharedFlow<AppLauncherCommand>(
+                replay = 0,
+                extraBufferCapacity = 1,
+            )
+        val commands = _commands.asSharedFlow()
 
-    private val _commands = MutableSharedFlow<AppLauncherCommand>(
-        replay = 0,
-        extraBufferCapacity = 1,
-    )
-    val commands = _commands.asSharedFlow()
+        fun openRelease(id: ReleaseId) {
+            router.navigateTo(DetailsScreen(id))
+        }
 
-    fun openRelease(id: ReleaseId) {
-        router.navigateTo(DetailsScreen(id))
-    }
+        fun coldLaunch() {
+            initWithConfig()
+            // initMain()
+        }
 
-    fun coldLaunch() {
-        initWithConfig()
-        //initMain()
-    }
-
-    private fun initWithConfig() {
-        apiConfig
-            .observeNeedConfig()
-            .distinctUntilChanged()
-            .onEach {
-                if (it) {
-                    router.newRootScreen(ConfigScreen())
-                } else {
-                    if (firstLaunch) {
-                        initMain()
+        private fun initWithConfig() {
+            apiConfig
+                .observeNeedConfig()
+                .distinctUntilChanged()
+                .onEach {
+                    if (it) {
+                        router.newRootScreen(ConfigScreen())
+                    } else {
+                        if (firstLaunch) {
+                            initMain()
+                        }
                     }
                 }
-            }
-            .launchIn(viewModelScope)
+                .launchIn(viewModelScope)
 
-        if (apiConfig.needConfig) {
-            router.newRootScreen(ConfigScreen())
-        } else {
-            initMain()
+            if (apiConfig.needConfig) {
+                router.newRootScreen(ConfigScreen())
+            } else {
+                initMain()
+            }
+        }
+
+        private fun initMain() {
+            firstLaunch = false
+
+            viewModelScope.launch {
+                router.newRootScreen(MainPagesScreen())
+                if (!AndroidTestMode.enabled && authRepository.getAuthState() == AuthState.NO_AUTH) {
+                    router.navigateTo(AuthScreen())
+                }
+                _commands.tryEmit(AppLauncherCommand.AppReady)
+            }
+            viewModelScope.launch {
+                coRunCatching {
+                    authRepository.loadUser()
+                }.onFailure {
+                    Timber.e(it)
+                }
+            }
         }
     }
-
-    private fun initMain() {
-        firstLaunch = false
-
-        viewModelScope.launch {
-            router.newRootScreen(MainPagesScreen())
-            if (!AndroidTestMode.enabled && authRepository.getAuthState() == AuthState.NO_AUTH) {
-                router.navigateTo(AuthScreen())
-            }
-            _commands.tryEmit(AppLauncherCommand.AppReady)
-        }
-        viewModelScope.launch {
-            coRunCatching {
-                authRepository.loadUser()
-            }.onFailure {
-                Timber.e(it)
-            }
-        }
-    }
-
-}

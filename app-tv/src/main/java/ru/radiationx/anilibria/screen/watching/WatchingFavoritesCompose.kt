@@ -1,23 +1,13 @@
 package ru.radiationx.anilibria.screen.watching
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,9 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.InfoCard
@@ -43,14 +31,6 @@ import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
 import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
-import ru.radiationx.anilibria.screen.watching.TvCollectionDescriptionBarPadding
-import ru.radiationx.anilibria.screen.watching.TvCollectionGridBottomDescriptionInset
-import ru.radiationx.anilibria.screen.watching.TvCollectionGridTopContentPadding
-import ru.radiationx.anilibria.screen.watching.TvCollectionSolidDescriptionBarHeight
-import ru.radiationx.anilibria.screen.watching.TvCollectionSolidDescriptionBarInnerPadding
-import ru.radiationx.anilibria.screen.watching.TvCollectionSolidDescriptionBarMinHeight
-import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
-import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import kotlin.math.max
 
@@ -87,43 +67,46 @@ internal fun WatchingFavoritesScreen(
     val scope = rememberCoroutineScope()
     val filtersRowState = rememberLazyListState()
     val gridState = rememberLazyGridState()
-    val filterItems = remember(filters) {
-        listOf(
-            TvCollectionFilterAction(
-                label = filters.year.label,
-                emphasized = filters.year.emphasized,
-                onClick = onYearClick,
-            ),
-            TvCollectionFilterAction(
-                label = filters.season.label,
-                emphasized = filters.season.emphasized,
-                onClick = onSeasonClick,
-            ),
-            TvCollectionFilterAction(
-                label = filters.genre.label,
-                emphasized = filters.genre.emphasized,
-                onClick = onGenreClick,
-            ),
-            TvCollectionFilterAction(
-                label = filters.sort.label,
-                emphasized = filters.sort.emphasized,
-                onClick = onSortClick,
-            ),
-            TvCollectionFilterAction(
-                label = filters.onlyCompleted.label,
-                emphasized = filters.onlyCompleted.emphasized,
-                onClick = onOnlyCompletedClick,
-            ),
-        )
-    }
-    val filterRequesters = remember(filterItems.size) {
-        List(filterItems.size) { androidx.compose.ui.focus.FocusRequester() }
-    }
+    val filterItems =
+        remember(filters) {
+            listOf(
+                TvCollectionFilterAction(
+                    label = filters.year.label,
+                    emphasized = filters.year.emphasized,
+                    onClick = onYearClick,
+                ),
+                TvCollectionFilterAction(
+                    label = filters.season.label,
+                    emphasized = filters.season.emphasized,
+                    onClick = onSeasonClick,
+                ),
+                TvCollectionFilterAction(
+                    label = filters.genre.label,
+                    emphasized = filters.genre.emphasized,
+                    onClick = onGenreClick,
+                ),
+                TvCollectionFilterAction(
+                    label = filters.sort.label,
+                    emphasized = filters.sort.emphasized,
+                    onClick = onSortClick,
+                ),
+                TvCollectionFilterAction(
+                    label = filters.onlyCompleted.label,
+                    emphasized = filters.onlyCompleted.emphasized,
+                    onClick = onOnlyCompletedClick,
+                ),
+            )
+        }
+    val filterRequesters =
+        remember(filterItems.size) {
+            List(filterItems.size) { androidx.compose.ui.focus.FocusRequester() }
+        }
     val stateActionRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     val itemIds = remember(cards) { cards.map(CardItem::getId) }
-    val itemRequesters = remember(itemIds) {
-        List(cards.size) { androidx.compose.ui.focus.FocusRequester() }
-    }
+    val itemRequesters =
+        remember(itemIds) {
+            List(cards.size) { androidx.compose.ui.focus.FocusRequester() }
+        }
     var selectedCard by remember(cards) { mutableStateOf<LibriaCard?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var handledRestoreToken by remember { mutableIntStateOf(0) }
@@ -133,86 +116,92 @@ internal fun WatchingFavoritesScreen(
     var lastFocusWasGrid by rememberSaveable { mutableStateOf(false) }
     val interactionsEnabled = contentInteractionsEnabled && pickerState == null
     val nonContentCards = remember(cards) { cards.filter { it !is LibriaCard } }
-    val stateCard = remember(nonContentCards) {
-        nonContentCards.firstOrNull { it is LoadingCard && it.isError }
-            ?: nonContentCards.firstOrNull { it is LoadingCard }
-            ?: nonContentCards.firstOrNull { it is InfoCard }
-            ?: nonContentCards.firstOrNull()
-    }
+    val stateCard =
+        remember(nonContentCards) {
+            nonContentCards.firstOrNull { it is LoadingCard && it.isError }
+                ?: nonContentCards.firstOrNull { it is LoadingCard }
+                ?: nonContentCards.firstOrNull { it is InfoCard }
+                ?: nonContentCards.firstOrNull()
+        }
     val stateActionCard = remember(nonContentCards) { nonContentCards.filterIsInstance<LinkCard>().firstOrNull() }
     val hasCustomFilters = remember(filterItems) { filterItems.any { it.emphasized } }
     val showStatePanel = cards.isEmpty() || (cards.isNotEmpty() && cards.none { it is LibriaCard })
     val hasContent = remember(itemIds, showStatePanel) { cards.any { it is LibriaCard } && !showStatePanel }
-    val columnsCount = remember(configuration.screenWidthDp) {
-        max(
-            1,
-            ((configuration.screenWidthDp.dp - (TvCardScreenHorizontalPadding * 2)) / TvPosterCardSlotWidth)
-                .toInt(),
+    val columnsCount =
+        remember(configuration.screenWidthDp) {
+            max(
+                1,
+                ((configuration.screenWidthDp.dp - (TvCardScreenHorizontalPadding * 2)) / TvPosterCardSlotWidth)
+                    .toInt(),
+            )
+        }
+    val descriptionOverlayClearance =
+        rememberTvDescriptionOverlayClearance(
+            hasContent = hasContent,
+            fallbackInset = TvCollectionGridBottomDescriptionInset,
         )
-    }
-    val descriptionOverlayClearance = rememberTvDescriptionOverlayClearance(
-        hasContent = hasContent,
-        fallbackInset = TvCollectionGridBottomDescriptionInset,
-    )
-    val gridDescriptionInset = if (hasContent) {
-        descriptionOverlayClearance.bottomInset
-    } else {
-        TvBottomContentInset
-    }
+    val gridDescriptionInset =
+        if (hasContent) {
+            descriptionOverlayClearance.bottomInset
+        } else {
+            TvBottomContentInset
+        }
     val gridBottomClearancePx = descriptionOverlayClearance.bottomClearancePx
-    val statePanel = remember(stateCard, hasCustomFilters, stateActionCard) {
-        val title: String
-        val subtitle: String
-        val accent: Boolean
-        val loading: Boolean
-        when (val item = stateCard) {
-            is LoadingCard -> {
-                title = item.title.ifBlank { "Загружаем избранное" }
-                subtitle = item.description.ifBlank {
-                    if (item.isError) {
-                        "Проверьте подключение и попробуйте ещё раз."
+    val statePanel =
+        remember(stateCard, hasCustomFilters, stateActionCard) {
+            val title: String
+            val subtitle: String
+            val accent: Boolean
+            val loading: Boolean
+            when (val item = stateCard) {
+                is LoadingCard -> {
+                    title = item.title.ifBlank { "Загружаем избранное" }
+                    subtitle =
+                        item.description.ifBlank {
+                            if (item.isError) {
+                                "Проверьте подключение и попробуйте ещё раз."
+                            } else {
+                                "Подождите, список избранного обновляется."
+                            }
+                        }
+                    accent = item.isError
+                    loading = !item.isError
+                }
+
+                is InfoCard -> {
+                    title = item.title
+                    subtitle = item.subtitle
+                    accent = false
+                    loading = false
+                }
+
+                is LinkCard -> {
+                    title = item.title
+                    subtitle = "Измените фильтры или попробуйте загрузить список ещё раз."
+                    accent = false
+                    loading = false
+                }
+
+                else -> {
+                    loading = false
+                    accent = false
+                    if (hasCustomFilters) {
+                        title = "Ничего не найдено"
+                        subtitle = "Ослабьте фильтры, чтобы снова увидеть релизы из избранного."
                     } else {
-                        "Подождите, список избранного обновляется."
+                        title = "Избранное пока пусто"
+                        subtitle = "Добавьте релизы в избранное, и они появятся здесь."
                     }
                 }
-                accent = item.isError
-                loading = !item.isError
             }
-
-            is InfoCard -> {
-                title = item.title
-                subtitle = item.subtitle
-                accent = false
-                loading = false
-            }
-
-            is LinkCard -> {
-                title = item.title
-                subtitle = "Измените фильтры или попробуйте загрузить список ещё раз."
-                accent = false
-                loading = false
-            }
-
-            else -> {
-                loading = false
-                accent = false
-                if (hasCustomFilters) {
-                    title = "Ничего не найдено"
-                    subtitle = "Ослабьте фильтры, чтобы снова увидеть релизы из избранного."
-                } else {
-                    title = "Избранное пока пусто"
-                    subtitle = "Добавьте релизы в избранное, и они появятся здесь."
-                }
-            }
+            TvCollectionStatePanelUiModel(
+                title = title,
+                subtitle = subtitle,
+                accent = accent,
+                loading = loading,
+                actionText = stateActionCard?.title,
+            )
         }
-        TvCollectionStatePanelUiModel(
-            title = title,
-            subtitle = subtitle,
-            accent = accent,
-            loading = loading,
-            actionText = stateActionCard?.title,
-        )
-    }
 
     fun gridAnchorIndex(index: Int): Int {
         if (columnsCount <= 0) {
@@ -285,14 +274,18 @@ internal fun WatchingFavoritesScreen(
             return@LaunchedEffect
         }
         if (lastFocusWasGrid && cards.isNotEmpty() && !showStatePanel) {
-            val targetIndex = cards.indexOfItemId(lastFocusedItemId)
-                ?: lastFocusedItemIndex.coerceIn(0, cards.lastIndex)
-            gridState.scrollItemIntoViewIfNeeded(
-                index = targetIndex,
-                anchorIndex = gridAnchorIndex(targetIndex),
-                bottomClearancePx = gridBottomClearancePx,
-            )
+            val targetIndex =
+                cards.indexOfItemId(lastFocusedItemId)
+                    ?: lastFocusedItemIndex.coerceIn(0, cards.lastIndex)
             selectedCard = cards.getOrNull(targetIndex) as? LibriaCard
+            if (requestGridFocus(targetIndex)) {
+                onContentMovedDown()
+            }
+        } else if (filterRequesters.isNotEmpty()) {
+            selectedCard = null
+            if (requestFilterFocus(lastFocusedFilterIndex)) {
+                onContentMovedUp()
+            }
         } else {
             selectedCard = null
         }
@@ -302,13 +295,14 @@ internal fun WatchingFavoritesScreen(
         if (pickerState != null || focusRequestToken <= handledFocusToken) {
             return@LaunchedEffect
         }
-        val focused = when {
-            lastFocusWasGrid && lastFocusedItemId != Int.MIN_VALUE && !showStatePanel -> {
-                requestGridFocus(cards.indexOfItemId(lastFocusedItemId) ?: lastFocusedItemIndex)
+        val focused =
+            when {
+                lastFocusWasGrid && lastFocusedItemId != Int.MIN_VALUE && !showStatePanel -> {
+                    requestGridFocus(cards.indexOfItemId(lastFocusedItemId) ?: lastFocusedItemIndex)
+                }
+                filterRequesters.isNotEmpty() -> requestFilterFocus(lastFocusedFilterIndex)
+                else -> requestGridFocus(lastFocusedItemIndex)
             }
-            filterRequesters.isNotEmpty() -> requestFilterFocus(lastFocusedFilterIndex)
-            else -> requestGridFocus(lastFocusedItemIndex)
-        }
         if (focused) {
             handledFocusToken = focusRequestToken
         }
@@ -324,11 +318,12 @@ internal fun WatchingFavoritesScreen(
         }
     }
 
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .tvAppBackground(palette)
-            .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .tvAppBackground(palette)
+                .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -381,9 +376,10 @@ internal fun WatchingFavoritesScreen(
                 )
 
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
                 ) {
                     TvCollectionGridStateContent(
                         cards = cards,
@@ -398,9 +394,10 @@ internal fun WatchingFavoritesScreen(
                         bottomContentPadding = gridDescriptionInset,
                         selectedCard = selectedCard,
                         statePanel = statePanel,
-                        onStateActionClick = stateActionCard?.let { actionCard ->
-                            { onItemClick(actionCard) }
-                        },
+                        onStateActionClick =
+                            stateActionCard?.let { actionCard ->
+                                { onItemClick(actionCard) }
+                            },
                         onStateActionUp = {
                             onContentMovedUp()
                             requestTopFiltersFocus()
@@ -432,30 +429,35 @@ internal fun WatchingFavoritesScreen(
                         },
                         messageCardModel = { item, itemPalette ->
                             when (item) {
-                                is InfoCard -> TvCollectionMessageCardUiModel(
-                                    title = item.title,
-                                    subtitle = item.subtitle,
-                                    palette = itemPalette,
-                                )
+                                is InfoCard ->
+                                    TvCollectionMessageCardUiModel(
+                                        title = item.title,
+                                        subtitle = item.subtitle,
+                                        palette = itemPalette,
+                                    )
 
-                                is LinkCard -> TvCollectionMessageCardUiModel(
-                                    title = item.title,
-                                    subtitle = "Нажмите, чтобы выполнить действие",
-                                    palette = itemPalette,
-                                )
+                                is LinkCard ->
+                                    TvCollectionMessageCardUiModel(
+                                        title = item.title,
+                                        subtitle = "Нажмите, чтобы выполнить действие",
+                                        palette = itemPalette,
+                                    )
 
-                                is LoadingCard -> TvCollectionMessageCardUiModel(
-                                    title = item.title.ifBlank { "Загрузка" },
-                                    subtitle = item.description,
-                                    palette = itemPalette.copy(
-                                        accentColor = if (item.isError) {
-                                            itemPalette.accentColor
-                                        } else {
-                                            itemPalette.textColor.copy(alpha = 0.4f)
-                                        }
-                                    ),
-                                    loading = !item.isError,
-                                )
+                                is LoadingCard ->
+                                    TvCollectionMessageCardUiModel(
+                                        title = item.title.ifBlank { "Загрузка" },
+                                        subtitle = item.description,
+                                        palette =
+                                            itemPalette.copy(
+                                                accentColor =
+                                                    if (item.isError) {
+                                                        itemPalette.accentColor
+                                                    } else {
+                                                        itemPalette.textColor.copy(alpha = 0.4f)
+                                                    },
+                                            ),
+                                        loading = !item.isError,
+                                    )
 
                                 else -> null
                             }
@@ -467,12 +469,12 @@ internal fun WatchingFavoritesScreen(
                                 palette = palette,
                                 contentPadding = TvCollectionDescriptionBarPadding,
                                 solidSurface = true,
-                                solidHeight = TvCollectionSolidDescriptionBarHeight,
                                 solidMinHeight = TvCollectionSolidDescriptionBarMinHeight,
                                 solidInnerPadding = TvCollectionSolidDescriptionBarInnerPadding,
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .then(descriptionOverlayClearance.measureModifier),
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .then(descriptionOverlayClearance.measureModifier),
                             )
                         },
                     )

@@ -1,6 +1,7 @@
 package ru.radiationx.anilibria.ui.compose
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -9,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.focusable
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,46 +55,48 @@ internal fun TvContentStatePanel(
 ) {
     val isFocusable = focusRequester != null
     var isFocused by remember(focusRequester) { mutableStateOf(false) }
-    val panelStyle = TvUiDefaults.contentStatePanelStyle(
-        palette = palette,
-        accent = accent,
-        focused = isFocused,
-    )
+    val panelStyle =
+        TvUiDefaults.contentStatePanelStyle(
+            palette = palette,
+            accent = accent,
+            focused = isFocused,
+        )
 
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .widthIn(max = panelMaxWidth)
-            .tvPanelSurface(panelStyle)
-            .then(
-                if (isFocusable) {
-                    Modifier
-                        .focusRequester(focusRequester!!)
-                        .onFocusChanged {
-                            val nowFocused = it.isFocused
-                            isFocused = nowFocused
-                            if (nowFocused) {
-                                onFocused?.invoke()
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .widthIn(max = panelMaxWidth)
+                .tvPanelSurface(panelStyle)
+                .then(
+                    if (isFocusable) {
+                        Modifier
+                            .focusRequester(focusRequester!!)
+                            .onFocusChanged {
+                                val nowFocused = it.isFocused
+                                isFocused = nowFocused
+                                if (nowFocused) {
+                                    onFocused?.invoke()
+                                }
                             }
-                        }
-                        .onPreviewKeyEvent { event ->
-                            if (event.type != KeyEventType.KeyDown) {
-                                return@onPreviewKeyEvent false
+                            .onPreviewKeyEvent { event ->
+                                if (event.type != KeyEventType.KeyDown) {
+                                    return@onPreviewKeyEvent false
+                                }
+                                when (event.key) {
+                                    Key.DirectionLeft -> onLeft?.invoke() == true
+                                    Key.DirectionUp -> onUp?.invoke() == true
+                                    Key.DirectionRight -> onRight?.invoke() == true
+                                    Key.DirectionDown -> onDown?.invoke() == true
+                                    else -> false
+                                }
                             }
-                            when (event.key) {
-                                Key.DirectionLeft -> onLeft?.invoke() == true
-                                Key.DirectionUp -> onUp?.invoke() == true
-                                Key.DirectionRight -> onRight?.invoke() == true
-                                Key.DirectionDown -> onDown?.invoke() == true
-                                else -> false
-                            }
-                        }
-                        .focusable()
-                } else {
-                    Modifier
-                }
-            )
-            .padding(TvUiDefaults.ContentStatePanelPadding),
+                            .focusable()
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(TvUiDefaults.ContentStatePanelPadding),
         horizontalArrangement = Arrangement.spacedBy(18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -127,11 +129,12 @@ internal fun TvContentStatePanel(
             if (subtitle.isNotBlank()) {
                 Text(
                     text = subtitle,
-                    color = if (accent) {
-                        palette.textColor.copy(alpha = 0.92f)
-                    } else {
-                        palette.secondaryTextColor
-                    },
+                    color =
+                        if (accent) {
+                            palette.textColor.copy(alpha = 0.92f)
+                        } else {
+                            palette.secondaryTextColor
+                        },
                     fontSize = 16.sp,
                     lineHeight = 22.sp,
                 )
@@ -169,15 +172,17 @@ internal fun TvContentStateActionButton(
         modifier = modifier,
         enabled = enabled,
         minWidth = 188.dp,
-        colors = TvUiDefaults.chipActionColors(
-            palette = palette,
-            backgroundAlpha = 0.9f,
-            borderAlpha = 0.78f,
-        ),
-        paddingValues = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 20.dp,
-            vertical = 13.dp,
-        ),
+        colors =
+            TvUiDefaults.chipActionColors(
+                palette = palette,
+                backgroundAlpha = 0.9f,
+                borderAlpha = 0.78f,
+            ),
+        paddingValues =
+            androidx.compose.foundation.layout.PaddingValues(
+                horizontal = 20.dp,
+                vertical = 13.dp,
+            ),
         fontSize = 15.sp,
         onFocused = onFocused,
         onLeft = onLeft,

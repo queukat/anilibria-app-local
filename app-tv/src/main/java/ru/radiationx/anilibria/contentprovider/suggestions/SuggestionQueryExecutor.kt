@@ -1,8 +1,8 @@
 package ru.radiationx.anilibria.contentprovider.suggestions
 
+import java.util.LinkedHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.LinkedHashMap
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -17,16 +17,18 @@ internal class SuggestionQueryExecutor<T>(
     private val maxCacheEntries: Int = DEFAULT_MAX_CACHE_ENTRIES,
     private val onCacheUpdated: (query: String, items: List<T>) -> Unit = { _, _ -> },
     private val nowMillis: () -> Long = { System.currentTimeMillis() },
-    private val scheduler: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { runnable ->
-        Thread(runnable, "suggestions-provider").apply {
-            isDaemon = true
-        }
-    },
-    private val workerExecutor: ExecutorService = Executors.newCachedThreadPool { runnable ->
-        Thread(runnable, "suggestions-provider-worker").apply {
-            isDaemon = true
-        }
-    },
+    private val scheduler: ScheduledExecutorService =
+        Executors.newSingleThreadScheduledExecutor { runnable ->
+            Thread(runnable, "suggestions-provider").apply {
+                isDaemon = true
+            }
+        },
+    private val workerExecutor: ExecutorService =
+        Executors.newCachedThreadPool { runnable ->
+            Thread(runnable, "suggestions-provider-worker").apply {
+                isDaemon = true
+            }
+        },
 ) {
     private val lock = Any()
     private var lastRefreshStartedAtMs: Long = 0L
@@ -34,28 +36,34 @@ internal class SuggestionQueryExecutor<T>(
     private var scheduledFuture: ScheduledFuture<*>? = null
     private var inFlightQuery: String? = null
     private var requestSequence: Long = 0L
-    private val lastAppliedRequestByQuery = LinkedHashMap<String, AppliedRequestEntry>(
-        maxCacheEntries,
-        CACHE_LOAD_FACTOR,
-        true,
-    )
-    private val cache = LinkedHashMap<String, CacheEntry<T>>(
-        maxCacheEntries,
-        CACHE_LOAD_FACTOR,
-        true,
-    )
+    private val lastAppliedRequestByQuery =
+        LinkedHashMap<String, AppliedRequestEntry>(
+            maxCacheEntries,
+            CACHE_LOAD_FACTOR,
+            true,
+        )
+    private val cache =
+        LinkedHashMap<String, CacheEntry<T>>(
+            maxCacheEntries,
+            CACHE_LOAD_FACTOR,
+            true,
+        )
 
-    fun execute(rawQuery: String, fetch: (String) -> List<T>): List<T> {
+    fun execute(
+        rawQuery: String,
+        fetch: (String) -> List<T>,
+    ): List<T> {
         val query = rawQuery.trim()
         if (query.length < minQueryLength) {
             return emptyList()
         }
 
         val now = nowMillis()
-        val cacheEntry = synchronized(lock) {
-            cleanupStateLocked(now, keepQuery = query)
-            cache[query]
-        }
+        val cacheEntry =
+            synchronized(lock) {
+                cleanupStateLocked(now, keepQuery = query)
+                cache[query]
+            }
         val isCacheFresh = cacheEntry != null && now - cacheEntry.savedAtMs <= cacheTtlMs
 
         if (!isCacheFresh) {
@@ -82,11 +90,12 @@ internal class SuggestionQueryExecutor<T>(
             delayMs = (minRequestIntervalMs - elapsedSinceLastStart).coerceAtLeast(0L)
             scheduledQuery = query
             scheduledFuture?.cancel(false)
-            scheduledFuture = scheduler.schedule(
-                { refresh(query, requestId, fetch) },
-                delayMs,
-                TimeUnit.MILLISECONDS
-            )
+            scheduledFuture =
+                scheduler.schedule(
+                    { refresh(query, requestId, fetch) },
+                    delayMs,
+                    TimeUnit.MILLISECONDS,
+                )
         }
     }
 
@@ -95,16 +104,17 @@ internal class SuggestionQueryExecutor<T>(
         requestId: Long,
         fetch: (String) -> List<T>,
     ) {
-        val canStartRefresh = synchronized(lock) {
-            if (scheduledQuery != query) {
-                false
-            } else {
-                scheduledQuery = null
-                inFlightQuery = query
-                lastRefreshStartedAtMs = nowMillis()
-                true
+        val canStartRefresh =
+            synchronized(lock) {
+                if (scheduledQuery != query) {
+                    false
+                } else {
+                    scheduledQuery = null
+                    inFlightQuery = query
+                    lastRefreshStartedAtMs = nowMillis()
+                    true
+                }
             }
-        }
         if (!canStartRefresh) {
             return
         }
@@ -120,16 +130,18 @@ internal class SuggestionQueryExecutor<T>(
                 val now = nowMillis()
                 val lastAppliedId = lastAppliedRequestByQuery[query]?.requestId ?: Long.MIN_VALUE
                 if (requestId >= lastAppliedId) {
-                    lastAppliedRequestByQuery[query] = AppliedRequestEntry(
-                        requestId = requestId,
-                        appliedAtMs = now,
-                    )
-                    cache[query] = CacheEntry(
-                        query = query,
-                        savedAtMs = now,
-                        requestId = requestId,
-                        items = newItems,
-                    )
+                    lastAppliedRequestByQuery[query] =
+                        AppliedRequestEntry(
+                            requestId = requestId,
+                            appliedAtMs = now,
+                        )
+                    cache[query] =
+                        CacheEntry(
+                            query = query,
+                            savedAtMs = now,
+                            requestId = requestId,
+                            items = newItems,
+                        )
                     cleanupStateLocked(now, keepQuery = query)
                     appliedItems = newItems
                 }
@@ -143,9 +155,10 @@ internal class SuggestionQueryExecutor<T>(
         query: String,
         fetch: (String) -> List<T>,
     ): List<T>? {
-        val future = workerExecutor.submit<List<T>> {
-            fetch(query).take(maxResults)
-        }
+        val future =
+            workerExecutor.submit<List<T>> {
+                fetch(query).take(maxResults)
+            }
         return try {
             future.get(timeoutMs, TimeUnit.MILLISECONDS)
         } catch (_: TimeoutException) {
@@ -185,12 +198,14 @@ internal class SuggestionQueryExecutor<T>(
             return
         }
         while (cache.size > maxCacheEntries) {
-            val eldestExpiredKey = cache.entries.firstOrNull { entry ->
-                entry.key !in protectedQueries && now - entry.value.savedAtMs > cacheTtlMs
-            }?.key
-            val eldestKey = eldestExpiredKey
-                ?: cache.entries.firstOrNull { it.key !in protectedQueries }?.key
-                ?: break
+            val eldestExpiredKey =
+                cache.entries.firstOrNull { entry ->
+                    entry.key !in protectedQueries && now - entry.value.savedAtMs > cacheTtlMs
+                }?.key
+            val eldestKey =
+                eldestExpiredKey
+                    ?: cache.entries.firstOrNull { it.key !in protectedQueries }?.key
+                    ?: break
             cache.remove(eldestKey)
         }
     }

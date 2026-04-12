@@ -1,6 +1,7 @@
 package ru.radiationx.anilibria.screen.player
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -40,7 +41,6 @@ import ru.radiationx.quill.get
 import java.util.concurrent.TimeUnit
 
 open class BasePlayerFragment : Fragment() {
-
     protected val player: ExoPlayer?
         get() = playerState
 
@@ -80,57 +80,61 @@ open class BasePlayerFragment : Fragment() {
 
     private var backPressedCallback: OnBackPressedCallback? = null
 
-    private val playerListener = object : Player.Listener {
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            isBufferingState = playbackState == Player.STATE_BUFFERING
-            when (playbackState) {
-                Player.STATE_READY -> {
-                    isLoadingState = false
-                    syncPlayerProgress()
-                    onPreparePlaying()
-                }
+    private val playerListener =
+        object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                logPlayerTrace("onPlaybackStateChanged state=${playbackStateName(playbackState)}")
+                isBufferingState = playbackState == Player.STATE_BUFFERING
+                when (playbackState) {
+                    Player.STATE_READY -> {
+                        isLoadingState = false
+                        syncPlayerProgress()
+                        onPreparePlaying()
+                    }
 
-                Player.STATE_ENDED -> {
-                    isLoadingState = false
-                    showControls()
-                    onCompletePlaying()
-                }
+                    Player.STATE_ENDED -> {
+                        isLoadingState = false
+                        showControls(reason = "player_ended")
+                        onCompletePlaying()
+                    }
 
-                Player.STATE_BUFFERING -> Unit
+                    Player.STATE_BUFFERING -> Unit
 
-                Player.STATE_IDLE -> {
-                    if (playerState?.currentMediaItem != null) {
-                        isLoadingState = true
+                    Player.STATE_IDLE -> {
+                        if (playerState?.currentMediaItem != null) {
+                            isLoadingState = true
+                        }
                     }
                 }
             }
-        }
 
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            isPlayingState = isPlaying
-            if (isPlaying) {
-                suppressAutoShowControlsState = false
-            }
-            if (!isPlaying && playerState?.currentMediaItem != null) {
-                if (suppressAutoShowControlsState) {
-                    return
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                logPlayerTrace("onIsPlayingChanged isPlaying=$isPlaying")
+                isPlayingState = isPlaying
+                if (isPlaying) {
+                    suppressAutoShowControlsState = false
                 }
-                showControls()
+                if (!isPlaying && playerState?.currentMediaItem != null) {
+                    if (suppressAutoShowControlsState) {
+                        logPlayerTrace("onIsPlayingChanged ignored_auto_show because suppressed")
+                        return
+                    }
+                    showControls(reason = "player_became_not_playing")
+                }
             }
-        }
 
-        override fun onPlayerError(error: PlaybackException) {
-            isLoadingState = false
-            isBufferingState = false
-            context?.let { safeContext ->
-                Toast.makeText(
-                    safeContext,
-                    "Ошибка при воспроизведении: ${error.message}",
-                    Toast.LENGTH_LONG,
-                ).show()
+            override fun onPlayerError(error: PlaybackException) {
+                isLoadingState = false
+                isBufferingState = false
+                context?.let { safeContext ->
+                    Toast.makeText(
+                        safeContext,
+                        "Ошибка при воспроизведении: ${error.message}",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
             }
         }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -170,9 +174,11 @@ open class BasePlayerFragment : Fragment() {
                         canNext = canNextState,
                         skipsPart = skipsPartState,
                         onControlFocused = ::rememberFocusedControl,
-                        onShowControls = ::showControls,
-                        onShowControlsFromQuickActions = ::showControlsFromQuickActions,
-                        onAutoHideControls = ::hideControls,
+                        onShowControls = { target -> showControls(target, reason = "compose_request") },
+                        onShowControlsFromQuickActions = {
+                            showControlsFromQuickActions(reason = "quick_action_navigation")
+                        },
+                        onAutoHideControls = { hideControls(reason = "auto_hide") },
                         onQuickActionHandled = ::handleQuickAction,
                         onBackRequested = ::handleBackPressed,
                         onTogglePlayback = ::togglePlayback,
@@ -215,7 +221,10 @@ open class BasePlayerFragment : Fragment() {
     }
 
     @OptIn(UnstableApi::class)
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         requireActivity().window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         initializePlayer()
@@ -227,7 +236,7 @@ open class BasePlayerFragment : Fragment() {
         super.onResume()
         val restoreTarget = resumeFocusRestoreTargetState
         if (controlsVisibleState && restoreTarget != null) {
-            showControls(restoreTarget)
+            showControls(restoreTarget, reason = "resume_restore")
         }
         if (resumePlaybackAfterPauseState && playerState?.currentMediaItem != null) {
             playerState?.play()
@@ -308,11 +317,11 @@ open class BasePlayerFragment : Fragment() {
     }
 
     protected fun restorePlayPauseFocus() {
-        showControls(PlayerOverlayFocusTarget.PlayPause)
+        showControls(PlayerOverlayFocusTarget.PlayPause, reason = "restore_play_pause_focus")
     }
 
     protected fun restoreNextEpisodeFocus() {
-        showControls(PlayerOverlayFocusTarget.NextEpisode)
+        showControls(PlayerOverlayFocusTarget.NextEpisode, reason = "restore_next_episode_focus")
     }
 
     protected fun updatePlayerAspectRatio(mode: PlayerAspectRatioMode) {
@@ -352,7 +361,7 @@ open class BasePlayerFragment : Fragment() {
         val safeStartPosition = startPositionMs.coerceAtLeast(0L)
         isLoadingState = true
         isBufferingState = true
-        showControls()
+        showControls(reason = "prepare_player")
         player.setMediaItem(
             MediaItem.fromUri(url),
             safeStartPosition,
@@ -361,18 +370,24 @@ open class BasePlayerFragment : Fragment() {
         player.prepare()
     }
 
-    protected fun playPlayback() {
+    protected fun playPlayback(revealControls: Boolean = true) {
         playerState?.play()
-        showControls()
+        if (revealControls) {
+            showControls(reason = "playback_resumed")
+        }
     }
 
     protected fun pausePlayback() {
         playerState?.pause()
     }
 
-    protected fun seekToPosition(positionMs: Long) {
+    protected fun seekToPosition(
+        positionMs: Long,
+        reason: String = "direct",
+    ) {
         val player = playerState ?: return
         val targetPosition = clampPosition(player, positionMs)
+        logPlayerTrace("seekToPosition reason=$reason target=$targetPosition")
         player.seekTo(targetPosition)
         syncProgressPosition(targetPosition)
     }
@@ -382,7 +397,15 @@ open class BasePlayerFragment : Fragment() {
     protected fun getDurationValue(): Long = playerState?.duration?.takeIf { it > 0L } ?: durationState
 
     private fun initializePlayerUi() {
-        skipsPartState = PlayerSkipsPart(onSeek = ::seekToPosition)
+        skipsPartState =
+            PlayerSkipsPart(
+                onSeek = { targetPosition ->
+                    seekToPosition(
+                        positionMs = targetPosition,
+                        reason = "skip_quick_action",
+                    )
+                },
+            )
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (isActive) {
@@ -400,16 +423,18 @@ open class BasePlayerFragment : Fragment() {
         val dataSourceProvider = get<PlayerDataSourceProvider>()
         val dataSourceType = dataSourceProvider.get()
         val dataSourceFactory = DefaultDataSource.Factory(requireContext(), dataSourceType.factory)
-        val mediaSourceFactory = DefaultMediaSourceFactory(requireContext()).apply {
-            setDataSourceFactory(dataSourceFactory)
-        }
-        playerState = ExoPlayer.Builder(requireContext())
-            .setMediaSourceFactory(mediaSourceFactory)
-            .setHandleAudioBecomingNoisy(true)
-            .build()
-            .apply {
-                addListener(playerListener)
+        val mediaSourceFactory =
+            DefaultMediaSourceFactory(requireContext()).apply {
+                setDataSourceFactory(dataSourceFactory)
             }
+        playerState =
+            ExoPlayer.Builder(requireContext())
+                .setMediaSourceFactory(mediaSourceFactory)
+                .setHandleAudioBecomingNoisy(true)
+                .build()
+                .apply {
+                    addListener(playerListener)
+                }
     }
 
     private fun releasePlayer() {
@@ -427,11 +452,12 @@ open class BasePlayerFragment : Fragment() {
     }
 
     private fun installBackHandler() {
-        backPressedCallback = object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                this@BasePlayerFragment.handleBackPressed()
+        backPressedCallback =
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    this@BasePlayerFragment.handleBackPressed()
+                }
             }
-        }
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
             backPressedCallback!!,
@@ -443,7 +469,7 @@ open class BasePlayerFragment : Fragment() {
             handlePlayerOverlayBack() -> Unit
             activePickerState != null -> closePicker(activePickerState?.focusTarget() ?: lastFocusedControlState)
             skipsPartState?.isVisible == true -> skipsPartState?.cancelCurrent()
-            controlsVisibleState -> hideControls()
+            controlsVisibleState -> hideControls(reason = "back_pressed")
             else -> {
                 val callback = backPressedCallback ?: return
                 callback.isEnabled = false
@@ -462,27 +488,33 @@ open class BasePlayerFragment : Fragment() {
     }
 
     private fun seekBy(deltaMs: Long) {
-        seekToPosition(getCurrentPosition() + deltaMs)
+        seekToPosition(
+            positionMs = getCurrentPosition() + deltaMs,
+            reason = if (deltaMs < 0L) "seek_back" else "seek_forward",
+        )
     }
 
     private fun syncPlayerProgress() {
         val player = playerState ?: return
         if (suppressAutoShowControlsState && player.isPlaying) {
+            logPlayerTrace("syncPlayerProgress clearing_suppression because player.isPlaying")
             suppressAutoShowControlsState = false
         }
         val duration = player.duration.takeIf { it > 0L } ?: 0L
         val position = player.currentPosition.coerceAtLeast(0L)
-        positionState = if (duration > 0L) {
-            position.coerceAtMost(duration)
-        } else {
-            position
-        }
+        positionState =
+            if (duration > 0L) {
+                position.coerceAtMost(duration)
+            } else {
+                position
+            }
         durationState = duration
-        bufferedPositionState = if (duration > 0L) {
-            player.bufferedPosition.coerceIn(0L, duration)
-        } else {
-            player.bufferedPosition.coerceAtLeast(0L)
-        }
+        bufferedPositionState =
+            if (duration > 0L) {
+                player.bufferedPosition.coerceIn(0L, duration)
+            } else {
+                player.bufferedPosition.coerceAtLeast(0L)
+            }
         skipsPartState?.update(positionState)
     }
 
@@ -491,26 +523,32 @@ open class BasePlayerFragment : Fragment() {
         skipsPartState?.update(positionState)
     }
 
-    private fun showControls(target: PlayerOverlayFocusTarget? = null) {
+    private fun showControls(
+        target: PlayerOverlayFocusTarget? = null,
+        reason: String = "unspecified",
+    ) {
+        logPlayerTrace("showControls reason=$reason target=${target ?: lastFocusedControlState}")
         controlsVisibleState = true
         controlsFocusTargetState = target ?: lastFocusedControlState
         controlsFocusTokenState += 1
     }
 
-    private fun showControlsFromQuickActions() {
-        showControls(lastFocusedControlState)
+    private fun showControlsFromQuickActions(reason: String = "quick_action") {
+        showControls(lastFocusedControlState, reason = reason)
     }
 
-    private fun hideControls() {
+    private fun hideControls(reason: String = "unspecified") {
+        logPlayerTrace("hideControls reason=$reason")
         controlsVisibleState = false
         activePickerState = null
     }
 
     private fun handleQuickAction(handling: PlayerQuickActionHandling) {
+        logPlayerTrace("handleQuickAction handling=$handling")
         when (handling) {
             PlayerQuickActionHandling.HideControls -> {
                 suppressAutoShowControlsState = true
-                hideControls()
+                hideControls(reason = "quick_action_hide")
             }
 
             PlayerQuickActionHandling.KeepControlsVisible -> {
@@ -527,7 +565,7 @@ open class BasePlayerFragment : Fragment() {
         if (activePickerState == picker) {
             closePicker(picker.focusTarget())
         } else {
-            showControls(picker.focusTarget())
+            showControls(picker.focusTarget(), reason = "open_picker_${picker.name}")
             activePickerState = picker
         }
     }
@@ -540,7 +578,7 @@ open class BasePlayerFragment : Fragment() {
 
     private fun closePicker(restoreTarget: PlayerOverlayFocusTarget) {
         activePickerState = null
-        showControls(restoreTarget)
+        showControls(restoreTarget, reason = "close_picker")
     }
 
     private fun clampPosition(
@@ -553,7 +591,27 @@ open class BasePlayerFragment : Fragment() {
     }
 
     private companion object {
+        const val TRACE_TAG = "TvPlayerTrace"
         const val PROGRESS_SYNC_INTERVAL_MS = 250L
         val SEEK_DELTA_MS = TimeUnit.SECONDS.toMillis(10L)
+    }
+
+    private fun logPlayerTrace(event: String) {
+        Log.i(
+            TRACE_TAG,
+            "$event controlsVisible=$controlsVisibleState suppress=$suppressAutoShowControlsState " +
+                "activePicker=${activePickerState?.name ?: "none"} isPlaying=$isPlayingState " +
+                "loading=$isLoadingState buffering=$isBufferingState pos=$positionState",
+        )
+    }
+
+    private fun playbackStateName(playbackState: Int): String {
+        return when (playbackState) {
+            Player.STATE_IDLE -> "IDLE"
+            Player.STATE_BUFFERING -> "BUFFERING"
+            Player.STATE_READY -> "READY"
+            Player.STATE_ENDED -> "ENDED"
+            else -> "UNKNOWN($playbackState)"
+        }
     }
 }

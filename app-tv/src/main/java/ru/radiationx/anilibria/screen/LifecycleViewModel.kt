@@ -6,7 +6,6 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 
 open class LifecycleViewModel : ViewModel(), DefaultLifecycleObserver {
-
     private var coldCreated = false
     private var coldStarted = false
     private var coldResumed = false
@@ -35,11 +34,9 @@ open class LifecycleViewModel : ViewModel(), DefaultLifecycleObserver {
         }
     }
 
-    protected open fun onStart() {
-    }
+    protected open fun onStart() {}
 
     protected open fun onColdStart() {
-
     }
 
     override fun onResume(owner: LifecycleOwner) {
@@ -51,8 +48,7 @@ open class LifecycleViewModel : ViewModel(), DefaultLifecycleObserver {
         }
     }
 
-    protected open fun onResume() {
-    }
+    protected open fun onResume() {}
 
     protected open fun onColdResume() {
     }
@@ -62,22 +58,19 @@ open class LifecycleViewModel : ViewModel(), DefaultLifecycleObserver {
         onPause()
     }
 
-    protected open fun onPause() {
-    }
+    protected open fun onPause() {}
 
     override fun onStop(owner: LifecycleOwner) {
         super.onStop(owner)
         onStop()
     }
 
-    protected open fun onStop() {
-    }
+    protected open fun onStop() {}
 
     override fun onDestroy(owner: LifecycleOwner) {
         super.onDestroy(owner)
         onDestroy()
     }
 
-    protected open fun onDestroy() {
-    }
+    protected open fun onDestroy() {}
 }

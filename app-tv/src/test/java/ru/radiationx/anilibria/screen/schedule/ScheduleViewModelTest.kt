@@ -1,10 +1,10 @@
 package ru.radiationx.anilibria.screen.schedule
 
+import androidx.lifecycle.LifecycleOwner
 import io.mockk.every
 import io.mockk.mockk
-import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import ru.radiationx.anilibria.common.CardsDataConverter
@@ -21,78 +21,86 @@ import java.util.ArrayDeque
 import java.util.Calendar
 
 class ScheduleViewModelTest {
-
     @Test
-    fun onColdCreate_exposesErrorAndRetryCards_whenLoadFails() = runBlocking {
-        val fakeUseCase = FakeTvContentUseCase().apply {
-            weekScheduleResults += Result.failure<List<WeekSchedulePayload>>(IllegalStateException("offline"))
-        }
-        val viewModel = ScheduleViewModel(
-            tvContentUseCase = fakeUseCase,
-            dataConverter = mockk<CardsDataConverter>(relaxed = true),
-            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
-
-        viewModel.onCreate(mockk<LifecycleOwner>(relaxed = true))
-        waitUntil { viewModel.scheduleRows.value.isNotEmpty() }
-
-        assertEquals(
-            listOf(
-                "Ошибка загрузки" to listOf(
-                    LoadingCard(
-                        title = "Не удалось загрузить расписание",
-                        description = "Проверьте подключение и попробуйте снова",
-                        isError = true,
-                    ),
-                    LinkCard("Повторить"),
+    fun onColdCreate_exposesErrorAndRetryCards_whenLoadFails() =
+        runTest {
+            val fakeUseCase =
+                FakeTvContentUseCase().apply {
+                    weekScheduleResults += Result.failure<List<WeekSchedulePayload>>(IllegalStateException("offline"))
+                }
+            val viewModel =
+                ScheduleViewModel(
+                    tvContentUseCase = fakeUseCase,
+                    dataConverter = mockk<CardsDataConverter>(relaxed = true),
+                    cardRouter = mockk<LibriaCardRouter>(relaxed = true),
                 )
-            ),
-            viewModel.scheduleRows.value,
-        )
-    }
 
-    @Test
-    fun onRetryClick_reloadsSchedule_afterFailure() = runBlocking {
-        val mondayRelease = mockk<Release>()
-        val mondayCard = LibriaCard(
-            title = "Наруто",
-            description = "Описание",
-            image = "poster.jpg",
-            type = LibriaCard.Type.Release(ReleaseId(7)),
-        )
-        val fakeUseCase = FakeTvContentUseCase().apply {
-            weekScheduleResults += Result.failure<List<WeekSchedulePayload>>(IllegalStateException("offline"))
-            weekScheduleResults += Result.success(
+            viewModel.onCreate(mockk<LifecycleOwner>(relaxed = true))
+            waitUntil { viewModel.scheduleRows.value.isNotEmpty() }
+
+            assertEquals(
                 listOf(
-                    WeekSchedulePayload(
-                        calendarDay = Calendar.MONDAY,
-                        releases = listOf(mondayRelease),
-                    )
-                )
+                    "Ошибка загрузки" to
+                        listOf(
+                            LoadingCard(
+                                title = "Не удалось загрузить расписание",
+                                description = "Проверьте подключение и попробуйте снова",
+                                isError = true,
+                            ),
+                            LinkCard("Повторить"),
+                        ),
+                ),
+                viewModel.scheduleRows.value,
             )
         }
-        val converter = mockk<CardsDataConverter>()
-        every { converter.toCard(mondayRelease) } returns mondayCard
-        val viewModel = ScheduleViewModel(
-            tvContentUseCase = fakeUseCase,
-            dataConverter = converter,
-            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
 
-        viewModel.onCreate(mockk<LifecycleOwner>(relaxed = true))
-        waitUntil { viewModel.scheduleRows.value.isNotEmpty() }
+    @Test
+    fun onRetryClick_reloadsSchedule_afterFailure() =
+        runTest {
+            val mondayRelease = mockk<Release>()
+            val mondayCard =
+                LibriaCard(
+                    title = "Наруто",
+                    description = "Описание",
+                    image = "poster.jpg",
+                    type = LibriaCard.Type.Release(ReleaseId(7)),
+                )
+            val fakeUseCase =
+                FakeTvContentUseCase().apply {
+                    weekScheduleResults += Result.failure<List<WeekSchedulePayload>>(IllegalStateException("offline"))
+                    weekScheduleResults +=
+                        Result.success(
+                            listOf(
+                                WeekSchedulePayload(
+                                    calendarDay = Calendar.MONDAY,
+                                    releases = listOf(mondayRelease),
+                                ),
+                            ),
+                        )
+                }
+            val converter = mockk<CardsDataConverter>()
+            every { converter.toCard(mondayRelease) } returns mondayCard
+            val viewModel =
+                ScheduleViewModel(
+                    tvContentUseCase = fakeUseCase,
+                    dataConverter = converter,
+                    cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+                )
 
-        viewModel.onRetryClick()
-        waitUntil { fakeUseCase.loadWeekScheduleCalls == 2 }
-        waitUntil {
-            viewModel.scheduleRows.value == listOf("Понедельник" to listOf(mondayCard))
+            viewModel.onCreate(mockk<LifecycleOwner>(relaxed = true))
+            waitUntil { viewModel.scheduleRows.value.isNotEmpty() }
+
+            viewModel.onRetryClick()
+            waitUntil { fakeUseCase.loadWeekScheduleCalls == 2 }
+            waitUntil {
+                viewModel.scheduleRows.value == listOf("Понедельник" to listOf(mondayCard))
+            }
+
+            assertEquals(
+                listOf("Понедельник" to listOf(mondayCard)),
+                viewModel.scheduleRows.value,
+            )
         }
-
-        assertEquals(
-            listOf("Понедельник" to listOf(mondayCard)),
-            viewModel.scheduleRows.value,
-        )
-    }
 
     private suspend fun waitUntil(predicate: () -> Boolean) {
         repeat(100) {
@@ -107,7 +115,10 @@ private class FakeTvContentUseCase : TvContentUseCase {
     val weekScheduleResults = ArrayDeque<Result<List<WeekSchedulePayload>>>()
     var loadWeekScheduleCalls: Int = 0
 
-    override suspend fun loadMainFeed(requestPage: Int, pageLimit: Int): List<Release> = emptyList()
+    override suspend fun loadMainFeed(
+        requestPage: Int,
+        pageLimit: Int,
+    ): List<Release> = emptyList()
 
     override suspend fun loadMainSchedule(currentTimeMs: Long): MainSchedulePayload {
         return MainSchedulePayload("", emptyList())
@@ -115,15 +126,19 @@ private class FakeTvContentUseCase : TvContentUseCase {
 
     override suspend fun loadWeekSchedule(): List<WeekSchedulePayload> {
         loadWeekScheduleCalls += 1
-        val result = if (weekScheduleResults.isEmpty()) {
-            Result.success(emptyList())
-        } else {
-            weekScheduleResults.removeFirst()
-        }
+        val result =
+            if (weekScheduleResults.isEmpty()) {
+                Result.success(emptyList())
+            } else {
+                weekScheduleResults.removeFirst()
+            }
         return result.getOrThrow()
     }
 
     override suspend fun loadFavoriteState(releaseId: ReleaseId): Boolean? = null
 
-    override suspend fun loadRecommendations(seedReleaseId: Int?, limit: Int): List<Release> = emptyList()
+    override suspend fun loadRecommendations(
+        seedReleaseId: Int?,
+        limit: Int,
+    ): List<Release> = emptyList()
 }

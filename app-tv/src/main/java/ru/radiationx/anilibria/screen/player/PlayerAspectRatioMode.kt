@@ -27,5 +27,4 @@ enum class PlayerAspectRatioMode(
         compactTitleRes = R.string.player_aspect_ratio_fill_short,
         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL,
     ),
-    ;
 }

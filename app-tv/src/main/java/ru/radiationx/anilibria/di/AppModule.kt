@@ -24,7 +24,6 @@ import ru.radiationx.shared_app.imageloader.LibriaImageLoader
 import ru.radiationx.shared_app.imageloader.impls.CoilLibriaImageLoaderImpl
 
 class AppModule(context: Context) : QuillModule() {
-
     init {
         // Сохраним applicationContext (из переданного context)
         val appContext = context.applicationContext

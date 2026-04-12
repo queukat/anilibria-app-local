@@ -17,14 +17,14 @@ class LoadMoreCardsComposer(
     },
     private val emptyCardFactory: (() -> CardItem?)? = null,
 ) {
-
     fun compose(state: PaginatorState<LibriaCard>): List<CardItem> {
         if (state.items.isEmpty()) {
-            val emptyStateCard = when {
-                state.isLoading -> loadingCard
-                state.error != null -> errorCardFactory(state.error)
-                else -> emptyCardFactory?.invoke()
-            }
+            val emptyStateCard =
+                when {
+                    state.isLoading -> loadingCard
+                    state.error != null -> errorCardFactory(state.error)
+                    else -> emptyCardFactory?.invoke()
+                }
             return emptyStateCard?.let(::listOf).orEmpty()
         }
 

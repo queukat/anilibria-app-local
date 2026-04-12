@@ -5,7 +5,6 @@ import android.util.Log
 import java.util.Collections
 
 internal object TvStartupTrace {
-
     private const val TAG = "AniLibriaTvStartup"
 
     private val processStartMs = SystemClock.elapsedRealtime()

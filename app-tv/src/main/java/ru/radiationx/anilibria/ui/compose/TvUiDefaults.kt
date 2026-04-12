@@ -10,14 +10,14 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.composed
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.lerp
@@ -38,11 +38,19 @@ internal data class TvFocusableSurfaceColors(
     val borderColor: Color,
 )
 
+internal data class TvPosterCardFocusStyle(
+    val focusedBackgroundColor: Color,
+    val borderColor: Color,
+    val focusedBorderWidth: Dp = TvUiDefaults.FOCUSED_BORDER_WIDTH,
+    val unfocusedBorderWidth: Dp = TvUiDefaults.UNFOCUSED_BORDER_WIDTH,
+    val focusedScale: Float = TvUiDefaults.POSTER_FOCUSED_SCALE,
+)
+
 internal data class TvPanelSurfaceStyle(
     val shape: Shape,
     val backgroundColor: Color,
     val borderColor: Color,
-    val borderWidth: Dp = TvUiDefaults.UnfocusedBorderWidth,
+    val borderWidth: Dp = TvUiDefaults.UNFOCUSED_BORDER_WIDTH,
 )
 
 internal object TvUiDefaults {
@@ -62,17 +70,18 @@ internal object TvUiDefaults {
     val ContentStatePanelPadding = PaddingValues(horizontal = 28.dp, vertical = 26.dp)
     val ProfilePanelPadding = PaddingValues(horizontal = 28.dp, vertical = 30.dp)
     val ScreenPanelPadding = PaddingValues(horizontal = 26.dp, vertical = 24.dp)
-    val ShellHeaderPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+    val ShellHeaderPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
     val ShellRailPadding = PaddingValues(start = 24.dp, top = 30.dp, end = 56.dp, bottom = 30.dp)
     val ShellHeaderActionWidth = 172.dp
 
-    val FocusedBorderWidth = 2.dp
-    val UnfocusedBorderWidth = 1.dp
-    val SelectionIndicatorSize = 12.dp
-    val LargeSelectionIndicatorSize = 14.dp
-    val FocusedScale = 1.035f
-    val FocusedShadowElevation = 18.dp
-    const val AppBackgroundGlowAlpha = 0.22f
+    val FOCUSED_BORDER_WIDTH = 2.dp
+    val UNFOCUSED_BORDER_WIDTH = 1.dp
+    val SELECTION_INDICATOR_SIZE = 12.dp
+    val LARGE_SELECTION_INDICATOR_SIZE = 14.dp
+    const val FOCUSED_SCALE = 1.035f
+    const val POSTER_FOCUSED_SCALE = 1.02f
+    val FOCUSED_SHADOW_ELEVATION = 18.dp
+    const val APP_BACKGROUND_GLOW_ALPHA = 0.22f
 
     fun chipActionColors(
         palette: WatchingPalette,
@@ -100,6 +109,20 @@ internal object TvUiDefaults {
         )
     }
 
+    fun defaultPosterCardFocusStyle(palette: WatchingPalette): TvPosterCardFocusStyle {
+        return TvPosterCardFocusStyle(
+            focusedBackgroundColor = Color.Transparent,
+            borderColor = palette.accentColor.copy(alpha = 0.92f),
+        )
+    }
+
+    fun subtlePosterCardFocusStyle(palette: WatchingPalette): TvPosterCardFocusStyle {
+        return TvPosterCardFocusStyle(
+            focusedBackgroundColor = Color.Transparent,
+            borderColor = palette.textColor.copy(alpha = 0.58f),
+        )
+    }
+
     fun contentStatePanelStyle(
         palette: WatchingPalette,
         accent: Boolean,
@@ -107,17 +130,19 @@ internal object TvUiDefaults {
     ): TvPanelSurfaceStyle {
         return TvPanelSurfaceStyle(
             shape = ContentStatePanelShape,
-            backgroundColor = if (accent) {
-                palette.accentColor.copy(alpha = 0.12f)
-            } else {
-                palette.surfaceColor.copy(alpha = 0.92f)
-            },
-            borderColor = when {
-                focused -> palette.textColor.copy(alpha = 0.74f)
-                accent -> palette.accentColor.copy(alpha = 0.34f)
-                else -> palette.textColor.copy(alpha = 0.08f)
-            },
-            borderWidth = if (focused) FocusedBorderWidth else UnfocusedBorderWidth,
+            backgroundColor =
+                if (accent) {
+                    palette.accentColor.copy(alpha = 0.12f)
+                } else {
+                    palette.surfaceColor.copy(alpha = 0.92f)
+                },
+            borderColor =
+                when {
+                    focused -> palette.textColor.copy(alpha = 0.74f)
+                    accent -> palette.accentColor.copy(alpha = 0.34f)
+                    else -> palette.textColor.copy(alpha = 0.08f)
+                },
+            borderWidth = if (focused) FOCUSED_BORDER_WIDTH else UNFOCUSED_BORDER_WIDTH,
         )
     }
 
@@ -136,57 +161,63 @@ internal object TvUiDefaults {
     ): TvPanelSurfaceStyle {
         return TvPanelSurfaceStyle(
             shape = ScreenPanelShape,
-            backgroundColor = if (accent) {
-                palette.accentColor.copy(alpha = 0.12f)
-            } else {
-                palette.surfaceColor.copy(alpha = 0.92f)
-            },
-            borderColor = when {
-                focused -> palette.textColor.copy(alpha = 0.74f)
-                accent -> palette.accentColor.copy(alpha = 0.32f)
-                else -> palette.textColor.copy(alpha = 0.10f)
-            },
-            borderWidth = if (focused) FocusedBorderWidth else UnfocusedBorderWidth,
+            backgroundColor =
+                if (accent) {
+                    palette.accentColor.copy(alpha = 0.12f)
+                } else {
+                    palette.surfaceColor.copy(alpha = 0.92f)
+                },
+            borderColor =
+                when {
+                    focused -> palette.textColor.copy(alpha = 0.74f)
+                    accent -> palette.accentColor.copy(alpha = 0.32f)
+                    else -> palette.textColor.copy(alpha = 0.10f)
+                },
+            borderWidth = if (focused) FOCUSED_BORDER_WIDTH else UNFOCUSED_BORDER_WIDTH,
         )
     }
 
     fun appBackgroundBrush(
         palette: WatchingPalette,
-        glowAlpha: Float = AppBackgroundGlowAlpha,
+        glowAlpha: Float = APP_BACKGROUND_GLOW_ALPHA,
     ): Brush {
         return Brush.verticalGradient(
-            colors = listOf(
-                palette.surfaceColor.copy(alpha = glowAlpha),
-                palette.backgroundColor,
-            )
+            colors =
+                listOf(
+                    palette.surfaceColor.copy(alpha = glowAlpha),
+                    palette.backgroundColor,
+                ),
         )
     }
 
     fun surfaceBackdropBrush(palette: WatchingPalette): Brush {
         return Brush.verticalGradient(
-            colors = listOf(
-                palette.backgroundColor.copy(alpha = 0.98f),
-                palette.surfaceColor.copy(alpha = 0.94f),
-            )
+            colors =
+                listOf(
+                    palette.backgroundColor.copy(alpha = 0.98f),
+                    palette.surfaceColor.copy(alpha = 0.94f),
+                ),
         )
     }
 
     fun shellHeaderBrush(palette: WatchingPalette): Brush {
         return Brush.verticalGradient(
-            colors = listOf(
-                palette.surfaceColor.copy(alpha = 0.98f),
-                palette.surfaceColor.copy(alpha = 0.94f),
-            )
+            colors =
+                listOf(
+                    palette.surfaceColor.copy(alpha = 0.98f),
+                    palette.surfaceColor.copy(alpha = 0.94f),
+                ),
         )
     }
 
     fun shellRailBrush(palette: WatchingPalette): Brush {
         return Brush.verticalGradient(
-            colors = listOf(
-                palette.surfaceColor.copy(alpha = 0.98f),
-                palette.surfaceColor.copy(alpha = 0.95f),
-                palette.backgroundColor.copy(alpha = 0.94f),
-            )
+            colors =
+                listOf(
+                    palette.surfaceColor.copy(alpha = 0.98f),
+                    palette.surfaceColor.copy(alpha = 0.95f),
+                    palette.backgroundColor.copy(alpha = 0.94f),
+                ),
         )
     }
 
@@ -210,32 +241,37 @@ internal fun Modifier.tvPanelSurface(style: TvPanelSurfaceStyle): Modifier {
 
 internal fun Modifier.tvAppBackground(
     palette: WatchingPalette,
-    glowAlpha: Float = TvUiDefaults.AppBackgroundGlowAlpha,
+    glowAlpha: Float = TvUiDefaults.APP_BACKGROUND_GLOW_ALPHA,
 ): Modifier {
     return composed {
         val dynamicBackground = LocalTvAppBackgroundState.current
         drawWithCache {
             val overlayBrush = TvUiDefaults.appBackgroundBrush(palette, glowAlpha)
-            val legacyBackdropBrush = Brush.linearGradient(
-                colors = listOf(
-                    Color.Black.copy(alpha = 0.82f),
-                    Color.Black.copy(alpha = 0.18f),
-                ),
-                start = Offset(0f, size.height),
-                end = Offset(size.width * 0.9f, size.height * 0.14f),
-            )
-            val dynamicGlowBrush = Brush.radialGradient(
-                colors = listOf(
-                    lerp(dynamicBackground.baseColor, Color.White, 0.22f).copy(alpha = 0.34f),
-                    dynamicBackground.baseColor.copy(alpha = 0.16f),
-                    Color.Transparent,
-                ),
-                center = Offset(size.width * 0.28f, size.height * 0.16f),
-                radius = max(size.width, size.height) * 0.95f,
-            )
-            val foregroundColor = dynamicBackground.foregroundColor.copy(
-                alpha = dynamicBackground.foregroundAlpha,
-            )
+            val legacyBackdropBrush =
+                Brush.linearGradient(
+                    colors =
+                        listOf(
+                            Color.Black.copy(alpha = 0.82f),
+                            Color.Black.copy(alpha = 0.18f),
+                        ),
+                    start = Offset(0f, size.height),
+                    end = Offset(size.width * 0.9f, size.height * 0.14f),
+                )
+            val dynamicGlowBrush =
+                Brush.radialGradient(
+                    colors =
+                        listOf(
+                            lerp(dynamicBackground.baseColor, Color.White, 0.22f).copy(alpha = 0.34f),
+                            dynamicBackground.baseColor.copy(alpha = 0.16f),
+                            Color.Transparent,
+                        ),
+                    center = Offset(size.width * 0.28f, size.height * 0.16f),
+                    radius = max(size.width, size.height) * 0.95f,
+                )
+            val foregroundColor =
+                dynamicBackground.foregroundColor.copy(
+                    alpha = dynamicBackground.foregroundAlpha,
+                )
             onDrawBehind {
                 if (dynamicBackground.enabled) {
                     drawRect(color = dynamicBackground.baseColor)
@@ -265,8 +301,8 @@ internal fun TvTextActionButton(
     minWidth: Dp? = null,
     colors: TvFocusableSurfaceColors = TvUiDefaults.chipActionColors(palette),
     paddingValues: PaddingValues = TvUiDefaults.ActionButtonPadding,
-    focusedBorderWidth: Dp = TvUiDefaults.FocusedBorderWidth,
-    unfocusedBorderWidth: Dp = TvUiDefaults.UnfocusedBorderWidth,
+    focusedBorderWidth: Dp = TvUiDefaults.FOCUSED_BORDER_WIDTH,
+    unfocusedBorderWidth: Dp = TvUiDefaults.UNFOCUSED_BORDER_WIDTH,
     fontSize: TextUnit = 16.sp,
     fontWeight: FontWeight = FontWeight.SemiBold,
     textAlign: TextAlign = TextAlign.Center,
@@ -278,11 +314,12 @@ internal fun TvTextActionButton(
     onRight: (() -> Boolean)? = null,
     onDown: (() -> Boolean)? = null,
 ) {
-    val buttonModifier = if (minWidth != null) {
-        modifier.widthIn(min = minWidth)
-    } else {
-        modifier
-    }
+    val buttonModifier =
+        if (minWidth != null) {
+            modifier.widthIn(min = minWidth)
+        } else {
+            modifier
+        }
     WatchingFocusableSurface(
         focusRequester = focusRequester,
         enabled = enabled,
@@ -319,21 +356,22 @@ internal fun TvSelectionIndicator(
     selected: Boolean,
     palette: WatchingPalette,
     modifier: Modifier = Modifier,
-    size: Dp = TvUiDefaults.SelectionIndicatorSize,
+    size: Dp = TvUiDefaults.SELECTION_INDICATOR_SIZE,
     inactiveBorderColor: Color = palette.textColor.copy(alpha = 0.22f),
 ) {
     Box(
-        modifier = modifier
-            .size(size)
-            .clip(TvUiDefaults.CircularIndicatorShape)
-            .background(
-                color = if (selected) palette.accentColor else Color.Transparent,
-            )
-            .border(
-                width = 1.dp,
-                color = if (selected) palette.accentColor else inactiveBorderColor,
-                shape = TvUiDefaults.CircularIndicatorShape,
-            ),
+        modifier =
+            modifier
+                .size(size)
+                .clip(TvUiDefaults.CircularIndicatorShape)
+                .background(
+                    color = if (selected) palette.accentColor else Color.Transparent,
+                )
+                .border(
+                    width = 1.dp,
+                    color = if (selected) palette.accentColor else inactiveBorderColor,
+                    shape = TvUiDefaults.CircularIndicatorShape,
+                ),
         contentAlignment = Alignment.Center,
     ) {}
 }

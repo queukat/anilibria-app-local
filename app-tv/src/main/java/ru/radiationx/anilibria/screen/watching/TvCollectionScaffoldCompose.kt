@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -37,6 +36,7 @@ import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvPanelSurface
+import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
 
 internal data class TvCollectionFilterAction(
     val label: String,
@@ -90,15 +90,17 @@ internal fun TvCollectionTopFiltersPanel(
     leadingAction: TvCollectionTopAction? = null,
 ) {
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .tvPanelSurface(TvUiDefaults.screenPanelStyle(palette))
-            .padding(TvCollectionTopFiltersPanelPadding),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .tvPanelSurface(TvUiDefaults.screenPanelStyle(palette))
+                .padding(TvCollectionTopFiltersPanelPadding),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(),
             verticalArrangement = Arrangement.spacedBy(TvCollectionTopFiltersSpacing),
         ) {
             if (headerExpanded && (!title.isNullOrBlank() || !subtitle.isNullOrBlank())) {
@@ -158,11 +160,12 @@ internal fun TvCollectionTopFiltersPanel(
                 }
 
                 Box(
-                    modifier = if (leadingAction != null) {
-                        Modifier.weight(1f)
-                    } else {
-                        Modifier.fillMaxWidth()
-                    }
+                    modifier =
+                        if (leadingAction != null) {
+                            Modifier.weight(1f)
+                        } else {
+                            Modifier.fillMaxWidth()
+                        },
                 ) {
                     TvCollectionFiltersRow(
                         filters = filters,
@@ -253,31 +256,33 @@ internal fun TvCollectionGridStateContent(
                 accent = statePanel.accent,
                 loading = statePanel.loading,
                 modifier = Modifier.align(Alignment.TopCenter),
-                action = if (statePanel.actionText != null && onStateActionClick != null) {
-                    {
-                        TvContentStateActionButton(
-                            text = statePanel.actionText,
-                            palette = palette,
-                            focusRequester = stateActionRequester,
-                            onClick = onStateActionClick,
-                            onLeft = onStateActionLeft,
-                            onUp = onStateActionUp,
-                            onDown = { true },
-                        )
-                    }
-                } else {
-                    null
-                },
+                action =
+                    if (statePanel.actionText != null && onStateActionClick != null) {
+                        {
+                            TvContentStateActionButton(
+                                text = statePanel.actionText,
+                                palette = palette,
+                                focusRequester = stateActionRequester,
+                                onClick = onStateActionClick,
+                                onLeft = onStateActionLeft,
+                                onUp = onStateActionUp,
+                                onDown = { true },
+                            )
+                        }
+                    } else {
+                        null
+                    },
             )
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columnsCount),
                 state = gridState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    top = topContentPadding,
-                    bottom = bottomContentPadding,
-                ),
+                contentPadding =
+                    PaddingValues(
+                        top = topContentPadding,
+                        bottom = bottomContentPadding,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
                 horizontalArrangement = Arrangement.spacedBy(TvRowSpacing),
             ) {
@@ -287,21 +292,23 @@ internal fun TvCollectionGridStateContent(
                     span = { _, item -> spanForTvCollectionItem(item) },
                 ) { index, item ->
                     when (item) {
-                        is LibriaCard -> WatchingPosterCard(
-                            imageUrl = item.image,
-                            palette = palette,
-                            focusRequester = itemRequesters[index],
-                            enabled = interactionsEnabled,
-                            scaleTransformOrigin = edgeAwareGridTransformOrigin(
-                                index = index,
-                                columnsCount = columnsCount,
-                                itemsCount = cards.size,
-                            ),
-                            onClick = { onItemClick(item) },
-                            onFocused = { onItemFocused(item, index) },
-                            onLeft = onItemLeft(index, item),
-                            onUp = onItemUp(index, item),
-                        )
+                        is LibriaCard ->
+                            WatchingPosterCard(
+                                imageUrl = item.image,
+                                palette = palette,
+                                focusRequester = itemRequesters[index],
+                                enabled = interactionsEnabled,
+                                scaleTransformOrigin =
+                                    edgeAwareGridTransformOrigin(
+                                        index = index,
+                                        columnsCount = columnsCount,
+                                        itemsCount = cards.size,
+                                    ),
+                                onClick = { onItemClick(item) },
+                                onFocused = { onItemFocused(item, index) },
+                                onLeft = onItemLeft(index, item),
+                                onUp = onItemUp(index, item),
+                            )
 
                         else -> {
                             val cardModel = messageCardModel(item, palette) ?: return@itemsIndexed

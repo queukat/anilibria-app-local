@@ -18,7 +18,6 @@ internal class ProfilePageContent(
     private val fragment: Fragment,
     private val backgroundManager: GradientBackgroundManager,
 ) : MainShellPageContent {
-
     private val viewModel = fragment.getViewModel(ProfileViewModel::class)
 
     private var profileState by mutableStateOf<ProfileItem?>(null)

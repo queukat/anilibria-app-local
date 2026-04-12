@@ -2,8 +2,8 @@ package ru.radiationx.anilibria.screen.details
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,27 +29,25 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
-import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.screen.main.MainSectionBlock
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
-import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
-import ru.radiationx.anilibria.screen.watching.TvBottomDescriptionInset
 import ru.radiationx.anilibria.screen.watching.TvDetailDescriptionBarPadding
 import ru.radiationx.anilibria.screen.watching.TvDetailHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
+import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.clampedTvSectionTargetIndex
 import ru.radiationx.anilibria.screen.watching.defaultTvSectionTargetIndex
 import ru.radiationx.anilibria.screen.watching.findAdjacentTvSectionTarget
 import ru.radiationx.anilibria.screen.watching.findTvSectionRestoreTarget
 import ru.radiationx.anilibria.screen.watching.launchKeepTvSectionItemVisible
 import ru.radiationx.anilibria.screen.watching.launchTvSectionFocus
-import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.rememberTvDescriptionOverlayClearance
+import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.resolveTvSectionTargetInSection
 import ru.radiationx.anilibria.screen.watching.restoreTvSectionFocus
+import ru.radiationx.anilibria.ui.compose.DebouncedCardBackdropEffect
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
 
@@ -88,43 +86,48 @@ internal fun DetailScreen(
     onHeaderFocusSettled: () -> Unit,
     onSectionItemClick: (Long, CardItem) -> Unit,
     onContentItemFocused: (Int, Int, CardItem) -> Unit,
+    onBackdropItemFocused: (CardItem) -> Unit,
 ) {
     val palette = rememberWatchingPalette()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val verticalState = remember { LazyListState() }
-    val detailCardBackground = palette.surfaceColor.copy(alpha = 0.86f)
     val sectionItems = remember(sections) { sections.map(MainSectionUiModel::items) }
     val sectionIds = remember(sections) { sections.map(MainSectionUiModel::id) }
-    val sectionKeys = remember(sections) {
-        sections.map { section ->
-            section.id to section.items.map(CardItem::getId)
-        }
-    }
-    val rowStates = remember(sectionIds) { List(sections.size) { LazyListState() } }
-    val requesterCache = remember {
-        mutableMapOf<Long, MutableMap<Int, androidx.compose.ui.focus.FocusRequester>>()
-    }
-    val sectionRequesters = remember(sectionKeys) {
-        buildStableDetailSectionRequesters(
-            sections = sections,
-            requesterCache = requesterCache,
-        )
-    }
-    val firstContentRequester = remember(sectionKeys) {
-        sections.indices.asSequence()
-            .mapNotNull { sectionIndex ->
-                val target = resolveTvSectionTargetInSection(
-                    sections = sectionItems,
-                    sectionIndex = sectionIndex,
-                    preferredItemIndex = 0,
-                    resolveTargetIndex = ::defaultTvSectionTargetIndex,
-                ) ?: return@mapNotNull null
-                sectionRequesters.getOrNull(target.sectionIndex)?.getOrNull(target.itemIndex)
+    val sectionKeys =
+        remember(sections) {
+            sections.map { section ->
+                section.id to section.items.map(CardItem::getId)
             }
-            .firstOrNull()
-            ?: androidx.compose.ui.focus.FocusRequester.Default
-    }
+        }
+    val rowStates = remember(sectionIds) { List(sections.size) { LazyListState() } }
+    val requesterCache =
+        remember {
+            mutableMapOf<Long, MutableMap<Int, androidx.compose.ui.focus.FocusRequester>>()
+        }
+    val sectionRequesters =
+        remember(sectionKeys) {
+            buildStableDetailSectionRequesters(
+                sections = sections,
+                requesterCache = requesterCache,
+            )
+        }
+    val firstContentRequester =
+        remember(sectionKeys) {
+            sections.indices.asSequence()
+                .mapNotNull { sectionIndex ->
+                    val target =
+                        resolveTvSectionTargetInSection(
+                            sections = sectionItems,
+                            sectionIndex = sectionIndex,
+                            preferredItemIndex = 0,
+                            resolveTargetIndex = ::defaultTvSectionTargetIndex,
+                        ) ?: return@mapNotNull null
+                    sectionRequesters.getOrNull(target.sectionIndex)?.getOrNull(target.itemIndex)
+                }
+                .firstOrNull()
+                ?: androidx.compose.ui.focus.FocusRequester.Default
+        }
     var selectedItem by remember { mutableStateOf<CardItem?>(null) }
     var handledContentRestoreToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
@@ -132,6 +135,11 @@ internal fun DetailScreen(
     val hasContent = remember(sectionKeys) { sections.any { it.items.isNotEmpty() } }
     val descriptionOverlayClearance = rememberTvDescriptionOverlayClearance(hasContent = hasContent)
     var isContentPageActive by remember { mutableStateOf(false) }
+
+    DebouncedCardBackdropEffect(
+        card = selectedItem.takeIf { isContentPageActive },
+        onCardSettled = onBackdropItemFocused,
+    )
 
     fun requestHeaderFocus() {
         selectedItem = null
@@ -144,13 +152,14 @@ internal fun DetailScreen(
         direction: Int,
         preferredItemIndex: Int,
     ): Boolean {
-        val target = findAdjacentTvSectionTarget(
-            sections = sectionItems,
-            currentSectionIndex = currentSectionIndex,
-            direction = direction,
-            preferredItemIndex = preferredItemIndex,
-            resolveTargetIndex = ::clampedTvSectionTargetIndex,
-        ) ?: return false
+        val target =
+            findAdjacentTvSectionTarget(
+                sections = sectionItems,
+                currentSectionIndex = currentSectionIndex,
+                direction = direction,
+                preferredItemIndex = preferredItemIndex,
+                resolveTargetIndex = ::clampedTvSectionTargetIndex,
+            ) ?: return false
         return launchTvSectionFocus(
             scope = scope,
             verticalState = verticalState,
@@ -174,12 +183,13 @@ internal fun DetailScreen(
         selectedItem = visibleItems.firstOrNull { it.getId() == selectedId }
             ?: visibleItems.firstOrNull { it.getId() == contentRestoreState.preferredItemId }
         if (hadSelectedItem && !stillVisible) {
-            val restoreTarget = findTvSectionRestoreTarget(
-                sections = sectionItems,
-                preferredSectionIndex = lastFocusedSectionIndex,
-                preferredItemIndex = lastFocusedItemIndex,
-                resolveTargetIndex = ::clampedTvSectionTargetIndex,
-            )
+            val restoreTarget =
+                findTvSectionRestoreTarget(
+                    sections = sectionItems,
+                    preferredSectionIndex = lastFocusedSectionIndex,
+                    preferredItemIndex = lastFocusedItemIndex,
+                    resolveTargetIndex = ::clampedTvSectionTargetIndex,
+                )
             if (restoreTarget != null) {
                 isContentPageActive = true
                 restoreTvSectionFocus(
@@ -203,13 +213,14 @@ internal fun DetailScreen(
         ) {
             return@LaunchedEffect
         }
-        val restoreTarget = findTvSectionRestoreTarget(
-            sections = sectionItems,
-            preferredSectionIndex = contentRestoreState.preferredSectionIndex,
-            preferredItemIndex = contentRestoreState.preferredItemIndex,
-            preferredItemId = contentRestoreState.preferredItemId,
-            resolveTargetIndex = ::clampedTvSectionTargetIndex,
-        ) ?: return@LaunchedEffect
+        val restoreTarget =
+            findTvSectionRestoreTarget(
+                sections = sectionItems,
+                preferredSectionIndex = contentRestoreState.preferredSectionIndex,
+                preferredItemIndex = contentRestoreState.preferredItemIndex,
+                preferredItemId = contentRestoreState.preferredItemId,
+                resolveTargetIndex = ::clampedTvSectionTargetIndex,
+            ) ?: return@LaunchedEffect
         isContentPageActive = true
         if (restoreTvSectionFocus(
                 verticalState = verticalState,
@@ -224,9 +235,10 @@ internal fun DetailScreen(
     }
 
     BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .tvAppBackground(palette)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .tvAppBackground(palette),
     ) {
         val headerHeight = maxHeight
         val headerOffsetY by animateDpAsState(
@@ -239,14 +251,16 @@ internal fun DetailScreen(
         )
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clipToBounds(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .clipToBounds(),
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .offset { IntOffset(x = 0, y = headerOffsetY.roundToPx()) },
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .offset { IntOffset(x = 0, y = headerOffsetY.roundToPx()) },
             ) {
                 ReleaseDetailsRowContent(
                     uiState = headerUiState,
@@ -254,26 +268,29 @@ internal fun DetailScreen(
                     showMoreHint = hasContent && !isContentPageActive,
                     actionsDownRequester = firstContentRequester,
                     onInitialHeaderFocusApplied = onHeaderFocusSettled,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(headerHeight),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(headerHeight),
                 )
             }
 
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .offset { IntOffset(x = 0, y = contentOffsetY.roundToPx()) }
-                    .background(TvUiDefaults.surfaceBackdropBrush(palette)),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .offset { IntOffset(x = 0, y = contentOffsetY.roundToPx()) }
+                        .background(TvUiDefaults.surfaceBackdropBrush(palette)),
             ) {
                 LazyColumn(
                     state = verticalState,
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
-                    contentPadding = PaddingValues(
-                        top = 36.dp,
-                        bottom = if (hasContent) descriptionOverlayClearance.bottomInset else 0.dp,
-                    ),
+                    contentPadding =
+                        PaddingValues(
+                            top = 36.dp,
+                            bottom = if (hasContent) descriptionOverlayClearance.bottomInset else 0.dp,
+                        ),
                 ) {
                     itemsIndexed(
                         items = sections,
@@ -317,10 +334,7 @@ internal fun DetailScreen(
                                 requestSectionFocus(sectionIndex, 1, itemIndex)
                             },
                             modifier = Modifier.padding(horizontal = TvDetailHorizontalPadding),
-                            posterFocusedBackgroundColor = detailCardBackground,
-                            posterBorderColor = palette.textColor.copy(alpha = 0.58f),
-                            posterFocusedBorderWidth = 2.dp,
-                            posterUnfocusedBorderWidth = 1.dp,
+                            posterFocusStyle = TvUiDefaults.subtlePosterCardFocusStyle(palette),
                         )
                     }
                 }
@@ -328,22 +342,24 @@ internal fun DetailScreen(
 
             if (isContentPageActive) {
                 selectedItem?.let { item ->
-                val description = item.toTvCardDescription { card ->
-                    card.resolveDescription(context)
+                    val description =
+                        item.toTvCardDescription { card ->
+                            card.resolveDescription(context)
+                        }
+                    if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
+                        WatchingDescriptionBar(
+                            title = description.title.toString(),
+                            subtitle = description.subtitle.toString(),
+                            palette = palette,
+                            contentPadding = TvDetailDescriptionBarPadding,
+                            solidSurface = true,
+                            modifier =
+                                Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .then(descriptionOverlayClearance.measureModifier),
+                        )
+                    }
                 }
-                if (description.title.isNotBlank() || description.subtitle.isNotBlank()) {
-                    WatchingDescriptionBar(
-                        title = description.title.toString(),
-                        subtitle = description.subtitle.toString(),
-                        palette = palette,
-                        contentPadding = TvDetailDescriptionBarPadding,
-                        solidSurface = true,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .then(descriptionOverlayClearance.measureModifier),
-                    )
-                }
-            }
             }
         }
     }

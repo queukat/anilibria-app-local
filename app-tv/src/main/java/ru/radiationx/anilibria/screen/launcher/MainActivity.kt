@@ -8,18 +8,16 @@ import com.github.terrakok.cicerone.androidx.AppNavigator
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.TvStartupTrace
 import ru.radiationx.anilibria.contentprovider.suggestions.SuggestionsContentProvider
-import ru.radiationx.data.entity.domain.types.ReleaseId
-import ru.radiationx.quill.installModules
-import ru.radiationx.quill.viewModel
-import ru.radiationx.shared.ktx.android.subscribeTo
 import ru.radiationx.anilibria.di.ActivityModule
 import ru.radiationx.anilibria.di.AppModule
 import ru.radiationx.anilibria.di.NavigationModule
+import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.inject
+import ru.radiationx.quill.installModules
+import ru.radiationx.quill.viewModel
+import ru.radiationx.shared.ktx.android.subscribeTo
 
 class MainActivity : FragmentActivity() {
-
-
     private val viewModel: AppLauncherViewModel by viewModel()
     private val navigator by lazy {
         AppNavigator(this, android.R.id.content)

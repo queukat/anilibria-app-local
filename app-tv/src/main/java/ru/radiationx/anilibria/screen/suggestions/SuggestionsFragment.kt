@@ -30,7 +30,6 @@ import ru.radiationx.shared.ktx.android.subscribeTo
 import java.util.Locale
 
 class SuggestionsFragment : Fragment() {
-
     private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
 
     private val resultViewModel by viewModel<SuggestionsResultViewModel>()
@@ -42,21 +41,23 @@ class SuggestionsFragment : Fragment() {
     private var focusRequestToken by mutableIntStateOf(1)
     private var voiceSearchAvailable by mutableStateOf(false)
 
-    private val voiceSearchLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode != Activity.RESULT_OK) {
-            return@registerForActivityResult
+    private val voiceSearchLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { result ->
+            if (result.resultCode != Activity.RESULT_OK) {
+                return@registerForActivityResult
+            }
+            val voiceQuery =
+                result.data
+                    ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                    ?.firstOrNull()
+                    ?.trim()
+                    .orEmpty()
+            if (voiceQuery.isNotBlank()) {
+                handleQueryChange(voiceQuery)
+            }
         }
-        val voiceQuery = result.data
-            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            ?.firstOrNull()
-            ?.trim()
-            .orEmpty()
-        if (voiceQuery.isNotBlank()) {
-            handleQueryChange(voiceQuery)
-        }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -68,11 +69,12 @@ class SuggestionsFragment : Fragment() {
             isFocusable = true
             isFocusableInTouchMode = true
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
-                if (hasFocus) {
-                    focusRequestToken++
+            onFocusChangeListener =
+                View.OnFocusChangeListener { _, hasFocus ->
+                    if (hasFocus) {
+                        focusRequestToken++
+                    }
                 }
-            }
             setContent {
                 ProvideGradientBackground(backgroundManager) {
                     SuggestionsScreen(
@@ -93,7 +95,10 @@ class SuggestionsFragment : Fragment() {
         }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
 
         backgroundManager.clearGradient()
@@ -150,23 +155,26 @@ class SuggestionsFragment : Fragment() {
     }
 
     private fun buildSections(): List<SuggestionsSectionUiModel> {
-        val rowIds = SuggestionsRows.visibleRowIds(
-            showResultRow = searchState.showResultRow,
-            showRecommendsRow = searchState.showRecommendsRow,
-        )
+        val rowIds =
+            SuggestionsRows.visibleRowIds(
+                showResultRow = searchState.showResultRow,
+                showRecommendsRow = searchState.showRecommendsRow,
+            )
         return rowIds.mapNotNull { rowId ->
             when (rowId) {
-                SuggestionsRows.RESULT_ROW_ID -> SuggestionsSectionUiModel(
-                    id = rowId,
-                    title = "Результат поиска",
-                    items = searchState.resultCards,
-                )
+                SuggestionsRows.RESULT_ROW_ID ->
+                    SuggestionsSectionUiModel(
+                        id = rowId,
+                        title = "Результат поиска",
+                        items = searchState.resultCards,
+                    )
 
-                SuggestionsRows.RECOMMENDS_ROW_ID -> SuggestionsSectionUiModel(
-                    id = rowId,
-                    title = recommendsViewModel.defaultTitle,
-                    items = recommendsCardsState.ifEmpty { listOf(LoadingCard("Загрузка...")) },
-                )
+                SuggestionsRows.RECOMMENDS_ROW_ID ->
+                    SuggestionsSectionUiModel(
+                        id = rowId,
+                        title = recommendsViewModel.defaultTitle,
+                        items = recommendsCardsState.ifEmpty { listOf(LoadingCard("Загрузка...")) },
+                    )
 
                 else -> null
             }
@@ -198,7 +206,7 @@ class SuggestionsFragment : Fragment() {
             is LibriaCard,
             is LinkCard,
             is LoadingCard,
-                -> viewModel.onCardItemClick(item)
+            -> viewModel.onCardItemClick(item)
 
             else -> Unit
         }

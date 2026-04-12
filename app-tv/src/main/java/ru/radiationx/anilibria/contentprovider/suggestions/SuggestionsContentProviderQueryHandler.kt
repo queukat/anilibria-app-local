@@ -1,8 +1,8 @@
 package ru.radiationx.anilibria.contentprovider.suggestions
 
 import ru.radiationx.data.entity.domain.search.SuggestionItem
-import java.util.concurrent.ExecutorService
 import java.util.LinkedHashMap
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.ScheduledExecutorService
 
 internal class SuggestionsContentProviderQueryHandler<Key>(
@@ -19,41 +19,46 @@ internal class SuggestionsContentProviderQueryHandler<Key>(
     scheduler: ScheduledExecutorService? = null,
     workerExecutor: ExecutorService? = null,
 ) {
-
     private val lock = Any()
     private val nowMillis = nowMillis
-    private val queryKeys = LinkedHashMap<String, QueryKeyEntry<Key>>(
-        maxTrackedQueries,
-        QUERY_CACHE_LOAD_FACTOR,
-        true,
-    )
-    private val executor = SuggestionQueryExecutor<SuggestionItem>(
-        minQueryLength = minQueryLength,
-        maxResults = maxResults,
-        timeoutMs = timeoutMs,
-        cacheTtlMs = cacheTtlMs,
-        minRequestIntervalMs = minRequestIntervalMs,
-        maxCacheEntries = maxTrackedQueries,
-        onCacheUpdated = { query, _ ->
-            synchronized(lock) {
-                cleanupTrackedQueriesLocked(nowMillis(), keepQuery = query)
-                queryKeys[query]?.key
-            }?.let(onRefreshReady)
-        },
-        nowMillis = this.nowMillis,
-        scheduler = scheduler ?: createScheduler(),
-        workerExecutor = workerExecutor ?: createWorkerExecutor(),
-    )
+    private val queryKeys =
+        LinkedHashMap<String, QueryKeyEntry<Key>>(
+            maxTrackedQueries,
+            QUERY_CACHE_LOAD_FACTOR,
+            true,
+        )
+    private val executor =
+        SuggestionQueryExecutor<SuggestionItem>(
+            minQueryLength = minQueryLength,
+            maxResults = maxResults,
+            timeoutMs = timeoutMs,
+            cacheTtlMs = cacheTtlMs,
+            minRequestIntervalMs = minRequestIntervalMs,
+            maxCacheEntries = maxTrackedQueries,
+            onCacheUpdated = { query, _ ->
+                synchronized(lock) {
+                    cleanupTrackedQueriesLocked(nowMillis(), keepQuery = query)
+                    queryKeys[query]?.key
+                }?.let(onRefreshReady)
+            },
+            nowMillis = this.nowMillis,
+            scheduler = scheduler ?: createScheduler(),
+            workerExecutor = workerExecutor ?: createWorkerExecutor(),
+        )
 
-    fun query(key: Key, rawQuery: String): List<SuggestionItem> {
+    fun query(
+        key: Key,
+        rawQuery: String,
+    ): List<SuggestionItem> {
         val query = rawQuery.trim()
         if (query.length >= minQueryLength) {
             synchronized(lock) {
                 cleanupTrackedQueriesLocked(nowMillis(), keepQuery = query)
-                queryKeys[query] = QueryKeyEntry(
-                    key = key,
-                    savedAtMs = nowMillis(),
-                )
+                queryKeys[query] =
+                    QueryKeyEntry(
+                        key = key,
+                        savedAtMs = nowMillis(),
+                    )
             }
         }
         return executor.execute(query) { normalizedQuery ->

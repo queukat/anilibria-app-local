@@ -19,47 +19,49 @@ import ru.radiationx.shared_app.controllers.loadersingle.mapData
 import javax.inject.Inject
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-class SuggestionsResultViewModel @Inject constructor(
-    private val tvSuggestionsUseCase: TvSuggestionsUseCase,
-    private val cardRouter: LibriaCardRouter,
-) : LifecycleViewModel() {
-
-    private val searchLoader = SearchLoader<Query, List<SuggestionItem>>(viewModelScope) {
-        tvSuggestionsUseCase.loadSuggestions(it.query)
-    }
-
-    private val _uiState = MutableStateFlow(SuggestionsResultUiState())
-    internal val uiState: StateFlow<SuggestionsResultUiState> = _uiState.asStateFlow()
-
-    init {
-        searchLoader
-            .observeState()
-            .mapData { items ->
-                val currentQuery = searchLoader.getQuery()?.query.orEmpty()
-                SuggestionsSearchResult(
-                    items = items,
-                    query = currentQuery,
-                    validQuery = currentQuery.length >= 3,
-                )
+class SuggestionsResultViewModel
+    @Inject
+    constructor(
+        private val tvSuggestionsUseCase: TvSuggestionsUseCase,
+        private val cardRouter: LibriaCardRouter,
+    ) : LifecycleViewModel() {
+        private val searchLoader =
+            SearchLoader<Query, List<SuggestionItem>>(viewModelScope) {
+                tvSuggestionsUseCase.loadSuggestions(it.query)
             }
-            .onEach {
-                val result = it.data ?: SuggestionsSearchResult()
-                _uiState.value = result.toUiState(progressVisible = it.loading)
+
+        private val _uiState = MutableStateFlow(SuggestionsResultUiState())
+        internal val uiState: StateFlow<SuggestionsResultUiState> = _uiState.asStateFlow()
+
+        init {
+            searchLoader
+                .observeState()
+                .mapData { items ->
+                    val currentQuery = searchLoader.getQuery()?.query.orEmpty()
+                    SuggestionsSearchResult(
+                        items = items,
+                        query = currentQuery,
+                        validQuery = currentQuery.length >= 3,
+                    )
+                }
+                .onEach {
+                    val result = it.data ?: SuggestionsSearchResult()
+                    _uiState.value = result.toUiState(progressVisible = it.loading)
+                }
+                .launchIn(viewModelScope)
+        }
+
+        fun onQueryChange(query: String) {
+            searchLoader.onNewQuery(Query(query))
+        }
+
+        fun onCardClick(item: LibriaCard) {
+            cardRouter.navigate(item)
+        }
+
+        private data class Query(val query: String) : SearchQuery {
+            override fun isEmpty(): Boolean {
+                return query.length < 3
             }
-            .launchIn(viewModelScope)
-    }
-
-    fun onQueryChange(query: String) {
-        searchLoader.onNewQuery(Query(query))
-    }
-
-    fun onCardClick(item: LibriaCard) {
-        cardRouter.navigate(item)
-    }
-
-    private data class Query(val query: String) : SearchQuery {
-        override fun isEmpty(): Boolean {
-            return query.length < 3
         }
     }
-}

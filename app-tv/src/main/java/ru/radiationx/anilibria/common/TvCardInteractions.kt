@@ -5,9 +5,7 @@ internal data class TvCardDescription(
     val subtitle: CharSequence = "",
 )
 
-internal fun Any?.toTvCardDescription(
-    libriaSubtitle: (LibriaCard) -> CharSequence = { it.description }
-): TvCardDescription {
+internal fun Any?.toTvCardDescription(libriaSubtitle: (LibriaCard) -> CharSequence = { it.description }): TvCardDescription {
     val card = this as? CardItem ?: return TvCardDescription()
     return when (card) {
         is LibriaCard -> TvCardDescription(title = card.title, subtitle = libriaSubtitle(card))

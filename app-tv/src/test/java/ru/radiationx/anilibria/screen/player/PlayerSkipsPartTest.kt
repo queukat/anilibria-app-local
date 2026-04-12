@@ -9,7 +9,6 @@ import org.junit.Test
 import ru.radiationx.data.entity.domain.release.PlayerSkips
 
 class PlayerSkipsPartTest {
-
     @Test
     fun update_showsOverlayWhenPositionEntersSkipWindow() {
         val skipsPart = PlayerSkipsPart(onSeek = {})
@@ -18,7 +17,7 @@ class PlayerSkipsPartTest {
             PlayerSkips(
                 opening = PlayerSkips.Skip(start = 1_000L, end = 5_000L),
                 ending = null,
-            )
+            ),
         )
 
         skipsPart.update(2_000L)
@@ -35,7 +34,7 @@ class PlayerSkipsPartTest {
             PlayerSkips(
                 opening = PlayerSkips.Skip(start = 1_000L, end = 5_000L),
                 ending = null,
-            )
+            ),
         )
         skipsPart.update(2_000L)
 
@@ -52,7 +51,7 @@ class PlayerSkipsPartTest {
             PlayerSkips(
                 opening = PlayerSkips.Skip(start = 1_000L, end = 5_000L),
                 ending = null,
-            )
+            ),
         )
         skipsPart.update(2_000L)
 
@@ -69,7 +68,7 @@ class PlayerSkipsPartTest {
             PlayerSkips(
                 opening = PlayerSkips.Skip(start = 1_000L, end = 5_000L),
                 ending = null,
-            )
+            ),
         )
         skipsPart.update(2_000L)
 
@@ -87,7 +86,7 @@ class PlayerSkipsPartTest {
             PlayerSkips(
                 opening = PlayerSkips.Skip(start = 1_000L, end = 5_000L),
                 ending = null,
-            )
+            ),
         )
         skipsPart.update(2_000L)
 
@@ -106,7 +105,7 @@ class PlayerSkipsPartTest {
             PlayerSkips(
                 opening = PlayerSkips.Skip(start = 1_000L, end = 5_000L),
                 ending = null,
-            )
+            ),
         )
         skipsPart.update(2_000L)
 

@@ -24,7 +24,6 @@ import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
 
 class ScheduleFragment : Fragment() {
-
     private val viewModel by viewModel<ScheduleViewModel>()
     private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
 
@@ -41,11 +40,12 @@ class ScheduleFragment : Fragment() {
             isFocusable = true
             isFocusableInTouchMode = true
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
-                if (hasFocus) {
-                    focusRequestToken++
+            onFocusChangeListener =
+                View.OnFocusChangeListener { _, hasFocus ->
+                    if (hasFocus) {
+                        focusRequestToken++
+                    }
                 }
-            }
             setContent {
                 ProvideGradientBackground(backgroundManager) {
                     ScheduleScreen(
@@ -67,7 +67,10 @@ class ScheduleFragment : Fragment() {
         focusRequestToken++
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         backgroundManager.clearGradient()
 
@@ -101,9 +104,10 @@ class ScheduleFragment : Fragment() {
         when (item) {
             is LibriaCard -> viewModel.onCardClick(item)
             is LinkCard -> viewModel.onRetryClick()
-            is LoadingCard -> if (item.isError) {
-                viewModel.onRetryClick()
-            }
+            is LoadingCard ->
+                if (item.isError) {
+                    viewModel.onRetryClick()
+                }
             is InfoCard -> Unit
         }
     }

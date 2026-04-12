@@ -2,9 +2,7 @@ package ru.radiationx.anilibria.ui.compose
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,15 +50,14 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import ru.radiationx.anilibria.R
+import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
@@ -120,13 +116,14 @@ internal fun TvOverlayPanelSurface(
         modifier = modifier,
     ) {
         Column(
-            modifier = Modifier
-                .border(
-                    width = 1.dp,
-                    color = palette.textColor.copy(alpha = 0.08f),
-                    shape = TvUiDefaults.OverlayPanelShape,
-                )
-                .padding(contentPadding),
+            modifier =
+                Modifier
+                    .border(
+                        width = 1.dp,
+                        color = palette.textColor.copy(alpha = 0.08f),
+                        shape = TvUiDefaults.OverlayPanelShape,
+                    )
+                    .padding(contentPadding),
             verticalArrangement = Arrangement.spacedBy(TvOverlayPanelSpacing),
             content = content,
         )
@@ -144,18 +141,20 @@ internal fun TvOverlayScreen(
     val palette = rememberWatchingPalette()
 
     BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
-            .background(TvUiDefaults.surfaceBackdropBrush(palette))
-            .padding(TvOverlayOuterPadding),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(TvUiDefaults.surfaceBackdropBrush(palette))
+                .padding(TvOverlayOuterPadding),
     ) {
         TvOverlayPanelSurface(
             palette = palette,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .widthIn(max = minOf(maxWidth - 24.dp, panelMaxWidth))
-                .heightIn(max = maxHeight - 24.dp)
-                .fillMaxWidth(),
+            modifier =
+                Modifier
+                    .align(Alignment.Center)
+                    .widthIn(max = minOf(maxWidth - 24.dp, panelMaxWidth))
+                    .heightIn(max = maxHeight - 24.dp)
+                    .fillMaxWidth(),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -192,19 +191,20 @@ internal fun TvOverlayActionButton(
     onClick: () -> Unit,
 ) {
     val interactiveEnabled = enabled && !loading
-    val colors = if (destructive) {
-        TvUiDefaults.accentActionColors(
-            palette = palette,
-            focusedBackgroundAlpha = 0.24f,
-            borderAlpha = 0.9f,
-        )
-    } else {
-        TvUiDefaults.chipActionColors(
-            palette = palette,
-            backgroundAlpha = 1f,
-            borderAlpha = 0.75f,
-        )
-    }
+    val colors =
+        if (destructive) {
+            TvUiDefaults.accentActionColors(
+                palette = palette,
+                focusedBackgroundAlpha = 0.24f,
+                borderAlpha = 0.9f,
+            )
+        } else {
+            TvUiDefaults.chipActionColors(
+                palette = palette,
+                backgroundAlpha = 1f,
+                borderAlpha = 0.75f,
+            )
+        }
 
     WatchingFocusableSurface(
         focusRequester = focusRequester,
@@ -268,15 +268,16 @@ internal fun TvOverlayTextField(
         onValueChange = onValueChange,
         enabled = enabled,
         label = { Text(text = label, fontSize = 15.sp) },
-        supportingText = supportingText?.let {
-            {
-                Text(
-                    text = it,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                )
-            }
-        },
+        supportingText =
+            supportingText?.let {
+                {
+                    Text(
+                        text = it,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                    )
+                }
+            },
         singleLine = singleLine,
         minLines = minLines,
         maxLines = maxLines,
@@ -284,45 +285,49 @@ internal fun TvOverlayTextField(
         keyboardOptions = keyboardOptions,
         visualTransformation = visualTransformation,
         shape = fieldShape,
-        textStyle = TextStyle(
-            fontSize = 18.sp,
-            lineHeight = 24.sp,
-        ),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = palette.surfaceColor.copy(alpha = 0.48f),
-            unfocusedContainerColor = palette.surfaceColor.copy(alpha = 0.30f),
-            disabledContainerColor = palette.surfaceColor.copy(alpha = 0.16f),
-            focusedTextColor = palette.textColor,
-            unfocusedTextColor = palette.textColor,
-            disabledTextColor = palette.secondaryTextColor,
-            focusedLabelColor = palette.secondaryTextColor,
-            unfocusedLabelColor = palette.secondaryTextColor,
-            focusedSupportingTextColor = palette.secondaryTextColor,
-            unfocusedSupportingTextColor = palette.secondaryTextColor,
-            errorSupportingTextColor = palette.accentColor,
-            errorLabelColor = palette.accentColor,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            errorIndicatorColor = Color.Transparent,
-            cursorColor = palette.textColor,
-        ),
-        modifier = modifier
-            .fillMaxWidth()
-            .border(
-                width = if (isFocused) 2.dp else 1.dp,
-                color = when {
-                    isError -> palette.accentColor.copy(alpha = 0.92f)
-                    isFocused -> palette.textColor.copy(alpha = 0.78f)
-                    else -> palette.textColor.copy(alpha = 0.16f)
-                },
-                shape = fieldShape,
-            )
-            .focusRequester(focusRequester)
-            .focusProperties {
-                up = upRequester
-                down = downRequester
-            }
-            .onFocusChanged { isFocused = it.isFocused },
+        textStyle =
+            TextStyle(
+                fontSize = 18.sp,
+                lineHeight = 24.sp,
+            ),
+        colors =
+            TextFieldDefaults.colors(
+                focusedContainerColor = palette.surfaceColor.copy(alpha = 0.48f),
+                unfocusedContainerColor = palette.surfaceColor.copy(alpha = 0.30f),
+                disabledContainerColor = palette.surfaceColor.copy(alpha = 0.16f),
+                focusedTextColor = palette.textColor,
+                unfocusedTextColor = palette.textColor,
+                disabledTextColor = palette.secondaryTextColor,
+                focusedLabelColor = palette.secondaryTextColor,
+                unfocusedLabelColor = palette.secondaryTextColor,
+                focusedSupportingTextColor = palette.secondaryTextColor,
+                unfocusedSupportingTextColor = palette.secondaryTextColor,
+                errorSupportingTextColor = palette.accentColor,
+                errorLabelColor = palette.accentColor,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                errorIndicatorColor = Color.Transparent,
+                cursorColor = palette.textColor,
+            ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .border(
+                    width = if (isFocused) 2.dp else 1.dp,
+                    color =
+                        when {
+                            isError -> palette.accentColor.copy(alpha = 0.92f)
+                            isFocused -> palette.textColor.copy(alpha = 0.78f)
+                            else -> palette.textColor.copy(alpha = 0.16f)
+                        },
+                    shape = fieldShape,
+                )
+                .focusRequester(focusRequester)
+                .focusProperties {
+                    up = upRequester
+                    down = downRequester
+                }
+                .onFocusChanged { isFocused = it.isFocused },
     )
 }
 
@@ -334,17 +339,19 @@ internal fun TvOverlayInfoBlock(
     accent: Boolean = false,
 ) {
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(
-                color = if (accent) {
-                    palette.accentColor.copy(alpha = 0.12f)
-                } else {
-                    palette.surfaceColor.copy(alpha = 0.52f)
-                },
-                shape = TvUiDefaults.InfoSurfaceShape,
-            )
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(
+                    color =
+                        if (accent) {
+                            palette.accentColor.copy(alpha = 0.12f)
+                        } else {
+                            palette.surfaceColor.copy(alpha = 0.52f)
+                        },
+                    shape = TvUiDefaults.InfoSurfaceShape,
+                )
+                .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
         Text(
             text = text,
@@ -369,54 +376,58 @@ internal fun TvOverlayScrollableText(
     var viewportHeightPx by remember { mutableStateOf(0) }
     var isFocused by remember { mutableStateOf(false) }
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(palette.surfaceColor.copy(alpha = 0.42f), TvUiDefaults.InfoSurfaceShape)
-            .border(
-                width = if (isFocused) 2.dp else 1.dp,
-                color = if (isFocused) {
-                    palette.textColor.copy(alpha = 0.76f)
-                } else {
-                    palette.textColor.copy(alpha = 0.08f)
-                },
-                shape = TvUiDefaults.InfoSurfaceShape,
-            )
-            .focusRequester(focusRequester)
-            .focusProperties {
-                up = upRequester
-                down = downRequester
-            }
-            .onFocusChanged { isFocused = it.isFocused }
-            .onSizeChanged { viewportHeightPx = it.height }
-            .onPreviewKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown || viewportHeightPx <= 0) {
-                    return@onPreviewKeyEvent false
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(palette.surfaceColor.copy(alpha = 0.42f), TvUiDefaults.InfoSurfaceShape)
+                .border(
+                    width = if (isFocused) 2.dp else 1.dp,
+                    color =
+                        if (isFocused) {
+                            palette.textColor.copy(alpha = 0.76f)
+                        } else {
+                            palette.textColor.copy(alpha = 0.08f)
+                        },
+                    shape = TvUiDefaults.InfoSurfaceShape,
+                )
+                .focusRequester(focusRequester)
+                .focusProperties {
+                    up = upRequester
+                    down = downRequester
                 }
-                val target = when (event.key) {
-                    Key.DirectionDown -> (scrollState.value + viewportHeightPx).coerceAtMost(scrollState.maxValue)
-                    Key.DirectionUp -> (scrollState.value - viewportHeightPx).coerceAtLeast(0)
-                    else -> return@onPreviewKeyEvent false
-                }
-                if (target == scrollState.value) {
-                    false
-                } else {
-                    scope.launch {
-                        scrollState.animateScrollTo(target)
+                .onFocusChanged { isFocused = it.isFocused }
+                .onSizeChanged { viewportHeightPx = it.height }
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown || viewportHeightPx <= 0) {
+                        return@onPreviewKeyEvent false
                     }
-                    true
+                    val target =
+                        when (event.key) {
+                            Key.DirectionDown -> (scrollState.value + viewportHeightPx).coerceAtMost(scrollState.maxValue)
+                            Key.DirectionUp -> (scrollState.value - viewportHeightPx).coerceAtLeast(0)
+                            else -> return@onPreviewKeyEvent false
+                        }
+                    if (target == scrollState.value) {
+                        false
+                    } else {
+                        scope.launch {
+                            scrollState.animateScrollTo(target)
+                        }
+                        true
+                    }
                 }
-            }
-            .focusable()
-            .padding(18.dp),
+                .focusable()
+                .padding(18.dp),
     ) {
         Text(
             text = text,
             color = palette.secondaryTextColor,
             fontSize = 17.sp,
             lineHeight = 25.sp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState),
         )
     }
 }
@@ -428,35 +439,38 @@ internal fun TvOverlayChoiceList(
     modifier: Modifier = Modifier,
 ) {
     val palette = rememberWatchingPalette()
-    val entries = remember(sections) {
-        buildList {
-            var nextChoiceIndex = 0
-            sections.forEach { section ->
-                section.title
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let(::Header)
-                    ?.also(::add)
-                section.items.forEach { choice ->
-                    add(Choice(choice = choice, choiceIndex = nextChoiceIndex))
-                    nextChoiceIndex += 1
+    val entries =
+        remember(sections) {
+            buildList {
+                var nextChoiceIndex = 0
+                sections.forEach { section ->
+                    section.title
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(::Header)
+                        ?.also(::add)
+                    section.items.forEach { choice ->
+                        add(Choice(choice = choice, choiceIndex = nextChoiceIndex))
+                        nextChoiceIndex += 1
+                    }
                 }
             }
         }
-    }
     val choices = remember(entries) { entries.filterIsInstance<Choice>() }
     val choiceIds = remember(choices) { choices.map { it.choice.id } }
     val focusRequesters = remember(choiceIds) { List(choiceIds.size) { FocusRequester() } }
     val listState = rememberLazyListState()
     var focusedChoiceIndex by remember(choiceIds) { mutableIntStateOf(-1) }
-    val selectedChoiceIndex = remember(choices) {
-        choices.indexOfFirst { it.choice.selected }.takeIf { it >= 0 } ?: 0
-    }
+    val selectedChoiceIndex =
+        remember(choices) {
+            choices.indexOfFirst { it.choice.selected }.takeIf { it >= 0 } ?: 0
+        }
     val selectedChoiceId = choices.getOrNull(selectedChoiceIndex)?.choice?.id
-    val selectedEntryIndex = remember(entries, selectedChoiceId) {
-        entries.indexOfFirst { entry ->
-            entry is Choice && entry.choice.id == selectedChoiceId
-        }.takeIf { it >= 0 } ?: 0
-    }
+    val selectedEntryIndex =
+        remember(entries, selectedChoiceId) {
+            entries.indexOfFirst { entry ->
+                entry is Choice && entry.choice.id == selectedChoiceId
+            }.takeIf { it >= 0 } ?: 0
+        }
 
     LaunchedEffect(choiceIds, selectedEntryIndex) {
         if (choices.isEmpty()) {
@@ -491,9 +505,10 @@ internal fun TvOverlayChoiceList(
 
     LazyColumn(
         state = listState,
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(max = 440.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .heightIn(max = 440.dp),
         contentPadding = PaddingValues(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -609,7 +624,7 @@ private fun TvOverlayChoiceButton(
             TvSelectionIndicator(
                 selected = choice.selected,
                 palette = palette,
-                size = TvUiDefaults.LargeSelectionIndicatorSize,
+                size = TvUiDefaults.LARGE_SELECTION_INDICATOR_SIZE,
                 inactiveBorderColor = palette.textColor.copy(alpha = 0.24f),
             )
         }

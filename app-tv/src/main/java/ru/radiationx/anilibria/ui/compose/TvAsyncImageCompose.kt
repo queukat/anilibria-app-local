@@ -19,8 +19,11 @@ import ru.radiationx.shared_app.imageloader.utils.toCacheKey
 
 internal sealed interface TvAsyncImageState {
     data object Empty : TvAsyncImageState
+
     data object Loading : TvAsyncImageState
+
     data object Success : TvAsyncImageState
+
     data class Error(val throwable: Throwable?) : TvAsyncImageState
 }
 
@@ -38,16 +41,17 @@ internal fun TvAsyncImage(
     val context = LocalContext.current
     val normalizedUrl = imageUrl?.trim().takeIf { !it.isNullOrEmpty() }
     val imageLoader = remember(context) { context.libriaImageLoader() }
-    val imageRequest = remember(normalizedUrl, context) {
-        normalizedUrl?.let { safeUrl ->
-            ImageRequest.Builder(context)
-                .data(safeUrl)
-                .diskCacheKey(safeUrl.toCacheKey())
-                .memoryCacheKey(safeUrl.toCacheKey())
-                .crossfade(false)
-                .build()
+    val imageRequest =
+        remember(normalizedUrl, context) {
+            normalizedUrl?.let { safeUrl ->
+                ImageRequest.Builder(context)
+                    .data(safeUrl)
+                    .diskCacheKey(safeUrl.toCacheKey())
+                    .memoryCacheKey(safeUrl.toCacheKey())
+                    .crossfade(false)
+                    .build()
+            }
         }
-    }
     val placeholderPainter = placeholderRes?.let { painterResource(it) }
     val errorPainter = errorRes?.let { painterResource(it) } ?: placeholderPainter
     var state by remember(normalizedUrl) {
@@ -56,16 +60,17 @@ internal fun TvAsyncImage(
                 TvAsyncImageState.Empty
             } else {
                 TvAsyncImageState.Loading
-            }
+            },
         )
     }
 
     LaunchedEffect(normalizedUrl) {
-        state = if (normalizedUrl == null) {
-            TvAsyncImageState.Empty
-        } else {
-            TvAsyncImageState.Loading
-        }
+        state =
+            if (normalizedUrl == null) {
+                TvAsyncImageState.Empty
+            } else {
+                TvAsyncImageState.Loading
+            }
     }
 
     LaunchedEffect(state) {

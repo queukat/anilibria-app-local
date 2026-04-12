@@ -3,14 +3,14 @@ package ru.radiationx.anilibria.screen.main
 import com.github.terrakok.cicerone.Router
 import io.mockk.coEvery
 import io.mockk.every
-import io.mockk.verify
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -33,7 +33,6 @@ import ru.radiationx.data.repository.YoutubeRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainTvViewModelsTest {
-
     private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before
@@ -49,123 +48,138 @@ class MainTvViewModelsTest {
     }
 
     @Test
-    fun mainFeedViewModel_requestsFeedFromUseCase() = runBlocking {
-        val fakeUseCase = FakeTvContentUseCase().apply {
-            mainFeedResult = emptyList()
+    fun mainFeedViewModel_requestsFeedFromUseCase() =
+        runTest {
+            val fakeUseCase =
+                FakeTvContentUseCase().apply {
+                    mainFeedResult = emptyList()
+                }
+            val viewModel =
+                MainFeedViewModel(
+                    tvContentUseCase = fakeUseCase,
+                    converter = mockk<CardsDataConverter>(relaxed = true),
+                    cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+                )
+            viewModel.setLoaderDispatcherForTests(testDispatcher)
+
+            viewModel.onRefreshClick()
+            waitUntil { fakeUseCase.mainFeedCalls.isNotEmpty() }
+
+            assertEquals(listOf(1 to 20), fakeUseCase.mainFeedCalls)
         }
-        val viewModel = MainFeedViewModel(
-            tvContentUseCase = fakeUseCase,
-            converter = mockk<CardsDataConverter>(relaxed = true),
-            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
-        viewModel.setLoaderDispatcherForTests(testDispatcher)
-
-        viewModel.onRefreshClick()
-        waitUntil { fakeUseCase.mainFeedCalls.isNotEmpty() }
-
-        assertEquals(listOf(1 to 20), fakeUseCase.mainFeedCalls)
-    }
 
     @Test
-    fun mainScheduleViewModel_setsRowTitleFromUseCase() = runBlocking {
-        val fakeUseCase = FakeTvContentUseCase().apply {
-            mainScheduleResult = MainSchedulePayload(
-                title = "Ожидается сегодня",
-                releases = emptyList(),
-            )
+    fun mainScheduleViewModel_setsRowTitleFromUseCase() =
+        runTest {
+            val fakeUseCase =
+                FakeTvContentUseCase().apply {
+                    mainScheduleResult =
+                        MainSchedulePayload(
+                            title = "Ожидается сегодня",
+                            releases = emptyList(),
+                        )
+                }
+            val viewModel =
+                MainScheduleViewModel(
+                    tvContentUseCase = fakeUseCase,
+                    converter = mockk<CardsDataConverter>(relaxed = true),
+                    router = mockk<Router>(relaxed = true),
+                    cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+                )
+            viewModel.setLoaderDispatcherForTests(testDispatcher)
+
+            viewModel.onRefreshClick()
+            waitUntil { fakeUseCase.mainScheduleCalls > 0 }
+
+            assertEquals("Ожидается сегодня", viewModel.rowTitle.value)
+            assertTrue(viewModel.cardsData.value.isNotEmpty())
         }
-        val viewModel = MainScheduleViewModel(
-            tvContentUseCase = fakeUseCase,
-            converter = mockk<CardsDataConverter>(relaxed = true),
-            router = mockk<Router>(relaxed = true),
-            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
-        viewModel.setLoaderDispatcherForTests(testDispatcher)
-
-        viewModel.onRefreshClick()
-        waitUntil { fakeUseCase.mainScheduleCalls > 0 }
-
-        assertEquals("Ожидается сегодня", viewModel.rowTitle.value)
-        assertTrue(viewModel.cardsData.value.isNotEmpty())
-    }
 
     @Test
-    fun mainScheduleViewModel_emptyStateCardOpensFullSchedule() = runBlocking {
-        val fakeUseCase = FakeTvContentUseCase().apply {
-            mainScheduleResult = MainSchedulePayload(
-                title = "Ожидается сегодня",
-                releases = emptyList(),
-            )
+    fun mainScheduleViewModel_emptyStateCardOpensFullSchedule() =
+        runTest {
+            val fakeUseCase =
+                FakeTvContentUseCase().apply {
+                    mainScheduleResult =
+                        MainSchedulePayload(
+                            title = "Ожидается сегодня",
+                            releases = emptyList(),
+                        )
+                }
+            val router = mockk<Router>(relaxed = true)
+            val viewModel =
+                MainScheduleViewModel(
+                    tvContentUseCase = fakeUseCase,
+                    converter = mockk<CardsDataConverter>(relaxed = true),
+                    router = router,
+                    cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+                )
+            viewModel.setLoaderDispatcherForTests(testDispatcher)
+
+            viewModel.onRefreshClick()
+            waitUntil { viewModel.cardsData.value.size == 1 }
+
+            viewModel.onLoadingCardClick()
+
+            verify(exactly = 1) { router.navigateTo(any()) }
         }
-        val router = mockk<Router>(relaxed = true)
-        val viewModel = MainScheduleViewModel(
-            tvContentUseCase = fakeUseCase,
-            converter = mockk<CardsDataConverter>(relaxed = true),
-            router = router,
-            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
-        viewModel.setLoaderDispatcherForTests(testDispatcher)
-
-        viewModel.onRefreshClick()
-        waitUntil { viewModel.cardsData.value.size == 1 }
-
-        viewModel.onLoadingCardClick()
-
-        verify(exactly = 1) { router.navigateTo(any()) }
-    }
 
     @Test
-    fun mainYouTubeViewModel_deduplicatesPagedCardsAndHidesLoadMoreOnLastPage() = runBlocking {
-        val repository = mockk<YoutubeRepository>()
-        val converter = mockk<CardsDataConverter>()
-        val itemA = youtubeItem(id = 1, vid = "alpha")
-        val itemB = youtubeItem(id = 2, vid = "beta")
-        val itemC = youtubeItem(id = 3, vid = "gamma")
-        val cardA = youtubeCard(title = "A", vid = "alpha")
-        val cardB = youtubeCard(title = "B", vid = "beta")
-        val cardC = youtubeCard(title = "C", vid = "gamma")
+    fun mainYouTubeViewModel_deduplicatesPagedCardsAndHidesLoadMoreOnLastPage() =
+        runTest {
+            val repository = mockk<YoutubeRepository>()
+            val converter = mockk<CardsDataConverter>()
+            val itemA = youtubeItem(id = 1, vid = "alpha")
+            val itemB = youtubeItem(id = 2, vid = "beta")
+            val itemC = youtubeItem(id = 3, vid = "gamma")
+            val cardA = youtubeCard(title = "A", vid = "alpha")
+            val cardB = youtubeCard(title = "B", vid = "beta")
+            val cardC = youtubeCard(title = "C", vid = "gamma")
 
-        coEvery { repository.getYoutubeList(1) } returns Paginated(
-            data = listOf(itemA, itemB),
-            page = 1,
-            allPages = 2,
-            perPage = 2,
-            allItems = 3,
-        )
-        coEvery { repository.getYoutubeList(2) } returns Paginated(
-            data = listOf(itemB, itemC),
-            page = 2,
-            allPages = 2,
-            perPage = 2,
-            allItems = 3,
-        )
-        every { converter.toCard(itemA) } returns cardA
-        every { converter.toCard(itemB) } returns cardB
-        every { converter.toCard(itemC) } returns cardC
+            coEvery { repository.getYoutubeList(1) } returns
+                Paginated(
+                    data = listOf(itemA, itemB),
+                    page = 1,
+                    allPages = 2,
+                    perPage = 2,
+                    allItems = 3,
+                )
+            coEvery { repository.getYoutubeList(2) } returns
+                Paginated(
+                    data = listOf(itemB, itemC),
+                    page = 2,
+                    allPages = 2,
+                    perPage = 2,
+                    allItems = 3,
+                )
+            every { converter.toCard(itemA) } returns cardA
+            every { converter.toCard(itemB) } returns cardB
+            every { converter.toCard(itemC) } returns cardC
 
-        val viewModel = MainYouTubeViewModel(
-            youtubeRepository = repository,
-            converter = converter,
-            cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-        )
-        viewModel.setLoaderDispatcherForTests(testDispatcher)
+            val viewModel =
+                MainYouTubeViewModel(
+                    youtubeRepository = repository,
+                    converter = converter,
+                    cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+                )
+            viewModel.setLoaderDispatcherForTests(testDispatcher)
 
-        viewModel.onRefreshClick()
-        waitUntil {
-            viewModel.cardsData.value.filterIsInstance<LibriaCard>().map { it.title } == listOf("A", "B")
+            viewModel.onRefreshClick()
+            waitUntil {
+                viewModel.cardsData.value.filterIsInstance<LibriaCard>().map { it.title } == listOf("A", "B")
+            }
+            assertTrue(viewModel.cardsData.value.lastOrNull() is LinkCard)
+
+            viewModel.onLinkCardClick()
+            waitUntil {
+                viewModel.cardsData.value.filterIsInstance<LibriaCard>().map { it.title } == listOf("A", "B", "C")
+            }
+
+            val loadedCards = viewModel.cardsData.value.filterIsInstance<LibriaCard>()
+            assertEquals(listOf("A", "B", "C"), loadedCards.map { it.title })
+            assertEquals(3, loadedCards.map { it.itemId }.distinct().size)
+            assertTrue(viewModel.cardsData.value.none { it is LinkCard })
         }
-        assertTrue(viewModel.cardsData.value.lastOrNull() is LinkCard)
-
-        viewModel.onLinkCardClick()
-        waitUntil {
-            viewModel.cardsData.value.filterIsInstance<LibriaCard>().map { it.title } == listOf("A", "B", "C")
-        }
-
-        val loadedCards = viewModel.cardsData.value.filterIsInstance<LibriaCard>()
-        assertEquals(listOf("A", "B", "C"), loadedCards.map { it.title })
-        assertEquals(3, loadedCards.map { it.itemId }.distinct().size)
-        assertTrue(viewModel.cardsData.value.none { it is LinkCard })
-    }
 
     private suspend fun waitUntil(predicate: () -> Boolean) {
         repeat(50) {
@@ -205,7 +219,10 @@ private class FakeTvContentUseCase : TvContentUseCase {
     val mainFeedCalls = mutableListOf<Pair<Int, Int>>()
     var mainScheduleCalls: Int = 0
 
-    override suspend fun loadMainFeed(requestPage: Int, pageLimit: Int): List<Release> {
+    override suspend fun loadMainFeed(
+        requestPage: Int,
+        pageLimit: Int,
+    ): List<Release> {
         mainFeedCalls += requestPage to pageLimit
         return mainFeedResult
     }
@@ -219,5 +236,8 @@ private class FakeTvContentUseCase : TvContentUseCase {
 
     override suspend fun loadFavoriteState(releaseId: ReleaseId): Boolean? = null
 
-    override suspend fun loadRecommendations(seedReleaseId: Int?, limit: Int): List<Release> = emptyList()
+    override suspend fun loadRecommendations(
+        seedReleaseId: Int?,
+        limit: Int,
+    ): List<Release> = emptyList()
 }

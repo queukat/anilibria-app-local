@@ -4,6 +4,7 @@ import androidx.annotation.OptIn
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentFactory
 import androidx.media3.common.util.UnstableApi
+import com.github.terrakok.cicerone.androidx.FragmentScreen
 import ru.radiationx.anilibria.screen.auth.AuthFragment
 import ru.radiationx.anilibria.screen.config.ConfigFragment
 import ru.radiationx.anilibria.screen.details.DetailFragment
@@ -15,7 +16,6 @@ import ru.radiationx.anilibria.screen.suggestions.SuggestionsFragment
 import ru.radiationx.anilibria.screen.update.UpdateFragment
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
-import com.github.terrakok.cicerone.androidx.FragmentScreen
 import java.util.UUID
 
 class ConfigScreen : FragmentScreen {
@@ -44,8 +44,8 @@ class ScheduleScreen : FragmentScreen {
     }
 }
 
-class UpdateScreen
-    : FragmentScreen {
+class UpdateScreen :
+    FragmentScreen {
     override fun createFragment(factory: FragmentFactory): Fragment {
         return UpdateFragment()
     }

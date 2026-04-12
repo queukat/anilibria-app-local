@@ -5,9 +5,7 @@ internal enum class PlayerQuickActionHandling {
     KeepControlsVisible,
 }
 
-internal fun resolvePlayerQuickActionHandling(
-    controlsVisible: Boolean,
-): PlayerQuickActionHandling {
+internal fun resolvePlayerQuickActionHandling(controlsVisible: Boolean): PlayerQuickActionHandling {
     return if (controlsVisible) {
         PlayerQuickActionHandling.KeepControlsVisible
     } else {

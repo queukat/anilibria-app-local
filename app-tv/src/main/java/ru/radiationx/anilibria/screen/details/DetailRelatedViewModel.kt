@@ -19,67 +19,69 @@ import javax.inject.Inject
  *  - Вызывать onRefreshClick(),
  *  - Вставлять LoadingCard / LinkCard / LibriaCard и т.д.
  */
-class DetailRelatedViewModel @Inject constructor(
-    argExtra: DetailExtra,
-    private val tvReleaseUseCase: TvReleaseUseCase,
-    private val converter: CardsDataConverter,
-    private val cardRouter: LibriaCardRouter,
-) : BaseCardsViewModel() {
+class DetailRelatedViewModel
+    @Inject
+    constructor(
+        argExtra: DetailExtra,
+        private val tvReleaseUseCase: TvReleaseUseCase,
+        private val converter: CardsDataConverter,
+        private val cardRouter: LibriaCardRouter,
+    ) : BaseCardsViewModel() {
+        private val releaseId = argExtra.id
 
-    private val releaseId = argExtra.id
+        /**
+         * Не загружаем сразу при onColdCreate (переопределение),
+         * а ждём TV-only observeRelease(releaseId) (или manual refresh).
+         */
+        override val loadOnCreate: Boolean = false
 
-    /**
-     * Не загружаем сразу при onColdCreate (переопределение),
-     * а ждём TV-only observeRelease(releaseId) (или manual refresh).
-     */
-    override val loadOnCreate: Boolean = false
+        /**
+         * Текст, который виден в заголовке (rowTitle) по умолчанию.
+         */
+        override val defaultTitle: String = "Связанные тайтлы"
 
-    /**
-     * Текст, который виден в заголовке (rowTitle) по умолчанию.
-     */
-    override val defaultTitle: String = "Связанные тайтлы"
+        init {
+            // Сразу кинем LoadingCard (чтобы не было пустого списка)
+            cardsDataMutable.value = listOf(loadingCard)
 
-    init {
-        // Сразу кинем LoadingCard (чтобы не было пустого списка)
-        _cardsData.value = listOf(loadingCard)
+            // Следим за изменением «description» конкретного релиза,
+            // и когда оно меняется — делаем refresh().
+            tvReleaseUseCase
+                .observeRelease(releaseId)
+                .map { it.description.orEmpty() }
+                .distinctUntilChanged()
+                .onEach {
+                    onRefreshClick() // по сути reload
+                }
+                .launchIn(viewModelScope)
+        }
 
-        // Следим за изменением «description» конкретного релиза,
-        // и когда оно меняется — делаем refresh().
-        tvReleaseUseCase
-            .observeRelease(releaseId)
-            .map { it.description.orEmpty() }
-            .distinctUntilChanged()
-            .onEach {
-                onRefreshClick() // по сути reload
-            }
-            .launchIn(viewModelScope)
+        /**
+         * Вызывается при загрузке карточек для указанной «страницы» (requestPage).
+         * Но в данном случае у нас одна страница, где показываем все franchises.
+         */
+        override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
+            val allFranchises =
+                tvReleaseUseCase
+                    .loadWithFranchises(releaseId)
+                    .filter { it.id != releaseId }
+
+            return allFranchises.map { converter.toCard(it) }
+        }
+
+        /**
+         * У нас нет «пагинации» (loadMore — не нужен),
+         * поэтому всегда возвращаем false.
+         */
+        override fun hasMoreCards(
+            newCards: List<LibriaCard>,
+            allCards: List<LibriaCard>,
+        ): Boolean = false
+
+        /**
+         * При клике по карточке → передаём в [LibriaCardRouter].
+         */
+        override fun onLibriaCardClick(card: LibriaCard) {
+            cardRouter.navigate(card)
+        }
     }
-
-    /**
-     * Вызывается при загрузке карточек для указанной «страницы» (requestPage).
-     * Но в данном случае у нас одна страница, где показываем все franchises.
-     */
-    override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
-        val allFranchises = tvReleaseUseCase
-            .loadWithFranchises(releaseId)
-            .filter { it.id != releaseId }
-
-        return allFranchises.map { converter.toCard(it) }
-    }
-
-    /**
-     * У нас нет «пагинации» (loadMore — не нужен),
-     * поэтому всегда возвращаем false.
-     */
-    override fun hasMoreCards(
-        newCards: List<LibriaCard>,
-        allCards: List<LibriaCard>
-    ): Boolean = false
-
-    /**
-     * При клике по карточке → передаём в [LibriaCardRouter].
-     */
-    override fun onLibriaCardClick(card: LibriaCard) {
-        cardRouter.navigate(card)
-    }
-}

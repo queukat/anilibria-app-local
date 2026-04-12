@@ -12,14 +12,15 @@ internal object SuggestionsRows {
     fun visibleRowIds(
         showResultRow: Boolean,
         showRecommendsRow: Boolean,
-    ): List<Long> = buildList {
-        if (showResultRow) {
-            add(RESULT_ROW_ID)
+    ): List<Long> =
+        buildList {
+            if (showResultRow) {
+                add(RESULT_ROW_ID)
+            }
+            if (showRecommendsRow) {
+                add(RECOMMENDS_ROW_ID)
+            }
         }
-        if (showRecommendsRow) {
-            add(RECOMMENDS_ROW_ID)
-        }
-    }
 }
 
 internal data class SuggestionsSearchResult(
@@ -36,23 +37,24 @@ internal data class SuggestionsResultUiState(
 )
 
 internal fun SuggestionsSearchResult.toUiState(progressVisible: Boolean): SuggestionsResultUiState {
-    val resultCards = if (validQuery && items.isEmpty()) {
-        listOf(
-            InfoCard(
-                title = "Ничего не найдено",
-                subtitle = "Попробуйте изменить запрос: \"$query\"",
+    val resultCards =
+        if (validQuery && items.isEmpty()) {
+            listOf(
+                InfoCard(
+                    title = "Ничего не найдено",
+                    subtitle = "Попробуйте изменить запрос: \"$query\"",
+                ),
             )
-        )
-    } else {
-        items.map {
-            LibriaCard(
-                it.names.getOrNull(0).orEmpty(),
-                it.names.getOrNull(1).orEmpty(),
-                it.poster.orEmpty(),
-                LibriaCard.Type.Release(it.id)
-            )
+        } else {
+            items.map {
+                LibriaCard(
+                    it.names.getOrNull(0).orEmpty(),
+                    it.names.getOrNull(1).orEmpty(),
+                    it.poster.orEmpty(),
+                    LibriaCard.Type.Release(it.id),
+                )
+            }
         }
-    }
     return SuggestionsResultUiState(
         progressVisible = progressVisible,
         resultCards = resultCards,

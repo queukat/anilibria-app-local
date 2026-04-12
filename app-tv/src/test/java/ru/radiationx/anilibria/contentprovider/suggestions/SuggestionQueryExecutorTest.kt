@@ -8,9 +8,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.measureTimeMillis
 
 class SuggestionQueryExecutorTest {
-
     private companion object {
-        const val AsyncWaitTimeoutMs = 3_000L
+        const val ASYNC_WAIT_TIMEOUT_MS = 3_000L
     }
 
     @Test
@@ -19,30 +18,33 @@ class SuggestionQueryExecutorTest {
         val calls = AtomicInteger(0)
         val scheduler = Executors.newSingleThreadScheduledExecutor()
         val worker = Executors.newSingleThreadExecutor()
-        val executor = SuggestionQueryExecutor<String>(
-            minQueryLength = 3,
-            maxResults = 2,
-            timeoutMs = 200L,
-            cacheTtlMs = 1_000L,
-            minRequestIntervalMs = 0L,
-            nowMillis = { now },
-            scheduler = scheduler,
-            workerExecutor = worker,
-        )
+        val executor =
+            SuggestionQueryExecutor<String>(
+                minQueryLength = 3,
+                maxResults = 2,
+                timeoutMs = 200L,
+                cacheTtlMs = 1_000L,
+                minRequestIntervalMs = 0L,
+                nowMillis = { now },
+                scheduler = scheduler,
+                workerExecutor = worker,
+            )
 
         try {
-            val first = executor.execute("naruto") {
-                calls.incrementAndGet()
-                listOf("a", "b", "c")
-            }
+            val first =
+                executor.execute("naruto") {
+                    calls.incrementAndGet()
+                    listOf("a", "b", "c")
+                }
             assertTrue(first.isEmpty())
 
             var second: List<String> = emptyList()
             waitUntil {
-                second = executor.execute("naruto") {
-                    calls.incrementAndGet()
-                    listOf("x")
-                }
+                second =
+                    executor.execute("naruto") {
+                        calls.incrementAndGet()
+                        listOf("x")
+                    }
                 second.isNotEmpty()
             }
 
@@ -59,16 +61,17 @@ class SuggestionQueryExecutorTest {
         val calls = mutableListOf<String>()
         val scheduler = Executors.newSingleThreadScheduledExecutor()
         val worker = Executors.newSingleThreadExecutor()
-        val executor = SuggestionQueryExecutor<String>(
-            minQueryLength = 3,
-            maxResults = 20,
-            timeoutMs = 200L,
-            cacheTtlMs = 0L,
-            minRequestIntervalMs = 150L,
-            nowMillis = { now },
-            scheduler = scheduler,
-            workerExecutor = worker,
-        )
+        val executor =
+            SuggestionQueryExecutor<String>(
+                minQueryLength = 3,
+                maxResults = 20,
+                timeoutMs = 200L,
+                cacheTtlMs = 0L,
+                minRequestIntervalMs = 150L,
+                nowMillis = { now },
+                scheduler = scheduler,
+                workerExecutor = worker,
+            )
 
         try {
             executor.execute("nar") {
@@ -99,16 +102,17 @@ class SuggestionQueryExecutorTest {
         val calls = AtomicInteger(0)
         val scheduler = Executors.newSingleThreadScheduledExecutor()
         val worker = Executors.newSingleThreadExecutor()
-        val executor = SuggestionQueryExecutor<String>(
-            minQueryLength = 3,
-            maxResults = 20,
-            timeoutMs = 200L,
-            cacheTtlMs = 100L,
-            minRequestIntervalMs = 0L,
-            nowMillis = { now },
-            scheduler = scheduler,
-            workerExecutor = worker,
-        )
+        val executor =
+            SuggestionQueryExecutor<String>(
+                minQueryLength = 3,
+                maxResults = 20,
+                timeoutMs = 200L,
+                cacheTtlMs = 100L,
+                minRequestIntervalMs = 0L,
+                nowMillis = { now },
+                scheduler = scheduler,
+                workerExecutor = worker,
+            )
 
         try {
             executor.execute("bleach") {
@@ -116,24 +120,26 @@ class SuggestionQueryExecutorTest {
                 listOf("cached")
             }
 
-            waitUntil(timeoutMs = AsyncWaitTimeoutMs) { calls.get() == 1 }
+            waitUntil(timeoutMs = ASYNC_WAIT_TIMEOUT_MS) { calls.get() == 1 }
             // The first worker call increments `calls` before cache write is committed under lock.
             // Give the async refresh a moment to publish the cached snapshot before advancing virtual time.
             Thread.sleep(50L)
             now += 150L
 
-            val stale = executor.execute("bleach") {
-                calls.incrementAndGet()
-                throw IllegalStateException("network failed")
-            }
+            val stale =
+                executor.execute("bleach") {
+                    calls.incrementAndGet()
+                    error("network failed")
+                }
             assertEquals(listOf("cached"), stale)
 
-            waitUntil(timeoutMs = AsyncWaitTimeoutMs) { calls.get() == 2 }
+            waitUntil(timeoutMs = ASYNC_WAIT_TIMEOUT_MS) { calls.get() == 2 }
 
-            val afterFailure = executor.execute("bleach") {
-                calls.incrementAndGet()
-                listOf("new")
-            }
+            val afterFailure =
+                executor.execute("bleach") {
+                    calls.incrementAndGet()
+                    listOf("new")
+                }
             assertEquals(listOf("cached"), afterFailure)
         } finally {
             executor.shutdown()
@@ -144,24 +150,27 @@ class SuggestionQueryExecutorTest {
     fun execute_returnsQuickly_withoutBlockingQueryThread() {
         val scheduler = Executors.newSingleThreadScheduledExecutor()
         val worker = Executors.newSingleThreadExecutor()
-        val executor = SuggestionQueryExecutor<String>(
-            minQueryLength = 3,
-            maxResults = 20,
-            timeoutMs = 60L,
-            cacheTtlMs = 1_000L,
-            minRequestIntervalMs = 0L,
-            scheduler = scheduler,
-            workerExecutor = worker,
-        )
+        val executor =
+            SuggestionQueryExecutor<String>(
+                minQueryLength = 3,
+                maxResults = 20,
+                timeoutMs = 60L,
+                cacheTtlMs = 1_000L,
+                minRequestIntervalMs = 0L,
+                scheduler = scheduler,
+                workerExecutor = worker,
+            )
 
         try {
-            val elapsed = measureTimeMillis {
-                val result = executor.execute("bleach") {
-                    Thread.sleep(5_000L)
-                    listOf("late")
+            val elapsed =
+                measureTimeMillis {
+                    val result =
+                        executor.execute("bleach") {
+                            Thread.sleep(5_000L)
+                            listOf("late")
+                        }
+                    assertTrue(result.isEmpty())
                 }
-                assertTrue(result.isEmpty())
-            }
 
             assertTrue("elapsed=$elapsed", elapsed < 400L)
         } finally {
@@ -174,23 +183,25 @@ class SuggestionQueryExecutorTest {
         val scheduler = Executors.newSingleThreadScheduledExecutor()
         val worker = Executors.newSingleThreadExecutor()
         val updates = mutableListOf<Pair<String, List<String>>>()
-        val executor = SuggestionQueryExecutor<String>(
-            minQueryLength = 3,
-            maxResults = 2,
-            timeoutMs = 200L,
-            cacheTtlMs = 1_000L,
-            minRequestIntervalMs = 0L,
-            onCacheUpdated = { query, items ->
-                updates += query to items
-            },
-            scheduler = scheduler,
-            workerExecutor = worker,
-        )
+        val executor =
+            SuggestionQueryExecutor<String>(
+                minQueryLength = 3,
+                maxResults = 2,
+                timeoutMs = 200L,
+                cacheTtlMs = 1_000L,
+                minRequestIntervalMs = 0L,
+                onCacheUpdated = { query, items ->
+                    updates += query to items
+                },
+                scheduler = scheduler,
+                workerExecutor = worker,
+            )
 
         try {
-            val first = executor.execute("naruto") {
-                listOf("one", "two", "three")
-            }
+            val first =
+                executor.execute("naruto") {
+                    listOf("one", "two", "three")
+                }
             assertTrue(first.isEmpty())
 
             waitUntil { updates.isNotEmpty() }
@@ -206,17 +217,18 @@ class SuggestionQueryExecutorTest {
         var now = 1_000L
         val scheduler = Executors.newSingleThreadScheduledExecutor()
         val worker = Executors.newSingleThreadExecutor()
-        val executor = SuggestionQueryExecutor<String>(
-            minQueryLength = 3,
-            maxResults = 20,
-            timeoutMs = 200L,
-            cacheTtlMs = 100L,
-            minRequestIntervalMs = 0L,
-            maxCacheEntries = 8,
-            nowMillis = { now },
-            scheduler = scheduler,
-            workerExecutor = worker,
-        )
+        val executor =
+            SuggestionQueryExecutor<String>(
+                minQueryLength = 3,
+                maxResults = 20,
+                timeoutMs = 200L,
+                cacheTtlMs = 100L,
+                minRequestIntervalMs = 0L,
+                maxCacheEntries = 8,
+                nowMillis = { now },
+                scheduler = scheduler,
+                workerExecutor = worker,
+            )
 
         try {
             executor.execute("naruto") { listOf("naruto") }
@@ -245,16 +257,17 @@ class SuggestionQueryExecutorTest {
     fun execute_evictsLeastRecentlyUsedQueries_whenCacheIsBounded() {
         val scheduler = Executors.newSingleThreadScheduledExecutor()
         val worker = Executors.newSingleThreadExecutor()
-        val executor = SuggestionQueryExecutor<String>(
-            minQueryLength = 3,
-            maxResults = 20,
-            timeoutMs = 200L,
-            cacheTtlMs = 1_000L,
-            minRequestIntervalMs = 0L,
-            maxCacheEntries = 2,
-            scheduler = scheduler,
-            workerExecutor = worker,
-        )
+        val executor =
+            SuggestionQueryExecutor<String>(
+                minQueryLength = 3,
+                maxResults = 20,
+                timeoutMs = 200L,
+                cacheTtlMs = 1_000L,
+                minRequestIntervalMs = 0L,
+                maxCacheEntries = 2,
+                scheduler = scheduler,
+                workerExecutor = worker,
+            )
 
         try {
             executor.execute("naruto") { listOf("naruto") }
@@ -273,7 +286,10 @@ class SuggestionQueryExecutorTest {
         }
     }
 
-    private fun waitUntil(timeoutMs: Long = 1_500L, condition: () -> Boolean) {
+    private fun waitUntil(
+        timeoutMs: Long = 1_500L,
+        condition: () -> Boolean,
+    ) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (!condition()) {
             if (System.currentTimeMillis() > deadline) {

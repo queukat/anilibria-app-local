@@ -16,7 +16,6 @@ import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
 
 class AuthFragment : Fragment() {
-
     private val viewModel by viewModel<AuthViewModel>()
 
     private var screenModeState by mutableStateOf(AuthScreenMode.Menu)
@@ -67,18 +66,22 @@ class AuthFragment : Fragment() {
         }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
 
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
 
-        backPressedCallback = object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                viewModel.onBackPressed()
+        backPressedCallback =
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    viewModel.onBackPressed()
+                }
+            }.also {
+                requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
             }
-        }.also {
-            requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
-        }
 
         subscribeTo(viewModel.screenMode) {
             screenModeState = it

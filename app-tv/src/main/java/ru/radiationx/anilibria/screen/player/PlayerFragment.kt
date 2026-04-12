@@ -26,7 +26,6 @@ import ru.radiationx.shared.ktx.android.subscribeTo
 
 @OptIn(UnstableApi::class)
 class PlayerFragment : BasePlayerFragment() {
-
     companion object {
         private const val ARG_RELEASE_ID = "release id"
         private const val ARG_EPISODE_ID = "episode id"
@@ -34,10 +33,11 @@ class PlayerFragment : BasePlayerFragment() {
         fun newInstance(
             releaseId: ReleaseId,
             episodeId: EpisodeId?,
-        ): PlayerFragment = PlayerFragment().putExtra {
-            putParcelable(ARG_RELEASE_ID, releaseId)
-            putParcelable(ARG_EPISODE_ID, episodeId)
-        }
+        ): PlayerFragment =
+            PlayerFragment().putExtra {
+                putParcelable(ARG_RELEASE_ID, releaseId)
+                putParcelable(ARG_EPISODE_ID, episodeId)
+            }
     }
 
     private val argumentsReleaseId by lazy { getExtraNotNull<ReleaseId>(ARG_RELEASE_ID) }
@@ -53,15 +53,19 @@ class PlayerFragment : BasePlayerFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        viewModel = getViewModel(PlayerViewModel::class) {
-            PlayerExtra(
-                releaseId = argumentsReleaseId,
-                episodeId = getExtra(ARG_EPISODE_ID),
-            )
-        }
+        viewModel =
+            getViewModel(PlayerViewModel::class) {
+                PlayerExtra(
+                    releaseId = argumentsReleaseId,
+                    episodeId = getExtra(ARG_EPISODE_ID),
+                )
+            }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
 
         viewLifecycleOwner.lifecycle.addObserver(viewModel)
@@ -86,9 +90,13 @@ class PlayerFragment : BasePlayerFragment() {
 
         subscribeTo(viewModel.commands) { command ->
             when (command) {
-                PlayerCommand.Play -> playPlayback()
+                is PlayerCommand.Play -> playPlayback(revealControls = command.revealControls)
                 PlayerCommand.Pause -> pausePlayback()
-                is PlayerCommand.Seek -> seekToPosition(command.positionMs)
+                is PlayerCommand.Seek ->
+                    seekToPosition(
+                        positionMs = command.positionMs,
+                        reason = "view_model_command",
+                    )
             }
         }
 

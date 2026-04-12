@@ -46,6 +46,8 @@ viewbindingpropertydelegate = "2.0.4"
 android-plugin = "8.9.0"
 kotlin-plugin = "2.1.10"
 ksp-plugin = "2.1.10-1.0.29"
+detekt = "1.23.8"
+ktlint-gradle = "12.1.2"
 gms-plugin = "4.4.2"
 ben-plugin = "0.47.0"
 zxing-core = "3.5.2"
@@ -135,6 +137,8 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin-pl
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin-plugin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin-plugin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp-plugin" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-gradle" }
 gms = { id = "com.google.gms.google-services", version.ref = "gms-plugin" }
 benManesVersions = { id = "com.github.ben-manes.versions", version.ref = "ben-plugin" }
 appmetrica = { id = "io.appmetrica.analytics", version.ref = "appmetrica-plugin" }

@@ -3,6 +3,7 @@
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
+import io.gitlab.arturbosch.detekt.Detekt
 
 static String buildDate() {
     DateFormat df = new SimpleDateFormat("dd MMMM yyyy", Locale.US)
@@ -49,6 +50,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.ktlint)
 }
 
 // ---------- android ----------
@@ -140,6 +143,36 @@ android {
 
 kotlin {
     jvmToolchain(jvm_toolchain_version)
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    ignoreFailures = false
+    config.setFrom(files("${rootProject.projectDir}/config/detekt/detekt.yml"))
+    basePath = rootProject.projectDir.absolutePath
+}
+
+tasks.withType(Detekt).configureEach {
+    jvmTarget = jvm_toolchain_version.toString()
+    setSource(files("src"))
+    include("**/*.kt")
+    include("**/*.kts")
+    exclude("**/build/**")
+    exclude("**/generated/**")
+}
+
+ktlint {
+    android.set(true)
+    ignoreFailures.set(false)
+    filter {
+        exclude("**/build/**")
+        exclude("**/generated/**")
+    }
+}
+
+tasks.named("check").configure {
+    dependsOn("detekt")
 }
 
 // ---------- dependencies ----------

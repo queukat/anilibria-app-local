@@ -10,7 +10,7 @@ import java.util.Date
 internal fun List<Episode>.sortedByEpisodeOrdinalAsc(): List<Episode> {
     return sortedWith(
         compareBy<Episode> { it.id.id.toBigDecimalOrNullOrMax() }
-            .thenBy { it.id.id }
+            .thenBy { it.id.id },
     )
 }
 

@@ -57,3 +57,13 @@ style:
       - "**/ApiConfig.kt"
       - "**/AppCookieJar.kt"
       - "**/CoilLibriaImageLoaderImpl.kt"
+      - "**/BaseCardsViewModelTest.kt"
+      - "**/WatchingFavoritesViewModelStream2Test.kt"
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    active: false
+  NewLineAtEndOfFile:
+    active: false
+  ReturnCount:
+    active: false

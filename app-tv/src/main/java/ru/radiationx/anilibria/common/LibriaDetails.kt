@@ -15,10 +15,10 @@ data class LibriaDetails(
     val isFavorite: Boolean,
     val hasEpisodes: Boolean,
     val hasViewed: Boolean,
-    val hasWebPlayer: Boolean
+    val hasWebPlayer: Boolean,
 )
 
 data class DetailsState(
     val loadingProgress: Boolean = false,
-    val updateProgress: Boolean = false
+    val updateProgress: Boolean = false,
 )

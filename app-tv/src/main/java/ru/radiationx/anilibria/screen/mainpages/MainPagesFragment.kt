@@ -19,8 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
-import ru.radiationx.anilibria.common.TvStartupTrace
 import ru.radiationx.anilibria.common.GradientBackgroundManager
+import ru.radiationx.anilibria.common.TvStartupTrace
 import ru.radiationx.anilibria.screen.main.MainPageContent
 import ru.radiationx.anilibria.screen.profile.ProfilePageContent
 import ru.radiationx.anilibria.screen.watching.WatchingFavoritesPageContent
@@ -30,7 +30,6 @@ import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo
 
 class MainPagesFragment : Fragment() {
-
     private val backgroundManager by lazy(LazyThreadSafetyMode.NONE) {
         GradientBackgroundManager(requireActivity())
     }
@@ -119,7 +118,10 @@ class MainPagesFragment : Fragment() {
         }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         TvStartupTrace.markOnce("main_pages_view_created")
 
@@ -136,18 +138,19 @@ class MainPagesFragment : Fragment() {
 
         currentPageContent()?.onSelected()
 
-        initialFocusRunnable = object : Runnable {
-            override fun run() {
-                if (isRailExpanded) {
-                    return
+        initialFocusRunnable =
+            object : Runnable {
+                override fun run() {
+                    if (isRailExpanded) {
+                        return
+                    }
+                    if (!requestCurrentContentFocus()) {
+                        listenerHostView?.post(this)
+                        return
+                    }
+                    isRailExpanded = false
                 }
-                if (!requestCurrentContentFocus()) {
-                    listenerHostView?.post(this)
-                    return
-                }
-                isRailExpanded = false
             }
-        }
         view.post(initialFocusRunnable)
     }
 
@@ -220,20 +223,21 @@ class MainPagesFragment : Fragment() {
         cancelPendingContentFocusRequests()
         isRailExpanded = false
         applyHeaderVisibility(false)
-        pendingContentFocusRunnable = Runnable {
-            if (requestCurrentContentFocus()) {
-                pendingContentFocusRunnable = null
-                return@Runnable
-            }
-            hostView.post {
-                if (!requestCurrentContentFocus()) {
-                    applyHeaderVisibility(true)
-                    requestHeaderFocus()
-                } else {
+        pendingContentFocusRunnable =
+            Runnable {
+                if (requestCurrentContentFocus()) {
                     pendingContentFocusRunnable = null
+                    return@Runnable
+                }
+                hostView.post {
+                    if (!requestCurrentContentFocus()) {
+                        applyHeaderVisibility(true)
+                        requestHeaderFocus()
+                    } else {
+                        pendingContentFocusRunnable = null
+                    }
                 }
             }
-        }
         hostView.post(pendingContentFocusRunnable)
         return true
     }
@@ -255,22 +259,23 @@ class MainPagesFragment : Fragment() {
     }
 
     private fun installBackHandler() {
-        backPressedCallback = object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (currentPageContent()?.onBackPressed() == true) {
-                    return
+        backPressedCallback =
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (currentPageContent()?.onBackPressed() == true) {
+                        return
+                    }
+                    if (!isRailExpanded) {
+                        requestRailFocus()
+                        return
+                    }
+                    isEnabled = false
+                    requireActivity().onBackPressedDispatcher.onBackPressed()
+                    isEnabled = true
                 }
-                if (!isRailExpanded) {
-                    requestRailFocus()
-                    return
-                }
-                isEnabled = false
-                requireActivity().onBackPressedDispatcher.onBackPressed()
-                isEnabled = true
+            }.also {
+                requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
             }
-        }.also {
-            requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
-        }
     }
 
     private fun applyHeaderVisibility(visible: Boolean) {

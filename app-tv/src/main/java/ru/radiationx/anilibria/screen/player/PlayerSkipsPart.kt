@@ -26,8 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.watching.TvPlayerOverlayBottomPadding
-import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
+import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.data.entity.domain.release.PlayerSkips
@@ -35,7 +35,6 @@ import ru.radiationx.data.entity.domain.release.PlayerSkips
 class PlayerSkipsPart(
     private val onSeek: (Long) -> Unit,
 ) {
-
     private var playerSkips: PlayerSkips? = null
     private var currentPosition = 0L
     private var suppressedSkip: PlayerSkips.Skip? = null
@@ -110,6 +109,15 @@ class PlayerSkipsPart(
     }
 }
 
+internal fun handlePlayerSkipQuickAction(
+    controlsVisible: Boolean,
+    onQuickActionHandled: (PlayerQuickActionHandling) -> Unit,
+    action: () -> Unit,
+) {
+    onQuickActionHandled(resolvePlayerQuickActionHandling(controlsVisible))
+    action()
+}
+
 @Composable
 internal fun PlayerSkipsOverlay(
     skipsPart: PlayerSkipsPart?,
@@ -154,12 +162,20 @@ internal fun PlayerSkipsOverlay(
                 onOpenControls()
             },
             onSkipClick = {
-                skipsPart?.skipCurrent()
-                onQuickActionHandled(resolvePlayerQuickActionHandling(controlsVisible))
+                handlePlayerSkipQuickAction(
+                    controlsVisible = controlsVisible,
+                    onQuickActionHandled = onQuickActionHandled,
+                ) {
+                    skipsPart?.skipCurrent()
+                }
             },
             onWatchClick = {
-                skipsPart?.cancelCurrent()
-                onQuickActionHandled(resolvePlayerQuickActionHandling(controlsVisible))
+                handlePlayerSkipQuickAction(
+                    controlsVisible = controlsVisible,
+                    onQuickActionHandled = onQuickActionHandled,
+                ) {
+                    skipsPart?.cancelCurrent()
+                }
             },
             panelWidthFraction = panelWidthFraction,
             bottomPadding = animatedBottomPadding,
@@ -181,9 +197,10 @@ internal fun PlayerSkipsButtonsRow(
     bottomPadding: Dp = 0.dp,
 ) {
     Box(
-        modifier = modifier
-            .fillMaxWidth(panelWidthFraction)
-            .padding(bottom = bottomPadding),
+        modifier =
+            modifier
+                .fillMaxWidth(panelWidthFraction)
+                .padding(bottom = bottomPadding),
         contentAlignment = Alignment.BottomEnd,
     ) {
         Row(
@@ -191,21 +208,23 @@ internal fun PlayerSkipsButtonsRow(
             horizontalArrangement = Arrangement.spacedBy(PlayerOverlayUiDefaults.QuickActionsRowSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val skipColors = PlayerOverlayUiDefaults.quickActionColors(
-                palette = palette,
-                emphasized = true,
-            )
-            val watchColors = PlayerOverlayUiDefaults.quickActionColors(
-                palette = palette,
-                emphasized = false,
-            )
+            val skipColors =
+                PlayerOverlayUiDefaults.quickActionColors(
+                    palette = palette,
+                    emphasized = true,
+                )
+            val watchColors =
+                PlayerOverlayUiDefaults.quickActionColors(
+                    palette = palette,
+                    emphasized = false,
+                )
 
             WatchingFocusableSurface(
                 focusRequester = skipRequester,
                 backgroundColor = skipColors.backgroundColor,
                 focusedBackgroundColor = skipColors.focusedBackgroundColor,
                 borderColor = skipColors.borderColor,
-                focusedScale = PlayerOverlayUiDefaults.PlayerFocusScale,
+                focusedScale = PlayerOverlayUiDefaults.PLAYER_FOCUS_SCALE,
                 focusedShadowElevation = PlayerOverlayUiDefaults.PlayerFocusShadowElevation,
                 onClick = {
                     onInteraction()
@@ -236,7 +255,7 @@ internal fun PlayerSkipsButtonsRow(
                 backgroundColor = watchColors.backgroundColor,
                 focusedBackgroundColor = watchColors.focusedBackgroundColor,
                 borderColor = watchColors.borderColor,
-                focusedScale = PlayerOverlayUiDefaults.PlayerFocusScale,
+                focusedScale = PlayerOverlayUiDefaults.PLAYER_FOCUS_SCALE,
                 focusedShadowElevation = PlayerOverlayUiDefaults.PlayerFocusShadowElevation,
                 onClick = {
                     onInteraction()

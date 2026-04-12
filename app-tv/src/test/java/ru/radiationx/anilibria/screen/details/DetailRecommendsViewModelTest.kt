@@ -7,9 +7,9 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertTrue
@@ -28,7 +28,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DetailRecommendsViewModelTest {
-
     private val testDispatcher = UnconfinedTestDispatcher()
     private val createdViewModels = mutableListOf<ViewModel>()
 
@@ -57,69 +56,83 @@ class DetailRecommendsViewModelTest {
     }
 
     @Test
-    fun refresh_usesRecommendationsFromUseCase() = runBlocking {
-        val fakeUseCase = FakeTvContentUseCaseForDetails().apply {
-            recommendationsBySeed[9600] = listOf(mockRelease(9839))
-        }
-        val converter = mockk<CardsDataConverter>()
-        every { converter.toCard(any<Release>()) } answers {
-            val release = firstArg<Release>()
-            LibriaCard(
-                title = "release-${release.id.id}",
-                description = "",
-                image = "",
-                type = LibriaCard.Type.Release(release.id),
-            )
-        }
+    fun refresh_usesRecommendationsFromUseCase() =
+        runTest {
+            val fakeUseCase =
+                FakeTvContentUseCaseForDetails().apply {
+                    recommendationsBySeed[9600] = listOf(mockRelease(9839))
+                }
+            val converter = mockk<CardsDataConverter>()
+            every { converter.toCard(any<Release>()) } answers {
+                val release = firstArg<Release>()
+                LibriaCard(
+                    title = "release-${release.id.id}",
+                    description = "",
+                    image = "",
+                    type = LibriaCard.Type.Release(release.id),
+                )
+            }
 
-        val viewModel = track(DetailRecommendsViewModel(
-            tvContentUseCase = fakeUseCase,
-            converter = converter,
-            cardRouter = LibriaCardRouter(
-                router = mockk<Router>(relaxed = true),
-                systemUtils = mockk<SystemUtils>(relaxed = true),
-            ),
-            extra = DetailExtra(id = ReleaseId(9600)),
-        ))
+            val viewModel =
+                track(
+                    DetailRecommendsViewModel(
+                        tvContentUseCase = fakeUseCase,
+                        converter = converter,
+                        cardRouter =
+                            LibriaCardRouter(
+                                router = mockk<Router>(relaxed = true),
+                                systemUtils = mockk<SystemUtils>(relaxed = true),
+                            ),
+                        extra = DetailExtra(id = ReleaseId(9600)),
+                    ),
+                )
+            viewModel.setLoaderDispatcherForTests(testDispatcher)
 
-        viewModel.onRefreshClick()
-        waitUntil { fakeUseCase.recommendationCalls == listOf(9600) }
-        waitUntil { viewModel.cardsData.value.any { it is LibriaCard } }
-        assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
-    }
+            viewModel.onRefreshClick()
+            waitUntil { fakeUseCase.recommendationCalls == listOf(9600) }
+            waitUntil { viewModel.cardsData.value.any { it is LibriaCard } }
+            assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
+        }
 
     @Test
-    fun refresh_fallsBackToGlobalRecommendations_whenSeededListContainsOnlyCurrentRelease() = runBlocking {
-        val fakeUseCase = FakeTvContentUseCaseForDetails().apply {
-            recommendationsBySeed[9600] = listOf(mockRelease(9600))
-            recommendationsBySeed[null] = listOf(mockRelease(9839))
-        }
-        val converter = mockk<CardsDataConverter>()
-        every { converter.toCard(any<Release>()) } answers {
-            val release = firstArg<Release>()
-            LibriaCard(
-                title = "release-${release.id.id}",
-                description = "",
-                image = "",
-                type = LibriaCard.Type.Release(release.id),
-            )
-        }
+    fun refresh_fallsBackToGlobalRecommendations_whenSeededListContainsOnlyCurrentRelease() =
+        runTest {
+            val fakeUseCase =
+                FakeTvContentUseCaseForDetails().apply {
+                    recommendationsBySeed[9600] = listOf(mockRelease(9600))
+                    recommendationsBySeed[null] = listOf(mockRelease(9839))
+                }
+            val converter = mockk<CardsDataConverter>()
+            every { converter.toCard(any<Release>()) } answers {
+                val release = firstArg<Release>()
+                LibriaCard(
+                    title = "release-${release.id.id}",
+                    description = "",
+                    image = "",
+                    type = LibriaCard.Type.Release(release.id),
+                )
+            }
 
-        val viewModel = track(DetailRecommendsViewModel(
-            tvContentUseCase = fakeUseCase,
-            converter = converter,
-            cardRouter = LibriaCardRouter(
-                router = mockk<Router>(relaxed = true),
-                systemUtils = mockk<SystemUtils>(relaxed = true),
-            ),
-            extra = DetailExtra(id = ReleaseId(9600)),
-        ))
+            val viewModel =
+                track(
+                    DetailRecommendsViewModel(
+                        tvContentUseCase = fakeUseCase,
+                        converter = converter,
+                        cardRouter =
+                            LibriaCardRouter(
+                                router = mockk<Router>(relaxed = true),
+                                systemUtils = mockk<SystemUtils>(relaxed = true),
+                            ),
+                        extra = DetailExtra(id = ReleaseId(9600)),
+                    ),
+                )
+            viewModel.setLoaderDispatcherForTests(testDispatcher)
 
-        viewModel.onRefreshClick()
-        waitUntil { fakeUseCase.recommendationCalls == listOf(9600, null) }
-        waitUntil { viewModel.cardsData.value.any { it is LibriaCard } }
-        assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
-    }
+            viewModel.onRefreshClick()
+            waitUntil { fakeUseCase.recommendationCalls == listOf(9600, null) }
+            waitUntil { viewModel.cardsData.value.any { it is LibriaCard } }
+            assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
+        }
 
     private fun mockRelease(id: Int): Release {
         val release = mockk<Release>()
@@ -140,7 +153,10 @@ private class FakeTvContentUseCaseForDetails : TvContentUseCase {
     val recommendationsBySeed = mutableMapOf<Int?, List<Release>>()
     val recommendationCalls = CopyOnWriteArrayList<Int?>()
 
-    override suspend fun loadMainFeed(requestPage: Int, pageLimit: Int): List<Release> = emptyList()
+    override suspend fun loadMainFeed(
+        requestPage: Int,
+        pageLimit: Int,
+    ): List<Release> = emptyList()
 
     override suspend fun loadMainSchedule(currentTimeMs: Long): MainSchedulePayload =
         MainSchedulePayload(title = "", releases = emptyList())
@@ -149,7 +165,10 @@ private class FakeTvContentUseCaseForDetails : TvContentUseCase {
 
     override suspend fun loadFavoriteState(releaseId: ReleaseId): Boolean? = null
 
-    override suspend fun loadRecommendations(seedReleaseId: Int?, limit: Int): List<Release> {
+    override suspend fun loadRecommendations(
+        seedReleaseId: Int?,
+        limit: Int,
+    ): List<Release> {
         recommendationCalls += seedReleaseId
         return recommendationsBySeed[seedReleaseId].orEmpty()
     }

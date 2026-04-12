@@ -30,9 +30,10 @@ internal fun TvPageHeader(
         verticalAlignment = Alignment.Top,
     ) {
         androidx.compose.foundation.layout.Column(
-            modifier = Modifier
-                .weight(1f)
-                .widthIn(max = 780.dp),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .widthIn(max = 780.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
@@ -80,10 +81,11 @@ internal fun TvSectionHeader(
             fontWeight = FontWeight.SemiBold,
         )
         Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(1.dp)
-                .background(palette.textColor.copy(alpha = 0.08f))
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(palette.textColor.copy(alpha = 0.08f)),
         )
     }
 }

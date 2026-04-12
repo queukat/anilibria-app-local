@@ -7,20 +7,20 @@ import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 
 class AniLibertyViewHistoryCardMapperTest {
-
     @Test
     fun toContinueCardOrNull_mapsDomainItem() {
-        val item = UserViewHistoryItem(
-            releaseId = ReleaseId(42),
-            titleMain = "Naruto",
-            titleEnglish = "Naruto",
-            titleAlternative = null,
-            posterPreview = "/img/poster.jpg",
-            posterThumbnail = null,
-            episodeOrdinal = 7.5,
-            timeSeconds = 153.0,
-            isWatched = false,
-        )
+        val item =
+            UserViewHistoryItem(
+                releaseId = ReleaseId(42),
+                titleMain = "Naruto",
+                titleEnglish = "Naruto",
+                titleAlternative = null,
+                posterPreview = "/img/poster.jpg",
+                posterThumbnail = null,
+                episodeOrdinal = 7.5,
+                timeSeconds = 153.0,
+                isWatched = false,
+            )
 
         val card = AniLibertyViewHistoryCardMapper.toContinueCardOrNull(item)
 
@@ -32,17 +32,18 @@ class AniLibertyViewHistoryCardMapperTest {
 
     @Test
     fun toHistoryCardOrNull_marksWatchedEntry() {
-        val item = UserViewHistoryItem(
-            releaseId = ReleaseId(99),
-            titleMain = null,
-            titleEnglish = "Bleach",
-            titleAlternative = null,
-            posterPreview = null,
-            posterThumbnail = "covers/bleach.jpg",
-            episodeOrdinal = 12.0,
-            timeSeconds = 10.0,
-            isWatched = true,
-        )
+        val item =
+            UserViewHistoryItem(
+                releaseId = ReleaseId(99),
+                titleMain = null,
+                titleEnglish = "Bleach",
+                titleAlternative = null,
+                posterPreview = null,
+                posterThumbnail = "covers/bleach.jpg",
+                episodeOrdinal = 12.0,
+                timeSeconds = 10.0,
+                isWatched = true,
+            )
 
         val card = AniLibertyViewHistoryCardMapper.toHistoryCardOrNull(item)
 

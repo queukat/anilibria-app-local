@@ -12,26 +12,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
-import ru.radiationx.anilibria.common.TvCollectionFilterLabels
-import ru.radiationx.anilibria.common.TvCollectionFilterPickerKind
-import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
-import ru.radiationx.anilibria.common.TvCollectionFilterChipState
-import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
+import ru.radiationx.anilibria.common.TvCollectionFilterChipState
+import ru.radiationx.anilibria.common.TvCollectionFilterLabels
+import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
+import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
 import ru.radiationx.anilibria.common.shouldRequestTvCollectionPickerFocus
 import ru.radiationx.anilibria.common.tvCollectionFilterIndex
 import ru.radiationx.anilibria.extension.applyCard
 import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
-import ru.radiationx.shared.ktx.android.subscribeTo
 import ru.radiationx.quill.viewModel
+import ru.radiationx.shared.ktx.android.subscribeTo
 
 class SearchFragment : Fragment() {
-
     private val backgroundManager by lazy { GradientBackgroundManager(requireActivity()) }
     private val cardsViewModel by viewModel<SearchViewModel>()
     private val formViewModel by viewModel<SearchFormViewModel>()
@@ -44,7 +42,7 @@ class SearchFragment : Fragment() {
             genre = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL_GENRES, emphasized = false),
             sort = TvCollectionFilterChipState(TvCollectionFilterLabels.SORT_POPULARITY, emphasized = false),
             onlyCompleted = TvCollectionFilterChipState(TvCollectionFilterLabels.ALL, emphasized = false),
-        )
+        ),
     )
     private var progressState by mutableStateOf(false)
     private var pickerState by mutableStateOf<TvCollectionFilterPickerState?>(null)
@@ -64,11 +62,12 @@ class SearchFragment : Fragment() {
             isFocusable = true
             isFocusableInTouchMode = true
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
-                if (hasFocus) {
-                    focusRequestToken++
+            onFocusChangeListener =
+                View.OnFocusChangeListener { _, hasFocus ->
+                    if (hasFocus) {
+                        focusRequestToken++
+                    }
                 }
-            }
             setContent {
                 ProvideGradientBackground(backgroundManager) {
                     CatalogScreen(
@@ -106,18 +105,22 @@ class SearchFragment : Fragment() {
         focusRequestToken++
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
 
         backgroundManager.clearGradient()
 
-        pickerBackCallback = object : OnBackPressedCallback(false) {
-            override fun handleOnBackPressed() {
-                formViewModel.dismissFilterPicker()
+        pickerBackCallback =
+            object : OnBackPressedCallback(false) {
+                override fun handleOnBackPressed() {
+                    formViewModel.dismissFilterPicker()
+                }
+            }.also {
+                requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
             }
-        }.also {
-            requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it)
-        }
 
         viewLifecycleOwner.lifecycle.addObserver(cardsViewModel)
         viewLifecycleOwner.lifecycle.addObserver(formViewModel)
@@ -163,10 +166,9 @@ class SearchFragment : Fragment() {
             is LibriaCard,
             is LinkCard,
             is LoadingCard,
-                -> cardsViewModel.onCardItemClick(item)
+            -> cardsViewModel.onCardItemClick(item)
 
             is InfoCard -> Unit
         }
     }
-
 }

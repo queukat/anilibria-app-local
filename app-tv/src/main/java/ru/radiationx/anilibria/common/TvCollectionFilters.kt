@@ -161,9 +161,10 @@ private object TvCollectionSeasonRank {
 }
 
 private fun Release.tvCollectionYearSortValue(): Int {
-    val digits = year
-        ?.filter(Char::isDigit)
-        .orEmpty()
+    val digits =
+        year
+            ?.filter(Char::isDigit)
+            .orEmpty()
     return digits.toIntOrNull() ?: Int.MIN_VALUE
 }
 

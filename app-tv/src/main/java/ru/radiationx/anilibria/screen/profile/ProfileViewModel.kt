@@ -1,13 +1,13 @@
 package ru.radiationx.anilibria.screen.profile
 
 import androidx.lifecycle.viewModelScope
+import com.github.terrakok.cicerone.Router
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import com.github.terrakok.cicerone.Router
 import ru.radiationx.anilibria.screen.AuthScreen
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.data.contracts.tv.TvProfileFacade
@@ -16,32 +16,33 @@ import ru.radiationx.shared.ktx.coRunCatching
 import timber.log.Timber
 import javax.inject.Inject
 
-class ProfileViewModel @Inject constructor(
-    private val tvProfileFacade: TvProfileFacade,
-    private val router: Router,
-) : LifecycleViewModel() {
+class ProfileViewModel
+    @Inject
+    constructor(
+        private val tvProfileFacade: TvProfileFacade,
+        private val router: Router,
+    ) : LifecycleViewModel() {
+        private val _profileData = MutableStateFlow<ProfileItem?>(null)
+        val profileData: StateFlow<ProfileItem?> = _profileData.asStateFlow()
 
-    private val _profileData = MutableStateFlow<ProfileItem?>(null)
-    val profileData: StateFlow<ProfileItem?> = _profileData.asStateFlow()
+        init {
+            tvProfileFacade
+                .observeUser()
+                .onEach { _profileData.value = it }
+                .launchIn(viewModelScope)
+        }
 
-    init {
-        tvProfileFacade
-            .observeUser()
-            .onEach { _profileData.value = it }
-            .launchIn(viewModelScope)
-    }
+        fun onSignInClick() {
+            router.navigateTo(AuthScreen())
+        }
 
-    fun onSignInClick() {
-        router.navigateTo(AuthScreen())
-    }
-
-    fun onSignOutClick() {
-        viewModelScope.launch {
-            coRunCatching {
-                tvProfileFacade.signOut()
-            }.onFailure {
-                Timber.e(it)
+        fun onSignOutClick() {
+            viewModelScope.launch {
+                coRunCatching {
+                    tvProfileFacade.signOut()
+                }.onFailure {
+                    Timber.e(it)
+                }
             }
         }
     }
-}

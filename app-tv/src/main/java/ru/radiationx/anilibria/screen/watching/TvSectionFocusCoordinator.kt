@@ -119,9 +119,10 @@ internal fun launchTvSectionFocus(
     sectionListIndex: (Int) -> Int = { it },
     onBeforeRequest: (() -> Unit)? = null,
 ): Boolean {
-    val requester = sectionRequesters.getOrNull(target.sectionIndex)
-        ?.getOrNull(target.itemIndex)
-        ?: return false
+    val requester =
+        sectionRequesters.getOrNull(target.sectionIndex)
+            ?.getOrNull(target.itemIndex)
+            ?: return false
     onBeforeRequest?.invoke()
     scope.launch {
         verticalState.scrollItemIntoViewIfNeeded(
@@ -142,9 +143,10 @@ internal suspend fun restoreTvSectionFocus(
     verticalBottomClearancePx: Int = 0,
     sectionListIndex: (Int) -> Int = { it },
 ): Boolean {
-    val requester = sectionRequesters.getOrNull(target.sectionIndex)
-        ?.getOrNull(target.itemIndex)
-        ?: return false
+    val requester =
+        sectionRequesters.getOrNull(target.sectionIndex)
+            ?.getOrNull(target.itemIndex)
+            ?: return false
     verticalState.scrollItemIntoViewIfNeeded(
         index = sectionListIndex(target.sectionIndex),
         bottomClearancePx = verticalBottomClearancePx,
