@@ -9,19 +9,13 @@ import ru.radiationx.data.entity.domain.types.ReleaseId
 interface TvPlayerFacade {
     fun observeAuthState(): Flow<AuthState>
 
-    suspend fun getAuthState(): AuthState
-
     suspend fun loadWithFranchises(releaseId: ReleaseId): List<Release>
 
     suspend fun getLocalContinueEpisodeId(releaseId: ReleaseId): EpisodeId?
 
-    suspend fun getRemoteContinueEpisodeId(releaseId: ReleaseId): EpisodeId?
-
     suspend fun getLocalEpisodeSeek(episodeId: EpisodeId): Long
 
     suspend fun saveLocalEpisodeSeek(episodeId: EpisodeId, seek: Long)
-
-    suspend fun getRemoteEpisodeSeek(episodeId: EpisodeId): Long
 
     suspend fun saveRemoteEpisodeProgress(
         episodeId: EpisodeId,

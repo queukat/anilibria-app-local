@@ -18,6 +18,7 @@ import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.anilibria.screen.PlayerScreen
 import ru.radiationx.anilibria.screen.player.formatEpisodeAccessDescription
 import ru.radiationx.anilibria.screen.player.sortedByEpisodeOrdinalAsc
+import ru.radiationx.anilibria.screen.watching.pickLatestLocalProgressOrNull
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
@@ -119,28 +120,13 @@ class DetailHeaderViewModel
 
         fun onContinueClick() {
             viewModelScope.launch {
-                // 1) local progress (legacy) — primary
                 val localEpisodeId =
                     runCatching {
-                        releaseInteractor
-                            .getAccesses(releaseId)
-                            .maxByOrNull { it.lastAccessRaw }
-                            ?.id
+                        pickLatestLocalProgressOrNull(releaseInteractor.getAccesses(releaseId))?.id
                     }.getOrNull()
 
                 if (localEpisodeId != null) {
                     router.navigateTo(PlayerScreen(releaseId, localEpisodeId))
-                    return@launch
-                }
-
-                // 2) remote progress (AniLiberty) — fallback ("continue on another device")
-                if (tvDetailHeaderUseCase.isAuthorized()) {
-                    val remoteEpisodeId =
-                        runCatching { tvDetailHeaderUseCase.findLatestNotWatchedEpisodeIdForRelease(releaseId) }
-                            .getOrNull()
-                    if (remoteEpisodeId != null) {
-                        router.navigateTo(PlayerScreen(releaseId, remoteEpisodeId))
-                    }
                 }
             }
         }
@@ -158,22 +144,10 @@ class DetailHeaderViewModel
             viewModelScope.launch {
                 val localEpisodeId =
                     runCatching {
-                        releaseInteractor
-                            .getAccesses(releaseId)
-                            .maxByOrNull { it.lastAccessRaw }
-                            ?.id
+                        pickLatestLocalProgressOrNull(releaseInteractor.getAccesses(releaseId))?.id
                     }.getOrNull()
 
-                val seedEpisodeId =
-                    localEpisodeId ?: run {
-                        if (tvDetailHeaderUseCase.isAuthorized()) {
-                            runCatching { tvDetailHeaderUseCase.findLatestEpisodeIdForRelease(releaseId) }.getOrNull()
-                        } else {
-                            null
-                        }
-                    }
-
-                _overlayState.value = release.toEpisodePickerOverlay(seedEpisodeId)
+                _overlayState.value = release.toEpisodePickerOverlay(localEpisodeId)
             }
         }
 

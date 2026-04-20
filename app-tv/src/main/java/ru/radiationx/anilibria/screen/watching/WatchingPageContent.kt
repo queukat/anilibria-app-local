@@ -90,6 +90,7 @@ internal class WatchingPageContent(
     }
 
     override fun onSelected() {
+        watchingViewModel.onPageSelected()
         visibilityRestoreToken++
         selectedItemState?.let(backgroundManager::applyCard) ?: backgroundManager.clearGradient()
     }

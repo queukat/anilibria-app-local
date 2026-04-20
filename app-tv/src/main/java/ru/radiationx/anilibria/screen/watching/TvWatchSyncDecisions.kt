@@ -1,20 +1,10 @@
 package ru.radiationx.anilibria.screen.watching
 
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
-import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import java.math.BigDecimal
 
-internal fun shouldUseLocalProgressForRemoteContinueItem(
-    remoteItem: UserViewHistoryItem,
-    localAccess: EpisodeAccess?,
-): Boolean {
-    localAccess ?: return false
-    if (localAccess.seek <= 0L) return false
-
-    val localOrdinal = normalizeEpisodeOrdinal(localAccess.id.id) ?: return false
-    val remoteOrdinal = normalizeEpisodeOrdinal(remoteItem.episodeOrdinal) ?: return false
-
-    return localOrdinal == remoteOrdinal
+internal fun pickLatestLocalProgressOrNull(accesses: Iterable<EpisodeAccess>): EpisodeAccess? {
+    return accesses.maxByOrNull { access -> access.lastAccessRaw }
 }
 
 internal fun normalizeEpisodeOrdinal(value: String?): String? {

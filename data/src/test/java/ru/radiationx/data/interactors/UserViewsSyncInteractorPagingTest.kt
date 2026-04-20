@@ -15,7 +15,10 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseEpisodeId
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyUserViewHistoryItem
+import ru.radiationx.data.datasource.remote.aniliberty.MAX_USER_VIEWS_HISTORY_LIMIT
 import ru.radiationx.data.entity.response.PaginatedResponse
+import ru.radiationx.data.repository.UserViewsRepository
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import java.security.MessageDigest
 import kotlinx.coroutines.runBlocking
 
@@ -61,13 +64,15 @@ class UserViewsSyncInteractorPagingTest {
             episodesCheckerHolder = episodesCheckerHolder,
             historyHolder = historyHolder,
             syncHolder = syncHolder,
+            userViewsRepository = mockk<UserViewsRepository>(relaxed = true),
+            applicationScope = ApplicationCoroutineScope(),
         )
 
         interactor.syncIfNeeded()
 
         assertEquals(listOf(1, 2, 3), requestedPages)
         coVerify(exactly = 3) {
-            aniLibertyApi.getUserViewsHistory(any(), any(), any())
+            aniLibertyApi.getUserViewsHistory(any(), MAX_USER_VIEWS_HISTORY_LIMIT, any())
         }
     }
 
@@ -80,8 +85,8 @@ class UserViewsSyncInteractorPagingTest {
         meta = PaginatedResponse.PaginationResponse(
             page = page,
             allPages = allPages,
-            perPage = 50,
-            allItems = allPages * 50,
+            perPage = MAX_USER_VIEWS_HISTORY_LIMIT,
+            allItems = allPages * MAX_USER_VIEWS_HISTORY_LIMIT,
         ),
     )
 

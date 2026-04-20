@@ -148,13 +148,6 @@ class PlayerViewModel
                         ?: runCatching {
                             tvPlayerFacade.getLocalContinueEpisodeId(argExtra.releaseId)
                         }.getOrNull()
-                        ?: run {
-                            if (tvPlayerFacade.getAuthState() == AuthState.AUTH) {
-                                runCatching { tvPlayerFacade.getRemoteContinueEpisodeId(argExtra.releaseId) }.getOrNull()
-                            } else {
-                                null
-                            }
-                        }
 
                 val episode =
                     currentEpisodes.firstOrNull { it.id == initialEpisodeId }
@@ -385,15 +378,8 @@ class PlayerViewModel
                         PlayerPlaybackStart.StartFromBeginning -> 0L
                         PlayerPlaybackStart.ResumeSavedProgress -> {
                             val localSeek = tvPlayerFacade.getLocalEpisodeSeek(episode.id)
-                            val remoteSeek =
-                                if (canSyncRemoteViews) {
-                                    runCatching { tvPlayerFacade.getRemoteEpisodeSeek(episode.id) }.getOrDefault(0L)
-                                } else {
-                                    0L
-                                }
                             resolvePlayerStartPosition(
                                 localSeekMs = localSeek,
-                                remoteSeekMs = remoteSeek,
                                 playbackStart = playbackStart,
                             )
                         }

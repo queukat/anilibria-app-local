@@ -1,5 +1,9 @@
 package ru.radiationx.data.datasource.holders
 
+import ru.radiationx.data.entity.domain.types.ReleaseId
+import ru.radiationx.data.entity.domain.types.EpisodeId
+import ru.radiationx.data.entity.domain.watching.UserViewPendingUpload
+
 /**
  * Persisted state for user views synchronization (AniLiberty timecodes/history).
  *
@@ -18,4 +22,18 @@ interface UserViewsSyncHolder {
     suspend fun getLastFullImportTokenHash(): String?
 
     suspend fun setLastFullImportTokenHash(value: String?)
+
+    suspend fun getPendingUploads(): List<UserViewPendingUpload>
+
+    suspend fun upsertPendingUpload(upload: UserViewPendingUpload)
+
+    suspend fun upsertPendingUploads(uploads: Collection<UserViewPendingUpload>) {
+        uploads.forEach { upload ->
+            upsertPendingUpload(upload)
+        }
+    }
+
+    suspend fun removePendingUploadsByEpisodeIds(episodeIds: Collection<EpisodeId>)
+
+    suspend fun removePendingUploadsByReleaseId(releaseId: ReleaseId)
 }

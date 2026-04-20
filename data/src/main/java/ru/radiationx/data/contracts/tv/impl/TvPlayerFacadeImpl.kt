@@ -21,8 +21,6 @@ class TvPlayerFacadeImpl @Inject constructor(
 
     override fun observeAuthState(): Flow<AuthState> = authRepository.observeAuthState()
 
-    override suspend fun getAuthState(): AuthState = authRepository.getAuthState()
-
     override suspend fun loadWithFranchises(releaseId: ReleaseId): List<Release> {
         return if (releaseInteractor.getCachedFull(releaseId = releaseId) != null) {
             releaseInteractor.loadWithFranchises(releaseId)
@@ -38,20 +36,12 @@ class TvPlayerFacadeImpl @Inject constructor(
             ?.id
     }
 
-    override suspend fun getRemoteContinueEpisodeId(releaseId: ReleaseId): EpisodeId? {
-        return userViewsRepository.findLatestEpisodeIdForRelease(releaseId)
-    }
-
     override suspend fun getLocalEpisodeSeek(episodeId: EpisodeId): Long {
         return releaseInteractor.getAccess(episodeId)?.seek ?: 0L
     }
 
     override suspend fun saveLocalEpisodeSeek(episodeId: EpisodeId, seek: Long) {
         releaseInteractor.setAccessSeek(episodeId, seek)
-    }
-
-    override suspend fun getRemoteEpisodeSeek(episodeId: EpisodeId): Long {
-        return userViewsRepository.getEpisodeTimecode(episodeId)?.positionMs ?: 0L
     }
 
     override suspend fun saveRemoteEpisodeProgress(

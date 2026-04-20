@@ -17,6 +17,7 @@ import org.junit.Test
 import ru.radiationx.data.SharedBuildConfig
 import ru.radiationx.data.datasource.remote.IClient
 import ru.radiationx.data.datasource.remote.NetworkResponse
+import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTimecodeDeleteBody
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTimecodeUpsertBody
 import ru.radiationx.data.system.Client
 import ru.radiationx.data.system.ClientWrapper
@@ -82,6 +83,21 @@ class AniLibertyApiMockWebServerContractTest {
     }
 
     @Test
+    fun getUserViewTimecodes_parsesLiveTupleFixture() = runBlocking {
+        mockWebServer.enqueue(jsonOk(loadResource("aniliberty/user_view_timecodes_get_since_tuple.json")))
+
+        val result = api.getUserViewTimecodes(since = null)
+
+        assertEquals(2, result.size)
+        assertEquals("95ccf09f-789e-11ec-ae92-0242ac120002", result[0].releaseEpisodeId.value)
+        assertEquals(1423.84, result[0].time, 0.0)
+        assertEquals(true, result[0].isWatched)
+        assertEquals("95ccf10f-789e-11ec-ae92-0242ac120002", result[1].releaseEpisodeId.value)
+        assertEquals(1342.43, result[1].time, 0.0)
+        assertEquals(true, result[1].isWatched)
+    }
+
+    @Test
     fun upsertUserViewTimecodes_sendsExpectedJsonBody() = runBlocking {
         mockWebServer.enqueue(jsonOk(loadResource("aniliberty/user_view_timecodes_post_ok.json")))
 
@@ -114,6 +130,33 @@ class AniLibertyApiMockWebServerContractTest {
     }
 
     @Test
+    fun deleteUserViewTimecodes_sendsExpectedJsonBody() = runBlocking {
+        mockWebServer.enqueue(jsonOk("[]"))
+
+        api.deleteUserViewTimecodes(
+            listOf(
+                AniLibertyUserViewTimecodeDeleteBody(
+                    releaseEpisodeId = "episode-42",
+                ),
+            ),
+        )
+        val request = takeRequest()
+
+        assertEquals("DELETE", request.method)
+        assertEquals("/api/v1/accounts/users/me/views/timecodes", request.requestUrl?.encodedPath)
+        assertCommonHeaders(request)
+
+        val body = request.body.readUtf8()
+        val itemType = Types.newParameterizedType(List::class.java, AniLibertyUserViewTimecodeDeleteBody::class.java)
+        val parsedBody: List<AniLibertyUserViewTimecodeDeleteBody> =
+            moshi.adapter<List<AniLibertyUserViewTimecodeDeleteBody>>(itemType).fromJson(body)
+                ?: error("Expected non-null JSON body list for deleteUserViewTimecodes.")
+
+        assertEquals(1, parsedBody.size)
+        assertEquals("episode-42", parsedBody.first().releaseEpisodeId)
+    }
+
+    @Test
     fun getUserViewsHistory_sendsPageLimitAndParsesPagination() = runBlocking {
         mockWebServer.enqueue(jsonOk(loadResource("aniliberty/user_views_history_get_page2_limit30.json")))
 
@@ -135,6 +178,81 @@ class AniLibertyApiMockWebServerContractTest {
         assertEquals(9001, result.data.first().releaseId?.value)
         assertEquals(87.3, result.data.first().time ?: 0.0, 0.0)
         assertEquals(false, result.data.first().isWatched)
+    }
+
+    @Test
+    fun getUserViewsHistory_clampsLimitToLiveServerMaximum() = runBlocking {
+        mockWebServer.enqueue(jsonOk(loadResource("aniliberty/user_views_history_get_page2_limit30.json")))
+
+        api.getUserViewsHistory(page = 1, limit = 100, fields = null)
+        val request = takeRequest()
+
+        assertEquals("GET", request.method)
+        assertEquals("/api/v1/accounts/users/me/views/history", request.requestUrl?.encodedPath)
+        assertEquals("1", request.requestUrl?.queryParameter("page"))
+        assertEquals(MAX_USER_VIEWS_HISTORY_LIMIT.toString(), request.requestUrl?.queryParameter("limit"))
+        assertCommonHeaders(request)
+    }
+
+    @Test
+    fun getUserViewsHistory_parsesLiveLikePayloadWithNestedReleaseFallbacks() = runBlocking {
+        mockWebServer.enqueue(jsonOk(loadResource("aniliberty/user_views_history_get_live_like.json")))
+
+        val result = api.getUserViewsHistory(page = 1, limit = 2, fields = null)
+
+        assertEquals(2, result.data.size)
+        val first = result.data.first()
+        assertEquals("a18f1aba-602f-45e2-a2bc-68255256f8fd", first.releaseEpisodeId?.value)
+        assertEquals(null, first.releaseId)
+        assertEquals(0.0, first.time ?: -1.0, 0.0)
+        assertEquals(true, first.isWatched)
+        assertEquals(null, first.createdAt)
+        assertEquals("2026-04-17T18:41:34+00:00", first.updatedAt)
+        assertEquals(10161, first.releaseEpisode?.releaseId?.value)
+        assertEquals(10161, first.release?.id?.value)
+        assertEquals(2.0, first.episode?.ordinal ?: -1.0, 0.0)
+
+        val second = result.data[1]
+        assertEquals(7.15, second.time ?: -1.0, 0.0)
+        assertEquals(false, second.isWatched)
+        assertEquals(1.0, second.episode?.ordinal ?: -1.0, 0.0)
+    }
+
+    @Test
+    fun getEpisodeTimecode_parsesLiveLikeObjectPayload() = runBlocking {
+        mockWebServer.enqueue(jsonOk(loadResource("aniliberty/release_episode_timecode_get_live_like.json")))
+
+        val result = api.getEpisodeTimecode(
+            releaseEpisodeId = AniLibertyReleaseEpisodeId("a18f1aba-602f-45e2-a2bc-68255256f8fd"),
+            fields = null,
+        )
+        val request = takeRequest()
+
+        assertEquals("GET", request.method)
+        assertEquals("/api/v1/anime/releases/episodes/a18f1aba-602f-45e2-a2bc-68255256f8fd/timecode", request.requestUrl?.encodedPath)
+        assertEquals(0.0, result.time, 0.0)
+        assertEquals(true, result.isWatched)
+    }
+
+    @Test
+    fun getReleaseEpisodesTimecodes_parsesLiveLikeObjectArrayPayload() = runBlocking {
+        mockWebServer.enqueue(jsonOk(loadResource("aniliberty/release_episodes_timecodes_get_live_like.json")))
+
+        val result = api.getReleaseEpisodesTimecodes(
+            key = AniLibertyReleaseKey.id(10161),
+            fields = null,
+        )
+        val request = takeRequest()
+
+        assertEquals("GET", request.method)
+        assertEquals("/api/v1/anime/releases/10161/episodes/timecodes", request.requestUrl?.encodedPath)
+        assertEquals(2, result.size)
+        assertEquals("a17d6fbc-0109-4435-b7cb-481d67291493", result[0].releaseEpisodeId.value)
+        assertEquals(7.15, result[0].time, 0.0)
+        assertEquals(false, result[0].isWatched)
+        assertEquals("a18f1aba-602f-45e2-a2bc-68255256f8fd", result[1].releaseEpisodeId.value)
+        assertEquals(0.0, result[1].time, 0.0)
+        assertEquals(true, result[1].isWatched)
     }
 
     @Test

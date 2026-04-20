@@ -1,0 +1,99 @@
+{
+  "data": [
+    {
+      "id": 205140400,
+      "time": 0,
+      "user_id": 465628,
+      "is_watched": true,
+      "updated_at": "2026-04-17T18:41:34+00:00",
+      "release_episode_id": "a18f1aba-602f-45e2-a2bc-68255256f8fd",
+      "release_episode": {
+        "id": "a18f1aba-602f-45e2-a2bc-68255256f8fd",
+        "name": "Вызов чёртовой дюжины",
+        "ordinal": 2,
+        "duration": 1473,
+        "updated_at": "2026-04-17T18:41:34+00:00",
+        "sort_order": 2,
+        "release_id": 10161,
+        "name_english": null,
+        "release": {
+          "id": 10161,
+          "alias": "dr-stone-science-future",
+          "name": {
+            "main": "Доктор Стоун: Научное будущее",
+            "english": "Dr. Stone: Science Future",
+            "alternative": null
+          },
+          "poster": {
+            "src": "/storage/releases/posters/10161.jpg",
+            "preview": "/storage/releases/posters/10161.jpg",
+            "thumbnail": "/storage/releases/posters/10161_thumb.jpg",
+            "optimized": {
+              "src": "/storage/releases/posters/10161.webp",
+              "preview": "/storage/releases/posters/10161_preview.webp",
+              "thumbnail": "/storage/releases/posters/10161_thumb.webp"
+            }
+          },
+          "fresh_at": "2026-04-17T18:41:34+00:00",
+          "created_at": "2025-01-09T20:00:00+00:00",
+          "updated_at": "2026-04-17T18:41:34+00:00",
+          "is_ongoing": true,
+          "is_in_production": true,
+          "year": 2026
+        }
+      }
+    },
+    {
+      "id": 202083015,
+      "time": 7.15,
+      "user_id": 465628,
+      "is_watched": false,
+      "updated_at": "2026-04-09T13:01:48+00:00",
+      "release_episode_id": "a17d6fbc-0109-4435-b7cb-481d67291493",
+      "release_episode": {
+        "id": "a17d6fbc-0109-4435-b7cb-481d67291493",
+        "name": "Начало",
+        "ordinal": 1,
+        "duration": 1480.5,
+        "updated_at": "2026-04-09T13:01:48+00:00",
+        "sort_order": 1,
+        "release_id": 10161,
+        "name_english": null,
+        "release": {
+          "id": 10161,
+          "alias": "dr-stone-science-future",
+          "name": {
+            "main": "Доктор Стоун: Научное будущее",
+            "english": "Dr. Stone: Science Future",
+            "alternative": null
+          },
+          "poster": {
+            "src": "/storage/releases/posters/10161.jpg",
+            "preview": "/storage/releases/posters/10161.jpg",
+            "thumbnail": "/storage/releases/posters/10161_thumb.jpg",
+            "optimized": {
+              "src": "/storage/releases/posters/10161.webp",
+              "preview": "/storage/releases/posters/10161_preview.webp",
+              "thumbnail": "/storage/releases/posters/10161_thumb.webp"
+            }
+          },
+          "fresh_at": "2026-04-09T13:01:48+00:00",
+          "created_at": "2025-01-09T20:00:00+00:00",
+          "updated_at": "2026-04-17T18:41:34+00:00",
+          "is_ongoing": true,
+          "is_in_production": true,
+          "year": 2026
+        }
+      }
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "total": 473,
+      "count": 2,
+      "per_page": 2,
+      "current_page": 1,
+      "total_pages": 237
+    }
+  }
+}

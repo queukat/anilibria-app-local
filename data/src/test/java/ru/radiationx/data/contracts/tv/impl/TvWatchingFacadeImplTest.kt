@@ -1,74 +1,75 @@
 package ru.radiationx.data.contracts.tv.impl
 
-import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import ru.radiationx.data.datasource.holders.EpisodesCheckerHolder
+import ru.radiationx.data.entity.domain.HistoryReleases
+import ru.radiationx.data.entity.domain.release.EpisodeAccess
+import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
-import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
-import ru.radiationx.data.entity.response.PaginatedResponse
-import ru.radiationx.data.repository.AuthRepository
+import ru.radiationx.data.interactors.UserViewsSyncInteractor
 import ru.radiationx.data.repository.HistoryRepository
-import ru.radiationx.data.repository.UserViewsRepository
 
 class TvWatchingFacadeImplTest {
 
     @Test
-    fun probeRemoteAvailability_returnsHistoryAndContinueFlags() = runBlocking {
-        val userViewsRepository = mockk<UserViewsRepository>()
-        coEvery { userViewsRepository.getViewsHistory(page = 1, limit = 25) } returns PaginatedResponse(
-            data = listOf(
-                UserViewHistoryItem(
-                    releaseId = ReleaseId(1),
-                    titleMain = "A",
-                    titleEnglish = null,
-                    titleAlternative = null,
-                    posterPreview = null,
-                    posterThumbnail = null,
-                    episodeOrdinal = 1.0,
-                    timeSeconds = 120.0,
-                    isWatched = false,
-                )
+    fun observeLocalContinueAvailable_reflectsEpisodePresence() = runBlocking {
+        val episodesFlow = MutableStateFlow(listOf(
+            EpisodeAccess(
+                id = EpisodeId("1", ReleaseId(1)),
+                seek = 10_000L,
+                isViewed = true,
+                lastAccess = 100L,
             ),
-            meta = PaginatedResponse.PaginationResponse(
-                page = 1,
-                allPages = 1,
-                perPage = 25,
-                allItems = 1,
-            ),
-        )
+        ))
+        val episodesCheckerHolder = mockk<EpisodesCheckerHolder>()
+        every { episodesCheckerHolder.observeEpisodes() } returns episodesFlow
 
         val facade = TvWatchingFacadeImpl(
-            authRepository = mockk<AuthRepository>(relaxed = true),
             historyRepository = mockk<HistoryRepository>(relaxed = true),
-            episodesCheckerHolder = mockk<EpisodesCheckerHolder>(relaxed = true),
-            userViewsRepository = userViewsRepository,
+            episodesCheckerHolder = episodesCheckerHolder,
+            userViewsSyncInteractor = mockk<UserViewsSyncInteractor>(relaxed = true),
         )
 
-        val availability = facade.probeRemoteAvailability(limit = 25)
-
-        assertTrue(availability.hasHistory)
-        assertTrue(availability.hasContinue)
+        assertTrue(facade.observeLocalContinueAvailable().first())
     }
 
     @Test
-    fun probeRemoteAvailability_returnsFalseFlags_whenRepositoryFails() = runBlocking {
-        val userViewsRepository = mockk<UserViewsRepository>()
-        coEvery { userViewsRepository.getViewsHistory(page = 1, limit = 25) } throws IllegalStateException("offline")
+    fun observeLocalHistoryAvailable_reflectsHistoryPresence() = runBlocking {
+        val historyFlow = MutableStateFlow(HistoryReleases(emptyList(), 0))
+        val historyRepository = mockk<HistoryRepository>()
+        every { historyRepository.observeReleases() } returns historyFlow
 
         val facade = TvWatchingFacadeImpl(
-            authRepository = mockk<AuthRepository>(relaxed = true),
-            historyRepository = mockk<HistoryRepository>(relaxed = true),
+            historyRepository = historyRepository,
             episodesCheckerHolder = mockk<EpisodesCheckerHolder>(relaxed = true),
-            userViewsRepository = userViewsRepository,
+            userViewsSyncInteractor = mockk<UserViewsSyncInteractor>(relaxed = true),
         )
 
-        val availability = facade.probeRemoteAvailability(limit = 25)
+        assertFalse(facade.observeLocalHistoryAvailable().first())
+    }
 
-        assertFalse(availability.hasHistory)
-        assertFalse(availability.hasContinue)
+    @Test
+    fun requestBackgroundSync_delegatesToInteractor() {
+        val interactor = mockk<UserViewsSyncInteractor>(relaxed = true)
+
+        val facade = TvWatchingFacadeImpl(
+            historyRepository = mockk<HistoryRepository>(relaxed = true),
+            episodesCheckerHolder = mockk<EpisodesCheckerHolder>(relaxed = true),
+            userViewsSyncInteractor = interactor,
+        )
+
+        facade.requestBackgroundSync()
+
+        verify(exactly = 1) {
+            interactor.scheduleSyncIfNeeded(reason = "watching_page_selected")
+        }
     }
 }

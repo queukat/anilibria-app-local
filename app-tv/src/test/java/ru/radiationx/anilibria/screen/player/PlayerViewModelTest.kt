@@ -47,7 +47,7 @@ class PlayerViewModelTest {
     }
 
     @Test
-    fun onReplayEpisodeClick_startsCurrentEpisodeFromBeginning_evenWhenRemoteSeekStaysAtEnd() =
+    fun onReplayEpisodeClick_startsCurrentEpisodeFromBeginning_usingLocalStartPosition() =
         runTest {
             val releaseId = ReleaseId(77)
             val episode = createEpisode("1", releaseId)
@@ -55,17 +55,13 @@ class PlayerViewModelTest {
             val tvPlayerFacade = mockk<TvPlayerFacade>()
 
             var localSeek = 95_000L
-            val staleRemoteSeek = 120_000L
-
             every { tvPlayerFacade.observeAuthState() } returns MutableStateFlow(AuthState.AUTH)
-            coEvery { tvPlayerFacade.getAuthState() } returns AuthState.AUTH
             coEvery { tvPlayerFacade.loadWithFranchises(releaseId) } returns listOf(release)
             coEvery { tvPlayerFacade.getLocalEpisodeSeek(episode.id) } answers { localSeek }
             coEvery { tvPlayerFacade.saveLocalEpisodeSeek(episode.id, any()) } answers {
                 localSeek = secondArg()
                 Unit
             }
-            coEvery { tvPlayerFacade.getRemoteEpisodeSeek(episode.id) } returns staleRemoteSeek
             coEvery { tvPlayerFacade.saveRemoteEpisodeProgress(episode.id, any(), any()) } returns Unit
 
             val viewModel =
@@ -80,7 +76,7 @@ class PlayerViewModelTest {
                 )
 
             waitUntil { viewModel.videoData.value != null }
-            assertEquals(staleRemoteSeek, viewModel.videoData.value?.seek)
+            assertEquals(localSeek, viewModel.videoData.value?.seek)
 
             viewModel.onReplayEpisodeClick()
 
@@ -107,11 +103,9 @@ class PlayerViewModelTest {
             val tvPlayerFacade = mockk<TvPlayerFacade>()
 
             every { tvPlayerFacade.observeAuthState() } returns MutableStateFlow(AuthState.NO_AUTH)
-            coEvery { tvPlayerFacade.getAuthState() } returns AuthState.NO_AUTH
             coEvery { tvPlayerFacade.loadWithFranchises(releaseId) } returns listOf(release)
             coEvery { tvPlayerFacade.getLocalEpisodeSeek(any()) } returns 0L
             coEvery { tvPlayerFacade.saveLocalEpisodeSeek(any(), any()) } returns Unit
-            coEvery { tvPlayerFacade.getRemoteEpisodeSeek(any()) } returns 0L
 
             val viewModel =
                 PlayerViewModel(
@@ -146,12 +140,10 @@ class PlayerViewModelTest {
             val tvPlayerFacade = mockk<TvPlayerFacade>()
 
             every { tvPlayerFacade.observeAuthState() } returns MutableStateFlow(AuthState.NO_AUTH)
-            coEvery { tvPlayerFacade.getAuthState() } returns AuthState.NO_AUTH
             coEvery { tvPlayerFacade.loadWithFranchises(season4Id) } returns listOf(season1Release, season4Release)
             coEvery { tvPlayerFacade.getLocalContinueEpisodeId(season4Id) } returns null
             coEvery { tvPlayerFacade.getLocalEpisodeSeek(any()) } returns 0L
             coEvery { tvPlayerFacade.saveLocalEpisodeSeek(any(), any()) } returns Unit
-            coEvery { tvPlayerFacade.getRemoteEpisodeSeek(any()) } returns 0L
 
             val viewModel =
                 PlayerViewModel(
@@ -181,11 +173,9 @@ class PlayerViewModelTest {
             val tvPlayerFacade = mockk<TvPlayerFacade>()
 
             every { tvPlayerFacade.observeAuthState() } returns MutableStateFlow(AuthState.NO_AUTH)
-            coEvery { tvPlayerFacade.getAuthState() } returns AuthState.NO_AUTH
             coEvery { tvPlayerFacade.loadWithFranchises(season4Id) } returns listOf(season1Release, season4Release)
             coEvery { tvPlayerFacade.getLocalEpisodeSeek(any()) } returns 0L
             coEvery { tvPlayerFacade.saveLocalEpisodeSeek(any(), any()) } returns Unit
-            coEvery { tvPlayerFacade.getRemoteEpisodeSeek(any()) } returns 0L
 
             val viewModel =
                 PlayerViewModel(
@@ -218,11 +208,9 @@ class PlayerViewModelTest {
             val tvPlayerFacade = mockk<TvPlayerFacade>()
 
             every { tvPlayerFacade.observeAuthState() } returns MutableStateFlow(AuthState.NO_AUTH)
-            coEvery { tvPlayerFacade.getAuthState() } returns AuthState.NO_AUTH
             coEvery { tvPlayerFacade.loadWithFranchises(releaseId) } returns listOf(release)
             coEvery { tvPlayerFacade.getLocalEpisodeSeek(any()) } returns 0L
             coEvery { tvPlayerFacade.saveLocalEpisodeSeek(any(), any()) } returns Unit
-            coEvery { tvPlayerFacade.getRemoteEpisodeSeek(any()) } returns 0L
 
             val viewModel =
                 PlayerViewModel(

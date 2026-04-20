@@ -5,15 +5,14 @@ import org.junit.Test
 
 class PlayerPlaybackStartTest {
     @Test
-    fun resolvePlayerStartPosition_prefersGreaterSavedSeek_whenResuming() {
+    fun resolvePlayerStartPosition_prefersLocalSeek_whenResuming() {
         val result =
             resolvePlayerStartPosition(
                 localSeekMs = 15_000L,
-                remoteSeekMs = 42_000L,
                 playbackStart = PlayerPlaybackStart.ResumeSavedProgress,
             )
 
-        assertEquals(42_000L, result)
+        assertEquals(15_000L, result)
     }
 
     @Test
@@ -21,7 +20,6 @@ class PlayerPlaybackStartTest {
         val result =
             resolvePlayerStartPosition(
                 localSeekMs = 15_000L,
-                remoteSeekMs = 42_000L,
                 playbackStart = PlayerPlaybackStart.StartFromBeginning,
             )
 

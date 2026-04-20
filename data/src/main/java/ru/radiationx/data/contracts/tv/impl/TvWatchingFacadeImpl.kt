@@ -4,20 +4,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import ru.radiationx.data.contracts.tv.TvWatchingFacade
 import ru.radiationx.data.datasource.holders.EpisodesCheckerHolder
-import ru.radiationx.data.entity.common.AuthState
-import ru.radiationx.data.repository.AuthRepository
+import ru.radiationx.data.interactors.UserViewsSyncInteractor
 import ru.radiationx.data.repository.HistoryRepository
-import ru.radiationx.data.repository.UserViewsRepository
 import javax.inject.Inject
 
 class TvWatchingFacadeImpl @Inject constructor(
-    private val authRepository: AuthRepository,
     private val historyRepository: HistoryRepository,
     private val episodesCheckerHolder: EpisodesCheckerHolder,
-    private val userViewsRepository: UserViewsRepository,
+    private val userViewsSyncInteractor: UserViewsSyncInteractor,
 ) : TvWatchingFacade {
-
-    override fun observeAuthState(): Flow<AuthState> = authRepository.observeAuthState()
 
     override fun observeLocalContinueAvailable(): Flow<Boolean> {
         return episodesCheckerHolder.observeEpisodes().map { it.isNotEmpty() }
@@ -27,17 +22,9 @@ class TvWatchingFacadeImpl @Inject constructor(
         return historyRepository.observeReleases().map { it.items.isNotEmpty() }
     }
 
-    override suspend fun probeRemoteAvailability(limit: Int): TvWatchingFacade.RemoteAvailability {
-        val response = runCatching {
-            userViewsRepository.getViewsHistory(page = 1, limit = limit)
-        }.getOrNull() ?: return TvWatchingFacade.RemoteAvailability(
-            hasHistory = false,
-            hasContinue = false,
-        )
-
-        return TvWatchingFacade.RemoteAvailability(
-            hasHistory = response.data.isNotEmpty(),
-            hasContinue = response.data.any { !it.isWatched },
-        )
+    override fun requestBackgroundSync() {
+        // Watching screen is a good wake-up point on TVs where the process often sleeps
+        // instead of being fully restarted. The sync remains fully async and non-blocking.
+        userViewsSyncInteractor.scheduleSyncIfNeeded(reason = "watching_page_selected")
     }
 }

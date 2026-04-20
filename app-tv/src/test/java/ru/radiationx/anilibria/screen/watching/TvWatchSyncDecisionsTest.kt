@@ -1,69 +1,44 @@
 package ru.radiationx.anilibria.screen.watching
 
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
-import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 
 class TvWatchSyncDecisionsTest {
     @Test
-    fun shouldUseLocalProgressForRemoteContinueItem_returnsTrue_forSameEpisodeOrdinal() {
-        val remoteItem = remoteHistoryItem(episodeOrdinal = 1.0)
-        val localAccess = localAccess(episodeOrdinal = "1", seekMs = 42_000L)
+    fun pickLatestLocalProgressOrNull_prefersNewestAccess() {
+        val releaseId = ReleaseId(7)
+        val older = localAccess(releaseId = releaseId, episodeOrdinal = "1", seekMs = 42_000L, lastAccess = 10L)
+        val newer = localAccess(releaseId = releaseId, episodeOrdinal = "2", seekMs = 12_000L, lastAccess = 20L)
 
-        assertTrue(shouldUseLocalProgressForRemoteContinueItem(remoteItem, localAccess))
+        assertEquals(newer, pickLatestLocalProgressOrNull(listOf(older, newer)))
     }
 
     @Test
-    fun shouldUseLocalProgressForRemoteContinueItem_returnsFalse_forDifferentEpisodeOrdinal() {
-        val remoteItem = remoteHistoryItem(episodeOrdinal = 2.0)
-        val localAccess = localAccess(episodeOrdinal = "1", seekMs = 42_000L)
-
-        assertFalse(shouldUseLocalProgressForRemoteContinueItem(remoteItem, localAccess))
+    fun normalizeEpisodeOrdinal_normalizesFractionalOrdinal() {
+        assertEquals("1", normalizeEpisodeOrdinal("1.0"))
+        assertEquals("2.5", normalizeEpisodeOrdinal("2.500"))
     }
 
     @Test
-    fun shouldUseLocalProgressForRemoteContinueItem_returnsFalse_whenRemoteEpisodeMissing() {
-        val remoteItem = remoteHistoryItem(episodeOrdinal = null)
-        val localAccess = localAccess(episodeOrdinal = "1", seekMs = 42_000L)
-
-        assertFalse(shouldUseLocalProgressForRemoteContinueItem(remoteItem, localAccess))
-    }
-
-    @Test
-    fun shouldUseLocalProgressForRemoteContinueItem_returnsFalse_whenLocalSeekIsEmpty() {
-        val remoteItem = remoteHistoryItem(episodeOrdinal = 1.0)
-        val localAccess = localAccess(episodeOrdinal = "1", seekMs = 0L)
-
-        assertFalse(shouldUseLocalProgressForRemoteContinueItem(remoteItem, localAccess))
-    }
-
-    private fun remoteHistoryItem(episodeOrdinal: Double?): UserViewHistoryItem {
-        return UserViewHistoryItem(
-            releaseId = ReleaseId(7),
-            titleMain = "Release",
-            titleEnglish = null,
-            titleAlternative = null,
-            posterPreview = null,
-            posterThumbnail = null,
-            episodeOrdinal = episodeOrdinal,
-            timeSeconds = 120.0,
-            isWatched = false,
-        )
+    fun normalizeEpisodeOrdinal_returnsNull_forBlankValue() {
+        assertNull(normalizeEpisodeOrdinal("   "))
     }
 
     private fun localAccess(
+        releaseId: ReleaseId,
         episodeOrdinal: String,
         seekMs: Long,
+        lastAccess: Long,
     ): EpisodeAccess {
         return EpisodeAccess(
-            id = EpisodeId(episodeOrdinal, ReleaseId(7)),
+            id = EpisodeId(episodeOrdinal, releaseId),
             seek = seekMs,
             isViewed = true,
-            lastAccess = 123L,
+            lastAccess = lastAccess,
         )
     }
 }

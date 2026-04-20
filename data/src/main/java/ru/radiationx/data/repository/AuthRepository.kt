@@ -101,12 +101,8 @@ class AuthRepository @Inject constructor(
         val profile = loadUserInternal()
         updateUser(profile)
 
-        // Best-effort: sync local progress <-> server timecodes (migration + remote-only import).
-        runCatching {
-            userViewsSyncInteractor.syncIfNeeded()
-        }.onFailure { error ->
-            Timber.w(error, "UserViewsSync: failed after loadUser()")
-        }
+        // Background only: do not block startup/profile UX on watch sync.
+        userViewsSyncInteractor.scheduleSyncIfNeeded(reason = "loadUser")
 
         profile
     }
@@ -201,12 +197,8 @@ class AuthRepository @Inject constructor(
 
         updateUser(profile)
 
-        // Best-effort: sync local progress <-> server timecodes (migration + remote-only import).
-        runCatching {
-            userViewsSyncInteractor.syncIfNeeded()
-        }.onFailure { error ->
-            Timber.w(error, "UserViewsSync: failed after signInOtp()")
-        }
+        // Background only: do not block auth UX on watch sync.
+        userViewsSyncInteractor.scheduleSyncIfNeeded(reason = "signInOtp")
 
         profile
     }
@@ -234,12 +226,8 @@ class AuthRepository @Inject constructor(
 
             updateUser(profile)
 
-            // Best-effort: sync local progress <-> server timecodes (migration + remote-only import).
-            runCatching {
-                userViewsSyncInteractor.syncIfNeeded()
-            }.onFailure { error ->
-                Timber.w(error, "UserViewsSync: failed after signIn()")
-            }
+            // Background only: do not block auth UX on watch sync.
+            userViewsSyncInteractor.scheduleSyncIfNeeded(reason = "signIn")
 
             profile
         }

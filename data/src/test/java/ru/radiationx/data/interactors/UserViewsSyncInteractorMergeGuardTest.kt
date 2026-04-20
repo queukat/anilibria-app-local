@@ -11,6 +11,8 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
+import ru.radiationx.data.repository.UserViewsRepository
+import ru.radiationx.data.system.ApplicationCoroutineScope
 
 class UserViewsSyncInteractorMergeGuardTest {
 
@@ -28,6 +30,7 @@ class UserViewsSyncInteractorMergeGuardTest {
         val result = interactor.invokeMergeEpisodeProgress(
             episodeId = episodeId,
             local = local,
+            localHasPendingUpload = false,
             remoteSeekMs = 95_000L,
             remoteIsWatched = true,
             durationMs = 100_000L,
@@ -53,6 +56,33 @@ class UserViewsSyncInteractorMergeGuardTest {
         val result = interactor.invokeMergeEpisodeProgress(
             episodeId = episodeId,
             local = local,
+            localHasPendingUpload = false,
+            remoteSeekMs = 120_000L,
+            remoteIsWatched = true,
+            durationMs = 120_000L,
+            remoteLastAccessMs = 30_000L,
+            remoteTimestampTrusted = true,
+            syncSessionStartedAtMs = 60_000L,
+        )
+
+        assertSame(local, result)
+    }
+
+    @Test
+    fun mergeEpisodeProgress_pendingLocalUpload_localWins() {
+        val interactor = createInteractor()
+        val episodeId = EpisodeId(id = "3", releaseId = ReleaseId(1))
+        val local = EpisodeAccess(
+            id = episodeId,
+            seek = 15_000L,
+            isViewed = true,
+            lastAccess = 10_000L,
+        )
+
+        val result = interactor.invokeMergeEpisodeProgress(
+            episodeId = episodeId,
+            local = local,
+            localHasPendingUpload = true,
             remoteSeekMs = 120_000L,
             remoteIsWatched = true,
             durationMs = 120_000L,
@@ -71,12 +101,15 @@ class UserViewsSyncInteractorMergeGuardTest {
             episodesCheckerHolder = mockk<EpisodesCheckerHolder>(relaxed = true),
             historyHolder = mockk<HistoryHolder>(relaxed = true),
             syncHolder = mockk<UserViewsSyncHolder>(relaxed = true),
+            userViewsRepository = mockk<UserViewsRepository>(relaxed = true),
+            applicationScope = ApplicationCoroutineScope(),
         )
     }
 
     private fun UserViewsSyncInteractor.invokeMergeEpisodeProgress(
         episodeId: EpisodeId,
         local: EpisodeAccess?,
+        localHasPendingUpload: Boolean,
         remoteSeekMs: Long,
         remoteIsWatched: Boolean,
         durationMs: Long?,
@@ -88,6 +121,7 @@ class UserViewsSyncInteractorMergeGuardTest {
             "mergeEpisodeProgress",
             EpisodeId::class.java,
             EpisodeAccess::class.java,
+            Boolean::class.javaPrimitiveType,
             Long::class.javaPrimitiveType,
             Boolean::class.javaPrimitiveType,
             java.lang.Long::class.java,
@@ -102,6 +136,7 @@ class UserViewsSyncInteractorMergeGuardTest {
             this,
             episodeId,
             local,
+            localHasPendingUpload,
             remoteSeekMs,
             remoteIsWatched,
             durationMs,

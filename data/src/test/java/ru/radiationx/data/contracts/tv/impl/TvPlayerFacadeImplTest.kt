@@ -42,10 +42,9 @@ class TvPlayerFacadeImplTest {
     }
 
     @Test
-    fun getRemoteEpisodeSeek_returnsZero_whenNoRemoteTimecode() = runBlocking {
+    fun saveRemoteEpisodeProgress_delegatesToRepositoryQueue() = runBlocking {
         val episodeId = EpisodeId("1", ReleaseId(24))
-        val userViewsRepository = mockk<UserViewsRepository>()
-        coEvery { userViewsRepository.getEpisodeTimecode(episodeId) } returns null
+        val userViewsRepository = mockk<UserViewsRepository>(relaxed = true)
 
         val facade = TvPlayerFacadeImpl(
             releaseInteractor = mockk<ReleaseInteractor>(relaxed = true),
@@ -54,9 +53,19 @@ class TvPlayerFacadeImplTest {
             authRepository = mockk<AuthRepository>(relaxed = true),
         )
 
-        val result = facade.getRemoteEpisodeSeek(episodeId)
+        facade.saveRemoteEpisodeProgress(
+            episodeId = episodeId,
+            positionMs = 12_000L,
+            isWatched = false,
+        )
 
-        assertEquals(0L, result)
+        coVerify(exactly = 1) {
+            userViewsRepository.upsertEpisodeTimecode(
+                episodeId = episodeId,
+                positionMs = 12_000L,
+                isWatched = false,
+            )
+        }
     }
 
     @Test

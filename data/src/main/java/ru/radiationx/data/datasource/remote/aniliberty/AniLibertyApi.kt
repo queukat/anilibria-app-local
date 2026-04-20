@@ -34,6 +34,8 @@ import javax.inject.Inject
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.distinctBy
 
+internal const val MAX_USER_VIEWS_HISTORY_LIMIT = 50
+
 /**
  * AniLiberty API v1 client implementation.
  *
@@ -505,9 +507,12 @@ class AniLibertyApi @Inject constructor(
     // Views history
 
     override suspend fun getUserViewsHistory(page: Int, limit: Int, fields: AniLibertyFieldSpec?): PaginatedResponse<AniLibertyUserViewHistoryItem> {
+        // Live AniLiberty rejects limit > 50 with HTTP 422, so keep this guardrail
+        // in the client even if current callers already request smaller pages.
+        val safeLimit = limit.coerceIn(1, MAX_USER_VIEWS_HISTORY_LIMIT)
         val args = AniLibertyQueryParams.build {
             put("page", page.toString())
-            put("limit", limit.toString())
+            put("limit", safeLimit.toString())
             applyFields(fields)
         }
         val json = client.get("${Config.BaseUrl}/accounts/users/me/views/history", args)

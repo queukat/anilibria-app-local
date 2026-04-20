@@ -2,6 +2,9 @@ package ru.radiationx.data.interactors
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -16,11 +19,14 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseEpisodeI
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyUserViewHistoryItem
+import ru.radiationx.data.datasource.remote.aniliberty.MAX_USER_VIEWS_HISTORY_LIMIT
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTimecodeUpsertBody
 import ru.radiationx.data.entity.domain.release.EpisodeAccess
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.response.PaginatedResponse
+import ru.radiationx.data.repository.UserViewsRepository
+import ru.radiationx.data.system.ApplicationCoroutineScope
 import timber.log.Timber
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -37,10 +43,10 @@ import kotlin.math.roundToLong
  * Goals:
  * 1) After updating from an old version (only local progress), upload local timecodes to server.
  * 2) Import remote-only releases (and remote progress) into local storage.
- * 3) Resolve conflicts as "max progress wins" (watched > not watched; otherwise bigger timestamp wins).
+ * 3) Resolve conflicts so that dirty local TV state remains authoritative.
  *
  * Runtime behavior:
- * - Initial LOCAL -> REMOTE upload runs once (per auth token hash), then player upserts keep server fresh.
+ * - Initial LOCAL -> REMOTE upload runs once (per auth token hash), then pending uploads keep server fresh.
  * - REMOTE -> LOCAL import runs on each app start in "light" mode (few pages),
  *   and once in "full" mode (all pages) to cover remote-only old history.
  */
@@ -50,12 +56,32 @@ class UserViewsSyncInteractor @Inject constructor(
     private val episodesCheckerHolder: EpisodesCheckerHolder,
     private val historyHolder: HistoryHolder,
     private val syncHolder: UserViewsSyncHolder,
+    private val userViewsRepository: UserViewsRepository,
+    private val applicationScope: ApplicationCoroutineScope,
 ) {
 
     private val syncMutex = Mutex()
+    private val scheduleLock = Any()
+    private var scheduledSyncJob: Job? = null
 
     private val releaseEpisodesMutex = Mutex()
     private val releaseEpisodesCache = mutableMapOf<ReleaseId, ReleaseEpisodesCache>()
+
+    fun scheduleSyncIfNeeded(reason: String) {
+        synchronized(scheduleLock) {
+            scheduledSyncJob?.cancel()
+            scheduledSyncJob = applicationScope.launch {
+                delay(SCHEDULE_SYNC_DEBOUNCE_MS)
+                runCatching { syncIfNeeded() }
+                    .onFailure { error ->
+                        if (error is CancellationException) {
+                            throw error
+                        }
+                        Timber.w(error, "UserViewsSync: scheduled sync failed reason=%s", reason)
+                    }
+            }
+        }
+    }
 
     /**
      * Best-effort sync. Never throws (except coroutine cancellation).
@@ -73,6 +99,7 @@ class UserViewsSyncInteractor @Inject constructor(
             val needUpload = syncHolder.getLastUploadTokenHash() != tokenHash
             val needFullImport = syncHolder.getLastFullImportTokenHash() != tokenHash
             var uploadStatus = if (needUpload) "pending" else "skipped"
+            var pendingUploadStatus = "pending"
             var importStatus = "pending"
             var finishReason = "success"
 
@@ -100,6 +127,19 @@ class UserViewsSyncInteractor @Inject constructor(
                     if (!uploadOk) {
                         finishReason = "upload_failed"
                     }
+                }
+
+                val pendingUploadOk = runCatching {
+                    userViewsRepository.flushPendingUploads(reason = "sync_if_needed")
+                    true
+                }.getOrElse { error ->
+                    if (error is CancellationException) throw error
+                    Timber.w(error, "UserViewsSync: pending upload flush failed")
+                    false
+                }
+                pendingUploadStatus = if (pendingUploadOk) "ok" else "failed"
+                if (!pendingUploadOk && finishReason == "success") {
+                    finishReason = "pending_upload_failed"
                 }
 
                 // 2) Import remote -> local.
@@ -139,11 +179,12 @@ class UserViewsSyncInteractor @Inject constructor(
                 Timber.w(error, "UserViewsSync: unexpected error")
             } finally {
                 Timber.d(
-                    "UserViewsSync.sync finish sessionStartedAtMs=%d needUpload=%s needFullImport=%s uploadStatus=%s importStatus=%s reason=%s",
+                    "UserViewsSync.sync finish sessionStartedAtMs=%d needUpload=%s needFullImport=%s uploadStatus=%s pendingUploadStatus=%s importStatus=%s reason=%s",
                     syncSessionStartedAtMs,
                     needUpload,
                     needFullImport,
                     uploadStatus,
+                    pendingUploadStatus,
                     importStatus,
                     finishReason,
                 )
@@ -246,6 +287,8 @@ class UserViewsSyncInteractor @Inject constructor(
         maxPages: Int,
         syncSessionStartedAtMs: Long,
     ): Boolean = withContext(Dispatchers.IO) {
+        val dirtyLocalEpisodeIds = syncHolder.getPendingUploads()
+            .mapTo(linkedSetOf()) { upload -> upload.toEpisodeId() }
         val initialLocalHistoryIds: Set<ReleaseId> = runCatching { historyHolder.getIds().toSet() }
             .onFailure { Timber.w(it, "UserViewsSync: failed to read local history ids") }
             .getOrNull()
@@ -325,6 +368,7 @@ class UserViewsSyncInteractor @Inject constructor(
                 val merged = mergeEpisodeProgress(
                     episodeId = episodeId,
                     local = local,
+                    localHasPendingUpload = episodeId in dirtyLocalEpisodeIds,
                     remoteSeekMs = remoteSeekMs,
                     remoteIsWatched = remoteIsWatched,
                     durationMs = durationMs,
@@ -413,6 +457,7 @@ class UserViewsSyncInteractor @Inject constructor(
     private fun mergeEpisodeProgress(
         episodeId: EpisodeId,
         local: EpisodeAccess?,
+        localHasPendingUpload: Boolean,
         remoteSeekMs: Long,
         remoteIsWatched: Boolean,
         durationMs: Long?,
@@ -422,6 +467,20 @@ class UserViewsSyncInteractor @Inject constructor(
     ): EpisodeAccess? {
         val localSeekMs = local?.seek ?: 0L
         val localLastAccessMs = local?.lastAccessRaw ?: 0L
+
+        if (localHasPendingUpload && local != null) {
+            logMergeDecision(
+                episodeId = episodeId,
+                local = local,
+                remoteSeekMs = remoteSeekMs,
+                remoteIsWatched = remoteIsWatched,
+                remoteLastAccessMs = remoteLastAccessMs,
+                remoteTimestampTrusted = remoteTimestampTrusted,
+                winner = "local",
+                reason = "local_pending_upload",
+            )
+            return local
+        }
 
         // If remote has no meaningful data and local exists - keep local.
         if (!remoteIsWatched && remoteSeekMs <= 0L) {
@@ -561,8 +620,12 @@ class UserViewsSyncInteractor @Inject constructor(
             val response = runCatching {
                 aniLibertyApi.getUserViewsHistory(
                     page = page,
-                    limit = HISTORY_PAGE_LIMIT,
-                    fields = AniLibertyReleaseFields.Suggestions,
+                    limit = MAX_USER_VIEWS_HISTORY_LIMIT,
+                    // Keep history import on the unfiltered contract: live include/exclude usage
+                    // can drop nested release data that the merge path relies on.
+                    // This endpoint is eventual-consistency input for background import only;
+                    // it must not become immediate TV read-after-write truth.
+                    fields = null,
                 )
             }.onFailure {
                 Timber.w(it, "UserViewsSync: failed to load views history page=$page")
@@ -643,7 +706,7 @@ class UserViewsSyncInteractor @Inject constructor(
                 stopReason = "meta_last_page"
                 break
             }
-            if (allPages == null && response.data.size < HISTORY_PAGE_LIMIT) {
+            if (allPages == null && response.data.size < MAX_USER_VIEWS_HISTORY_LIMIT) {
                 stopReason = "short_page"
                 break
             }
@@ -1001,7 +1064,6 @@ class UserViewsSyncInteractor @Inject constructor(
     private fun nowMs(): Long = System.currentTimeMillis()
 
     private companion object {
-        private const val HISTORY_PAGE_LIMIT = 50
         private const val LIGHT_IMPORT_PAGES = 3
 
         /**
@@ -1022,6 +1084,7 @@ class UserViewsSyncInteractor @Inject constructor(
         private const val MIN_IMPORT_POSITION_MS = 5_000L
         private const val MIN_PROGRESS_DELTA_MS = 1_000L
         private const val REMOTE_TIMESTAMP_DRIFT_TOLERANCE_MS = 5_000L
+        private const val SCHEDULE_SYNC_DEBOUNCE_MS = 1_500L
 
         private val SIMPLE_DATE_PATTERNS = arrayOf(
             "yyyy-MM-dd'T'HH:mm:ss.SSSZ",

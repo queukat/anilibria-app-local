@@ -1,9 +1,13 @@
 package ru.radiationx.data.repository
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import ru.radiationx.data.datasource.holders.UserViewsSyncHolder
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFieldName
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseExclude
@@ -11,13 +15,17 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseEpisodeId
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyUserViewHistoryItem
+import ru.radiationx.data.datasource.remote.aniliberty.MAX_USER_VIEWS_HISTORY_LIMIT
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTimecodeDeleteBody
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyUserViewTimecodeUpsertBody
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyViewTimecode
+import ru.radiationx.data.entity.domain.watching.UserViewPendingUpload
 import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.response.PaginatedResponse
+import ru.radiationx.data.system.ApplicationCoroutineScope
+import timber.log.Timber
 import java.math.BigDecimal
 import javax.inject.Inject
 import kotlin.math.roundToLong
@@ -35,6 +43,8 @@ import kotlin.math.roundToLong
  */
 class UserViewsRepository @Inject constructor(
     private val aniLibertyApi: AniLibertyApi,
+    private val syncHolder: UserViewsSyncHolder,
+    private val applicationScope: ApplicationCoroutineScope,
 ) {
 
     data class EpisodeTimecode(
@@ -61,20 +71,29 @@ class UserViewsRepository @Inject constructor(
     private val timecodesMutex = Mutex()
     private var timecodesCache: Map<AniLibertyReleaseEpisodeId, EpisodeTimecode> = emptyMap()
     private var timecodesLastSyncMs: Long = 0L
+    private val pendingUploadsMutex = Mutex()
+    private val pendingUploadsScheduleLock = Any()
+    private var pendingUploadsJob: Job? = null
 
     /**
      * Fetch user views history from AniLiberty.
      *
-     * Throws on hard failures (caller may fallback to local history).
+     * Best-effort import/fallback data only.
+     *
+     * Live AniLiberty history lags roughly 25-30 seconds behind POST/DELETE writes,
+     * so TV UI must not use it as immediate read-after-write truth.
      */
     suspend fun getViewsHistory(
         page: Int,
         limit: Int,
     ): PaginatedResponse<UserViewHistoryItem> = withContext(Dispatchers.IO) {
+        val safeLimit = limit.coerceIn(1, MAX_USER_VIEWS_HISTORY_LIMIT)
         val response = aniLibertyApi.getUserViewsHistory(
             page = page,
-            limit = limit,
-            fields = AniLibertyReleaseFields.Suggestions,
+            limit = safeLimit,
+            // Live AniLiberty returns the nested release payload unreliably when include/exclude
+            // are applied here, so keep the raw contract for watch-sync/history reads.
+            fields = null,
         )
         PaginatedResponse(
             data = response.data.mapNotNull { it.toDomainOrNull() },
@@ -85,7 +104,8 @@ class UserViewsRepository @Inject constructor(
     /**
      * Try to find the latest watched/continue episode for a given release using user views history.
      *
-     * This is a best-effort helper for UI (Details -> Continue / Episodes preselect).
+     * This is a best-effort remote restore helper.
+     * It must not become the immediate TV resume source because AniLiberty history is delayed.
      */
     suspend fun findLatestEpisodeIdForRelease(
         releaseId: ReleaseId,
@@ -115,11 +135,13 @@ class UserViewsRepository @Inject constructor(
     /**
      * Load remote timecode for a single episode.
      *
-     * This enables "continue on another device" behavior:
-     * - we still keep local progress as a primary source
-     * - but if local is empty/outdated, we can use AniLiberty timecodes
+     * This enables "continue on another device" as a best-effort fallback.
      *
-     * Best-effort: returns null on errors.
+     * Important:
+     * - local progress remains the primary source for TV UX
+     * - this intentionally reads the global `/accounts/users/me/views/timecodes` snapshot
+     * - release/history/per-episode endpoints lag behind live writes and are not suitable
+     *   as immediate read-after-write truth for TV resume
      */
     suspend fun getEpisodeTimecode(
         episodeId: EpisodeId,
@@ -161,23 +183,14 @@ class UserViewsRepository @Inject constructor(
     ) = withContext(Dispatchers.IO) {
         if (positionMs < 0) return@withContext
 
-        val aniEpisodeId = resolveAniEpisodeIdOrNull(episodeId) ?: return@withContext
-        val body = AniLibertyUserViewTimecodeUpsertBody.from(
-            time = msToSeconds(positionMs),
-            isWatched = isWatched,
-            releaseEpisodeId = aniEpisodeId,
+        syncHolder.upsertPendingUpload(
+            UserViewPendingUpload.create(
+                episodeId = episodeId,
+                positionMs = positionMs,
+                isWatched = isWatched,
+            ),
         )
-
-        val result = runCatching { aniLibertyApi.upsertUserViewTimecodes(listOf(body)) }
-        if (result.isSuccess) {
-            updateTimecodeCache(
-                aniEpisodeId,
-                EpisodeTimecode(
-                    positionMs = positionMs,
-                    isWatched = isWatched,
-                )
-            )
-        }
+        schedulePendingUploads(reason = "episode_progress")
     }
 
     /**
@@ -190,10 +203,13 @@ class UserViewsRepository @Inject constructor(
     ) = withContext(Dispatchers.IO) {
         val aniEpisodeId = resolveAniEpisodeIdOrNull(episodeId) ?: return@withContext
         val body = AniLibertyUserViewTimecodeDeleteBody.from(aniEpisodeId)
-
-        val result = runCatching { aniLibertyApi.deleteUserViewTimecodes(listOf(body)) }
-        if (result.isSuccess) {
-            removeTimecodeCache(aniEpisodeId)
+        syncHolder.removePendingUploadsByEpisodeIds(listOf(episodeId))
+        removeTimecodeCache(aniEpisodeId)
+        applicationScope.launch {
+            runCatching { aniLibertyApi.deleteUserViewTimecodes(listOf(body)) }
+                .onFailure { error ->
+                    Timber.w(error, "UserViewsRepository: failed to delete remote timecode for $episodeId")
+                }
         }
     }
 
@@ -205,13 +221,18 @@ class UserViewsRepository @Inject constructor(
     suspend fun deleteAllTimecodesForRelease(
         releaseId: ReleaseId,
     ) = withContext(Dispatchers.IO) {
-        val releaseCache = getReleaseEpisodesCacheOrNull(releaseId) ?: return@withContext
-        if (releaseCache.allIds.isEmpty()) return@withContext
-
-        val bodies = releaseCache.allIds.map { AniLibertyUserViewTimecodeDeleteBody.from(it) }
-        val result = runCatching { aniLibertyApi.deleteUserViewTimecodes(bodies) }
-        if (result.isSuccess) {
-            removeTimecodeCache(releaseCache.allIds)
+        syncHolder.removePendingUploadsByReleaseId(releaseId)
+        cache[releaseId]?.allIds?.let { allIds ->
+            removeTimecodeCache(allIds)
+        }
+        applicationScope.launch {
+            val releaseCache = getReleaseEpisodesCacheOrNull(releaseId) ?: return@launch
+            if (releaseCache.allIds.isEmpty()) return@launch
+            val bodies = releaseCache.allIds.map { AniLibertyUserViewTimecodeDeleteBody.from(it) }
+            runCatching { aniLibertyApi.deleteUserViewTimecodes(bodies) }
+                .onFailure { error ->
+                    Timber.w(error, "UserViewsRepository: failed to clear remote timecodes for releaseId=%s", releaseId.id)
+                }
         }
     }
 
@@ -223,26 +244,96 @@ class UserViewsRepository @Inject constructor(
     suspend fun markAllWatchedForRelease(
         releaseId: ReleaseId,
     ) = withContext(Dispatchers.IO) {
-        val releaseCache = getReleaseEpisodesCacheOrNull(releaseId) ?: return@withContext
-        if (releaseCache.allIds.isEmpty()) return@withContext
-
-        val bodies = releaseCache.allIds.map {
-            AniLibertyUserViewTimecodeUpsertBody.from(
-                time = 0.0,
-                isWatched = true,
-                releaseEpisodeId = it,
-            )
-        }
-        val result = runCatching { aniLibertyApi.upsertUserViewTimecodes(bodies) }
-        if (result.isSuccess) {
+        syncHolder.removePendingUploadsByReleaseId(releaseId)
+        cache[releaseId]?.allIds?.takeIf { allIds -> allIds.isNotEmpty() }?.let { allIds ->
             updateTimecodeCache(
-                releaseCache.allIds.associateWith {
+                allIds.associateWith {
                     EpisodeTimecode(
                         positionMs = 0L,
                         isWatched = true,
                     )
                 }
             )
+        }
+        applicationScope.launch {
+            val releaseCache = getReleaseEpisodesCacheOrNull(releaseId) ?: return@launch
+            if (releaseCache.allIds.isEmpty()) return@launch
+            val bodies = releaseCache.allIds.map {
+                AniLibertyUserViewTimecodeUpsertBody.from(
+                    time = 0.0,
+                    isWatched = true,
+                    releaseEpisodeId = it,
+                )
+            }
+            runCatching { aniLibertyApi.upsertUserViewTimecodes(bodies) }
+                .onFailure { error ->
+                    Timber.w(error, "UserViewsRepository: failed to mark release as watched remotely releaseId=%s", releaseId.id)
+                }
+        }
+    }
+
+    suspend fun flushPendingUploads(
+        reason: String = "manual",
+    ) = withContext(Dispatchers.IO) {
+        pendingUploadsMutex.withLock {
+            val pendingUploads = syncHolder.getPendingUploads()
+                .sortedBy { upload -> upload.updatedAtMs }
+            if (pendingUploads.isEmpty()) {
+                return@withLock
+            }
+
+            val groupedUploads = linkedMapOf<String, PendingUploadGroup>()
+
+            pendingUploads.forEach { upload ->
+                val episodeId = upload.toEpisodeId()
+                val aniEpisodeId = resolveAniEpisodeIdOrNull(episodeId) ?: return@forEach
+                val remotePositionMs = if (upload.isWatched) 0L else upload.positionMs.coerceAtLeast(0L)
+                val body = AniLibertyUserViewTimecodeUpsertBody.from(
+                    time = msToSeconds(remotePositionMs),
+                    isWatched = upload.isWatched,
+                    releaseEpisodeId = aniEpisodeId,
+                )
+                val existing = groupedUploads[body.releaseEpisodeId]
+                if (existing == null) {
+                    groupedUploads[body.releaseEpisodeId] = PendingUploadGroup(
+                        upload = upload,
+                        body = body,
+                        episodeIds = linkedSetOf(episodeId),
+                    )
+                } else {
+                    existing.episodeIds += episodeId
+                    if (shouldReplacePendingUpload(candidate = upload, current = existing.upload)) {
+                        groupedUploads[body.releaseEpisodeId] = existing.copy(
+                            upload = upload,
+                            body = body,
+                        )
+                    }
+                }
+            }
+
+            if (groupedUploads.isEmpty()) {
+                return@withLock
+            }
+
+            groupedUploads.values
+                .chunked(UPSERT_BATCH_SIZE)
+                .forEach { chunk ->
+                    val result = runCatching {
+                        aniLibertyApi.upsertUserViewTimecodes(chunk.map { group -> group.body })
+                    }
+                    if (result.isSuccess) {
+                        syncHolder.removePendingUploadsByEpisodeIds(
+                            chunk.flatMap { group -> group.episodeIds }.toSet(),
+                        )
+                    } else {
+                        Timber.w(
+                            result.exceptionOrNull(),
+                            "UserViewsRepository: failed to flush %d pending uploads reason=%s",
+                            chunk.size,
+                            reason,
+                        )
+                    }
+                }
         }
     }
 
@@ -471,5 +562,36 @@ class UserViewsRepository @Inject constructor(
         const val TIMECODES_TTL_MS: Long = 60_000L
         const val DEFAULT_HISTORY_LOOKUP_PAGES: Int = 5
         const val DEFAULT_HISTORY_LOOKUP_LIMIT: Int = 25
+        private const val PENDING_UPLOAD_DEBOUNCE_MS: Long = 1_000L
+        private const val UPSERT_BATCH_SIZE: Int = 100
+    }
+
+    private data class PendingUploadGroup(
+        val upload: UserViewPendingUpload,
+        val body: AniLibertyUserViewTimecodeUpsertBody,
+        val episodeIds: LinkedHashSet<EpisodeId>,
+    )
+
+    private fun schedulePendingUploads(reason: String) {
+        synchronized(pendingUploadsScheduleLock) {
+            pendingUploadsJob?.cancel()
+            pendingUploadsJob = applicationScope.launch {
+                delay(PENDING_UPLOAD_DEBOUNCE_MS)
+                flushPendingUploads(reason = reason)
+            }
+        }
+    }
+
+    private fun shouldReplacePendingUpload(
+        candidate: UserViewPendingUpload,
+        current: UserViewPendingUpload,
+    ): Boolean {
+        return when {
+            candidate.updatedAtMs > current.updatedAtMs -> true
+            candidate.updatedAtMs < current.updatedAtMs -> false
+            candidate.isWatched && !current.isWatched -> true
+            !candidate.isWatched && current.isWatched -> false
+            else -> candidate.positionMs > current.positionMs
+        }
     }
 }
