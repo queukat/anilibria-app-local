@@ -177,7 +177,7 @@ class MainTvViewModelsTest {
 
             val loadedCards = viewModel.cardsData.value.filterIsInstance<LibriaCard>()
             assertEquals(listOf("A", "B", "C"), loadedCards.map { it.title })
-            assertEquals(3, loadedCards.map { it.itemId }.distinct().size)
+            assertEquals(3, loadedCards.map { it.stableKey }.distinct().size)
             assertTrue(viewModel.cardsData.value.none { it is LinkCard })
         }
 

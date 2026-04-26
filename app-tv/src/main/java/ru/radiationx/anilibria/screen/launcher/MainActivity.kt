@@ -9,7 +9,6 @@ import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.TvStartupTrace
 import ru.radiationx.anilibria.contentprovider.suggestions.SuggestionsContentProvider
 import ru.radiationx.anilibria.di.ActivityModule
-import ru.radiationx.anilibria.di.AppModule
 import ru.radiationx.anilibria.di.NavigationModule
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.quill.inject
@@ -30,7 +29,6 @@ class MainActivity : FragmentActivity() {
 
         installModules(
             ActivityModule(this),
-            AppModule(this),
             NavigationModule(),
         )
 
@@ -66,7 +64,7 @@ class MainActivity : FragmentActivity() {
         intent ?: return
         if (intent.action == SuggestionsContentProvider.INTENT_ACTION) {
             val uri = intent.data ?: return
-            val id = uri.lastPathSegment?.toInt() ?: return
+            val id = uri.lastPathSegment?.toIntOrNull() ?: return
             viewModel.openRelease(ReleaseId(id))
         }
     }

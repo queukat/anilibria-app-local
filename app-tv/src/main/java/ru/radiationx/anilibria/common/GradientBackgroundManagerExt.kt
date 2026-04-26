@@ -1,7 +1,4 @@
-package ru.radiationx.anilibria.extension
-
-import ru.radiationx.anilibria.common.CardItem
-import ru.radiationx.anilibria.common.GradientBackgroundManager
+package ru.radiationx.anilibria.common
 
 fun GradientBackgroundManager.applyCard(card: CardItem?) {
     val imageUrl = card?.backgroundImageUrl

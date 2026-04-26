@@ -632,7 +632,7 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
                     MainContentRestoreState(
                         preferredSectionIndex = 0,
                         preferredItemIndex = 1,
-                        preferredItemId = 1002,
+                        preferredItemKey = "release:$PREVIEW_RELEASE_ID_2",
                     ),
                 onItemClick = { _, _ -> },
                 onRequestRailFocus = { true },

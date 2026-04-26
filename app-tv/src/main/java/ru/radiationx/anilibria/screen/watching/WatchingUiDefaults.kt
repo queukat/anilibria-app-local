@@ -138,11 +138,11 @@ internal fun rememberTvDescriptionOverlayClearance(
     )
 }
 
-internal fun List<CardItem>.indexOfItemId(itemId: Int): Int? {
-    if (itemId == Int.MIN_VALUE) {
+internal fun List<CardItem>.indexOfStableKey(stableKey: String?): Int? {
+    if (stableKey.isNullOrEmpty()) {
         return null
     }
-    val itemIndex = indexOfFirst { it.getId() == itemId }
+    val itemIndex = indexOfFirst { it.stableKey == stableKey }
     return itemIndex.takeIf { it >= 0 }
 }
 
@@ -164,7 +164,7 @@ internal fun List<CardItem>.primaryTvStateItem(): CardItem? {
 
 internal fun List<CardItem>.tvStateFocusIndex(): Int? {
     val actionIndex = indexOfFirst { it is LinkCard }.takeIf { it >= 0 }
-    val primaryStateIndex = primaryTvStateItem()?.getId()?.let(::indexOfItemId)
+    val primaryStateIndex = primaryTvStateItem()?.stableKey?.let(::indexOfStableKey)
     return takeIf { it.isTvStateOnlySection() }?.let {
         actionIndex ?: primaryStateIndex
     }

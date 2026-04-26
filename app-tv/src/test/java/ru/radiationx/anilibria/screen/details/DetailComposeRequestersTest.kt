@@ -9,8 +9,8 @@ import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 
 class DetailComposeRequestersTest {
     @Test
-    fun stableRequesters_areReusedForItemsWithSameIdAcrossRefresh() {
-        val cache = mutableMapOf<Long, MutableMap<Int, FocusRequester>>()
+    fun stableRequesters_areReusedForItemsWithSameKeyAcrossRefresh() {
+        val cache = mutableMapOf<Long, MutableMap<String, FocusRequester>>()
         val before =
             listOf(
                 MainSectionUiModel(

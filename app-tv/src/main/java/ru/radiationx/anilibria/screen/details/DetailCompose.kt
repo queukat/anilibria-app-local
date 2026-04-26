@@ -56,19 +56,19 @@ internal data class DetailContentRestoreState(
     val focusToken: Int = 0,
     val preferredSectionIndex: Int = 0,
     val preferredItemIndex: Int = 0,
-    val preferredItemId: Int = Int.MIN_VALUE,
+    val preferredItemKey: String? = null,
 )
 
 internal fun buildStableDetailSectionRequesters(
     sections: List<MainSectionUiModel>,
-    requesterCache: MutableMap<Long, MutableMap<Int, androidx.compose.ui.focus.FocusRequester>>,
+    requesterCache: MutableMap<Long, MutableMap<String, androidx.compose.ui.focus.FocusRequester>>,
 ): List<List<androidx.compose.ui.focus.FocusRequester>> {
     return sections.map { section ->
         val cachedRequesters = requesterCache.getOrPut(section.id) { mutableMapOf() }
-        val activeItemIds = section.items.map(CardItem::getId).toSet()
-        cachedRequesters.keys.retainAll(activeItemIds)
+        val activeItemKeys = section.items.map { it.stableKey }.toSet()
+        cachedRequesters.keys.retainAll(activeItemKeys)
         section.items.map { item ->
-            cachedRequesters.getOrPut(item.getId()) {
+            cachedRequesters.getOrPut(item.stableKey) {
                 androidx.compose.ui.focus.FocusRequester()
             }
         }
@@ -97,13 +97,13 @@ internal fun DetailScreen(
     val sectionKeys =
         remember(sections) {
             sections.map { section ->
-                section.id to section.items.map(CardItem::getId)
+                section.id to section.items.map { it.stableKey }
             }
         }
     val rowStates = remember(sectionIds) { List(sections.size) { LazyListState() } }
     val requesterCache =
         remember {
-            mutableMapOf<Long, MutableMap<Int, androidx.compose.ui.focus.FocusRequester>>()
+            mutableMapOf<Long, MutableMap<String, androidx.compose.ui.focus.FocusRequester>>()
         }
     val sectionRequesters =
         remember(sectionKeys) {
@@ -176,12 +176,12 @@ internal fun DetailScreen(
     }
 
     LaunchedEffect(sectionKeys) {
-        val selectedId = selectedItem?.getId()
+        val selectedKey = selectedItem?.stableKey
         val visibleItems = sections.asSequence().flatMap { it.items.asSequence() }.toList()
-        val hadSelectedItem = selectedId != null
-        val stillVisible = selectedId != null && visibleItems.any { it.getId() == selectedId }
-        selectedItem = visibleItems.firstOrNull { it.getId() == selectedId }
-            ?: visibleItems.firstOrNull { it.getId() == contentRestoreState.preferredItemId }
+        val hadSelectedItem = selectedKey != null
+        val stillVisible = selectedKey != null && visibleItems.any { it.stableKey == selectedKey }
+        selectedItem = visibleItems.firstOrNull { it.stableKey == selectedKey }
+            ?: visibleItems.firstOrNull { it.stableKey == contentRestoreState.preferredItemKey }
         if (hadSelectedItem && !stillVisible) {
             val restoreTarget =
                 findTvSectionRestoreTarget(
@@ -218,7 +218,7 @@ internal fun DetailScreen(
                 sections = sectionItems,
                 preferredSectionIndex = contentRestoreState.preferredSectionIndex,
                 preferredItemIndex = contentRestoreState.preferredItemIndex,
-                preferredItemId = contentRestoreState.preferredItemId,
+                preferredItemKey = contentRestoreState.preferredItemKey,
                 resolveTargetIndex = ::clampedTvSectionTargetIndex,
             ) ?: return@LaunchedEffect
         isContentPageActive = true

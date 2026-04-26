@@ -51,11 +51,12 @@ import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvPosterCardSlotWidth
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.WatchingFilterPickerDialog
-import ru.radiationx.anilibria.screen.watching.indexOfItemId
+import ru.radiationx.anilibria.screen.watching.indexOfStableKey
 import ru.radiationx.anilibria.screen.watching.rememberTvDescriptionOverlayClearance
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
+import ru.radiationx.anilibria.ui.focus.rememberTvFocusRequesters
 import ru.radiationx.anilibria.ui.compose.DebouncedCardBackdropEffect
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import kotlin.math.max
@@ -116,17 +117,14 @@ internal fun CatalogScreen(
         }
     val searchRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     val stateActionRequester = remember { androidx.compose.ui.focus.FocusRequester() }
-    val itemIds = remember(cards) { cards.map(CardItem::getId) }
-    val itemRequesters =
-        remember(itemIds) {
-            List(cards.size) { androidx.compose.ui.focus.FocusRequester() }
-        }
-    var selectedItem by remember(itemIds) { mutableStateOf<LibriaCard?>(null) }
+    val itemKeys = remember(cards) { cards.map { it.stableKey } }
+    val itemRequesters = rememberTvFocusRequesters(itemKeys)
+    var selectedItem by remember(itemKeys) { mutableStateOf<LibriaCard?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var handledRestoreToken by remember { mutableIntStateOf(0) }
     var lastFocusedFilterIndex by rememberSaveable { mutableIntStateOf(0) }
     var lastFocusedItemIndex by rememberSaveable { mutableIntStateOf(0) }
-    var lastFocusedItemId by rememberSaveable { mutableIntStateOf(Int.MIN_VALUE) }
+    var lastFocusedItemKey by rememberSaveable { mutableStateOf<String?>(null) }
     var lastFocusTarget by rememberSaveable { mutableStateOf(CatalogFocusTarget.Search.name) }
     var lastAutoAppendToken by rememberSaveable { mutableStateOf("") }
     val interactionsEnabled = pickerState == null
@@ -150,7 +148,7 @@ internal fun CatalogScreen(
             ).any { it.emphasized }
         }
     val showStatePanel = cards.isEmpty() || (cards.isNotEmpty() && cards.none { it is LibriaCard })
-    val hasContent = remember(itemIds, showStatePanel) { cards.any { it is LibriaCard } && !showStatePanel }
+    val hasContent = remember(itemKeys, showStatePanel) { cards.any { it is LibriaCard } && !showStatePanel }
     val columnsCount =
         remember(configuration.screenWidthDp) {
             max(
@@ -312,9 +310,9 @@ internal fun CatalogScreen(
             buildString {
                 append(cards.size)
                 append(':')
-                append(cards.firstOrNull()?.getId() ?: Int.MIN_VALUE)
+                append(cards.firstOrNull()?.stableKey.orEmpty())
                 append(':')
-                append(cards.lastOrNull()?.getId() ?: Int.MIN_VALUE)
+                append(cards.lastOrNull()?.stableKey.orEmpty())
             }
         if (lastAutoAppendToken == requestToken) {
             return
@@ -324,15 +322,15 @@ internal fun CatalogScreen(
     }
 
     LaunchedEffect(cards) {
-        val selectedId = selectedItem?.getId()
-        val stillVisible = selectedId != null && cards.any { it.getId() == selectedId }
+        val selectedKey = selectedItem?.stableKey
+        val stillVisible = selectedKey != null && cards.any { it.stableKey == selectedKey }
         if (!stillVisible) {
             selectedItem = null
         }
         if (cards.lastOrNull() !is LinkCard) {
             lastAutoAppendToken = ""
         }
-        if (lastFocusedItemId != Int.MIN_VALUE && cards.none { it.getId() == lastFocusedItemId }) {
+        if (!lastFocusedItemKey.isNullOrEmpty() && cards.none { it.stableKey == lastFocusedItemKey }) {
             when {
                 cards.isNotEmpty() -> requestGridFocus(lastFocusedItemIndex)
                 else -> requestTopFocus()
@@ -340,7 +338,7 @@ internal fun CatalogScreen(
         }
     }
 
-    LaunchedEffect(focusRequestToken, itemIds, pickerState) {
+    LaunchedEffect(focusRequestToken, itemKeys, pickerState) {
         if (pickerState != null || focusRequestToken <= handledFocusToken) {
             return@LaunchedEffect
         }
@@ -348,8 +346,8 @@ internal fun CatalogScreen(
         val focused =
             when {
                 lastFocusTarget == CatalogFocusTarget.Search.name -> requestSearchFocus()
-                lastFocusTarget == CatalogFocusTarget.Grid.name && lastFocusedItemId != Int.MIN_VALUE -> {
-                    requestGridFocus(cards.indexOfItemId(lastFocusedItemId) ?: lastFocusedItemIndex)
+                lastFocusTarget == CatalogFocusTarget.Grid.name && !lastFocusedItemKey.isNullOrEmpty() -> {
+                    requestGridFocus(cards.indexOfStableKey(lastFocusedItemKey) ?: lastFocusedItemIndex)
                 }
 
                 lastFocusTarget == CatalogFocusTarget.Filter.name && filterRequesters.isNotEmpty() -> {
@@ -471,7 +469,7 @@ internal fun CatalogScreen(
                                 selectedItem = null
                             }
                             lastFocusedItemIndex = index
-                            lastFocusedItemId = item.getId()
+                            lastFocusedItemKey = item.stableKey
                             lastFocusTarget = CatalogFocusTarget.Grid.name
                             triggerAutoAppendIfNeeded(index, item)
                             scope.launch {

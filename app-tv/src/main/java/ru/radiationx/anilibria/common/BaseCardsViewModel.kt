@@ -3,17 +3,14 @@ package ru.radiationx.anilibria.common
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import ru.radiationx.anilibria.presentation.pagination.LoadMoreCardsComposer
-import ru.radiationx.anilibria.presentation.pagination.PaginatorState
+import ru.radiationx.anilibria.presentation.pagination.TvCardsPaginator
+import ru.radiationx.anilibria.presentation.pagination.TvPagingLoadResult
+import ru.radiationx.anilibria.presentation.pagination.TvPagingState
 import ru.radiationx.anilibria.screen.LifecycleViewModel
-import ru.radiationx.shared.ktx.coRunCatching
-import timber.log.Timber
 
 abstract class BaseCardsViewModel : LifecycleViewModel() {
     /** Итоговые карточки для показа (LibriaCard, LinkCard, LoadingCard и т.д.) */
@@ -60,15 +57,8 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
     /** Карточка для отображения «в процессе загрузки». */
     protected open val loadingCard = LoadingCard("Загрузка данных")
 
-    /** Текущий список LibriaCard (успешно загруженные). */
-    private val currentCards = mutableListOf<LibriaCard>()
-
-    /** Текущая страница (если есть пагинация). */
-    private var currentPage = -1
-
-    /** Job для отмены/предотвращения параллельных запросов. */
-    private var requestJob: Job? = null
     private var loaderDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val paginator by lazy(LazyThreadSafetyMode.NONE) { createPaginator() }
 
     override fun onColdCreate() {
         super.onColdCreate()
@@ -80,18 +70,24 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
 
     /** Вызывается, когда нажали на «LinkCard(Загрузить ещё)». */
     open fun onLinkCardClick() {
-        loadPage(currentPage + 1)
+        paginator.append(showProgress = progressOnAppend)
     }
 
     /** Нажали «обновить» (обычно перезагрузить c первой страницы). */
     open fun onRefreshClick() {
-        loadPage(firstPage)
+        paginator.refresh(showProgress = progressOnRefresh)
     }
 
     /** Нажали на «LoadingCard», если она была в состоянии ошибки. */
     open fun onLoadingCardClick() {
-        val pageToLoad = if (currentPage >= firstPage) currentPage else firstPage
-        loadPage(pageToLoad)
+        val failedPage = paginator.state.value.failedPage
+        val showProgress =
+            if (failedPage == null || failedPage == firstPage) {
+                progressOnRefresh
+            } else {
+                progressOnAppend
+            }
+        paginator.retry(showProgress = showProgress)
     }
 
     /** Compose-first dispatch: экран передаёт CardItem, а VM решает, что с ним делать. */
@@ -111,7 +107,9 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
      * Нужно реализовать в наследниках:
      * какую именно порцию данных грузить при запросе конкретной страницы.
      */
-    protected abstract suspend fun getLoader(requestPage: Int): List<LibriaCard>
+    protected open suspend fun getLoader(requestPage: Int): List<LibriaCard> {
+        error("Either getLoader() or loadPagingResult() must be implemented.")
+    }
 
     /**
      * Когда нужно показать кнопку «Загрузить ещё».
@@ -159,78 +157,62 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
         loaderDispatcher = dispatcher
     }
 
-    private fun composeCards(
-        cards: List<LibriaCard>,
-        isLoading: Boolean = false,
-        error: Throwable? = null,
-        canLoadMore: Boolean = false,
-    ): List<CardItem> {
+    protected open suspend fun loadPagingResult(
+        requestPage: Int,
+        currentState: TvPagingState<LibriaCard>,
+    ): TvPagingLoadResult<LibriaCard> {
+        val newCards = getLoader(requestPage)
+        val isFirstPage = requestPage == firstPage
+        val allowModify =
+            if (isFirstPage) {
+                needsModify(newCards, currentState.items)
+            } else {
+                true
+            }
+        val mergedItems =
+            if (isFirstPage) {
+                if (allowModify) {
+                    newCards
+                } else {
+                    currentState.items
+                }
+            } else {
+                currentState.items + newCards
+            }
+        val appliedPage =
+            if (isFirstPage && !allowModify) {
+                currentState.currentPage
+            } else {
+                requestPage
+            }
+        return TvPagingLoadResult(
+            pageItems = newCards,
+            mergedItems = mergedItems,
+            canLoadMore = hasMoreCards(newCards, mergedItems),
+            appliedPage = appliedPage,
+        )
+    }
+
+    private fun composeCards(state: TvPagingState<LibriaCard>): List<CardItem> {
         return LoadMoreCardsComposer(
             loadMoreCard = loadMoreCard,
             loadingCard = loadingCard,
             errorCardFactory = ::getErrorCard,
             emptyCardFactory = ::getEmptyStateCard,
         ).compose(
-            PaginatorState(
-                items = cards,
-                isLoading = isLoading,
-                canLoadMore = canLoadMore,
-                error = error,
-                currentPage = currentPage.takeIf { it >= firstPage },
-            ),
+            state,
         )
     }
 
-    /** Главный метод для загрузки (первая или следующая страница). */
-    private fun loadPage(requestPage: Int) {
-        if (requestJob?.isActive == true) return
-        requestJob =
-            viewModelScope.launch {
-                // Показываем «loadingCard», если (не первая страница) или при принуд. прогрессе
-                val showLoadingState =
-                    if (requestPage == firstPage) {
-                        progressOnRefresh
-                    } else {
-                        progressOnAppend
-                    }
-                if (showLoadingState) {
-                    cardsDataMutable.value =
-                        composeCards(
-                            cards = currentCards.toList(),
-                            isLoading = true,
-                        )
-                }
-                coRunCatching {
-                    withContext(loaderDispatcher) { getLoader(requestPage) }
-                }.onSuccess { newCards ->
-                    val isFirstPage = requestPage == firstPage
-                    val allowModify =
-                        if (isFirstPage) {
-                            needsModify(newCards, currentCards)
-                        } else {
-                            true
-                        }
-
-                    if (isFirstPage && allowModify) {
-                        currentCards.clear()
-                    }
-                    if (allowModify) {
-                        currentPage = requestPage
-                        currentCards.addAll(newCards)
-                    }
-                    cardsDataMutable.value =
-                        composeCards(
-                            cards = currentCards.toList(),
-                            canLoadMore = hasMoreCards(newCards, currentCards),
-                        )
-                }.onFailure { error ->
-                    Timber.e(error)
-                    cardsDataMutable.value =
-                        composeCards(
-                            cards = currentCards.toList(),
-                            error = error,
-                        )
-                }
-            }
+    private fun createPaginator(): TvCardsPaginator<LibriaCard> {
+        return TvCardsPaginator(
+            scope = viewModelScope,
+            firstPage = firstPage,
+            dispatcherProvider = { loaderDispatcher },
+            loadPage = ::loadPagingResult,
+            onStateChanged = { state ->
+                cardsDataMutable.value = composeCards(state)
+            },
+        )
     }
 }

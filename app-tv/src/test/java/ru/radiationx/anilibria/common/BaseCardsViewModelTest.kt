@@ -90,6 +90,30 @@ class BaseCardsViewModelTest {
             }
         }
 
+    @Test
+    fun loadingCardRetry_retriesFailedAppendPageInsteadOfCurrentPage() =
+        runBlocking {
+            val viewModel = RetryAppendCardsViewModel()
+
+            viewModel.onRefreshClick()
+            waitUntil {
+                viewModel.cardsData.value.filterIsInstance<LibriaCard>().map { it.title } == listOf("A")
+            }
+
+            viewModel.onLinkCardClick()
+            waitUntil {
+                viewModel.cardsData.value.lastOrNull() is LoadingCard &&
+                    (viewModel.cardsData.value.lastOrNull() as LoadingCard).isError
+            }
+
+            viewModel.onLoadingCardClick()
+            waitUntil {
+                viewModel.cardsData.value.filterIsInstance<LibriaCard>().map { it.title } == listOf("A", "B")
+            }
+
+            assertTrue(viewModel.requestedPages == listOf(1, 2, 2))
+        }
+
     private suspend fun waitUntil(predicate: () -> Boolean) {
         repeat(100) {
             if (predicate()) return
@@ -142,6 +166,31 @@ private class AppendWithoutProgressCardsViewModel(
             1 -> listOf(testCard(title = "A"))
             2 -> {
                 secondPageGate.await()
+                listOf(testCard(title = "B"))
+            }
+            else -> emptyList()
+        }
+    }
+}
+
+private class RetryAppendCardsViewModel : BaseCardsViewModel() {
+    val requestedPages = mutableListOf<Int>()
+
+    override fun hasMoreCards(
+        newCards: List<LibriaCard>,
+        allCards: List<LibriaCard>,
+    ): Boolean {
+        return allCards.size < 2
+    }
+
+    override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
+        requestedPages += requestPage
+        return when (requestPage) {
+            1 -> listOf(testCard(title = "A"))
+            2 -> {
+                if (requestedPages.count { it == 2 } == 1) {
+                    error("append failed")
+                }
                 listOf(testCard(title = "B"))
             }
             else -> emptyList()

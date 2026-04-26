@@ -23,7 +23,7 @@ import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
-import ru.radiationx.anilibria.extension.applyCard
+import ru.radiationx.anilibria.common.applyCard
 import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
 import ru.radiationx.quill.viewModel
 import ru.radiationx.shared.ktx.android.subscribeTo

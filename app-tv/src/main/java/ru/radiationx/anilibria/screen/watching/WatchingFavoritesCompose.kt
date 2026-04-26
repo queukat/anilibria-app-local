@@ -31,6 +31,7 @@ import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
 import ru.radiationx.anilibria.common.TvCollectionFiltersUiState
+import ru.radiationx.anilibria.ui.focus.rememberTvFocusRequesters
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import kotlin.math.max
 
@@ -102,17 +103,14 @@ internal fun WatchingFavoritesScreen(
             List(filterItems.size) { androidx.compose.ui.focus.FocusRequester() }
         }
     val stateActionRequester = remember { androidx.compose.ui.focus.FocusRequester() }
-    val itemIds = remember(cards) { cards.map(CardItem::getId) }
-    val itemRequesters =
-        remember(itemIds) {
-            List(cards.size) { androidx.compose.ui.focus.FocusRequester() }
-        }
+    val itemKeys = remember(cards) { cards.map { it.stableKey } }
+    val itemRequesters = rememberTvFocusRequesters(itemKeys)
     var selectedCard by remember(cards) { mutableStateOf<LibriaCard?>(null) }
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var handledRestoreToken by remember { mutableIntStateOf(0) }
     var lastFocusedFilterIndex by rememberSaveable { mutableIntStateOf(0) }
     var lastFocusedItemIndex by rememberSaveable { mutableIntStateOf(0) }
-    var lastFocusedItemId by rememberSaveable { mutableIntStateOf(Int.MIN_VALUE) }
+    var lastFocusedItemKey by rememberSaveable { mutableStateOf<String?>(null) }
     var lastFocusWasGrid by rememberSaveable { mutableStateOf(false) }
     val interactionsEnabled = contentInteractionsEnabled && pickerState == null
     val nonContentCards = remember(cards) { cards.filter { it !is LibriaCard } }
@@ -126,7 +124,7 @@ internal fun WatchingFavoritesScreen(
     val stateActionCard = remember(nonContentCards) { nonContentCards.filterIsInstance<LinkCard>().firstOrNull() }
     val hasCustomFilters = remember(filterItems) { filterItems.any { it.emphasized } }
     val showStatePanel = cards.isEmpty() || (cards.isNotEmpty() && cards.none { it is LibriaCard })
-    val hasContent = remember(itemIds, showStatePanel) { cards.any { it is LibriaCard } && !showStatePanel }
+    val hasContent = remember(itemKeys, showStatePanel) { cards.any { it is LibriaCard } && !showStatePanel }
     val columnsCount =
         remember(configuration.screenWidthDp) {
             max(
@@ -255,12 +253,12 @@ internal fun WatchingFavoritesScreen(
     }
 
     LaunchedEffect(cards) {
-        val selectedId = selectedCard?.getId()
+        val selectedKey = selectedCard?.stableKey
         val visibleCards = cards.filterIsInstance<LibriaCard>()
-        if (visibleCards.none { it.getId() == selectedId }) {
+        if (visibleCards.none { it.stableKey == selectedKey }) {
             selectedCard = null
         }
-        if (lastFocusedItemId != Int.MIN_VALUE && cards.none { it.getId() == lastFocusedItemId }) {
+        if (!lastFocusedItemKey.isNullOrEmpty() && cards.none { it.stableKey == lastFocusedItemKey }) {
             if (!showStatePanel && cards.isNotEmpty()) {
                 requestGridFocus(lastFocusedItemIndex)
             } else {
@@ -275,7 +273,7 @@ internal fun WatchingFavoritesScreen(
         }
         if (lastFocusWasGrid && cards.isNotEmpty() && !showStatePanel) {
             val targetIndex =
-                cards.indexOfItemId(lastFocusedItemId)
+                cards.indexOfStableKey(lastFocusedItemKey)
                     ?: lastFocusedItemIndex.coerceIn(0, cards.lastIndex)
             selectedCard = cards.getOrNull(targetIndex) as? LibriaCard
             if (requestGridFocus(targetIndex)) {
@@ -291,14 +289,14 @@ internal fun WatchingFavoritesScreen(
         }
     }
 
-    LaunchedEffect(focusRequestToken, itemIds, pickerState) {
+    LaunchedEffect(focusRequestToken, itemKeys, pickerState) {
         if (pickerState != null || focusRequestToken <= handledFocusToken) {
             return@LaunchedEffect
         }
         val focused =
             when {
-                lastFocusWasGrid && lastFocusedItemId != Int.MIN_VALUE && !showStatePanel -> {
-                    requestGridFocus(cards.indexOfItemId(lastFocusedItemId) ?: lastFocusedItemIndex)
+                lastFocusWasGrid && !lastFocusedItemKey.isNullOrEmpty() && !showStatePanel -> {
+                    requestGridFocus(cards.indexOfStableKey(lastFocusedItemKey) ?: lastFocusedItemIndex)
                 }
                 filterRequesters.isNotEmpty() -> requestFilterFocus(lastFocusedFilterIndex)
                 else -> requestGridFocus(lastFocusedItemIndex)
@@ -406,7 +404,7 @@ internal fun WatchingFavoritesScreen(
                         onItemFocused = { item, index ->
                             selectedCard = item as? LibriaCard
                             lastFocusedItemIndex = index
-                            lastFocusedItemId = item.getId()
+                            lastFocusedItemKey = item.stableKey
                             lastFocusWasGrid = true
                             scope.launch {
                                 gridState.scrollItemIntoViewIfNeeded(

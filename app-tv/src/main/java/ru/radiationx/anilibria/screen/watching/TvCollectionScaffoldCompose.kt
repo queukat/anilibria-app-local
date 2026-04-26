@@ -288,7 +288,7 @@ internal fun TvCollectionGridStateContent(
             ) {
                 itemsIndexed(
                     items = cards,
-                    key = { _, item -> item.getId() },
+                    key = { _, item -> item.stableKey },
                     span = { _, item -> spanForTvCollectionItem(item) },
                 ) { index, item ->
                     when (item) {

@@ -2,6 +2,7 @@ package ru.radiationx.anilibria.common
 
 import android.os.SystemClock
 import android.util.Log
+import ru.radiationx.anilibria.BuildConfig
 import java.util.Collections
 
 internal object TvStartupTrace {
@@ -12,7 +13,9 @@ internal object TvStartupTrace {
 
     fun mark(stage: String) {
         val elapsedMs = SystemClock.elapsedRealtime() - processStartMs
-        Log.i(TAG, "$stage +${elapsedMs}ms")
+        if (BuildConfig.DEBUG) {
+            Log.i(TAG, "$stage +${elapsedMs}ms")
+        }
     }
 
     fun markOnce(stage: String) {

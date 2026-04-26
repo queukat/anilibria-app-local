@@ -78,7 +78,7 @@ internal data class MainSectionUiModel(
 internal data class MainContentRestoreState(
     val preferredSectionIndex: Int = 0,
     val preferredItemIndex: Int = 0,
-    val preferredItemId: Int = Int.MIN_VALUE,
+    val preferredItemKey: String? = null,
 )
 
 private const val DESCRIPTION_REFRESH_INTERVAL_MS = 60_000L
@@ -110,7 +110,7 @@ internal fun MainScreen(
     val sectionKeys =
         remember(sections) {
             sections.map { section ->
-                section.id to section.items.map(CardItem::getId)
+                section.id to section.items.map { it.stableKey }
             }
         }
     val rowStates =
@@ -119,16 +119,16 @@ internal fun MainScreen(
         }
     val requesterCache =
         remember {
-            mutableMapOf<Long, MutableMap<Int, androidx.compose.ui.focus.FocusRequester>>()
+            mutableMapOf<Long, MutableMap<String, androidx.compose.ui.focus.FocusRequester>>()
         }
     val sectionRequesters =
         remember(sectionKeys) {
             sections.map { section ->
                 val cachedRequesters = requesterCache.getOrPut(section.id) { mutableMapOf() }
-                val activeItemIds = section.items.map(CardItem::getId).toSet()
-                cachedRequesters.keys.retainAll(activeItemIds)
+                val activeItemKeys = section.items.map { it.stableKey }.toSet()
+                cachedRequesters.keys.retainAll(activeItemKeys)
                 section.items.map { item ->
-                    cachedRequesters.getOrPut(item.getId()) {
+                    cachedRequesters.getOrPut(item.stableKey) {
                         androidx.compose.ui.focus.FocusRequester()
                     }
                 }
@@ -174,20 +174,20 @@ internal fun MainScreen(
     }
 
     LaunchedEffect(sectionKeys) {
-        val selectedId = selectedItem?.getId()
+        val selectedKey = selectedItem?.stableKey
         val visibleCards =
             sections.asSequence()
                 .flatMap { it.items.asSequence() }
                 .filterIsInstance<LibriaCard>()
                 .toList()
-        val preferredItemId = contentRestoreState.preferredItemId
-        val hadFocusedItem = preferredItemId != Int.MIN_VALUE
+        val preferredItemKey = contentRestoreState.preferredItemKey
+        val hadFocusedItem = !preferredItemKey.isNullOrEmpty()
         val stillVisible =
             sections.asSequence()
                 .flatMap { it.items.asSequence() }
-                .any { it.getId() == preferredItemId }
-        selectedItem = visibleCards.firstOrNull { it.getId() == selectedId }
-            ?: visibleCards.firstOrNull { it.getId() == preferredItemId }
+                .any { it.stableKey == preferredItemKey }
+        selectedItem = visibleCards.firstOrNull { it.stableKey == selectedKey }
+            ?: visibleCards.firstOrNull { it.stableKey == preferredItemKey }
         if (hadFocusedItem && !stillVisible) {
             val restoreTarget =
                 findTvSectionRestoreTarget(
@@ -209,7 +209,7 @@ internal fun MainScreen(
     }
 
     LaunchedEffect(visibilityRestoreToken, sectionKeys) {
-        if (visibilityRestoreToken <= 0 || contentRestoreState.preferredItemId == Int.MIN_VALUE) {
+        if (visibilityRestoreToken <= 0 || contentRestoreState.preferredItemKey.isNullOrEmpty()) {
             return@LaunchedEffect
         }
         val restoreTarget =
@@ -217,7 +217,7 @@ internal fun MainScreen(
                 sections = sectionItems,
                 preferredSectionIndex = contentRestoreState.preferredSectionIndex,
                 preferredItemIndex = contentRestoreState.preferredItemIndex,
-                preferredItemId = contentRestoreState.preferredItemId,
+                preferredItemKey = contentRestoreState.preferredItemKey,
                 resolveTargetIndex = ::defaultTvSectionTargetIndex,
             ) ?: return@LaunchedEffect
         selectedItem =
@@ -238,12 +238,12 @@ internal fun MainScreen(
             return@LaunchedEffect
         }
         val restoreTarget =
-            if (contentRestoreState.preferredItemId != Int.MIN_VALUE) {
+            if (!contentRestoreState.preferredItemKey.isNullOrEmpty()) {
                 findTvSectionRestoreTarget(
                     sections = sectionItems,
                     preferredSectionIndex = contentRestoreState.preferredSectionIndex,
                     preferredItemIndex = contentRestoreState.preferredItemIndex,
-                    preferredItemId = contentRestoreState.preferredItemId,
+                    preferredItemKey = contentRestoreState.preferredItemKey,
                     resolveTargetIndex = ::defaultTvSectionTargetIndex,
                 )
             } else {
@@ -348,7 +348,7 @@ private fun MainSelectedItemDescriptionBar(
 ) {
     val context = LocalContext.current
     var descriptionTick by remember(
-        item.itemId,
+        item.stableKey,
         item.description,
         item.relativeTimestampSec,
         item.relativePrefix,
@@ -356,7 +356,7 @@ private fun MainSelectedItemDescriptionBar(
         mutableIntStateOf(0)
     }
 
-    LaunchedEffect(item.itemId, item.relativeTimestampSec, item.relativePrefix) {
+    LaunchedEffect(item.stableKey, item.relativeTimestampSec, item.relativePrefix) {
         if (item.relativeTimestampSec == null) {
             return@LaunchedEffect
         }
@@ -512,7 +512,7 @@ internal fun MainSectionBlock(
             ) {
                 itemsIndexed(
                     items = items,
-                    key = { _, item -> item.getId() },
+                    key = { _, item -> item.stableKey },
                 ) { index, item ->
                     when (item) {
                         is LibriaCard -> {

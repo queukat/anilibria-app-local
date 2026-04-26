@@ -81,8 +81,6 @@ android {
         versionCode tv_version_code
         versionName tv_version_name
 
-        ndkVersion "27.0.11718014"
-
         buildConfigField "String", "BUILD_DATE", "\"${buildDate()}\""
     }
 
@@ -135,7 +133,7 @@ android {
             variant.outputs.forEach { output ->
                 def appName = "AniLibria_TV"
                 def versionStr = output.versionName.get()
-                output.outputFileName.set("${appName}_v${versionStr}.apk")
+                output.outputFileName.set("${appName}_${variant.name}_v${versionStr}.apk")
             }
         }
     }
@@ -212,9 +210,9 @@ dependencies {
 
     implementation(libs.zxing.core)
 
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
-    testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation(libs.junit4)
+    testImplementation(libs.kotlin.coroutines.test)
+    testImplementation(libs.mockk)
 
     androidTestImplementation("androidx.core:core-ktx:1.15.0")
     androidTestImplementation("androidx.test:runner:1.6.2")

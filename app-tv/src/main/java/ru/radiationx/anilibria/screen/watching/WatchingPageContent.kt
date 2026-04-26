@@ -11,7 +11,7 @@ import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.LoadingCard
-import ru.radiationx.anilibria.extension.applyCard
+import ru.radiationx.anilibria.common.applyCard
 import ru.radiationx.anilibria.screen.mainpages.MainShellCallbacks
 import ru.radiationx.anilibria.screen.mainpages.MainShellPageContent
 import ru.radiationx.anilibria.screen.mainpages.MainShellPageSectionsState

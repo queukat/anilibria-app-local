@@ -14,6 +14,14 @@ data class LibriaCard(
     val relativeTimestampSec: Long? = null,
     val relativePrefix: String? = null,
 ) : CardItem {
+    override val stableKey: String
+        get() =
+            when (val t = type) {
+                is LibriaCard.Type.Release -> "release:${t.releaseId.id}"
+                is LibriaCard.Type.Youtube -> "youtube:${t.link}"
+            }
+
+    @Deprecated("Use stableKey for Compose keys and TV focus identity.")
     override val itemId: Int
         get() =
             when (val t = type) {

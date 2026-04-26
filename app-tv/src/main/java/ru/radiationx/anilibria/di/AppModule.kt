@@ -5,6 +5,7 @@ import ru.mintrocket.lib.mintpermissions.MintPermissions
 import ru.mintrocket.lib.mintpermissions.flows.MintPermissionsFlow
 import ru.radiationx.anilibria.AppBuildConfig
 import ru.radiationx.anilibria.TvCheckerSources
+import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.data.SharedBuildConfig
 import ru.radiationx.data.analytics.AnalyticsErrorReporter
 import ru.radiationx.data.analytics.AnalyticsSender
@@ -30,6 +31,7 @@ class AppModule(context: Context) : QuillModule() {
 
         // Базовые
         instance<Context> { appContext } // application Context
+        instance { CardsDataConverter(appContext) }
         singleImpl<SharedBuildConfig, AppBuildConfig>()
         singleImpl<CheckerReserveSources, TvCheckerSources>()
 

@@ -63,7 +63,7 @@ internal fun WatchingScreen(
     val sectionKeys =
         remember(sections) {
             sections.map { section ->
-                section.id to section.items.map(CardItem::getId)
+                section.id to section.items.map { it.stableKey }
             }
         }
     val rowStates =
@@ -80,7 +80,7 @@ internal fun WatchingScreen(
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by rememberSaveable { mutableIntStateOf(0) }
     var lastFocusedItemIndex by rememberSaveable { mutableIntStateOf(0) }
-    var lastFocusedItemId by rememberSaveable { mutableIntStateOf(Int.MIN_VALUE) }
+    var lastFocusedItemKey by rememberSaveable { mutableStateOf<String?>(null) }
     val hasContent = remember(sectionKeys) { sections.any { section -> section.items.hasTvPosterContent() } }
     val descriptionOverlayClearance = rememberTvDescriptionOverlayClearance(hasContent = hasContent)
 
@@ -119,7 +119,7 @@ internal fun WatchingScreen(
     }
 
     LaunchedEffect(sectionKeys) {
-        val selectedId = selectedCard?.getId()
+        val selectedKey = selectedCard?.stableKey
         val visibleItems =
             sections
                 .asSequence()
@@ -131,9 +131,9 @@ internal fun WatchingScreen(
                 .flatMap { it.items.asSequence() }
                 .filterIsInstance<LibriaCard>()
                 .toList()
-        val hadFocusedItem = lastFocusedItemId != Int.MIN_VALUE
-        val stillVisible = visibleItems.any { it.getId() == lastFocusedItemId }
-        if (visibleCards.none { it.getId() == selectedId }) {
+        val hadFocusedItem = !lastFocusedItemKey.isNullOrEmpty()
+        val stillVisible = visibleItems.any { it.stableKey == lastFocusedItemKey }
+        if (visibleCards.none { it.stableKey == selectedKey }) {
             selectedCard = null
         }
         if (hadFocusedItem && !stillVisible) {
@@ -142,7 +142,7 @@ internal fun WatchingScreen(
                     sections = sectionItems,
                     preferredSectionIndex = lastFocusedSectionIndex,
                     preferredItemIndex = lastFocusedItemIndex,
-                    preferredItemId = lastFocusedItemId,
+                    preferredItemKey = lastFocusedItemKey,
                     resolveTargetIndex = ::defaultTvSectionTargetIndex,
                 )
             if (restoreTarget != null) {
@@ -158,7 +158,7 @@ internal fun WatchingScreen(
     }
 
     LaunchedEffect(visibilityRestoreToken, sectionKeys) {
-        if (visibilityRestoreToken <= 0 || lastFocusedItemId == Int.MIN_VALUE) {
+        if (visibilityRestoreToken <= 0 || lastFocusedItemKey.isNullOrEmpty()) {
             return@LaunchedEffect
         }
         val restoreTarget =
@@ -166,7 +166,7 @@ internal fun WatchingScreen(
                 sections = sectionItems,
                 preferredSectionIndex = lastFocusedSectionIndex,
                 preferredItemIndex = lastFocusedItemIndex,
-                preferredItemId = lastFocusedItemId,
+                preferredItemKey = lastFocusedItemKey,
                 resolveTargetIndex = ::defaultTvSectionTargetIndex,
             )
                 ?: return@LaunchedEffect
@@ -188,12 +188,12 @@ internal fun WatchingScreen(
             return@LaunchedEffect
         }
         val restoreTarget =
-            if (lastFocusedItemId != Int.MIN_VALUE) {
+            if (!lastFocusedItemKey.isNullOrEmpty()) {
                 findTvSectionRestoreTarget(
                     sections = sectionItems,
                     preferredSectionIndex = lastFocusedSectionIndex,
                     preferredItemIndex = lastFocusedItemIndex,
-                    preferredItemId = lastFocusedItemId,
+                    preferredItemKey = lastFocusedItemKey,
                     resolveTargetIndex = ::defaultTvSectionTargetIndex,
                 )
             } else {
@@ -259,7 +259,7 @@ internal fun WatchingScreen(
                             selectedCard = card
                             lastFocusedSectionIndex = sectionIndex
                             lastFocusedItemIndex = itemIndex
-                            lastFocusedItemId = card.getId()
+                            lastFocusedItemKey = card.stableKey
                             launchKeepTvSectionItemVisible(
                                 scope = scope,
                                 verticalState = verticalState,
@@ -274,7 +274,7 @@ internal fun WatchingScreen(
                             selectedCard = null
                             lastFocusedSectionIndex = sectionIndex
                             lastFocusedItemIndex = itemIndex
-                            lastFocusedItemId = item.getId()
+                            lastFocusedItemKey = item.stableKey
                             launchKeepTvSectionItemVisible(
                                 scope = scope,
                                 verticalState = verticalState,
@@ -426,7 +426,7 @@ private fun WatchingSectionBlock(
             ) {
                 itemsIndexed(
                     items = items,
-                    key = { _, item -> item.getId() },
+                    key = { _, item -> item.stableKey },
                 ) { index, item ->
                     when (item) {
                         is LibriaCard ->

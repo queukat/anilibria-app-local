@@ -25,7 +25,7 @@ import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaDetails
 import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
-import ru.radiationx.anilibria.extension.applyCard
+import ru.radiationx.anilibria.common.applyCard
 import ru.radiationx.anilibria.screen.details.other.DetailOtherViewModel
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.ui.compose.ProvideGradientBackground
@@ -75,7 +75,7 @@ class DetailFragment : Fragment() {
     private var contentRestoreToken by mutableIntStateOf(0)
     private var restoreSectionIndex by mutableIntStateOf(0)
     private var restoreItemIndex by mutableIntStateOf(0)
-    private var restoreItemId by mutableIntStateOf(Int.MIN_VALUE)
+    private var restoreItemKey by mutableStateOf<String?>(null)
     private var hasRestoreTarget by mutableStateOf(false)
     private var wasHeaderLoading by mutableStateOf(true)
     private var restoreItemState by mutableStateOf<CardItem?>(null)
@@ -140,7 +140,7 @@ class DetailFragment : Fragment() {
                                     focusToken = contentRestoreToken,
                                     preferredSectionIndex = restoreSectionIndex,
                                     preferredItemIndex = restoreItemIndex,
-                                    preferredItemId = restoreItemId,
+                                    preferredItemKey = restoreItemKey,
                                 ),
                             contentSelectionEnabled = allowContentSelectionCapture,
                             onRequestHeaderFocus = ::requestHeaderFocus,
@@ -155,7 +155,7 @@ class DetailFragment : Fragment() {
                                 hasRestoreTarget = true
                                 restoreSectionIndex = sectionIndex
                                 restoreItemIndex = itemIndex
-                                restoreItemId = item.getId()
+                                restoreItemKey = item.stableKey
                                 restoreItemState = item
                                 isHeaderSelected = false
                             },

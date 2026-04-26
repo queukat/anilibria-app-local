@@ -44,17 +44,20 @@ class SuggestionsContentProvider : ContentProvider() {
     }
 
     private val uriMatcher by lazy { buildUriMatcher() }
-    private val suggestionsUseCase by lazy { Quill.getRootScope().get(TvSuggestionsUseCase::class) }
-    private val queryHandlerLazy =
-        lazy(LazyThreadSafetyMode.NONE) {
-            SuggestionsContentProviderQueryHandler<Uri>(
+    private lateinit var queryHandler: SuggestionsContentProviderQueryHandler<Uri>
+
+    override fun onCreate(): Boolean {
+        queryHandler =
+            SuggestionsContentProviderQueryHandler(
                 minQueryLength = MIN_QUERY_LENGTH,
                 maxResults = MAX_SUGGESTIONS,
                 timeoutMs = QUERY_TIMEOUT_MS,
                 cacheTtlMs = CACHE_TTL_MS,
                 minRequestIntervalMs = MIN_REQUEST_INTERVAL_MS,
                 loadSuggestionsBlocking = { query ->
-                    runBlocking { suggestionsUseCase.loadSuggestions(query) }
+                    runBlocking {
+                        Quill.getRootScope().get(TvSuggestionsUseCase::class).loadSuggestions(query)
+                    }
                 },
                 awaitAppInitializedBlocking = {
                     runBlocking { App.appInitialized.await() }
@@ -63,10 +66,8 @@ class SuggestionsContentProvider : ContentProvider() {
                     context?.contentResolver?.notifyChange(refreshUri, null)
                 },
             )
-        }
-    private val queryHandler get() = queryHandlerLazy.value
-
-    override fun onCreate(): Boolean = true
+        return true
+    }
 
     override fun query(
         uri: Uri,
@@ -111,7 +112,7 @@ class SuggestionsContentProvider : ContentProvider() {
     ): Int = throw UnsupportedOperationException("delete is not implemented.")
 
     override fun shutdown() {
-        if (queryHandlerLazy.isInitialized()) {
+        if (::queryHandler.isInitialized) {
             queryHandler.shutdown()
         }
         super.shutdown()

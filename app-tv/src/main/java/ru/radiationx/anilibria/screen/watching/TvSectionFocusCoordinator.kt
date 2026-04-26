@@ -55,15 +55,15 @@ internal fun findTvSectionRestoreTarget(
     sections: List<List<CardItem>>,
     preferredSectionIndex: Int,
     preferredItemIndex: Int,
-    preferredItemId: Int = Int.MIN_VALUE,
+    preferredItemKey: String? = null,
     resolveTargetIndex: TvSectionTargetIndexResolver = ::defaultTvSectionTargetIndex,
 ): TvSectionFocusTarget? {
     if (sections.isEmpty()) {
         return null
     }
-    if (preferredItemId != Int.MIN_VALUE) {
+    if (!preferredItemKey.isNullOrEmpty()) {
         sections.forEachIndexed { sectionIndex, items ->
-            val itemIndex = items.indexOfItemId(preferredItemId)
+            val itemIndex = items.indexOfStableKey(preferredItemKey)
             if (itemIndex != null) {
                 return TvSectionFocusTarget(sectionIndex, itemIndex)
             }

@@ -84,7 +84,7 @@ internal fun ScheduleScreen(
     val sectionKeys =
         remember(sections) {
             sections.map { section ->
-                section.id to section.items.map(CardItem::getId)
+                section.id to section.items.map { it.stableKey }
             }
         }
     val rowStates = remember(sectionKeys) { List(sections.size) { LazyListState() } }
@@ -101,7 +101,7 @@ internal fun ScheduleScreen(
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
-    var lastFocusedItemId by remember { mutableIntStateOf(Int.MIN_VALUE) }
+    var lastFocusedItemKey by remember { mutableStateOf<String?>(null) }
     val nonContentItems =
         remember(sectionKeys) {
             sections.flatMap { section -> section.items }.filter { it !is LibriaCard }
@@ -239,10 +239,10 @@ internal fun ScheduleScreen(
     }
 
     LaunchedEffect(sectionKeys) {
-        val selectedId = selectedItem?.getId()
+        val selectedKey = selectedItem?.stableKey
         val visibleItems = sections.asSequence().flatMap { it.items.asSequence() }.toList()
-        val hadSelectedItem = selectedId != null
-        val stillVisible = selectedId != null && visibleItems.any { it.getId() == selectedId }
+        val hadSelectedItem = selectedKey != null
+        val stillVisible = selectedKey != null && visibleItems.any { it.stableKey == selectedKey }
         if (!stillVisible) {
             selectedItem = null
         }
@@ -252,7 +252,7 @@ internal fun ScheduleScreen(
                     sections = sectionItems,
                     preferredSectionIndex = lastFocusedSectionIndex,
                     preferredItemIndex = lastFocusedItemIndex,
-                    preferredItemId = lastFocusedItemId,
+                    preferredItemKey = lastFocusedItemKey,
                     resolveTargetIndex = ::clampedTvSectionTargetIndex,
                 )
             if (restoreTarget != null) {
@@ -295,12 +295,12 @@ internal fun ScheduleScreen(
             return@LaunchedEffect
         }
         val restoreTarget =
-            if (lastFocusedItemId != Int.MIN_VALUE) {
+            if (!lastFocusedItemKey.isNullOrEmpty()) {
                 findTvSectionRestoreTarget(
                     sections = sectionItems,
                     preferredSectionIndex = lastFocusedSectionIndex,
                     preferredItemIndex = lastFocusedItemIndex,
-                    preferredItemId = lastFocusedItemId,
+                    preferredItemKey = lastFocusedItemKey,
                     resolveTargetIndex = ::clampedTvSectionTargetIndex,
                 )
             } else {
@@ -484,7 +484,7 @@ internal fun ScheduleScreen(
                             selectedItem = item
                             lastFocusedSectionIndex = sectionIndex
                             lastFocusedItemIndex = itemIndex
-                            lastFocusedItemId = item.getId()
+                            lastFocusedItemKey = item.stableKey
                             highlightedSectionIndex = sectionIndex
                             launchKeepTvSectionItemVisible(
                                 scope = scope,

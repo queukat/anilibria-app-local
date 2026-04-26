@@ -14,6 +14,8 @@ import ru.radiationx.anilibria.common.LibriaCardRouter
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.Paginated
 import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
+import ru.radiationx.anilibria.presentation.pagination.TvPagingLoadResult
+import ru.radiationx.anilibria.presentation.pagination.TvPagingState
 import ru.radiationx.data.repository.AuthRepository
 import javax.inject.Inject
 
@@ -27,7 +29,6 @@ class MainFavoritesViewModel
     ) : BaseCardsViewModel() {
         private val cacheTtlMs: Long = 2 * 60 * 1000L
         private var lastLoadAtMs: Long = 0L
-        private var pagingState = PagingState(page = firstPage - 1)
 
         override val defaultTitle: String = MainSectionTitles.FAVORITES
 
@@ -56,73 +57,46 @@ class MainFavoritesViewModel
             }
         }
 
-        override fun onRefreshClick() {
-            if (pagingState.isLoading) return
-            pagingState =
-                pagingState.copy(
-                    page = firstPage - 1,
-                    isLoading = true,
-                    hasMore = true,
-                    error = null,
-                )
-            super.onRefreshClick()
-        }
+        override suspend fun loadPagingResult(
+            requestPage: Int,
+            currentState: TvPagingState<LibriaCard>,
+        ): TvPagingLoadResult<LibriaCard> {
+            val response = tvFavoritesUseCase.loadFavorites(requestPage)
+            lastLoadAtMs = SystemClock.elapsedRealtime()
 
-        override fun onLinkCardClick() {
-            val state = pagingState
-            if (state.isLoading || !state.hasMore) return
-            pagingState =
-                state.copy(
-                    isLoading = true,
-                    error = null,
-                )
-            super.onLinkCardClick()
-        }
+            val mapped =
+                response.data
+                    .sortedByDescending { it.torrentUpdate }
+                    .map { converter.toCard(it) }
+            val isFirstPage = requestPage == firstPage
+            val allowModify =
+                if (isFirstPage) {
+                    needsModify(mapped, currentState.items)
+                } else {
+                    true
+                }
+            val mergedItems =
+                if (isFirstPage) {
+                    if (allowModify) {
+                        mapped
+                    } else {
+                        currentState.items
+                    }
+                } else {
+                    currentState.items + mapped
+                }
 
-        override fun onLoadingCardClick() {
-            if (pagingState.isLoading) return
-            pagingState =
-                pagingState.copy(
-                    isLoading = true,
-                    error = null,
-                )
-            super.onLoadingCardClick()
-        }
-
-        override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
-            return try {
-                val response = tvFavoritesUseCase.loadFavorites(requestPage)
-                lastLoadAtMs = SystemClock.elapsedRealtime()
-
-                val mapped =
-                    response.data
-                        .sortedByDescending { it.torrentUpdate }
-                        .map { converter.toCard(it) }
-                val allItems = if (requestPage == firstPage) mapped else pagingState.items + mapped
-
-                pagingState =
-                    pagingState.copy(
-                        items = allItems,
-                        page = requestPage,
-                        hasMore = hasMoreResponse(response),
-                        error = null,
-                    )
-
-                mapped
-            } catch (error: Throwable) {
-                pagingState = pagingState.copy(error = error)
-                throw error
-            } finally {
-                pagingState = pagingState.copy(isLoading = false)
-            }
-        }
-
-        override fun hasMoreCards(
-            newCards: List<LibriaCard>,
-            allCards: List<LibriaCard>,
-        ): Boolean {
-            pagingState = pagingState.copy(items = allCards)
-            return pagingState.hasMore
+            return TvPagingLoadResult(
+                pageItems = mapped,
+                mergedItems = mergedItems,
+                canLoadMore = hasMoreResponse(response),
+                appliedPage =
+                    if (isFirstPage && !allowModify) {
+                        currentState.currentPage
+                    } else {
+                        requestPage
+                    },
+            )
         }
 
         override fun onLibriaCardClick(card: LibriaCard) {
@@ -142,14 +116,6 @@ class MainFavoritesViewModel
                 }
             return pageHasEnoughItems && hasNextPageByMeta
         }
-
-        private data class PagingState(
-            val items: List<LibriaCard> = emptyList(),
-            val page: Int,
-            val isLoading: Boolean = false,
-            val hasMore: Boolean = true,
-            val error: Throwable? = null,
-        )
 
         private companion object {
             private const val FAVORITES_PAGE_LIMIT = 25

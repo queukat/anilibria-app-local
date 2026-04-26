@@ -4,6 +4,8 @@ import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
+import ru.radiationx.anilibria.presentation.pagination.TvPagingLoadResult
+import ru.radiationx.anilibria.presentation.pagination.TvPagingState
 import ru.radiationx.data.entity.domain.Paginated
 import ru.radiationx.data.repository.YoutubeRepository
 import javax.inject.Inject
@@ -15,8 +17,6 @@ class MainYouTubeViewModel
         private val converter: CardsDataConverter,
         private val cardRouter: LibriaCardRouter,
     ) : BaseCardsViewModel() {
-        private var pagingState = PagingState(page = firstPage - 1)
-
         override val defaultTitle: String = MainSectionTitles.YOUTUBE
 
         override val preventClearOnRefresh: Boolean = true
@@ -27,76 +27,49 @@ class MainYouTubeViewModel
             onRefreshClick()
         }
 
-        override fun onRefreshClick() {
-            if (pagingState.isLoading) return
-            pagingState =
-                PagingState(
-                    page = firstPage - 1,
-                    isLoading = true,
-                    hasMore = true,
-                )
-            super.onRefreshClick()
-        }
-
-        override fun onLinkCardClick() {
-            val state = pagingState
-            if (state.isLoading || !state.hasMore) return
-            pagingState =
-                state.copy(
-                    isLoading = true,
-                    error = null,
-                )
-            super.onLinkCardClick()
-        }
-
-        override fun onLoadingCardClick() {
-            if (pagingState.isLoading) return
-            pagingState =
-                pagingState.copy(
-                    isLoading = true,
-                    error = null,
-                )
-            super.onLoadingCardClick()
-        }
-
-        override suspend fun getLoader(requestPage: Int): List<LibriaCard> {
-            return try {
-                val response = youtubeRepository.getYoutubeList(requestPage)
-                val mapped = response.data.map { converter.toCard(it) }
-                val freshCards =
+        override suspend fun loadPagingResult(
+            requestPage: Int,
+            currentState: TvPagingState<LibriaCard>,
+        ): TvPagingLoadResult<LibriaCard> {
+            val response = youtubeRepository.getYoutubeList(requestPage)
+            val mapped = response.data.map { converter.toCard(it) }
+            val isFirstPage = requestPage == firstPage
+            val freshCards =
+                if (isFirstPage) {
+                    mapped
+                } else {
                     mapped.filter { candidate ->
-                        pagingState.items.none { it.itemId == candidate.itemId }
+                        currentState.items.none { it.stableKey == candidate.stableKey }
                     }
-                val allItems =
-                    if (requestPage == firstPage) {
+                }
+            val allowModify =
+                if (isFirstPage) {
+                    needsModify(freshCards, currentState.items)
+                } else {
+                    true
+                }
+            val mergedItems =
+                if (isFirstPage) {
+                    if (allowModify) {
                         freshCards
                     } else {
-                        pagingState.items + freshCards
+                        currentState.items
                     }
+                } else {
+                    currentState.items + freshCards
+                }
 
-                pagingState =
-                    pagingState.copy(
-                        items = allItems,
-                        page = requestPage,
-                        hasMore = hasMoreResponse(response, freshCards),
-                        error = null,
-                    )
-
-                freshCards
-            } catch (error: Throwable) {
-                pagingState = pagingState.copy(error = error)
-                throw error
-            } finally {
-                pagingState = pagingState.copy(isLoading = false)
-            }
-        }
-
-        override fun hasMoreCards(
-            newCards: List<LibriaCard>,
-            allCards: List<LibriaCard>,
-        ): Boolean {
-            pagingState = pagingState.copy(items = allCards)
-            return pagingState.hasMore
+            return TvPagingLoadResult(
+                pageItems = freshCards,
+                mergedItems = mergedItems,
+                canLoadMore = hasMoreResponse(response, freshCards),
+                appliedPage =
+                    if (isFirstPage && !allowModify) {
+                        currentState.currentPage
+                    } else {
+                        requestPage
+                    },
+            )
         }
 
         override fun onLibriaCardClick(card: LibriaCard) {
@@ -118,12 +91,4 @@ class MainYouTubeViewModel
                 response.data.size >= limit &&
                 freshCards.isNotEmpty()
         }
-
-        private data class PagingState(
-            val items: List<LibriaCard> = emptyList(),
-            val page: Int,
-            val isLoading: Boolean = false,
-            val hasMore: Boolean = true,
-            val error: Throwable? = null,
-        )
     }

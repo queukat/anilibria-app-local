@@ -108,7 +108,7 @@ internal fun SuggestionsScreen(
     val sectionKeys =
         remember(sections) {
             sections.map { section ->
-                section.id to section.items.map(CardItem::getId)
+                section.id to section.items.map { it.stableKey }
             }
         }
     val rowStates = remember(sectionKeys) { List(sections.size) { LazyListState() } }
@@ -122,7 +122,7 @@ internal fun SuggestionsScreen(
     var handledFocusToken by remember { mutableIntStateOf(0) }
     var lastFocusedSectionIndex by remember { mutableIntStateOf(0) }
     var lastFocusedItemIndex by remember { mutableIntStateOf(0) }
-    var lastFocusedItemId by remember { mutableIntStateOf(Int.MIN_VALUE) }
+    var lastFocusedItemKey by remember { mutableStateOf<String?>(null) }
     var lastFocusArea by remember { mutableStateOf(SuggestionsFocusArea.Field) }
     val hasContent = remember(sectionKeys) { sections.any { section -> section.items.hasTvPosterContent() } }
     val descriptionOverlayClearance = rememberTvDescriptionOverlayClearance(hasContent = hasContent)
@@ -137,7 +137,7 @@ internal fun SuggestionsScreen(
                 sections = sectionItems,
                 preferredSectionIndex = lastFocusedSectionIndex,
                 preferredItemIndex = lastFocusedItemIndex,
-                preferredItemId = lastFocusedItemId,
+                preferredItemKey = lastFocusedItemKey,
                 resolveTargetIndex = ::defaultTvSectionTargetIndex,
             ) ?: return false
         return launchTvSectionFocus(
@@ -193,21 +193,21 @@ internal fun SuggestionsScreen(
 
     LaunchedEffect(sectionKeys) {
         val visibleItems = sections.asSequence().flatMap { it.items.asSequence() }.toList()
-        val selectedId = selectedItem?.getId()
-        val stillVisible = selectedId != null && visibleItems.any { it.getId() == selectedId }
+        val selectedKey = selectedItem?.stableKey
+        val stillVisible = selectedKey != null && visibleItems.any { it.stableKey == selectedKey }
         if (!stillVisible) {
             selectedItem = null
         }
-        if (lastFocusedItemId != Int.MIN_VALUE && visibleItems.none { it.getId() == lastFocusedItemId }) {
-            lastFocusedItemId = Int.MIN_VALUE
+        if (!lastFocusedItemKey.isNullOrEmpty() && visibleItems.none { it.stableKey == lastFocusedItemKey }) {
+            lastFocusedItemKey = null
         }
-        if (selectedId != null && !stillVisible) {
+        if (selectedKey != null && !stillVisible) {
             val restoreTarget =
                 findTvSectionRestoreTarget(
                     sections = sectionItems,
                     preferredSectionIndex = lastFocusedSectionIndex,
                     preferredItemIndex = lastFocusedItemIndex,
-                    preferredItemId = lastFocusedItemId,
+                    preferredItemKey = lastFocusedItemKey,
                     resolveTargetIndex = ::defaultTvSectionTargetIndex,
                 )
             if (restoreTarget != null) {
@@ -309,7 +309,7 @@ internal fun SuggestionsScreen(
                             selectedItem = item as? LibriaCard
                             lastFocusedSectionIndex = sectionIndex
                             lastFocusedItemIndex = itemIndex
-                            lastFocusedItemId = item.getId()
+                            lastFocusedItemKey = item.stableKey
                             lastFocusArea = SuggestionsFocusArea.Results
                             launchKeepTvSectionItemVisible(
                                 scope = scope,
@@ -550,7 +550,7 @@ private fun SuggestionsSectionBlock(
             ) {
                 itemsIndexed(
                     items = items,
-                    key = { _, item -> item.getId() },
+                    key = { _, item -> item.stableKey },
                 ) { index, item ->
                     when (item) {
                         is LibriaCard ->

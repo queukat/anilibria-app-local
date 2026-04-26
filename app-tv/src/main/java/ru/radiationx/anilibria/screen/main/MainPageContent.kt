@@ -20,7 +20,7 @@ import ru.radiationx.anilibria.common.GradientBackgroundManager
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.TvStartupTrace
-import ru.radiationx.anilibria.extension.applyCard
+import ru.radiationx.anilibria.common.applyCard
 import ru.radiationx.anilibria.screen.mainpages.MainShellCallbacks
 import ru.radiationx.anilibria.screen.mainpages.MainShellPageContent
 import ru.radiationx.anilibria.screen.mainpages.MainShellPageSectionsState
@@ -82,7 +82,7 @@ internal class MainPageContent(
     private var visibilityRestoreToken by mutableIntStateOf(0)
     private var restoreSectionIndex by mutableIntStateOf(0)
     private var restoreItemIndex by mutableIntStateOf(0)
-    private var restoreItemId by mutableIntStateOf(Int.MIN_VALUE)
+    private var restoreItemKey by mutableStateOf<String?>(null)
     private var selectedItemState by mutableStateOf<CardItem?>(null)
     private val prefetchedPosterUrls = linkedSetOf<String>()
 
@@ -141,7 +141,7 @@ internal class MainPageContent(
                     MainContentRestoreState(
                         preferredSectionIndex = restoreSectionIndex,
                         preferredItemIndex = restoreItemIndex,
-                        preferredItemId = restoreItemId,
+                        preferredItemKey = restoreItemKey,
                     ),
                 onItemClick = ::handleItemClick,
                 onRequestRailFocus = callbacks.onRequestRailFocus,
@@ -151,7 +151,7 @@ internal class MainPageContent(
                 onItemFocused = { sectionIndex, itemIndex, item ->
                     restoreSectionIndex = sectionIndex
                     restoreItemIndex = itemIndex
-                    restoreItemId = item.getId()
+                    restoreItemKey = item.stableKey
                     selectedItemState = item
                 },
                 onBackdropItemFocused = { item -> backgroundManager.applyCard(item) },

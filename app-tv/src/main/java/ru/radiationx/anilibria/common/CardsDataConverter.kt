@@ -48,14 +48,19 @@ class CardsDataConverter
                 )
             }
 
-        fun toFeedCard(feedItem: FeedItem): LibriaCard =
-            feedItem.run {
-                when {
-                    release != null -> toReleaseCard(release!!)
-                    youtube != null -> toYoutubeCard(youtube!!)
-                    else -> error("Feed item does not contain release or youtube payload")
-                }
+        fun toFeedCard(feedItem: FeedItem): LibriaCard {
+            val release = feedItem.release
+            if (release != null) {
+                return toReleaseCard(release)
             }
+
+            val youtube = feedItem.youtube
+            if (youtube != null) {
+                return toYoutubeCard(youtube)
+            }
+
+            error("Feed item does not contain release or youtube payload")
+        }
 
         fun toCard(releaseItem: Release): LibriaCard = toReleaseCard(releaseItem)
 
