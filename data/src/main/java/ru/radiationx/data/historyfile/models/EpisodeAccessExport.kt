@@ -10,4 +10,4 @@ data class EpisodeAccessExport(
     @Json(name = "s") val seek: Long,
     @Json(name = "iv") val isViewed: Boolean,
     @Json(name = "la") val lastAccess: Long,
-) 
+)

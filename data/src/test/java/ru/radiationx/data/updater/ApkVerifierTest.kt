@@ -8,7 +8,6 @@ import org.junit.Test
 import java.io.File
 
 class ApkVerifierTest {
-
     @Test
     fun matchesSha256_acceptsDifferentFormats() {
         val verifier = ApkVerifier(mockk<Context>(relaxed = true))

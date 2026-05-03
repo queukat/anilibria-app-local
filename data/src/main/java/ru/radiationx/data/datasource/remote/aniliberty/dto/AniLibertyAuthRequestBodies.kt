@@ -39,4 +39,3 @@ data class AniLibertyPasswordResetBody(
     @Json(name = "password") val password: String,
     @Json(name = "password_confirmation") val passwordConfirmation: String,
 )
-

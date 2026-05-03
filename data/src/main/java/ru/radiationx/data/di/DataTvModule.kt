@@ -25,7 +25,6 @@ import ru.radiationx.data.interactors.tv.TvUpdateUseCaseImpl
 import ru.radiationx.quill.QuillModule
 
 class DataTvModule : QuillModule() {
-
     init {
         singleImpl<TvContentUseCase, TvContentUseCaseImpl>()
         singleImpl<TvFavoritesUseCase, TvFavoritesUseCaseImpl>()

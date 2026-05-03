@@ -8,23 +8,24 @@ import ru.radiationx.data.interactors.UserViewsSyncInteractor
 import ru.radiationx.data.repository.HistoryRepository
 import javax.inject.Inject
 
-class TvWatchingFacadeImpl @Inject constructor(
-    private val historyRepository: HistoryRepository,
-    private val episodesCheckerHolder: EpisodesCheckerHolder,
-    private val userViewsSyncInteractor: UserViewsSyncInteractor,
-) : TvWatchingFacade {
+class TvWatchingFacadeImpl
+    @Inject
+    constructor(
+        private val historyRepository: HistoryRepository,
+        private val episodesCheckerHolder: EpisodesCheckerHolder,
+        private val userViewsSyncInteractor: UserViewsSyncInteractor,
+    ) : TvWatchingFacade {
+        override fun observeLocalContinueAvailable(): Flow<Boolean> {
+            return episodesCheckerHolder.observeEpisodes().map { it.isNotEmpty() }
+        }
 
-    override fun observeLocalContinueAvailable(): Flow<Boolean> {
-        return episodesCheckerHolder.observeEpisodes().map { it.isNotEmpty() }
-    }
+        override fun observeLocalHistoryAvailable(): Flow<Boolean> {
+            return historyRepository.observeReleases().map { it.items.isNotEmpty() }
+        }
 
-    override fun observeLocalHistoryAvailable(): Flow<Boolean> {
-        return historyRepository.observeReleases().map { it.items.isNotEmpty() }
+        override fun requestBackgroundSync() {
+            // Watching screen is a good wake-up point on TVs where the process often sleeps
+            // instead of being fully restarted. The sync remains fully async and non-blocking.
+            userViewsSyncInteractor.scheduleSyncIfNeeded(reason = "watching_page_selected")
+        }
     }
-
-    override fun requestBackgroundSync() {
-        // Watching screen is a good wake-up point on TVs where the process often sleeps
-        // instead of being fully restarted. The sync remains fully async and non-blocking.
-        userViewsSyncInteractor.scheduleSyncIfNeeded(reason = "watching_page_selected")
-    }
-}

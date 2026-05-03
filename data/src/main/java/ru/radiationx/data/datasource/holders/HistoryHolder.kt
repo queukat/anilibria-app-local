@@ -10,9 +10,13 @@ interface HistoryHolder {
     }
 
     suspend fun getIds(): List<ReleaseId>
+
     fun observeIds(): Flow<List<ReleaseId>>
+
     suspend fun putId(id: ReleaseId)
+
     suspend fun putAllIds(ids: List<ReleaseId>)
+
     suspend fun putAllIdsBatched(
         ids: List<ReleaseId>,
         batchSize: Int = DEFAULT_BULK_BATCH_SIZE,
@@ -20,5 +24,6 @@ interface HistoryHolder {
     ) {
         putAllIds(ids)
     }
+
     suspend fun removeId(id: ReleaseId)
 }

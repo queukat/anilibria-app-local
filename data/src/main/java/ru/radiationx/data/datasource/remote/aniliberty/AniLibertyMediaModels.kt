@@ -5,9 +5,7 @@ import com.squareup.moshi.JsonClass
 
 /**
  * Media / Ads models according to OpenAPI.
- */
-
-/**
+ *
  * GET /media/vasts
  * OpenAPI: models.ads.vasts.v1.vast
  */
@@ -65,7 +63,6 @@ data class AniLibertyVideo(
     @Json(name = "created_at") val createdAt: String? = null,
     @Json(name = "updated_at") val updatedAt: String? = null,
     @Json(name = "is_announce") val isAnnounce: Boolean? = null,
-
     @Json(name = "origin") val origin: AniLibertyVideoOrigin? = null,
 )
 

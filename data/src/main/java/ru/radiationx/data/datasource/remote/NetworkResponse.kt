@@ -6,5 +6,5 @@ data class NetworkResponse(
     val message: String,
     val redirect: String,
     val body: String,
-    val hostIp: String?
+    val hostIp: String?,
 )

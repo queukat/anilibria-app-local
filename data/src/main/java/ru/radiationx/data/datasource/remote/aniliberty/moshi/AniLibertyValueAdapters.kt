@@ -28,8 +28,11 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyTeamUserId
 import java.lang.reflect.Type
 
 object AniLibertyValueAdapters : JsonAdapter.Factory {
-
-    override fun create(type: Type, annotations: Set<Annotation>, moshi: Moshi): JsonAdapter<*>? {
+    override fun create(
+        type: Type,
+        annotations: Set<Annotation>,
+        moshi: Moshi,
+    ): JsonAdapter<*>? {
         if (annotations.isNotEmpty()) return null
 
         val raw = Types.getRawType(type)
@@ -103,7 +106,6 @@ object AniLibertyValueAdapters : JsonAdapter.Factory {
         private val wrap: (String) -> T,
         private val unwrap: (T) -> String,
     ) : JsonAdapter<T>() {
-
         override fun fromJson(reader: JsonReader): T? {
             if (reader.peek() == JsonReader.Token.NULL) {
                 reader.nextNull<Unit>()
@@ -112,7 +114,10 @@ object AniLibertyValueAdapters : JsonAdapter.Factory {
             return wrap(reader.nextString())
         }
 
-        override fun toJson(writer: JsonWriter, value: T?) {
+        override fun toJson(
+            writer: JsonWriter,
+            value: T?,
+        ) {
             if (value == null) {
                 writer.nullValue()
                 return
@@ -125,7 +130,6 @@ object AniLibertyValueAdapters : JsonAdapter.Factory {
         private val wrap: (Int) -> T,
         private val unwrap: (T) -> Int,
     ) : JsonAdapter<T>() {
-
         override fun fromJson(reader: JsonReader): T? {
             if (reader.peek() == JsonReader.Token.NULL) {
                 reader.nextNull<Unit>()
@@ -134,7 +138,10 @@ object AniLibertyValueAdapters : JsonAdapter.Factory {
             return wrap(reader.nextInt())
         }
 
-        override fun toJson(writer: JsonWriter, value: T?) {
+        override fun toJson(
+            writer: JsonWriter,
+            value: T?,
+        ) {
             if (value == null) {
                 writer.nullValue()
                 return

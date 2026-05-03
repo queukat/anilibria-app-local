@@ -11,6 +11,7 @@ data class RemoteFile(
 ) {
     sealed class Bucket {
         data object AppUpdates : Bucket()
+
         data class Torrent(val id: ReleaseId) : Bucket()
     }
 }

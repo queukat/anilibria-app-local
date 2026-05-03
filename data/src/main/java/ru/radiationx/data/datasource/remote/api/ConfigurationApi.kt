@@ -17,66 +17,71 @@ import ru.radiationx.data.datasource.remote.fetchResponse
 import ru.radiationx.data.entity.response.config.ApiConfigResponse
 import javax.inject.Inject
 
-class ConfigurationApi @Inject constructor(
-    @MainClient private val mainClient: IClient,
-    private val apiConfig: ApiConfig,
-    private val moshi: Moshi,
-) {
-
-    suspend fun checkAvailable(apiUrl: String): Boolean {
-        return withTimeout(15_000) {
-            mainClient
-                .postFull(apiUrl, mapOf("query" to "empty"))
-                .let { true }
-        }
-    }
-
-    suspend fun getConfiguration(): ApiConfigResponse {
-        return getMergeConfig().also {
-            if (it.addresses.isEmpty()) {
-                throw IllegalStateException("Empty config adresses")
+class ConfigurationApi
+    @Inject
+    constructor(
+        @MainClient private val mainClient: IClient,
+        private val apiConfig: ApiConfig,
+        private val moshi: Moshi,
+    ) {
+        suspend fun checkAvailable(apiUrl: String): Boolean {
+            return withTimeout(15_000) {
+                mainClient
+                    .postFull(apiUrl, mapOf("query" to "empty"))
+                    .let { true }
             }
         }
-    }
 
-    private suspend fun getMergeConfig(): ApiConfigResponse {
-        val apiFlow = flow {
-            emit(getConfigFromApi())
-        }.catch {
-            emit(ApiConfigResponse(emptyList()))
+        suspend fun getConfiguration(): ApiConfigResponse {
+            return getMergeConfig().also {
+                if (it.addresses.isEmpty()) {
+                    throw IllegalStateException("Empty config adresses")
+                }
+            }
         }
-        val reserveFlow = flow {
-            emit(getConfigFromReserve())
-        }.catch {
-            emit(ApiConfigResponse(emptyList()))
+
+        private suspend fun getMergeConfig(): ApiConfigResponse {
+            val apiFlow =
+                flow {
+                    emit(getConfigFromApi())
+                }.catch {
+                    emit(ApiConfigResponse(emptyList()))
+                }
+            val reserveFlow =
+                flow {
+                    emit(getConfigFromReserve())
+                }.catch {
+                    emit(ApiConfigResponse(emptyList()))
+                }
+            return merge(apiFlow, reserveFlow)
+                .filter { it.addresses.isNotEmpty() }
+                .onEmpty { emit(ApiConfigResponse(emptyList())) }
+                .first()
         }
-        return merge(apiFlow, reserveFlow)
-            .filter { it.addresses.isNotEmpty() }
-            .onEmpty { emit(ApiConfigResponse(emptyList())) }
-            .first()
-    }
 
-    private suspend fun getConfigFromApi(): ApiConfigResponse {
-        val args = mapOf(
-            "query" to "config"
-        )
-        val response = withTimeout(10_000) {
-            mainClient.post(Api.DEFAULT_ADDRESS.api, args)
+        private suspend fun getConfigFromApi(): ApiConfigResponse {
+            val args =
+                mapOf(
+                    "query" to "config",
+                )
+            val response =
+                withTimeout(10_000) {
+                    mainClient.post(Api.DEFAULT_ADDRESS.api, args)
+                }
+            return response
+                .fetchApiResponse(moshi)
         }
-        return response
-            .fetchApiResponse(moshi)
-    }
 
-    private suspend fun getConfigFromReserve(): ApiConfigResponse {
-        return try {
-            getReserve("https://raw.githubusercontent.com/anilibria/anilibria-app/master/config.json")
-        } catch (ex: Throwable) {
-            getReserve("https://bitbucket.org/RadiationX/anilibria-app/raw/master/config.json")
+        private suspend fun getConfigFromReserve(): ApiConfigResponse {
+            return try {
+                getReserve("https://raw.githubusercontent.com/anilibria/anilibria-app/master/config.json")
+            } catch (ex: Throwable) {
+                getReserve("https://bitbucket.org/RadiationX/anilibria-app/raw/master/config.json")
+            }
         }
+
+        private suspend fun getReserve(url: String): ApiConfigResponse =
+            mainClient
+                .get(url, emptyMap())
+                .fetchResponse(moshi)
     }
-
-    private suspend fun getReserve(url: String): ApiConfigResponse = mainClient
-        .get(url, emptyMap())
-        .fetchResponse(moshi)
-
-}

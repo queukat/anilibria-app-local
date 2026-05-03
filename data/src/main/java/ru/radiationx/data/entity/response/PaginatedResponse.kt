@@ -8,12 +8,11 @@ data class PaginatedResponse<T>(
     @Json(name = "items") val data: List<T>,
     @Json(name = "pagination") val meta: PaginationResponse,
 ) {
-
     @JsonClass(generateAdapter = true)
     data class PaginationResponse(
         @Json(name = "page") val page: Int?,
         @Json(name = "allPages") val allPages: Int?,
         @Json(name = "perPage") val perPage: Int?,
-        @Json(name = "allItems") val allItems: Int?
+        @Json(name = "allItems") val allItems: Int?,
     )
 }

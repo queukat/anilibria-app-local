@@ -8,5 +8,5 @@ data class DonationCardsResponse(
     @Json(name = "new_donations")
     val newDonations: DonationCardResponse?,
     @Json(name = "release")
-    val release: DonationCardResponse?
+    val release: DonationCardResponse?,
 )

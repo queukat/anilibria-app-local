@@ -14,5 +14,5 @@ data class ApiConfigAddressResponse(
     @Json(name = "base") val base: String,
     @Json(name = "api") val api: String,
     @Json(name = "ips") val ips: List<String>,
-    @Json(name = "proxies") val proxies: List<ApiConfigProxyResponse>
+    @Json(name = "proxies") val proxies: List<ApiConfigProxyResponse>,
 )

@@ -5,7 +5,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ClientRetryPolicyTest {
-
     @Test
     fun retriesEnabledForIdempotentMethodsOnly() {
         assertTrue(RetryPolicy.shouldRetryOnException(Client.METHOD_GET, attempt = 0))

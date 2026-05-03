@@ -8,5 +8,5 @@ data class ApiProxy(
     val port: Int,
     val user: String?,
     val password: String?,
-    var ping: Float = 0f
+    var ping: Float = 0f,
 )

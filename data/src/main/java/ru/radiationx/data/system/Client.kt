@@ -22,232 +22,279 @@ import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+open class Client
+    @Inject
+    constructor(
+        private val clientWrapper: ClientWrapper,
+        @Suppress("unused") private val sharedBuildConfig: SharedBuildConfig,
+    ) : IClient {
+        companion object {
+            const val METHOD_GET = "GET"
+            const val METHOD_HEAD = "HEAD"
+            const val METHOD_POST = "POST"
+            const val METHOD_PUT = "PUT"
+            const val METHOD_DELETE = "DELETE"
 
-open class Client @Inject constructor(
-    private val clientWrapper: ClientWrapper,
-    @Suppress("unused") private val sharedBuildConfig: SharedBuildConfig,
-) : IClient {
+            const val HEADER_HOST_IP = "Remote-Address"
+            const val USER_AGENT =
+                "mobileApp Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.170 Safari/537.36 OPR/53.0.2907.68"
+        }
 
-    companion object {
-        const val METHOD_GET = "GET"
-        const val METHOD_HEAD = "HEAD"
-        const val METHOD_POST = "POST"
-        const val METHOD_PUT = "PUT"
-        const val METHOD_DELETE = "DELETE"
+        override suspend fun get(
+            url: String,
+            args: Map<String, String>,
+        ): String = requireNotNull(getFull(url, args).body)
 
-        const val HEADER_HOST_IP = "Remote-Address"
-        const val USER_AGENT =
-            "mobileApp Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.170 Safari/537.36 OPR/53.0.2907.68"
-    }
+        override suspend fun post(
+            url: String,
+            args: Map<String, String>,
+        ): String = requireNotNull(postFull(url, args).body)
 
-    override suspend fun get(url: String, args: Map<String, String>): String =
-        requireNotNull(getFull(url, args).body)
+        override suspend fun put(
+            url: String,
+            args: Map<String, String>,
+        ): String = requireNotNull(putFull(url, args).body)
 
-    override suspend fun post(url: String, args: Map<String, String>): String =
-        requireNotNull(postFull(url, args).body)
+        override suspend fun delete(
+            url: String,
+            args: Map<String, String>,
+        ): String = requireNotNull(deleteFull(url, args).body)
 
-    override suspend fun put(url: String, args: Map<String, String>): String =
-        requireNotNull(putFull(url, args).body)
+        override suspend fun getFull(
+            url: String,
+            args: Map<String, String>,
+        ): NetworkResponse = request(METHOD_GET, url, args)
 
-    override suspend fun delete(url: String, args: Map<String, String>): String =
-        requireNotNull(deleteFull(url, args).body)
+        override suspend fun postFull(
+            url: String,
+            args: Map<String, String>,
+        ): NetworkResponse = request(METHOD_POST, url, args)
 
-    override suspend fun getFull(url: String, args: Map<String, String>): NetworkResponse =
-        request(METHOD_GET, url, args)
+        override suspend fun putFull(
+            url: String,
+            args: Map<String, String>,
+        ): NetworkResponse = request(METHOD_PUT, url, args)
 
-    override suspend fun postFull(url: String, args: Map<String, String>): NetworkResponse =
-        request(METHOD_POST, url, args)
+        override suspend fun deleteFull(
+            url: String,
+            args: Map<String, String>,
+        ): NetworkResponse = request(METHOD_DELETE, url, args)
 
-    override suspend fun putFull(url: String, args: Map<String, String>): NetworkResponse =
-        request(METHOD_PUT, url, args)
+        override suspend fun getRaw(
+            url: String,
+            args: Map<String, String>,
+        ): Response = requestRaw(METHOD_GET, url, args)
 
-    override suspend fun deleteFull(url: String, args: Map<String, String>): NetworkResponse =
-        request(METHOD_DELETE, url, args)
+        override suspend fun postRaw(
+            url: String,
+            args: Map<String, String>,
+        ): Response = requestRaw(METHOD_POST, url, args)
 
-    override suspend fun getRaw(url: String, args: Map<String, String>): Response =
-        requestRaw(METHOD_GET, url, args)
+        private suspend fun request(
+            method: String,
+            url: String,
+            args: Map<String, String>,
+        ): NetworkResponse {
+            val callResponse = requestRaw(method, url, args)
+            return NetworkResponse(
+                getHttpUrl(url, method, args).toString(),
+                callResponse.code,
+                callResponse.message,
+                callResponse.request.url.toString(),
+                callResponse.body?.string().orEmpty(),
+                callResponse.headers(HEADER_HOST_IP).firstOrNull(),
+            )
+        }
 
-    override suspend fun postRaw(url: String, args: Map<String, String>): Response =
-        requestRaw(METHOD_POST, url, args)
+        private suspend fun requestRaw(
+            method: String,
+            url: String,
+            args: Map<String, String>,
+        ): Response {
+            return withContext(Dispatchers.IO) {
+                var attempt = 0
+                var delayMs = RetryPolicy.initialBackoffMs
+                while (true) {
+                    val body = getRequestBody(method, args)
+                    val httpUrl = getHttpUrl(url, method, args)
+                    val request =
+                        Request.Builder()
+                            .url(httpUrl)
+                            .method(method, body)
+                            .build()
 
-    private suspend fun request(
-        method: String,
-        url: String,
-        args: Map<String, String>,
-    ): NetworkResponse {
-        val callResponse = requestRaw(method, url, args)
-        return NetworkResponse(
-            getHttpUrl(url, method, args).toString(),
-            callResponse.code,
-            callResponse.message,
-            callResponse.request.url.toString(),
-            callResponse.body?.string().orEmpty(),
-            callResponse.headers(HEADER_HOST_IP).firstOrNull()
-        )
-    }
+                    val call = clientWrapper.get().newCall(request)
+                    try {
+                        val callResponse = call.awaitResponse()
+                        if (callResponse.isSuccessful) {
+                            return@withContext callResponse
+                        }
+                        if (!RetryPolicy.shouldRetryOnHttpCode(method, callResponse.code, attempt)) {
+                            throw HttpException(callResponse.code, callResponse.message, callResponse)
+                        }
+                        callResponse.close()
+                    } catch (error: IOException) {
+                        if (!RetryPolicy.shouldRetryOnException(method, attempt)) {
+                            throw error
+                        }
+                    }
+                    delay(delayMs)
+                    attempt += 1
+                    delayMs = RetryPolicy.nextBackoff(delayMs)
+                }
+                error("Unexpected empty response after retry loop.")
+            }
+        }
 
-    private suspend fun requestRaw(
-        method: String,
-        url: String,
-        args: Map<String, String>,
-    ): Response {
-        return withContext(Dispatchers.IO) {
-            var attempt = 0
-            var delayMs = RetryPolicy.initialBackoffMs
-            var result: Response? = null
-            while (result == null) {
-                val body = getRequestBody(method, args)
-                val httpUrl = getHttpUrl(url, method, args)
-                val request = Request.Builder()
-                    .url(httpUrl)
-                    .method(method, body)
-                    .build()
+        private fun getRequestBody(
+            method: String,
+            args: Map<String, String>,
+        ): RequestBody? =
+            when (method) {
+                METHOD_POST, METHOD_PUT -> {
+                    FormBody.Builder()
+                        .apply {
+                            args.forEach {
+                                add(it.key, it.value)
+                            }
+                        }
+                        .build()
+                }
+
+                METHOD_GET, METHOD_HEAD, METHOD_DELETE -> null
+                else -> throw Exception("Unknown method: $method")
+            }
+
+        private fun getHttpUrl(
+            url: String,
+            method: String,
+            args: Map<String, String>,
+        ): HttpUrl {
+            var httpUrl = url.toHttpUrlOrNull() ?: throw Exception("URL incorrect: '$url'")
+            if (method == METHOD_GET || method == METHOD_HEAD) {
+                httpUrl =
+                    httpUrl.newBuilder().let { builder ->
+                        args.forEach { builder.addQueryParameter(it.key, it.value) }
+                        builder.build()
+                    }
+            }
+            return httpUrl
+        }
+
+        private suspend fun Call.awaitResponse(): Response {
+            return suspendCancellableCoroutine { continuation ->
+                continuation.invokeOnCancellation {
+                    cancel()
+                }
+                enqueue(
+                    object : Callback {
+                        override fun onResponse(
+                            call: Call,
+                            response: Response,
+                        ) {
+                            continuation.resume(response)
+                        }
+
+                        override fun onFailure(
+                            call: Call,
+                            e: IOException,
+                        ) {
+                            continuation.resumeWithException(e)
+                        }
+                    },
+                )
+            }
+        }
+
+        override suspend fun postJson(
+            url: String,
+            jsonBody: String,
+        ): String = requireNotNull(postJsonFull(url, jsonBody).body)
+
+        override suspend fun putJson(
+            url: String,
+            jsonBody: String,
+        ): String = requireNotNull(putJsonFull(url, jsonBody).body)
+
+        override suspend fun deleteJson(
+            url: String,
+            jsonBody: String,
+        ): String = requireNotNull(deleteJsonFull(url, jsonBody).body)
+
+        private suspend fun postJsonFull(
+            url: String,
+            jsonBody: String,
+        ): NetworkResponse = requestJsonBody(METHOD_POST, url, jsonBody)
+
+        private suspend fun putJsonFull(
+            url: String,
+            jsonBody: String,
+        ): NetworkResponse = requestJsonBody(METHOD_PUT, url, jsonBody)
+
+        private suspend fun deleteJsonFull(
+            url: String,
+            jsonBody: String,
+        ): NetworkResponse = requestJsonBody(METHOD_DELETE, url, jsonBody)
+
+        private suspend fun requestJsonBody(
+            method: String,
+            url: String,
+            jsonBody: String,
+        ): NetworkResponse {
+            val callResponse = requestJsonRaw(method, url, jsonBody)
+            return NetworkResponse(
+                url,
+                callResponse.code,
+                callResponse.message,
+                callResponse.request.url.toString(),
+                callResponse.body?.string().orEmpty(),
+                callResponse.headers(HEADER_HOST_IP).firstOrNull(),
+            )
+        }
+
+        private suspend fun requestJsonRaw(
+            method: String,
+            url: String,
+            jsonBody: String,
+        ): Response {
+            return withContext(Dispatchers.IO) {
+                val mediaType = "application/json; charset=utf-8".toMediaType()
+                val body = jsonBody.toRequestBody(mediaType)
+
+                val httpUrl = getHttpUrl(url, method, emptyMap())
+                val request =
+                    Request.Builder()
+                        .url(httpUrl)
+                        .method(method, body) // OkHttp поддерживает DELETE с body
+                        .build()
 
                 val call = clientWrapper.get().newCall(request)
-                try {
-                    val callResponse = call.awaitResponse()
-                    if (callResponse.isSuccessful) {
-                        result = callResponse
-                        continue
-                    }
-                    if (RetryPolicy.shouldRetryOnHttpCode(method, callResponse.code, attempt)) {
-                        callResponse.close()
-                        delay(delayMs)
-                        attempt += 1
-                        delayMs = RetryPolicy.nextBackoff(delayMs)
-                        continue
-                    }
+                val callResponse = call.awaitResponse()
+                if (!callResponse.isSuccessful) {
                     throw HttpException(callResponse.code, callResponse.message, callResponse)
-                } catch (error: IOException) {
-                    if (RetryPolicy.shouldRetryOnException(method, attempt)) {
-                        delay(delayMs)
-                        attempt += 1
-                        delayMs = RetryPolicy.nextBackoff(delayMs)
-                        continue
-                    }
-                    throw error
                 }
-            }
-            result ?: error("Unexpected empty response after retry loop.")
-        }
-    }
-
-    private fun getRequestBody(
-        method: String,
-        args: Map<String, String>,
-    ): RequestBody? = when (method) {
-        METHOD_POST, METHOD_PUT -> {
-            FormBody.Builder()
-                .apply {
-                    args.forEach {
-                        add(it.key, it.value)
-                    }
-                }
-                .build()
-        }
-
-        METHOD_GET, METHOD_HEAD, METHOD_DELETE -> null
-        else -> throw Exception("Unknown method: $method")
-    }
-
-    private fun getHttpUrl(url: String, method: String, args: Map<String, String>): HttpUrl {
-        var httpUrl = url.toHttpUrlOrNull() ?: throw Exception("URL incorrect: '$url'")
-        if (method == METHOD_GET || method == METHOD_HEAD) {
-            httpUrl = httpUrl.newBuilder().let { builder ->
-                args.forEach { builder.addQueryParameter(it.key, it.value) }
-                builder.build()
+                callResponse
             }
         }
-        return httpUrl
     }
-
-    private suspend fun Call.awaitResponse(): Response {
-        return suspendCancellableCoroutine { continuation ->
-            continuation.invokeOnCancellation {
-                cancel()
-            }
-            enqueue(object : Callback {
-                override fun onResponse(call: Call, response: Response) {
-                    continuation.resume(response)
-                }
-
-                override fun onFailure(call: Call, e: IOException) {
-                    continuation.resumeWithException(e)
-                }
-            })
-        }
-    }
-
-    override suspend fun postJson(url: String, jsonBody: String): String =
-        requireNotNull(postJsonFull(url, jsonBody).body)
-
-    override suspend fun putJson(url: String, jsonBody: String): String =
-        requireNotNull(putJsonFull(url, jsonBody).body)
-
-    override suspend fun deleteJson(url: String, jsonBody: String): String =
-        requireNotNull(deleteJsonFull(url, jsonBody).body)
-
-    private suspend fun postJsonFull(url: String, jsonBody: String): NetworkResponse =
-        requestJsonBody(METHOD_POST, url, jsonBody)
-
-    private suspend fun putJsonFull(url: String, jsonBody: String): NetworkResponse =
-        requestJsonBody(METHOD_PUT, url, jsonBody)
-
-    private suspend fun deleteJsonFull(url: String, jsonBody: String): NetworkResponse =
-        requestJsonBody(METHOD_DELETE, url, jsonBody)
-
-    private suspend fun requestJsonBody(
-        method: String,
-        url: String,
-        jsonBody: String,
-    ): NetworkResponse {
-        val callResponse = requestJsonRaw(method, url, jsonBody)
-        return NetworkResponse(
-            url,
-            callResponse.code,
-            callResponse.message,
-            callResponse.request.url.toString(),
-            callResponse.body?.string().orEmpty(),
-            callResponse.headers(HEADER_HOST_IP).firstOrNull()
-        )
-    }
-
-    private suspend fun requestJsonRaw(
-        method: String,
-        url: String,
-        jsonBody: String,
-    ): Response {
-        return withContext(Dispatchers.IO) {
-            val mediaType = "application/json; charset=utf-8".toMediaType()
-            val body = jsonBody.toRequestBody(mediaType)
-
-            val httpUrl = getHttpUrl(url, method, emptyMap())
-            val request = Request.Builder()
-                .url(httpUrl)
-                .method(method, body) // OkHttp поддерживает DELETE с body
-                .build()
-
-            val call = clientWrapper.get().newCall(request)
-            val callResponse = call.awaitResponse()
-            if (!callResponse.isSuccessful) {
-                throw HttpException(callResponse.code, callResponse.message, callResponse)
-            }
-            callResponse
-        }
-    }
-
-}
 
 internal object RetryPolicy {
     const val maxRetries: Int = 2
     const val initialBackoffMs: Long = 200L
     private const val maxBackoffMs: Long = 1_000L
 
-    fun shouldRetryOnException(method: String, attempt: Int): Boolean {
+    fun shouldRetryOnException(
+        method: String,
+        attempt: Int,
+    ): Boolean {
         return isIdempotent(method) && attempt < maxRetries
     }
 
-    fun shouldRetryOnHttpCode(method: String, code: Int, attempt: Int): Boolean {
+    fun shouldRetryOnHttpCode(
+        method: String,
+        code: Int,
+        attempt: Int,
+    ): Boolean {
         return isIdempotent(method) && attempt < maxRetries && code in 500..599
     }
 

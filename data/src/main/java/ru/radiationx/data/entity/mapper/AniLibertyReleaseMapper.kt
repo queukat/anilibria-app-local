@@ -19,8 +19,8 @@ import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.release.RutubeEpisode
 import ru.radiationx.data.entity.domain.release.SourceEpisode
 import ru.radiationx.data.entity.domain.release.TorrentItem
-import ru.radiationx.data.entity.domain.types.ReleaseCode
 import ru.radiationx.data.entity.domain.types.EpisodeId
+import ru.radiationx.data.entity.domain.types.ReleaseCode
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.domain.types.TorrentId
 import ru.radiationx.data.system.ApiUtils
@@ -46,89 +46,101 @@ fun AniLibertyRelease.toLegacyReleaseOrNull(
 ): Release? {
     val idValue = id?.value ?: return null
 
-    val titleRu = name?.main
-        ?.let { apiUtils.escapeHtml(it).toString() }
-        ?.trim()
-        .orEmpty()
+    val titleRu =
+        name?.main
+            ?.let { apiUtils.escapeHtml(it).toString() }
+            ?.trim()
+            .orEmpty()
 
-    val titleEn = (name?.english ?: name?.alternative)
-        ?.let { apiUtils.escapeHtml(it).toString() }
-        ?.trim()
-        .orEmpty()
+    val titleEn =
+        (name?.english ?: name?.alternative)
+            ?.let { apiUtils.escapeHtml(it).toString() }
+            ?.trim()
+            .orEmpty()
 
     val codeValue = alias?.value?.trim()?.takeIf { it.isNotEmpty() } ?: idValue.toString()
 
-    val posterUrl = (
-        poster?.optimized?.preview
-            ?: poster?.optimized?.thumbnail
-            ?: poster?.preview
-            ?: poster?.thumbnail
+    val posterUrl =
+        (
+            poster?.optimized?.preview
+                ?: poster?.optimized?.thumbnail
+                ?: poster?.preview
+                ?: poster?.thumbnail
         ).toAbsoluteAniLibertyUrl()
 
-    val typeText = type?.description?.trim()?.takeIf { it.isNotEmpty() }
-        ?: type?.value?.value?.trim()?.takeIf { it.isNotEmpty() }
+    val typeText =
+        type?.description?.trim()?.takeIf { it.isNotEmpty() }
+            ?: type?.value?.value?.trim()?.takeIf { it.isNotEmpty() }
 
-    val genresText = genres
-        ?.mapNotNull { it.name?.trim() }
-        ?.filter { it.isNotEmpty() }
-        .orEmpty()
+    val genresText =
+        genres
+            ?.mapNotNull { it.name?.trim() }
+            ?.filter { it.isNotEmpty() }
+            .orEmpty()
 
-    val seasonText = season?.description?.trim()?.takeIf { it.isNotEmpty() }
-        ?: season?.value?.value?.trim()?.takeIf { it.isNotEmpty() }
+    val seasonText =
+        season?.description?.trim()?.takeIf { it.isNotEmpty() }
+            ?: season?.value?.value?.trim()?.takeIf { it.isNotEmpty() }
 
     val yearText = year?.toString()
 
-    val latest = latestEpisode?.toDisplayOrder()?.takeIf { it > 0.0 }
-        ?: episodes
-            .orEmpty()
-            .mapNotNull { it.toDisplayOrder()?.takeIf { order -> order > 0.0 } }
-            .maxOrNull()
+    val latest =
+        latestEpisode?.toDisplayOrder()?.takeIf { it > 0.0 }
+            ?: episodes
+                .orEmpty()
+                .mapNotNull { it.toDisplayOrder()?.takeIf { order -> order > 0.0 } }
+                .maxOrNull()
     val total = episodesTotal?.takeIf { it > 0 }
     val hasPublishedEpisodes = latest != null || episodes.orEmpty().isNotEmpty() || total != null
     val hasSchedule = publishDay?.value?.value != null
-    val statusCode = resolveLegacyStatusCode(
-        isOngoing = isOngoing,
-        isInProduction = isInProduction,
-        hasPublishedEpisodes = hasPublishedEpisodes,
-        hasSchedule = hasSchedule,
-    )
+    val statusCode =
+        resolveLegacyStatusCode(
+            isOngoing = isOngoing,
+            isInProduction = isInProduction,
+            hasPublishedEpisodes = hasPublishedEpisodes,
+            hasSchedule = hasSchedule,
+        )
     val ongoing = statusCode == Release.STATUS_CODE_PROGRESS
 
-    val seriesText = when {
-        total != null && latest != null && ongoing == true -> "${formatEpisodeOrdinal(latest)} из $total"
-        total != null && ongoing == false -> total.toString()
-        total != null && latest != null -> {
-            if (latest < total.toDouble()) {
-                "${formatEpisodeOrdinal(latest)} из $total"
-            } else {
-                total.toString()
+    val seriesText =
+        when {
+            total != null && latest != null && ongoing == true -> "${formatEpisodeOrdinal(latest)} из $total"
+            total != null && ongoing == false -> total.toString()
+            total != null && latest != null -> {
+                if (latest < total.toDouble()) {
+                    "${formatEpisodeOrdinal(latest)} из $total"
+                } else {
+                    total.toString()
+                }
             }
+            total != null -> total.toString()
+            latest != null -> formatEpisodeOrdinal(latest)
+            else -> null
         }
-        total != null -> total.toString()
-        latest != null -> formatEpisodeOrdinal(latest)
-        else -> null
-    }
 
     val blocked = (isBlockedByGeo == true) || (isBlockedByCopyrights == true)
-    val blockedReason = when {
-        isBlockedByGeo == true -> "Недоступно в вашем регионе"
-        isBlockedByCopyrights == true -> "Недоступно по запросу правообладателя"
-        else -> null
-    }
+    val blockedReason =
+        when {
+            isBlockedByGeo == true -> "Недоступно в вашем регионе"
+            isBlockedByCopyrights == true -> "Недоступно по запросу правообладателя"
+            else -> null
+        }
 
-    val updatedEpochSec = parseIsoToEpochSeconds(updatedAt)
-        .takeIf { it > 0 }
-        ?: parseIsoToEpochSeconds(freshAt)
+    val updatedEpochSec =
+        parseIsoToEpochSeconds(updatedAt)
             .takeIf { it > 0 }
-        ?: parseIsoToEpochSeconds(createdAt)
+            ?: parseIsoToEpochSeconds(freshAt)
+                .takeIf { it > 0 }
+            ?: parseIsoToEpochSeconds(createdAt)
 
     return Release(
         id = ReleaseId(idValue),
         code = ReleaseCode(codeValue),
-        names = listOfNotNull(
-            titleRu.takeIf { it.isNotBlank() },
-            titleEn.takeIf { it.isNotBlank() },
-        ).ifEmpty { listOf(codeValue) },
+        names =
+            listOfNotNull(
+                titleRu.takeIf { it.isNotBlank() },
+                titleEn.takeIf { it.isNotBlank() },
+            ).ifEmpty { listOf(codeValue) },
         series = seriesText,
         poster = posterUrl,
         torrentUpdate = updatedEpochSec,
@@ -143,13 +155,13 @@ fun AniLibertyRelease.toLegacyReleaseOrNull(
         days = publishDay?.value?.value?.let { listOf(it.toString()) }.orEmpty(),
         description = description?.trim(),
         announce = notification?.trim(),
-        favoriteInfo = FavoriteInfo(
-            rating = addedInUsersFavorites ?: 0,
-            isAdded = isFavorite,
-        ),
+        favoriteInfo =
+            FavoriteInfo(
+                rating = addedInUsersFavorites ?: 0,
+                isAdded = isFavorite,
+            ),
         link = externalPlayer?.trim()?.takeIf { it.isNotEmpty() },
         franchises = emptyList(),
-
         showDonateDialog = false,
         blockedInfo = BlockedInfo(isBlocked = blocked, reason = blockedReason),
         moonwalkLink = externalPlayer?.trim()?.takeIf { it.isNotEmpty() },
@@ -169,22 +181,27 @@ fun AniLibertyRelease.toLegacyFullReleaseOrNull(
     isFavorite: Boolean = true,
     franchises: List<Franchise> = emptyList(),
 ): Release? {
-    val base = toLegacyReleaseOrNull(
-        apiUtils = apiUtils,
-        isFavorite = isFavorite,
-    ) ?: return null
+    val base =
+        toLegacyReleaseOrNull(
+            apiUtils = apiUtils,
+            isFavorite = isFavorite,
+        ) ?: return null
 
     val releaseId = base.id
     val sortedEpisodes = episodes.orEmpty().sortedByDisplayOrderAsc()
 
-    val episodesDomain = sortedEpisodes
-        .mapNotNull { it.toLegacyEpisodeOrNull(releaseId, apiUtils) }
-    val sourceEpisodesDomain = sortedEpisodes
-        .mapNotNull { it.toLegacySourceEpisodeOrNull(releaseId, apiUtils) }
-    val rutubeEpisodesDomain = sortedEpisodes
-        .mapNotNull { it.toLegacyRutubeEpisodeOrNull(releaseId, apiUtils) }
-    val torrentsDomain = torrents.orEmpty()
-        .mapNotNull { it.toLegacyTorrentOrNull(releaseId) }
+    val episodesDomain =
+        sortedEpisodes
+            .mapNotNull { it.toLegacyEpisodeOrNull(releaseId, apiUtils) }
+    val sourceEpisodesDomain =
+        sortedEpisodes
+            .mapNotNull { it.toLegacySourceEpisodeOrNull(releaseId, apiUtils) }
+    val rutubeEpisodesDomain =
+        sortedEpisodes
+            .mapNotNull { it.toLegacyRutubeEpisodeOrNull(releaseId, apiUtils) }
+    val torrentsDomain =
+        torrents.orEmpty()
+            .mapNotNull { it.toLegacyTorrentOrNull(releaseId) }
 
     return base.copy(
         members = members.toLegacyMembersOrNull(apiUtils),
@@ -202,21 +219,23 @@ object AniLibertyLegacyReleaseMapper {
         release: AniLibertyRelease,
         apiUtils: ApiUtils,
         isFavorite: Boolean = true,
-    ): Release? = release.toLegacyReleaseOrNull(
-        apiUtils = apiUtils,
-        isFavorite = isFavorite,
-    )
+    ): Release? =
+        release.toLegacyReleaseOrNull(
+            apiUtils = apiUtils,
+            isFavorite = isFavorite,
+        )
 
     fun toLegacyFullReleaseOrNull(
         release: AniLibertyRelease,
         apiUtils: ApiUtils,
         isFavorite: Boolean = true,
         franchises: List<Franchise> = emptyList(),
-    ): Release? = release.toLegacyFullReleaseOrNull(
-        apiUtils = apiUtils,
-        isFavorite = isFavorite,
-        franchises = franchises,
-    )
+    ): Release? =
+        release.toLegacyFullReleaseOrNull(
+            apiUtils = apiUtils,
+            isFavorite = isFavorite,
+            franchises = franchises,
+        )
 }
 
 private fun formatEpisodeOrdinal(value: Double): String {
@@ -275,21 +294,21 @@ private fun parseIsoToEpochSeconds(raw: String?): Int {
     val hasZone = s.endsWith("Z") || Regex("""[+-]\d\d:?\d\d$""").containsMatchIn(s)
     if (!hasZone) s += "Z"
 
-
     // Truncate fractional seconds to millis (SimpleDateFormat can't parse variable micros reliably).
     s = Regex("""(\.\d{3})\d+(Z|[+-].*)$""").replace(s, "$1$2")
 
-
-    val fmts = listOf(
-        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-        "yyyy-MM-dd'T'HH:mm:ssX",
-    )
+    val fmts =
+        listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+            "yyyy-MM-dd'T'HH:mm:ssX",
+        )
 
     for (p in fmts) {
         try {
-            val df = SimpleDateFormat(p, Locale.US).apply {
-                timeZone = TimeZone.getTimeZone("UTC")
-            }
+            val df =
+                SimpleDateFormat(p, Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
             val d: Date = df.parse(s) ?: continue
             val sec = (d.time / 1000L).toInt()
             if (sec > 0) return sec
@@ -303,16 +322,17 @@ private fun List<AniLibertyEpisode>?.toYoutubeExternalPlaylistOrEmpty(
     releaseId: ReleaseId,
     apiUtils: ApiUtils,
 ): List<ExternalPlaylist> {
-    val youtubeEpisodes = this.orEmpty()
-        .mapNotNull { episode ->
-            val youtubeId = episode.youtubeId?.trim().orEmpty().takeIf { it.isNotEmpty() } ?: return@mapNotNull null
-            val episodeId = episode.toEpisodeIdOrNull(releaseId) ?: return@mapNotNull null
-            ExternalEpisode(
-                id = episodeId,
-                title = episode.toCombinedTitle(apiUtils),
-                url = "https://www.youtube.com/watch?v=$youtubeId",
-            )
-        }
+    val youtubeEpisodes =
+        this.orEmpty()
+            .mapNotNull { episode ->
+                val youtubeId = episode.youtubeId?.trim().orEmpty().takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+                val episodeId = episode.toEpisodeIdOrNull(releaseId) ?: return@mapNotNull null
+                ExternalEpisode(
+                    id = episodeId,
+                    title = episode.toCombinedTitle(apiUtils),
+                    url = "https://www.youtube.com/watch?v=$youtubeId",
+                )
+            }
     if (youtubeEpisodes.isEmpty()) return emptyList()
     return listOf(
         ExternalPlaylist(
@@ -320,7 +340,7 @@ private fun List<AniLibertyEpisode>?.toYoutubeExternalPlaylistOrEmpty(
             title = "YouTube",
             actionText = "Открыть",
             episodes = youtubeEpisodes,
-        )
+        ),
     )
 }
 
@@ -332,11 +352,12 @@ private fun List<AniLibertyReleaseMember>?.toLegacyMembersOrNull(apiUtils: ApiUt
     val translating = mutableListOf<String>()
 
     this.orEmpty().forEach { member ->
-        val nickname = member.nickname
-            ?.let { apiUtils.escapeHtml(it).toString() }
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?: return@forEach
+        val nickname =
+            member.nickname
+                ?.let { apiUtils.escapeHtml(it).toString() }
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?: return@forEach
 
         when (member.role?.value?.value) {
             AniLibertyReleaseMemberRoleType.Timing.value -> timing += nickname
@@ -347,11 +368,12 @@ private fun List<AniLibertyReleaseMember>?.toLegacyMembersOrNull(apiUtils: ApiUt
         }
     }
 
-    val hasAny = timing.isNotEmpty() ||
-        voicing.isNotEmpty() ||
-        editing.isNotEmpty() ||
-        decorating.isNotEmpty() ||
-        translating.isNotEmpty()
+    val hasAny =
+        timing.isNotEmpty() ||
+            voicing.isNotEmpty() ||
+            editing.isNotEmpty() ||
+            decorating.isNotEmpty() ||
+            translating.isNotEmpty()
 
     if (!hasAny) return null
 
@@ -368,11 +390,12 @@ private fun AniLibertyEpisode.toLegacyEpisodeOrNull(
     releaseId: ReleaseId,
     apiUtils: ApiUtils,
 ): Episode? {
-    val quality = QualityInfo(
-        urlSd = hls480?.trim()?.takeIf { it.isNotEmpty() },
-        urlHd = hls720?.trim()?.takeIf { it.isNotEmpty() },
-        urlFullHd = hls1080?.trim()?.takeIf { it.isNotEmpty() },
-    )
+    val quality =
+        QualityInfo(
+            urlSd = hls480?.trim()?.takeIf { it.isNotEmpty() },
+            urlHd = hls720?.trim()?.takeIf { it.isNotEmpty() },
+            urlFullHd = hls1080?.trim()?.takeIf { it.isNotEmpty() },
+        )
     if (quality.available.isEmpty()) return null
 
     val episodeId = toEpisodeIdOrNull(releaseId) ?: return null
@@ -390,11 +413,12 @@ private fun AniLibertyEpisode.toLegacySourceEpisodeOrNull(
     releaseId: ReleaseId,
     apiUtils: ApiUtils,
 ): SourceEpisode? {
-    val quality = QualityInfo(
-        urlSd = hls480?.trim()?.takeIf { it.isNotEmpty() },
-        urlHd = hls720?.trim()?.takeIf { it.isNotEmpty() },
-        urlFullHd = hls1080?.trim()?.takeIf { it.isNotEmpty() },
-    )
+    val quality =
+        QualityInfo(
+            urlSd = hls480?.trim()?.takeIf { it.isNotEmpty() },
+            urlHd = hls720?.trim()?.takeIf { it.isNotEmpty() },
+            urlFullHd = hls1080?.trim()?.takeIf { it.isNotEmpty() },
+        )
     if (quality.available.isEmpty()) return null
 
     val episodeId = toEpisodeIdOrNull(releaseId) ?: return null
@@ -424,31 +448,35 @@ private fun AniLibertyEpisode.toLegacyRutubeEpisodeOrNull(
 }
 
 private fun AniLibertyEpisode.toEpisodeIdOrNull(releaseId: ReleaseId): EpisodeId? {
-    val value = toDisplayOrder()
-        ?.let(::formatEpisodeOrdinal)
-        ?: id?.value
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
+    val value =
+        toDisplayOrder()
+            ?.let(::formatEpisodeOrdinal)
+            ?: id?.value
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
     value ?: return null
     return EpisodeId(value, releaseId)
 }
 
 private fun AniLibertyEpisode.toCombinedTitle(apiUtils: ApiUtils): String? {
-    val titleMain = name
-        ?.let { apiUtils.escapeHtml(it).toString() }
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
-    val titleEnglish = nameEnglish
-        ?.let { apiUtils.escapeHtml(it).toString() }
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
+    val titleMain =
+        name
+            ?.let { apiUtils.escapeHtml(it).toString() }
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+    val titleEnglish =
+        nameEnglish
+            ?.let { apiUtils.escapeHtml(it).toString() }
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
 
     val title = listOfNotNull(titleMain, titleEnglish).joinToString(" • ")
-    val ordinalTitle = toDisplayOrder()
-        ?.let(::formatEpisodeOrdinal)
-        ?.let { ordinal ->
-            title.takeIf { it.isNotEmpty() }?.let { "$ordinal • $it" }
-        }
+    val ordinalTitle =
+        toDisplayOrder()
+            ?.let(::formatEpisodeOrdinal)
+            ?.let { ordinal ->
+                title.takeIf { it.isNotEmpty() }?.let { "$ordinal • $it" }
+            }
 
     return ordinalTitle
         ?: title.takeIf { it.isNotEmpty() }
@@ -463,7 +491,7 @@ private fun List<AniLibertyEpisode>.sortedByDisplayOrderAsc(): List<AniLibertyEp
             { it.toDisplayOrder() == null },
             { it.toDisplayOrder() ?: Double.MAX_VALUE },
             { it.id?.value.orEmpty() },
-        )
+        ),
     )
 }
 
@@ -490,15 +518,18 @@ private fun AniLibertyEpisodeSkip?.toLegacySkipOrNull(): PlayerSkips.Skip? {
 private fun AniLibertyTorrent.toLegacyTorrentOrNull(releaseId: ReleaseId): TorrentItem? {
     val torrentId = id ?: return null
 
-    val qualityText = quality?.description
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
-        ?: quality?.value?.trim()?.takeIf { it.isNotEmpty() }
-    val seriesText = label?.trim()?.takeIf { it.isNotEmpty() }
-        ?: type?.description?.trim()?.takeIf { it.isNotEmpty() }
+    val qualityText =
+        quality?.description
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: quality?.value?.trim()?.takeIf { it.isNotEmpty() }
+    val seriesText =
+        label?.trim()?.takeIf { it.isNotEmpty() }
+            ?: type?.description?.trim()?.takeIf { it.isNotEmpty() }
 
-    val epoch = parseIsoToEpochSeconds(updatedAt).takeIf { it > 0 }
-        ?: parseIsoToEpochSeconds(createdAt).takeIf { it > 0 }
+    val epoch =
+        parseIsoToEpochSeconds(updatedAt).takeIf { it > 0 }
+            ?: parseIsoToEpochSeconds(createdAt).takeIf { it > 0 }
 
     return TorrentItem(
         id = TorrentId(torrentId, releaseId),

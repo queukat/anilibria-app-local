@@ -9,84 +9,85 @@ import ru.radiationx.data.analytics.AnalyticsErrorReporter
 import timber.log.Timber
 import javax.inject.Inject
 
-class MigrationDataSourceImpl @Inject constructor(
-    private val context: Context,
-    private val defaultPreferences: SharedPreferences,
-    private val sharedBuildConfig: SharedBuildConfig,
-    private val migrationExecutor: MigrationExecutor,
-    private val errorReporter: AnalyticsErrorReporter
-) : MigrationDataSource {
+class MigrationDataSourceImpl
+    @Inject
+    constructor(
+        private val context: Context,
+        private val defaultPreferences: SharedPreferences,
+        private val sharedBuildConfig: SharedBuildConfig,
+        private val migrationExecutor: MigrationExecutor,
+        private val errorReporter: AnalyticsErrorReporter,
+    ) : MigrationDataSource {
+        companion object {
+            private const val PREF_KEY = "app.versions.history"
+            private const val INITIAL_VERSION = 0
+            private const val ANALYTIC_GROUP = "migration"
+        }
 
-    companion object {
-        private const val PREF_KEY = "app.versions.history"
-        private const val INITIAL_VERSION = 0
-        private const val ANALYTIC_GROUP = "migration"
-    }
+        override fun getHistory(): List<Int> {
+            return defaultPreferences
+                .getString(PREF_KEY, "")
+                ?.split(";")
+                ?.filter { it.isNotBlank() }
+                ?.map { it.toInt() }
+                ?: emptyList()
+        }
 
-    override fun getHistory(): List<Int> {
-        return defaultPreferences
-            .getString(PREF_KEY, "")
-            ?.split(";")
-            ?.filter { it.isNotBlank() }
-            ?.map { it.toInt() }
-            ?: emptyList()
-    }
+        override fun update() {
+            try {
+                val history = getHistory()
+                val currentVersion = sharedBuildConfig.versionCode
+                val lastVersion = history.lastOrNull() ?: INITIAL_VERSION
+                val disorder = checkIsDisordered(history)
 
-    override fun update() {
-        try {
-            val history = getHistory()
-            val currentVersion = sharedBuildConfig.versionCode
-            val lastVersion = history.lastOrNull() ?: INITIAL_VERSION
-            val disorder = checkIsDisordered(history)
-
-            Timber.i(
-                "Migration check: last=%d current=%d history=%s",
-                lastVersion,
-                currentVersion,
-                history.joinToString(prefix = "[", postfix = "]"),
-            )
-
-            if (lastVersion < currentVersion) {
-                if (lastVersion > INITIAL_VERSION) {
-                    migrationExecutor.execute(currentVersion, lastVersion, history)
-                }
-                val newHistory = history + currentVersion
-                saveHistory(newHistory)
                 Timber.i(
-                    "Migration history updated: %s",
-                    newHistory.joinToString(prefix = "[", postfix = "]"),
+                    "Migration check: last=%d current=%d history=%s",
+                    lastVersion,
+                    currentVersion,
+                    history.joinToString(prefix = "[", postfix = "]"),
                 )
+
+                if (lastVersion < currentVersion) {
+                    if (lastVersion > INITIAL_VERSION) {
+                        migrationExecutor.execute(currentVersion, lastVersion, history)
+                    }
+                    val newHistory = history + currentVersion
+                    saveHistory(newHistory)
+                    Timber.i(
+                        "Migration history updated: %s",
+                        newHistory.joinToString(prefix = "[", postfix = "]"),
+                    )
+                }
+                if (disorder) {
+                    val errMsg =
+                        "AniLibria: Нарушение порядка версий, программа может работать не стабильно!"
+                    errorReporter.report(ANALYTIC_GROUP, errMsg)
+                    Toast.makeText(context, errMsg, Toast.LENGTH_SHORT).show()
+                }
+            } catch (ex: Throwable) {
+                Timber.e(ex)
+                val errMsg = "Сбой при проверке локальной версии."
+                errorReporter.report(ANALYTIC_GROUP, errMsg, ex)
+                val uiErr = "$errMsg\nПрограмма может работать не стабильно! Переустановите программу."
+                Toast.makeText(context, uiErr, Toast.LENGTH_LONG).show()
             }
-            if (disorder) {
-                val errMsg =
-                    "AniLibria: Нарушение порядка версий, программа может работать не стабильно!"
-                errorReporter.report(ANALYTIC_GROUP, errMsg)
-                Toast.makeText(context, errMsg, Toast.LENGTH_SHORT).show()
+        }
+
+        private fun checkIsDisordered(history: List<Int>): Boolean {
+            var prevVersion = 0
+            history.forEach {
+                if (it < prevVersion) {
+                    return true
+                }
+                prevVersion = it
             }
-        } catch (ex: Throwable) {
-            Timber.e(ex)
-            val errMsg = "Сбой при проверке локальной версии."
-            errorReporter.report(ANALYTIC_GROUP, errMsg, ex)
-            val uiErr = "$errMsg\nПрограмма может работать не стабильно! Переустановите программу."
-            Toast.makeText(context, uiErr, Toast.LENGTH_LONG).show()
+            return false
+        }
+
+        private fun saveHistory(history: List<Int>) {
+            defaultPreferences
+                .edit()
+                .putString(PREF_KEY, TextUtils.join(";", history.map { it.toString() }))
+                .apply()
         }
     }
-
-    private fun checkIsDisordered(history: List<Int>): Boolean {
-        var prevVersion = 0
-        history.forEach {
-            if (it < prevVersion) {
-                return true
-            }
-            prevVersion = it
-        }
-        return false
-    }
-
-    private fun saveHistory(history: List<Int>) {
-        defaultPreferences
-            .edit()
-            .putString(PREF_KEY, TextUtils.join(";", history.map { it.toString() }))
-            .apply()
-    }
-}

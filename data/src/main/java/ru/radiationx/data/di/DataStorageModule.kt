@@ -10,6 +10,7 @@ import androidx.security.crypto.MasterKeys
 import ru.radiationx.data.CriticalSecureDataPreferences
 import ru.radiationx.data.DataPreferences
 import ru.radiationx.data.SecureDataPreferences
+import ru.radiationx.data.ads.AdsConfigStorage
 import ru.radiationx.data.datasource.holders.AuthHolder
 import ru.radiationx.data.datasource.holders.AuthTokenHolder
 import ru.radiationx.data.datasource.holders.CookieHolder
@@ -49,13 +50,11 @@ import ru.radiationx.data.migration.MigrationDataSource
 import ru.radiationx.data.migration.MigrationDataSourceImpl
 import ru.radiationx.quill.QuillModule
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Provider
-import java.util.concurrent.atomic.AtomicBoolean
-import ru.radiationx.data.ads.AdsConfigStorage
 
 class DataStorageModule(context: Context) : QuillModule() {
-
     init {
         instance<Context> { context.applicationContext }
 
@@ -91,91 +90,114 @@ class DataStorageModule(context: Context) : QuillModule() {
         single<AdsConfigStorage>()
     }
 
-    internal class PreferencesProvider @Inject constructor(
-        private val context: Context,
-    ) : Provider<SharedPreferences> {
-        override fun get(): SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
-    }
-
-    internal class DataPreferencesProvider @Inject constructor(
-        @Suppress("unused") private val context: Context,
-        private val preferencesProvider: PreferencesProvider,
-    ) : Provider<SharedPreferences> {
-
-        override fun get(): SharedPreferences {
-            return context.getSharedPreferences("data_storage", Context.MODE_PRIVATE)
-                ?: preferencesProvider.get()
-        }
-    }
-
-    internal class SecureDataPreferencesProvider @Inject constructor(
-        private val context: Context,
-        @DataPreferences private val fallbackPreferences: SharedPreferences,
-    ) : Provider<SharedPreferences> {
-
-        companion object {
-            private val fallbackWarningPrinted = AtomicBoolean(false)
+    internal class PreferencesProvider
+        @Inject
+        constructor(
+            private val context: Context,
+        ) : Provider<SharedPreferences> {
+            override fun get(): SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
         }
 
-        override fun get(): SharedPreferences {
-            return runCatching {
-                val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+    internal class DataPreferencesProvider
+        @Inject
+        constructor(
+            @Suppress("unused") private val context: Context,
+            private val preferencesProvider: PreferencesProvider,
+        ) : Provider<SharedPreferences> {
+            override fun get(): SharedPreferences {
+                return context.getSharedPreferences("data_storage", Context.MODE_PRIVATE)
+                    ?: preferencesProvider.get()
+            }
+        }
 
-                EncryptedSharedPreferences.create(
-                    "data_storage_secure",
-                    masterKeyAlias,
-                    context,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-                )
-            }.getOrElse { error ->
-                if (fallbackWarningPrinted.compareAndSet(false, true)) {
-                    Timber.w(error, "Encrypted prefs unavailable. Non-critical storage falls back to plaintext.")
+    internal class SecureDataPreferencesProvider
+        @Inject
+        constructor(
+            private val context: Context,
+            @DataPreferences private val fallbackPreferences: SharedPreferences,
+        ) : Provider<SharedPreferences> {
+            companion object {
+                private val fallbackWarningPrinted = AtomicBoolean(false)
+            }
+
+            override fun get(): SharedPreferences {
+                return runCatching {
+                    val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+
+                    EncryptedSharedPreferences.create(
+                        "data_storage_secure",
+                        masterKeyAlias,
+                        context,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+                    )
+                }.getOrElse { error ->
+                    if (fallbackWarningPrinted.compareAndSet(false, true)) {
+                        Timber.w(error, "Encrypted prefs unavailable. Non-critical storage falls back to plaintext.")
+                    }
+                    fallbackPreferences
                 }
-                fallbackPreferences
             }
         }
-    }
 
-    internal class CriticalSecureDataPreferencesProvider @Inject constructor(
-        private val context: Context,
-        private val criticalSecureStorageStatus: CriticalSecureStorageStatus,
-    ) : Provider<SharedPreferences> {
+    internal class CriticalSecureDataPreferencesProvider
+        @Inject
+        constructor(
+            private val context: Context,
+            private val criticalSecureStorageStatus: CriticalSecureStorageStatus,
+        ) : Provider<SharedPreferences> {
+            override fun get(): SharedPreferences {
+                return runCatching {
+                    val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
 
-        override fun get(): SharedPreferences {
-            return runCatching {
-                val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-
-                EncryptedSharedPreferences.create(
-                    "data_storage_secure",
-                    masterKeyAlias,
-                    context,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-                )
-            }.getOrElse { error ->
-                criticalSecureStorageStatus.markUnavailable(error)
-                Timber.e(error, "Critical secure prefs init failed: critical storages switched to degraded read-only mode.")
-                ReadOnlyEmptySharedPreferences
+                    EncryptedSharedPreferences.create(
+                        "data_storage_secure",
+                        masterKeyAlias,
+                        context,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+                    )
+                }.getOrElse { error ->
+                    criticalSecureStorageStatus.markUnavailable(error)
+                    Timber.e(error, "Critical secure prefs init failed: critical storages switched to degraded read-only mode.")
+                    ReadOnlyEmptySharedPreferences
+                }
             }
         }
-    }
 }
 
 private object ReadOnlyEmptySharedPreferences : SharedPreferences {
     override fun getAll(): MutableMap<String, *> = mutableMapOf<String, Any?>()
 
-    override fun getString(key: String?, defValue: String?): String? = defValue
+    override fun getString(
+        key: String?,
+        defValue: String?,
+    ): String? = defValue
 
-    override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? = defValues
+    override fun getStringSet(
+        key: String?,
+        defValues: MutableSet<String>?,
+    ): MutableSet<String>? = defValues
 
-    override fun getInt(key: String?, defValue: Int): Int = defValue
+    override fun getInt(
+        key: String?,
+        defValue: Int,
+    ): Int = defValue
 
-    override fun getLong(key: String?, defValue: Long): Long = defValue
+    override fun getLong(
+        key: String?,
+        defValue: Long,
+    ): Long = defValue
 
-    override fun getFloat(key: String?, defValue: Float): Float = defValue
+    override fun getFloat(
+        key: String?,
+        defValue: Float,
+    ): Float = defValue
 
-    override fun getBoolean(key: String?, defValue: Boolean): Boolean = defValue
+    override fun getBoolean(
+        key: String?,
+        defValue: Boolean,
+    ): Boolean = defValue
 
     override fun contains(key: String?): Boolean = false
 
@@ -187,17 +209,35 @@ private object ReadOnlyEmptySharedPreferences : SharedPreferences {
 }
 
 private object ReadOnlyEmptyEditor : SharedPreferences.Editor {
-    override fun putString(key: String?, value: String?): SharedPreferences.Editor = this
+    override fun putString(
+        key: String?,
+        value: String?,
+    ): SharedPreferences.Editor = this
 
-    override fun putStringSet(key: String?, values: MutableSet<String>?): SharedPreferences.Editor = this
+    override fun putStringSet(
+        key: String?,
+        values: MutableSet<String>?,
+    ): SharedPreferences.Editor = this
 
-    override fun putInt(key: String?, value: Int): SharedPreferences.Editor = this
+    override fun putInt(
+        key: String?,
+        value: Int,
+    ): SharedPreferences.Editor = this
 
-    override fun putLong(key: String?, value: Long): SharedPreferences.Editor = this
+    override fun putLong(
+        key: String?,
+        value: Long,
+    ): SharedPreferences.Editor = this
 
-    override fun putFloat(key: String?, value: Float): SharedPreferences.Editor = this
+    override fun putFloat(
+        key: String?,
+        value: Float,
+    ): SharedPreferences.Editor = this
 
-    override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = this
+    override fun putBoolean(
+        key: String?,
+        value: Boolean,
+    ): SharedPreferences.Editor = this
 
     override fun remove(key: String?): SharedPreferences.Editor = this
 

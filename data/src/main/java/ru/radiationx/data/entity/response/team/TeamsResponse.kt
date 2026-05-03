@@ -1,6 +1,5 @@
 package ru.radiationx.data.entity.response.team
 
-
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
@@ -9,5 +8,5 @@ data class TeamsResponse(
     @Json(name = "header_roles")
     val headerRoles: List<TeamRoleResponse>,
     @Json(name = "teams")
-    val teams: List<TeamResponse>
+    val teams: List<TeamResponse>,
 )

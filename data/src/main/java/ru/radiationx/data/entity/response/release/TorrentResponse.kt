@@ -14,5 +14,5 @@ data class TorrentResponse(
     @Json(name = "series") val series: String,
     @Json(name = "size") val size: Long,
     @Json(name = "url") val url: String,
-    @Json(name = "ctime") val date: Int
+    @Json(name = "ctime") val date: Int,
 )

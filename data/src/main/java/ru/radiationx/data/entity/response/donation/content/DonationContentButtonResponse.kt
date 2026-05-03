@@ -14,5 +14,5 @@ data class DonationContentButtonResponse(
     @Json(name = "brand")
     val brand: String?,
     @Json(name = "icon")
-    val icon: String?
+    val icon: String?,
 )

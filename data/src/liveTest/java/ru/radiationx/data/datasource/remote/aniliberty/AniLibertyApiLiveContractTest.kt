@@ -18,23 +18,24 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class AniLibertyApiLiveContractTest {
-
     companion object {
         private val REQUEST_BUDGET = AtomicInteger(10)
     }
 
     private val moshi: Moshi = AniLibertyMoshi.configure(Moshi.Builder().build())
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .writeTimeout(10, TimeUnit.SECONDS)
-        .retryOnConnectionFailure(false)
-        .build()
+    private val client =
+        OkHttpClient.Builder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .writeTimeout(10, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(false)
+            .build()
     private val apiBaseUrl: HttpUrl = resolveApiBaseUrl()
-    private val scheduleWeekFieldsQuery = mapOf(
-        "include" to "release.genres,release.latest_episode",
-        "exclude" to "release.episodes,release.members,release.torrents,release.description,release.notification",
-    )
+    private val scheduleWeekFieldsQuery =
+        mapOf(
+            "include" to "release.genres,release.latest_episode",
+            "exclude" to "release.episodes,release.members,release.torrents,release.description,release.notification",
+        )
 
     @Before
     fun requireLiveFlag() {
@@ -56,10 +57,11 @@ class AniLibertyApiLiveContractTest {
             )
         }
         if (withArgs.normalizedSize > 0) {
-            val includesApplied = withArgs.parsedItems.any { item ->
-                val release = item.release
-                !release?.genres.isNullOrEmpty() || release?.latestEpisode != null
-            }
+            val includesApplied =
+                withArgs.parsedItems.any { item ->
+                    val release = item.release
+                    !release?.genres.isNullOrEmpty() || release?.latestEpisode != null
+                }
             assertTrue(
                 "include=release.genres,release.latest_episode should expose at least one included field in non-empty response",
                 includesApplied,
@@ -78,10 +80,11 @@ class AniLibertyApiLiveContractTest {
 
     @Test
     fun latestAndDetails_liveContract_parseReleaseModels() {
-        val latestJson = executeJsonGet(
-            path = "/anime/releases/latest",
-            query = mapOf("limit" to "2"),
-        )
+        val latestJson =
+            executeJsonGet(
+                path = "/anime/releases/latest",
+                query = mapOf("limit" to "2"),
+            )
         val listType = Types.newParameterizedType(List::class.java, AniLibertyRelease::class.java)
         val latest = moshi.adapter<List<AniLibertyRelease>>(listType).fromJson(latestJson).orEmpty()
 
@@ -99,18 +102,21 @@ class AniLibertyApiLiveContractTest {
 
     @Test
     fun catalogReleases_liveContract_parsesPaginatedResponse() {
-        val json = executeJsonGet(
-            path = "/anime/catalog/releases",
-            query = mapOf(
-                "page" to "1",
-                "limit" to "3",
-            ),
-        )
+        val json =
+            executeJsonGet(
+                path = "/anime/catalog/releases",
+                query =
+                    mapOf(
+                        "page" to "1",
+                        "limit" to "3",
+                    ),
+            )
 
-        val type = Types.newParameterizedType(
-            AniLibertyPaginatedResponse::class.java,
-            AniLibertyRelease::class.java,
-        )
+        val type =
+            Types.newParameterizedType(
+                AniLibertyPaginatedResponse::class.java,
+                AniLibertyRelease::class.java,
+            )
         val parsed = moshi.adapter<AniLibertyPaginatedResponse<AniLibertyRelease>>(type).fromJson(json)
 
         assertNotNull(parsed)
@@ -128,10 +134,11 @@ class AniLibertyApiLiveContractTest {
 
     @Test
     fun recommended_liveContract_parsesReleaseList() {
-        val json = executeJsonGet(
-            path = "/anime/releases/recommended",
-            query = mapOf("limit" to "3"),
-        )
+        val json =
+            executeJsonGet(
+                path = "/anime/releases/recommended",
+                query = mapOf("limit" to "3"),
+            )
         val listType = Types.newParameterizedType(List::class.java, AniLibertyRelease::class.java)
         val parsed = moshi.adapter<List<AniLibertyRelease>>(listType).fromJson(json).orEmpty()
 
@@ -140,10 +147,11 @@ class AniLibertyApiLiveContractTest {
 
     @Test
     fun appSearchReleases_liveContract_parsesSearchResponse() {
-        val json = executeJsonGet(
-            path = "/app/search/releases",
-            query = mapOf("query" to "naruto"),
-        )
+        val json =
+            executeJsonGet(
+                path = "/app/search/releases",
+                query = mapOf("query" to "naruto"),
+            )
         val listType = Types.newParameterizedType(List::class.java, AniLibertyRelease::class.java)
         val parsed = moshi.adapter<List<AniLibertyRelease>>(listType).fromJson(json).orEmpty()
 
@@ -159,7 +167,10 @@ class AniLibertyApiLiveContractTest {
         assertNotNull(parsed)
     }
 
-    private fun executeJsonGet(path: String, query: Map<String, String> = emptyMap()): String {
+    private fun executeJsonGet(
+        path: String,
+        query: Map<String, String> = emptyMap(),
+    ): String {
         val remainingBeforeRequest = REQUEST_BUDGET.getAndDecrement()
         check(remainingBeforeRequest > 0) {
             "Live-test request budget exceeded. Increase budget only if absolutely needed."
@@ -169,12 +180,13 @@ class AniLibertyApiLiveContractTest {
         urlBuilder.addEncodedPathSegments(path.trimStart('/'))
         query.forEach { (name, value) -> urlBuilder.addQueryParameter(name, value) }
 
-        val request = Request.Builder()
-            .url(urlBuilder.build())
-            .header("Accept", "application/json")
-            .header("User-Agent", "AniLibertyContractTest/1.0")
-            .get()
-            .build()
+        val request =
+            Request.Builder()
+                .url(urlBuilder.build())
+                .header("Accept", "application/json")
+                .header("User-Agent", "AniLibertyContractTest/1.0")
+                .get()
+                .build()
 
         val response = executeWithSingleRetry(request)
         response.use {
@@ -186,13 +198,17 @@ class AniLibertyApiLiveContractTest {
         }
     }
 
-    private fun fetchScheduleWeek(label: String, query: Map<String, String>): ScheduleWeekObservation {
+    private fun fetchScheduleWeek(
+        label: String,
+        query: Map<String, String>,
+    ): ScheduleWeekObservation {
         val json = executeJsonGet(path = "/anime/schedule/week", query = query)
-        val root = when {
-            json.trimStart().startsWith("[") -> "array"
-            json.trimStart().startsWith("{") -> "object"
-            else -> "other"
-        }
+        val root =
+            when {
+                json.trimStart().startsWith("[") -> "array"
+                json.trimStart().startsWith("{") -> "object"
+                else -> "other"
+            }
         val parsed = AniLibertyScheduleWeekPayloadParser.parse(json, moshi)
         val items = parsed.data.orEmpty()
         val prefix = json.take(256).replace("\n", " ")
@@ -237,16 +253,18 @@ class AniLibertyApiLiveContractTest {
     }
 
     private fun resolveApiBaseUrl(): HttpUrl {
-        val provided = System.getenv("ANILIBERTY_BASE_URL")
-            ?: System.getProperty("ANILIBERTY_BASE_URL")
-            ?: "https://aniliberty.top"
+        val provided =
+            System.getenv("ANILIBERTY_BASE_URL")
+                ?: System.getProperty("ANILIBERTY_BASE_URL")
+                ?: "https://aniliberty.top"
 
         val normalized = provided.trimEnd('/')
-        val apiRoot = if (normalized.endsWith("/api/v1")) {
-            normalized
-        } else {
-            "$normalized/api/v1"
-        }
+        val apiRoot =
+            if (normalized.endsWith("/api/v1")) {
+                normalized
+            } else {
+                "$normalized/api/v1"
+            }
         return "$apiRoot/".toHttpUrl()
     }
 }

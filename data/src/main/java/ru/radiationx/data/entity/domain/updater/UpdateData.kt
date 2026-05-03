@@ -16,7 +16,6 @@ data class UpdateData(
     val fixed: List<String>,
     val changed: List<String>,
 ) {
-
     data class UpdateLink(
         val name: String,
         val url: String,
@@ -26,6 +25,6 @@ data class UpdateData(
 
     enum class LinkType {
         FILE,
-        SITE
+        SITE,
     }
 }

@@ -9,5 +9,5 @@ data class SocialAuthResponse(
     @Json(name = "title") val title: String,
     @Json(name = "socialUrl") val socialUrl: String,
     @Json(name = "resultPattern") val resultPattern: String,
-    @Json(name = "errorUrlPattern") val errorUrlPattern: String
+    @Json(name = "errorUrlPattern") val errorUrlPattern: String,
 )

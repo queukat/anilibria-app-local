@@ -11,5 +11,5 @@ data class DonationDialogResponse(
     @Json(name = "content")
     val content: List<DonationContentItemResponse>,
     @Json(name = "cancel_text")
-    val cancelText: String?
+    val cancelText: String?,
 )

@@ -5,5 +5,5 @@ enum class AnalyticsPlayer(val value: String) {
     EXTERNAL("external"),
     INTERNAL("internal"),
     ALWAYS_ASK("always_ask"),
-    UNKNOWN("unknown")
+    UNKNOWN("unknown"),
 }

@@ -11,19 +11,22 @@ import ru.radiationx.data.entity.domain.team.Teams
 import ru.radiationx.data.entity.mapper.toDomain
 import javax.inject.Inject
 
-class TeamsRepository @Inject constructor(
-    private val teamsApi: TeamsApi,
-    private val teamsHolder: TeamsHolder,
-) {
+class TeamsRepository
+    @Inject
+    constructor(
+        private val teamsApi: TeamsApi,
+        private val teamsHolder: TeamsHolder,
+    ) {
+        suspend fun requestUpdate() =
+            withContext(Dispatchers.IO) {
+                teamsApi
+                    .getTeams()
+                    .also { teamsHolder.save(it) }
+            }
 
-    suspend fun requestUpdate() = withContext(Dispatchers.IO) {
-        teamsApi
-            .getTeams()
-            .also { teamsHolder.save(it) }
+        fun observeTeams(): Flow<Teams> =
+            teamsHolder
+                .observe()
+                .map { it.toDomain() }
+                .flowOn(Dispatchers.IO)
     }
-
-    fun observeTeams(): Flow<Teams> = teamsHolder
-        .observe()
-        .map { it.toDomain() }
-        .flowOn(Dispatchers.IO)
-}

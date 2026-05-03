@@ -13,17 +13,20 @@ import java.lang.reflect.Type
 data class ApiResponse<T>(
     @Json(name = "status") val status: Boolean?,
     @Json(name = "data") val data: T?,
-    @Json(name = "error") val error: ApiErrorResponse?
+    @Json(name = "error") val error: ApiErrorResponse?,
 ) {
-
-    fun fetch(): T = when {
-        status == true && data != null -> data
-        error != null -> throw ApiError(error.code, error.message, error.description)
-        else -> throw Exception("Wrong response")
-    }
+    fun fetch(): T =
+        when {
+            status == true && data != null -> data
+            error != null -> throw ApiError(error.code, error.message, error.description)
+            else -> throw Exception("Wrong response")
+        }
 }
 
-suspend fun <T> String.fetchResponse(moshi: Moshi, dataType: Type): T {
+suspend fun <T> String.fetchResponse(
+    moshi: Moshi,
+    dataType: Type,
+): T {
     return withContext(Dispatchers.Default) {
         val adapter = moshi.adapter<T>(dataType)
         val response = adapter.fromJson(this@fetchResponse)
@@ -43,7 +46,10 @@ suspend inline fun <reified T> String.fetchListResponse(moshi: Moshi): List<T> {
     return fetchResponse(moshi, dataType)
 }
 
-suspend fun <T> String.fetchApiResponse(moshi: Moshi, dataType: Type): T {
+suspend fun <T> String.fetchApiResponse(
+    moshi: Moshi,
+    dataType: Type,
+): T {
     return withContext(Dispatchers.Default) {
         val responseType = Types.newParameterizedType(ApiResponse::class.java, dataType)
         val adapter = moshi.adapter<ApiResponse<T>>(responseType)

@@ -11,32 +11,33 @@ import ru.radiationx.data.system.appendTimeouts
 import javax.inject.Inject
 import javax.inject.Provider
 
-
-class MainOkHttpProvider @Inject constructor(
-    private val context: Context,
-    private val sharedBuildConfig: SharedBuildConfig,
-    private val sslCompat: SslCompat,
-    private val sslCompatAnalytics: SslCompatAnalytics
-) : Provider<OkHttpClient> {
-
-    override fun get(): OkHttpClient = OkHttpClient.Builder()
-        .appendSslCompatAnalytics(sslCompat, sslCompatAnalytics)
-        .appendSslCompat(sslCompat)
-        .appendTimeouts()
-        .addNetworkInterceptor {
-            val hostAddress =
-                it.connection()?.route()?.socketAddress?.address?.hostAddress.orEmpty()
-            it.proceed(it.request()).newBuilder()
-                .header("Remote-Address", hostAddress)
+class MainOkHttpProvider
+    @Inject
+    constructor(
+        private val context: Context,
+        private val sharedBuildConfig: SharedBuildConfig,
+        private val sslCompat: SslCompat,
+        private val sslCompatAnalytics: SslCompatAnalytics,
+    ) : Provider<OkHttpClient> {
+        override fun get(): OkHttpClient =
+            OkHttpClient.Builder()
+                .appendSslCompatAnalytics(sslCompat, sslCompatAnalytics)
+                .appendSslCompat(sslCompat)
+                .appendTimeouts()
+                .addNetworkInterceptor {
+                    val hostAddress =
+                        it.connection()?.route()?.socketAddress?.address?.hostAddress.orEmpty()
+                    it.proceed(it.request()).newBuilder()
+                        .header("Remote-Address", hostAddress)
+                        .build()
+                }
+                .apply {
+                    DebugNetworkLoggingPolicy.appendTo(
+                        builder = this,
+                        context = context,
+                        sharedBuildConfig = sharedBuildConfig,
+                        allowBodyLogging = true,
+                    )
+                }
                 .build()
-        }
-        .apply {
-            DebugNetworkLoggingPolicy.appendTo(
-                builder = this,
-                context = context,
-                sharedBuildConfig = sharedBuildConfig,
-                allowBodyLogging = true,
-            )
-        }
-        .build()
-}
+    }

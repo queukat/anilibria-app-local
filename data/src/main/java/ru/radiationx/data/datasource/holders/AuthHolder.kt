@@ -7,10 +7,14 @@ import kotlinx.coroutines.flow.Flow
  */
 interface AuthHolder {
     fun observeVkAuthChange(): Flow<Boolean>
+
     suspend fun changeVkAuth(value: Boolean)
+
     suspend fun getDeviceId(): String
 
     fun observeAuthSkipped(): Flow<Boolean>
+
     suspend fun getAuthSkipped(): Boolean
+
     suspend fun setAuthSkipped(value: Boolean)
 }

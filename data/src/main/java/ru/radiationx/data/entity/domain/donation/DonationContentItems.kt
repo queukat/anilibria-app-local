@@ -7,22 +7,22 @@ data class DonationContentButton(
     val text: String,
     val link: String?,
     val brand: String?,
-    val icon: String?
+    val icon: String?,
 ) : DonationContentItem()
 
 data class DonationContentCaption(
-    val text: String
+    val text: String,
 ) : DonationContentItem()
 
 data class DonationContentDivider(
-    val height: Int
+    val height: Int,
 ) : DonationContentItem()
 
 data class DonationContentHeader(
-    val text: String
+    val text: String,
 ) : DonationContentItem()
 
 data class DonationContentSection(
     val title: String?,
-    val subtitle: String?
+    val subtitle: String?,
 ) : DonationContentItem()

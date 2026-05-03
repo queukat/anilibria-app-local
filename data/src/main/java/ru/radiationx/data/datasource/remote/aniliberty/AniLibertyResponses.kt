@@ -47,18 +47,18 @@ data class AniLibertyPaginatedResponse<T>(
 /**
  * Парсинг "сырых" JSON-ответов AniLiberty в AniLibertyPaginatedResponse<T>
  */
-suspend inline fun <reified T> String.fetchAniLibertyPaginated(
-    moshi: Moshi,
-): AniLibertyPaginatedResponse<T> = withContext(Dispatchers.Default) {
-    val type = Types.newParameterizedType(
-        AniLibertyPaginatedResponse::class.java,
-        T::class.java,
-    )
-    val adapter = moshi.adapter<AniLibertyPaginatedResponse<T>>(type)
+suspend inline fun <reified T> String.fetchAniLibertyPaginated(moshi: Moshi): AniLibertyPaginatedResponse<T> =
+    withContext(Dispatchers.Default) {
+        val type =
+            Types.newParameterizedType(
+                AniLibertyPaginatedResponse::class.java,
+                T::class.java,
+            )
+        val adapter = moshi.adapter<AniLibertyPaginatedResponse<T>>(type)
 
-    adapter.fromJson(this@fetchAniLibertyPaginated)
-        ?: throw IllegalStateException("Can't parse AniLiberty response, result is null")
-}
+        adapter.fromJson(this@fetchAniLibertyPaginated)
+            ?: throw IllegalStateException("Can't parse AniLiberty response, result is null")
+    }
 
 /**
  * Конвертер в уже существующий PaginatedResponse<T>,
@@ -71,11 +71,12 @@ fun <T> AniLibertyPaginatedResponse<T>.toPaginatedResponse(): PaginatedResponse<
 
     return PaginatedResponse(
         data = items,
-        meta = PaginatedResponse.PaginationResponse(
-            page = pagination?.currentPage ?: 1,
-            allPages = pagination?.totalPages ?: 1,
-            perPage = pagination?.perPage ?: items.size,
-            allItems = pagination?.total ?: items.size,
-        ),
+        meta =
+            PaginatedResponse.PaginationResponse(
+                page = pagination?.currentPage ?: 1,
+                allPages = pagination?.totalPages ?: 1,
+                perPage = pagination?.perPage ?: items.size,
+                allItems = pagination?.total ?: items.size,
+            ),
     )
 }

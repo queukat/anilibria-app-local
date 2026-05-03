@@ -7,9 +7,8 @@ data class YooMoneyDialog(
     val paymentTypes: PaymentTypes,
     val form: YooMoneyForm,
     val btDonateText: String,
-    val btCancelText: String
+    val btCancelText: String,
 ) {
-
     companion object {
         const val TYPE_ID_ACCOUNT = "account"
         const val TYPE_ID_CARD = "card"
@@ -20,24 +19,24 @@ data class YooMoneyDialog(
         val title: String,
         val hint: String,
         val defaultValue: Int?,
-        val items: List<Int>
+        val items: List<Int>,
     )
 
     data class PaymentTypes(
         val title: String,
         val selectedId: String?,
-        val items: List<PaymentType>
+        val items: List<PaymentType>,
     )
 
     data class PaymentType(
         val id: String,
-        val title: String
+        val title: String,
     )
 
     data class YooMoneyForm(
         val receiver: String,
         val target: String,
         val shortDesc: String?,
-        val label: String?
+        val label: String?,
     )
 }

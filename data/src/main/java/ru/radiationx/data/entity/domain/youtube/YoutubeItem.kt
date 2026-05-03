@@ -9,8 +9,7 @@ data class YoutubeItem(
     val vid: String?,
     val views: Int,
     val comments: Int,
-    val timestamp: Int
+    val timestamp: Int,
 ) {
-
     val link = "https://www.youtube.com/watch?v=$vid"
 }

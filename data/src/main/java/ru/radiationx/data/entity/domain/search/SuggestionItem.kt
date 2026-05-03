@@ -7,5 +7,5 @@ data class SuggestionItem(
     val id: ReleaseId,
     val code: ReleaseCode,
     val names: List<String>,
-    val poster: String?
+    val poster: String?,
 )

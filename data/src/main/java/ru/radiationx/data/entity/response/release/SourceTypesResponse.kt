@@ -6,5 +6,5 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class SourceTypesResponse(
     @Json(name = "is_rutube") val isRutube: Boolean?,
-    @Json(name = "is_anilibria") val isAnilibria: Boolean?
+    @Json(name = "is_anilibria") val isAnilibria: Boolean?,
 )

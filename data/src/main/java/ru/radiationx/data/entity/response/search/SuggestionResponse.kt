@@ -8,5 +8,5 @@ data class SuggestionResponse(
     @Json(name = "id") val id: Int,
     @Json(name = "code") val code: String,
     @Json(name = "names") val names: List<String>,
-    @Json(name = "poster") val poster: String?
+    @Json(name = "poster") val poster: String?,
 )

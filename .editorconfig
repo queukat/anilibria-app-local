@@ -1,5 +1,11 @@
 root = true
 
+[*.{kt,kts}]
+max_line_length = off
+ktlint_standard_filename = disabled
+ktlint_standard_package-name = disabled
+ktlint_standard_property-naming = disabled
+
 [app-tv/src/**/*.kt]
 # Compose UI entry points intentionally use PascalCase per Compose naming conventions.
 ktlint_function_naming_ignore_when_annotated_with = Composable

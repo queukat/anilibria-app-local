@@ -17,65 +17,70 @@ import timber.log.Timber
 import java.util.concurrent.Executors
 import javax.inject.Inject
 
-class PlayerDataSourceProvider @Inject constructor(
-    private val context: Context,
-    private val playerOkHttpProvider: PlayerOkHttpProvider,
-    private val preferencesHolder: PreferencesHolder,
-    private val buildConfig: SharedBuildConfig,
-) {
+class PlayerDataSourceProvider
+    @Inject
+    constructor(
+        private val context: Context,
+        private val playerOkHttpProvider: PlayerOkHttpProvider,
+        private val preferencesHolder: PreferencesHolder,
+        private val buildConfig: SharedBuildConfig,
+    ) {
+        private val cronetThreadPool by lazy { Executors.newFixedThreadPool(4) }
 
-    private val cronetThreadPool by lazy { Executors.newFixedThreadPool(4) }
-
-    @UnstableApi
-    fun get(): DataSourceType {
-        return when (preferencesHolder.playerTransport.value) {
-            PlayerTransport.SYSTEM -> createSystem()
-            PlayerTransport.OKHTTP -> createOkhttp()
-            PlayerTransport.CRONET -> createCronet() ?: createOkhttp()
-        }
-    }
-
-    @UnstableApi
-    private fun createSystem(): DataSourceType {
-        val factory = DefaultHttpDataSource.Factory().apply {
-            setUserAgent(createUserAgent("system/${Build.VERSION.SDK_INT}"))
-        }
-        return DataSourceType(factory, PlayerTransport.SYSTEM)
-    }
-
-    @UnstableApi
-    private fun createOkhttp(): DataSourceType {
-        val factory = OkHttpDataSource.Factory(playerOkHttpProvider.get()).apply {
-            setUserAgent(createUserAgent("okhttp/${OkHttp.VERSION}"))
-        }
-        return DataSourceType(factory, PlayerTransport.OKHTTP)
-    }
-
-    @UnstableApi
-    private fun createCronet(): DataSourceType? {
-        val cronet = try {
-            CronetEngine.Builder(context)
-                .enableHttp2(true)
-                .build()
-        } catch (ex: Throwable) {
-            Timber.e(ex, "tryCronet")
-            return null
+        @UnstableApi
+        fun get(): DataSourceType {
+            return when (preferencesHolder.playerTransport.value) {
+                PlayerTransport.SYSTEM -> createSystem()
+                PlayerTransport.OKHTTP -> createOkhttp()
+                PlayerTransport.CRONET -> createCronet() ?: createOkhttp()
+            }
         }
 
-        val factory = CronetDataSource.Factory(cronet, cronetThreadPool).apply {
-            setUserAgent(createUserAgent(cronet.versionString ?: "cronet/unknown"))
+        @UnstableApi
+        private fun createSystem(): DataSourceType {
+            val factory =
+                DefaultHttpDataSource.Factory().apply {
+                    setUserAgent(createUserAgent("system/${Build.VERSION.SDK_INT}"))
+                }
+            return DataSourceType(factory, PlayerTransport.SYSTEM)
         }
 
-        return DataSourceType(factory, PlayerTransport.CRONET)
-    }
+        @UnstableApi
+        private fun createOkhttp(): DataSourceType {
+            val factory =
+                OkHttpDataSource.Factory(playerOkHttpProvider.get()).apply {
+                    setUserAgent(createUserAgent("okhttp/${OkHttp.VERSION}"))
+                }
+            return DataSourceType(factory, PlayerTransport.OKHTTP)
+        }
 
-    private fun createUserAgent(transport: String): String {
-        val appInfo = "${buildConfig.applicationName}/${buildConfig.versionName}"
-        val appIdInfo = "${buildConfig.applicationId}/${buildConfig.versionCode}"
-        val androidInfo = "Android ${Build.VERSION.RELEASE}/${Build.VERSION.SDK_INT}"
-        val deviceInfo = "${Build.MANUFACTURER}/${Build.MODEL}"
-        return "$appInfo ($appIdInfo; $androidInfo; $deviceInfo) $transport"
+        @UnstableApi
+        private fun createCronet(): DataSourceType? {
+            val cronet =
+                try {
+                    CronetEngine.Builder(context)
+                        .enableHttp2(true)
+                        .build()
+                } catch (ex: Throwable) {
+                    Timber.e(ex, "tryCronet")
+                    return null
+                }
+
+            val factory =
+                CronetDataSource.Factory(cronet, cronetThreadPool).apply {
+                    setUserAgent(createUserAgent(cronet.versionString ?: "cronet/unknown"))
+                }
+
+            return DataSourceType(factory, PlayerTransport.CRONET)
+        }
+
+        private fun createUserAgent(transport: String): String {
+            val appInfo = "${buildConfig.applicationName}/${buildConfig.versionName}"
+            val appIdInfo = "${buildConfig.applicationId}/${buildConfig.versionCode}"
+            val androidInfo = "Android ${Build.VERSION.RELEASE}/${Build.VERSION.SDK_INT}"
+            val deviceInfo = "${Build.MANUFACTURER}/${Build.MODEL}"
+            return "$appInfo ($appIdInfo; $androidInfo; $deviceInfo) $transport"
+        }
     }
-}
 
 class DataSourceType(val factory: HttpDataSource.Factory, val transport: PlayerTransport)

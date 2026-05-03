@@ -15,7 +15,10 @@ interface TvPlayerFacade {
 
     suspend fun getLocalEpisodeSeek(episodeId: EpisodeId): Long
 
-    suspend fun saveLocalEpisodeSeek(episodeId: EpisodeId, seek: Long)
+    suspend fun saveLocalEpisodeSeek(
+        episodeId: EpisodeId,
+        seek: Long,
+    )
 
     suspend fun saveRemoteEpisodeProgress(
         episodeId: EpisodeId,

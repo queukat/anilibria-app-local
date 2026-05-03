@@ -16,7 +16,11 @@ import java.lang.reflect.Type
 import kotlin.math.roundToInt
 
 object AniLibertyTupleAdapterFactory : JsonAdapter.Factory {
-    override fun create(type: Type, annotations: Set<Annotation>, moshi: Moshi): JsonAdapter<*>? {
+    override fun create(
+        type: Type,
+        annotations: Set<Annotation>,
+        moshi: Moshi,
+    ): JsonAdapter<*>? {
         if (annotations.isNotEmpty()) return null
         val raw = Types.getRawType(type)
 
@@ -46,7 +50,6 @@ private fun JsonReader.readIntFlexible(fieldName: String): Int {
 }
 
 private class AniLibertyReleaseEpisodeTimecodeJsonAdapter : JsonAdapter<AniLibertyReleaseEpisodeTimecode>() {
-
     override fun fromJson(reader: JsonReader): AniLibertyReleaseEpisodeTimecode {
         return when (reader.peek()) {
             JsonReader.Token.BEGIN_ARRAY -> fromTuple(reader)
@@ -106,7 +109,10 @@ private class AniLibertyReleaseEpisodeTimecodeJsonAdapter : JsonAdapter<AniLiber
         )
     }
 
-    override fun toJson(writer: JsonWriter, value: AniLibertyReleaseEpisodeTimecode?) {
+    override fun toJson(
+        writer: JsonWriter,
+        value: AniLibertyReleaseEpisodeTimecode?,
+    ) {
         if (value == null) throw JsonDataException("AniLibertyReleaseEpisodeTimecode was null")
         writer.beginArray()
         writer.value(value.releaseEpisodeId.value)
@@ -117,7 +123,6 @@ private class AniLibertyReleaseEpisodeTimecodeJsonAdapter : JsonAdapter<AniLiber
 }
 
 private class AniLibertyEpisodeTimecodeJsonAdapter : JsonAdapter<AniLibertyEpisodeTimecode>() {
-
     override fun fromJson(reader: JsonReader): AniLibertyEpisodeTimecode {
         return when (reader.peek()) {
             JsonReader.Token.BEGIN_ARRAY -> fromTuple(reader)
@@ -131,15 +136,16 @@ private class AniLibertyEpisodeTimecodeJsonAdapter : JsonAdapter<AniLibertyEpiso
         if (!reader.hasNext()) throw JsonDataException("AniLibertyEpisodeTimecode: empty tuple")
 
         val firstToken = reader.peek()
-        val time = when (firstToken) {
-            JsonReader.Token.STRING -> {
-                reader.skipValue()
-                if (!reader.hasNext()) throw JsonDataException("AniLibertyEpisodeTimecode: missing time after id")
-                reader.nextDouble()
+        val time =
+            when (firstToken) {
+                JsonReader.Token.STRING -> {
+                    reader.skipValue()
+                    if (!reader.hasNext()) throw JsonDataException("AniLibertyEpisodeTimecode: missing time after id")
+                    reader.nextDouble()
+                }
+                JsonReader.Token.NUMBER -> reader.nextDouble()
+                else -> throw JsonDataException("AniLibertyEpisodeTimecode: unexpected token for first item: $firstToken")
             }
-            JsonReader.Token.NUMBER -> reader.nextDouble()
-            else -> throw JsonDataException("AniLibertyEpisodeTimecode: unexpected token for first item: $firstToken")
-        }
 
         if (!reader.hasNext()) throw JsonDataException("AniLibertyEpisodeTimecode: missing isWatched")
         val isWatched = reader.nextBoolean()
@@ -172,7 +178,10 @@ private class AniLibertyEpisodeTimecodeJsonAdapter : JsonAdapter<AniLibertyEpiso
         return AniLibertyEpisodeTimecode(time = safeTime, isWatched = safeIsWatched)
     }
 
-    override fun toJson(writer: JsonWriter, value: AniLibertyEpisodeTimecode?) {
+    override fun toJson(
+        writer: JsonWriter,
+        value: AniLibertyEpisodeTimecode?,
+    ) {
         if (value == null) throw JsonDataException("AniLibertyEpisodeTimecode was null")
         writer.beginArray()
         writer.value(value.time)
@@ -182,7 +191,6 @@ private class AniLibertyEpisodeTimecodeJsonAdapter : JsonAdapter<AniLibertyEpiso
 }
 
 private class AniLibertyCollectionIdItemJsonAdapter : JsonAdapter<AniLibertyCollectionIdItem>() {
-
     override fun fromJson(reader: JsonReader): AniLibertyCollectionIdItem {
         reader.beginArray()
 
@@ -201,7 +209,10 @@ private class AniLibertyCollectionIdItemJsonAdapter : JsonAdapter<AniLibertyColl
         )
     }
 
-    override fun toJson(writer: JsonWriter, value: AniLibertyCollectionIdItem?) {
+    override fun toJson(
+        writer: JsonWriter,
+        value: AniLibertyCollectionIdItem?,
+    ) {
         if (value == null) throw JsonDataException("AniLibertyCollectionIdItem was null")
         writer.beginArray()
         writer.value(value.releaseId.value)

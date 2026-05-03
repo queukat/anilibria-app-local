@@ -12,27 +12,31 @@ import ru.radiationx.data.entity.domain.donation.yoomoney.YooMoneyDialog
 import ru.radiationx.data.entity.mapper.toDomain
 import javax.inject.Inject
 
-class DonationRepository @Inject constructor(
-    private val donationApi: DonationApi,
-    private val donationHolder: DonationHolder,
-) {
+class DonationRepository
+    @Inject
+    constructor(
+        private val donationApi: DonationApi,
+        private val donationHolder: DonationHolder,
+    ) {
+        suspend fun requestUpdate() =
+            withContext(Dispatchers.IO) {
+                donationApi
+                    .getDonationDetail()
+                    .also { donationHolder.save(it) }
+            }
 
-    suspend fun requestUpdate() = withContext(Dispatchers.IO) {
-        donationApi
-            .getDonationDetail()
-            .also { donationHolder.save(it) }
+        fun observerDonationInfo(): Flow<DonationInfo> =
+            donationHolder
+                .observe()
+                .map { it.toDomain() }
+                .flowOn(Dispatchers.IO)
+
+        suspend fun createYooMoneyPayLink(
+            amount: Int,
+            type: String,
+            form: YooMoneyDialog.YooMoneyForm,
+        ): String =
+            withContext(Dispatchers.IO) {
+                donationApi.createYooMoneyPayLink(amount, type, form)
+            }
     }
-
-    fun observerDonationInfo(): Flow<DonationInfo> = donationHolder
-        .observe()
-        .map { it.toDomain() }
-        .flowOn(Dispatchers.IO)
-
-    suspend fun createYooMoneyPayLink(
-        amount: Int,
-        type: String,
-        form: YooMoneyDialog.YooMoneyForm
-    ): String = withContext(Dispatchers.IO) {
-        donationApi.createYooMoneyPayLink(amount, type, form)
-    }
-}

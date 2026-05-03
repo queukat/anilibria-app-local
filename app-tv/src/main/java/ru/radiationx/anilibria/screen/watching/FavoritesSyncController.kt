@@ -21,9 +21,7 @@ internal class FavoritesSyncController(
         return (nowMs - lastSuccessfulSyncMs) >= minRefreshIntervalMs
     }
 
-    suspend fun loadAllFavoritesIncremental(
-        onPartialLoaded: suspend (List<Release>) -> Unit,
-    ): List<Release> {
+    suspend fun loadAllFavoritesIncremental(onPartialLoaded: suspend (List<Release>) -> Unit): List<Release> {
         val result = LinkedHashMap<Int, Release>()
         var page = 1
         var unchangedPages = 0

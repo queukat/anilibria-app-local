@@ -15,11 +15,12 @@ data class AniLibertyUserViewTimecodeUpsertBody(
             time: Double,
             isWatched: Boolean,
             releaseEpisodeId: AniLibertyReleaseEpisodeId,
-        ): AniLibertyUserViewTimecodeUpsertBody = AniLibertyUserViewTimecodeUpsertBody(
-            time = time,
-            isWatched = isWatched,
-            releaseEpisodeId = releaseEpisodeId.value,
-        )
+        ): AniLibertyUserViewTimecodeUpsertBody =
+            AniLibertyUserViewTimecodeUpsertBody(
+                time = time,
+                isWatched = isWatched,
+                releaseEpisodeId = releaseEpisodeId.value,
+            )
     }
 }
 

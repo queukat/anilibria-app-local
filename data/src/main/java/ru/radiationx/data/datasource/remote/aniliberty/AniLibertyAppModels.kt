@@ -13,7 +13,6 @@ data class AniLibertyAppStatus(
     @Json(name = "is_alive") val isAlive: Boolean? = null,
     @Json(name = "available_api_endpoints") val availableApiEndpoints: List<String>? = null,
 ) {
-
     @JsonClass(generateAdapter = true)
     data class Request(
         @Json(name = "ip") val ip: String? = null,

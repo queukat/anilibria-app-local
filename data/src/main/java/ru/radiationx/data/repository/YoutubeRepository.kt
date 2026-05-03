@@ -10,15 +10,17 @@ import ru.radiationx.data.entity.mapper.toDomain
 import ru.radiationx.data.system.ApiUtils
 import javax.inject.Inject
 
-class YoutubeRepository @Inject constructor(
-    private val youtubeApi: YoutubeApi,
-    private val apiUtils: ApiUtils,
-    private val apiConfig: ApiConfig
-) {
-
-    suspend fun getYoutubeList(page: Int): Paginated<YoutubeItem> = withContext(Dispatchers.IO) {
-        youtubeApi
-            .getYoutubeList(page)
-            .toDomain { it.toDomain(apiUtils, apiConfig) }
+class YoutubeRepository
+    @Inject
+    constructor(
+        private val youtubeApi: YoutubeApi,
+        private val apiUtils: ApiUtils,
+        private val apiConfig: ApiConfig,
+    ) {
+        suspend fun getYoutubeList(page: Int): Paginated<YoutubeItem> =
+            withContext(Dispatchers.IO) {
+                youtubeApi
+                    .getYoutubeList(page)
+                    .toDomain { it.toDomain(apiUtils, apiConfig) }
+            }
     }
-}

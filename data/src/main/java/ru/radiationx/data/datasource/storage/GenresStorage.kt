@@ -15,61 +15,65 @@ import javax.inject.Inject
 /**
  * Created by radiationx on 17.02.18.
  */
-class GenresStorage @Inject constructor(
-    @DataPreferences private val sharedPreferences: SharedPreferences,
-) : GenresHolder {
-
-    companion object {
-        private const val LOCAL_GENRES_KEY = "data.local_genres"
-    }
-
-    private val localGenresRelay = SuspendMutableStateFlow {
-        loadAll()
-    }
-
-    override fun observeGenres(): Flow<List<GenreItem>> = localGenresRelay
-
-    override suspend fun saveGenres(genres: List<GenreItem>) {
-        localGenresRelay.setValue(genres.toList())
-        saveAll()
-    }
-
-    override suspend fun getGenres(): List<GenreItem> = localGenresRelay.getValue()
-
-    private suspend fun saveAll() {
-        withContext(Dispatchers.IO) {
-            val jsonGenres = JSONArray()
-            localGenresRelay.getValue().forEach {
-                jsonGenres.put(JSONObject().apply {
-                    put("title", it.title)
-                    put("value", it.value)
-                })
-            }
-            sharedPreferences
-                .edit()
-                .putString(LOCAL_GENRES_KEY, jsonGenres.toString())
-                .apply()
+class GenresStorage
+    @Inject
+    constructor(
+        @DataPreferences private val sharedPreferences: SharedPreferences,
+    ) : GenresHolder {
+        companion object {
+            private const val LOCAL_GENRES_KEY = "data.local_genres"
         }
-    }
 
-    private suspend fun loadAll(): List<GenreItem> {
-        return withContext(Dispatchers.IO) {
-            val result = mutableListOf<GenreItem>()
-            val savedGenres = sharedPreferences.getString(LOCAL_GENRES_KEY, null)
-            savedGenres?.let { genre ->
-                val jsonGenres = JSONArray(genre)
-                (0 until jsonGenres.length()).forEach { index ->
-                    jsonGenres.getJSONObject(index).let {
-                        result.add(
-                            GenreItem(
-                                title = it.getString("title"),
-                                value = it.getString("value")
+        private val localGenresRelay =
+            SuspendMutableStateFlow {
+                loadAll()
+            }
+
+        override fun observeGenres(): Flow<List<GenreItem>> = localGenresRelay
+
+        override suspend fun saveGenres(genres: List<GenreItem>) {
+            localGenresRelay.setValue(genres.toList())
+            saveAll()
+        }
+
+        override suspend fun getGenres(): List<GenreItem> = localGenresRelay.getValue()
+
+        private suspend fun saveAll() {
+            withContext(Dispatchers.IO) {
+                val jsonGenres = JSONArray()
+                localGenresRelay.getValue().forEach {
+                    jsonGenres.put(
+                        JSONObject().apply {
+                            put("title", it.title)
+                            put("value", it.value)
+                        },
+                    )
+                }
+                sharedPreferences
+                    .edit()
+                    .putString(LOCAL_GENRES_KEY, jsonGenres.toString())
+                    .apply()
+            }
+        }
+
+        private suspend fun loadAll(): List<GenreItem> {
+            return withContext(Dispatchers.IO) {
+                val result = mutableListOf<GenreItem>()
+                val savedGenres = sharedPreferences.getString(LOCAL_GENRES_KEY, null)
+                savedGenres?.let { genre ->
+                    val jsonGenres = JSONArray(genre)
+                    (0 until jsonGenres.length()).forEach { index ->
+                        jsonGenres.getJSONObject(index).let {
+                            result.add(
+                                GenreItem(
+                                    title = it.getString("title"),
+                                    value = it.getString("value"),
+                                ),
                             )
-                        )
+                        }
                     }
                 }
+                result
             }
-            result
         }
     }
-}

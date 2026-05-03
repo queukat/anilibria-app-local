@@ -13,7 +13,6 @@ import ru.radiationx.data.entity.common.PlayerTransport
  * Created by radiationx on 03.02.18.
  */
 interface PreferencesHolder {
-
     val newDonationRemind: AppPreference<Boolean>
 
     val releaseRemind: AppPreference<Boolean>
@@ -41,7 +40,6 @@ interface PreferencesHolder {
     val notificationsService: AppPreference<Boolean>
 
     val availableSpeeds: StateFlow<List<Float>>
-
 }
 
 @OptIn(ExperimentalForInheritanceCoroutinesApi::class)
@@ -51,14 +49,14 @@ class AppPreference<T>(
     private val get: SharedPreferences.(key: String) -> T,
     private val set: SharedPreferences.Editor.(key: String, value: T) -> Unit,
 ) : StateFlow<T> {
-
     private val _state by lazy { MutableStateFlow(value) }
 
-    private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == this.key) {
-            _state.value = value
+    private val listener =
+        SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == this.key) {
+                _state.value = value
+            }
         }
-    }
 
     init {
         sharedPreferences.registerOnSharedPreferenceChangeListener(listener)

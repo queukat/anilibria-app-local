@@ -12,5 +12,5 @@ data class DonationDetailResponse(
     @Json(name = "yoomoney_dialog")
     val yooMoneyDialog: YooMoneyDialogResponse?,
     @Json(name = "content_dialogs")
-    val contentDialogs: List<DonationDialogResponse>
+    val contentDialogs: List<DonationDialogResponse>,
 )

@@ -47,22 +47,23 @@ import ru.radiationx.data.system.AppCookieJar
 import ru.radiationx.quill.QuillModule
 
 class DataNetworkModule(context: Context) : QuillModule() {
-
     init {
         instance<SslCompat> {
-            val rawCertResources = listOf(
-                R.raw.gsr4,
-                R.raw.gtsr1,
-                R.raw.gtsr2,
-                R.raw.gtsr3,
-                R.raw.gtsr4,
-                R.raw.isrg_root_x1,
-                R.raw.isrg_root_x2,
-            )
-            val connectionSpecs = listOf(
-                ConnectionSpec.COMPATIBLE_TLS,
-                ConnectionSpec.CLEARTEXT,
-            )
+            val rawCertResources =
+                listOf(
+                    R.raw.gsr4,
+                    R.raw.gtsr1,
+                    R.raw.gtsr2,
+                    R.raw.gtsr3,
+                    R.raw.gtsr4,
+                    R.raw.isrg_root_x1,
+                    R.raw.isrg_root_x2,
+                )
+            val connectionSpecs =
+                listOf(
+                    ConnectionSpec.COMPATIBLE_TLS,
+                    ConnectionSpec.CLEARTEXT,
+                )
             SslCompat(context, rawCertResources, connectionSpecs)
         }
 

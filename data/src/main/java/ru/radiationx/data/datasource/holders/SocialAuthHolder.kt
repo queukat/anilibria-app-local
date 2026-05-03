@@ -5,7 +5,10 @@ import ru.radiationx.data.entity.domain.auth.SocialAuth
 
 interface SocialAuthHolder {
     suspend fun get(): List<SocialAuth>
+
     fun observe(): Flow<List<SocialAuth>>
+
     suspend fun save(items: List<SocialAuth>)
+
     suspend fun delete()
 }

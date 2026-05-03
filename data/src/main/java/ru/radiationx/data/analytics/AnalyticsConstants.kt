@@ -1,11 +1,10 @@
 package ru.radiationx.data.analytics
 
 object AnalyticsConstants {
-
-    /* Activity Launch */
+    // Activity Launch
     const val activity_from_history = "activity_from_history"
 
-    /* Shared/Screens */
+    // Shared/Screens
     const val screen_main = "screen_main"
     const val screen_fast_search = "screen_fast_search"
     const val screen_feed = "screen_feed"
@@ -36,10 +35,9 @@ object AnalyticsConstants {
     const val notification_push_update = "notification_push_update"
     const val link_router = "link_router"
 
+    // App
 
-    /* App */
-
-    /* Configuring */
+    // Configuring
     const val config_open = "config_open"
     const val config_check_full = "config_check_full"
     const val config_check_last = "config_check_last"
@@ -50,18 +48,18 @@ object AnalyticsConstants {
     const val config_skip = "config_skip"
     const val config_next = "config_next"
 
-    /* Fast Search */
+    // Fast Search
     const val fast_search_open = "fast_search_open"
     const val fast_search_release_click = "fast_search_release_click"
     const val fast_search_catalog_click = "fast_search_catalog_click"
     const val fast_search_google_click = "fast_search_google_click"
 
-    /* Schedule */
+    // Schedule
     const val schedule_open = "schedule_open"
     const val schedule_horizontal_scroll = "schedule_horizontal_scroll"
     const val schedule_release_click = "schedule_release_click"
 
-    /* Feed */
+    // Feed
     const val feed_open = "feed_open"
     const val feed_schedule_click = "feed_schedule_click"
     const val feed_schedule_horizontal_scroll = "feed_schedule_horizontal_scroll"
@@ -71,7 +69,7 @@ object AnalyticsConstants {
     const val feed_random_click = "feed_random_click"
     const val feed_load_page = "feed_load_page"
 
-    /* Release */
+    // Release
     const val release_open = "release_open"
     const val release_copy = "release_copy"
     const val release_share = "release_share"
@@ -101,32 +99,32 @@ object AnalyticsConstants {
     const val release_comments_click = "release_comments_click"
     const val release_episodes_tab_click = "release_episodes_tab_click"
 
-    /* Youtube Videos */
+    // Youtube Videos
     const val youtube_videos_open = "youtube_videos_open"
     const val youtube_videos_video_click = "youtube_videos_video_click"
     const val youtube_videos_load_page = "youtube_videos_load_page"
 
-    /* Youtube (external app) */
+    // Youtube (external app)
     const val youtube_video_open = "youtube_video_open"
 
-    /* Catalog */
+    // Catalog
     const val catalog_open = "catalog_open"
     const val catalog_release_click = "catalog_release_click"
     const val catalog_fast_search_click = "catalog_fast_search_click"
     const val catalog_on_filter_click = "catalog_on_filter_click"
     const val catalog_load_page = "catalog_load_page"
 
-    /* Catalog Filter */
+    // Catalog Filter
     const val catalog_filter_open = "catalog_filter_open"
     const val catalog_filter_use_time = "catalog_filter_use_time"
     const val catalog_filter_apply_click = "catalog_filter_apply_click"
 
-    /* Comments */
+    // Comments
     const val comments_open = "comments_open"
     const val comments_loaded = "comments_loaded"
     const val comments_error = "comments_error"
 
-    /* Favorites */
+    // Favorites
     const val favorites_open = "favorites_open"
     const val favorites_search_click = "favorites_search_click"
     const val favorites_search_release_click = "favorites_search_release_click"
@@ -134,7 +132,7 @@ object AnalyticsConstants {
     const val favorites_delete_click = "favorites_delete_click"
     const val favorites_load_page = "favorites_load_page"
 
-    /* Other */
+    // Other
     const val other_open = "other_open"
     const val other_login_click = "other_login_click"
     const val other_logout_click = "other_logout_click"
@@ -146,14 +144,14 @@ object AnalyticsConstants {
     const val other_settings_click = "other_settings_click"
     const val other_link_click = "other_link_click"
 
-    /* History */
+    // History
     const val history_open = "history_open"
     const val history_search_click = "history_search_click"
     const val history_search_release_click = "history_search_release_click"
     const val history_release_click = "history_release_click"
     const val history_release_delete_click = "history_release_delete_click"
 
-    /* Settings */
+    // Settings
     const val settings_open = "settings_open"
     const val settings_notification_main_change = "settings_notification_main_change"
     const val settings_notification_system_change = "settings_notification_system_change"
@@ -167,13 +165,13 @@ object AnalyticsConstants {
     const val settings_other_apps_click = "settings_other_apps_click"
     const val settings_4pda_click = "settings_4pda_click"
 
-    /* Auth Device */
+    // Auth Device
     const val auth_device_open = "auth_device_open"
     const val auth_device_error = "auth_device_error"
     const val auth_device_success = "auth_device_success"
     const val auth_device_use_time = "auth_device_use_time"
 
-    /* Auth Main */
+    // Auth Main
     const val auth_main_open = "auth_main_open"
     const val auth_main_social_click = "auth_main_social_click"
     const val auth_main_reg_click = "auth_main_reg_click"
@@ -185,33 +183,33 @@ object AnalyticsConstants {
     const val auth_main_wrong_success = "auth_main_wrong_success"
     const val auth_main_use_time = "auth_main_use_time"
 
-    /* Auth Social */
+    // Auth Social
     const val auth_social_open = "auth_social_open"
     const val auth_social_error = "auth_social_error"
     const val auth_social_page_error = "auth_social_page_error"
     const val auth_social_success = "auth_social_success"
     const val auth_social_use_time = "auth_social_use_time"
 
-    /* Auth VK */
+    // Auth VK
     const val auth_vk_open = "auth_vk_open"
     const val auth_vk_error = "auth_vk_error"
     const val auth_vk_success = "auth_vk_success"
     const val auth_vk_use_time = "auth_vk_use_time"
 
-    /* Player */
+    // Player
     const val player_open = "player_open"
     const val player_pip = "player_pip"
     const val player_screen_start = "player_screen_start"
     const val player_screen_stop = "player_screen_stop"
     const val player_handle_episode = "player_handle_episode"
 
-    /* Web Player */
+    // Web Player
     const val web_player_open = "web_player_open"
     const val web_player_loaded = "web_player_loaded"
     const val web_player_error = "web_player_error"
     const val web_player_use_time = "web_player_use_time"
 
-    /* Updater */
+    // Updater
     const val updater_open = "updater_open"
     const val updater_download_click = "updater_download_click"
     const val updater_source_download = "updater_source_download"
@@ -220,13 +218,13 @@ object AnalyticsConstants {
     const val app_update_card_click = "app_update_card_click"
     const val app_update_card_close = "app_update_card_close"
 
-    /* Static Page */
+    // Static Page
     const val page_open = "page_open"
     const val page_loaded = "page_loaded"
     const val page_error = "page_error"
     const val page_use_time = "page_use_time"
 
-    /* Donation */
+    // Donation
     const val donation_detail_open = "donation_detail_open"
     const val donation_detail_link_click = "donation_detail_link_click"
     const val donation_detail_button_click = "donation_detail_button_click"
@@ -239,19 +237,19 @@ object AnalyticsConstants {
     const val donation_dialog_link_click = "donation_dialog_link_click"
     const val donation_dialog_button_click = "donation_dialog_button_click"
 
-    /* Donation Card */
+    // Donation Card
     const val donation_card_new_click = "donation_card_new_click"
     const val donation_card_new_close_click = "donation_card_new_close_click"
 
-    /* Teams */
+    // Teams
     const val teams_open = "teams_open"
     const val teams_join_click = "teams_join_click"
 
     /*
-    * Глобально добавить в профиль пользователя текущий adresss
-    * Глобально добавить в профиль темную тему
-    * Глобально добавить состояние авторизации
-    * и т.д.
-    * Евевнт времени запуска аппки
-    * */
+     * Глобально добавить в профиль пользователя текущий adresss
+     * Глобально добавить в профиль темную тему
+     * Глобально добавить состояние авторизации
+     * и т.д.
+     * Евевнт времени запуска аппки
+     * */
 }

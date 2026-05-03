@@ -10,14 +10,22 @@ interface CookieHolder {
     companion object {
         const val PHPSESSID = "PHPSESSID"
 
-        val cookieNames = listOf(
-            PHPSESSID
-        )
+        val cookieNames =
+            listOf(
+                PHPSESSID,
+            )
     }
 
     fun observeCookies(): Flow<Map<String, Cookie>>
+
     suspend fun getCookies(): Map<String, Cookie>
-    suspend fun putCookie(url: String, cookie: Cookie)
+
+    suspend fun putCookie(
+        url: String,
+        cookie: Cookie,
+    )
+
     suspend fun removeCookie(name: String)
+
     suspend fun removeAuthCookie()
 }

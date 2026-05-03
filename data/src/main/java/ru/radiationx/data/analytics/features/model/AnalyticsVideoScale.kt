@@ -7,5 +7,5 @@ enum class AnalyticsVideoScale(val value: String) {
     FIT_CENTER("fit_center"),
     FIT_XY("fit_xy"),
     NONE("none"),
-    UNKNOWN("unknown")
+    UNKNOWN("unknown"),
 }

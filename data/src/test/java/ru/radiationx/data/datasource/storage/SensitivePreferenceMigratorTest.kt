@@ -5,16 +5,16 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class SensitivePreferenceMigratorTest {
-
     @Test
     fun migrateKeys_movesOnlyRequestedEntries_andRemovesFromSource() {
-        val source = FakeStore(
-            mutableMapOf(
-                "token" to "abc",
-                "cookie_PHPSESSID" to "cookie-value",
-                "other" to "keep",
-            ),
-        )
+        val source =
+            FakeStore(
+                mutableMapOf(
+                    "token" to "abc",
+                    "cookie_PHPSESSID" to "cookie-value",
+                    "other" to "keep",
+                ),
+            )
         val target = FakeStore(mutableMapOf())
 
         SensitivePreferenceMigrator.migrateKeys(
@@ -36,7 +36,10 @@ private class FakeStore(
 ) : StringKeyValueStore {
     override fun getString(key: String): String? = storage[key]
 
-    override fun putString(key: String, value: String) {
+    override fun putString(
+        key: String,
+        value: String,
+    ) {
         storage[key] = value
     }
 

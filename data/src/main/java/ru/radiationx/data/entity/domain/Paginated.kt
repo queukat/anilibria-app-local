@@ -8,9 +8,8 @@ data class Paginated<T>(
     val page: Int?,
     val allPages: Int?,
     val perPage: Int?,
-    val allItems: Int?
+    val allItems: Int?,
 ) {
-
     fun isEnd(): Boolean {
         return if (page != null && allPages != null) {
             page >= allPages

@@ -32,30 +32,31 @@ fun EpisodeResponse.toOnlineDomain(releaseId: ReleaseId): Episode? {
     return Episode(
         id = episodeId,
         title = createCombinedTitle(),
-        qualityInfo = QualityInfo(
-            urlSd = urlSd,
-            urlHd = urlHd,
-            urlFullHd = urlFullHd,
-        ),
+        qualityInfo =
+            QualityInfo(
+                urlSd = urlSd,
+                urlHd = urlHd,
+                urlFullHd = urlFullHd,
+            ),
         updatedAt = updatedAt?.secToDate(),
-        skips = skips?.toDomain()
+        skips = skips?.toDomain(),
     )
 }
 
-fun PlayerSkipsResponse.toDomain(): PlayerSkips = PlayerSkips(
-    opening = opening?.toSkipDomain(),
-    ending = ending?.toSkipDomain()
-)
+fun PlayerSkipsResponse.toDomain(): PlayerSkips =
+    PlayerSkips(
+        opening = opening?.toSkipDomain(),
+        ending = ending?.toSkipDomain(),
+    )
 
 private fun List<Int>.toSkipDomain(): PlayerSkips.Skip? {
     val start = getOrNull(0)?.secToMillis() ?: return null
     val end = getOrNull(1)?.secToMillis() ?: return null
     return PlayerSkips.Skip(
         start = start,
-        end = end
+        end = end,
     )
 }
-
 
 fun EpisodeResponse.toSourceDomain(releaseId: ReleaseId): SourceEpisode? {
     if (sources?.isAnilibria != true) {
@@ -65,11 +66,12 @@ fun EpisodeResponse.toSourceDomain(releaseId: ReleaseId): SourceEpisode? {
         id = id.toId(releaseId),
         title = createCombinedTitle(),
         updatedAt = updatedAt?.secToDate(),
-        qualityInfo = QualityInfo(
-            urlSd = srcUrlSd?.takeIf { it != VK_URL },
-            urlHd = srcUrlHd?.takeIf { it != VK_URL },
-            urlFullHd = srcUrlFullHd?.takeIf { it != VK_URL },
-        )
+        qualityInfo =
+            QualityInfo(
+                urlSd = srcUrlSd?.takeIf { it != VK_URL },
+                urlHd = srcUrlHd?.takeIf { it != VK_URL },
+                urlFullHd = srcUrlFullHd?.takeIf { it != VK_URL },
+            ),
     )
 }
 
@@ -82,7 +84,7 @@ fun EpisodeResponse.toRutubeDomain(releaseId: ReleaseId): RutubeEpisode? {
         title = createCombinedTitle(),
         updatedAt = updatedAt?.secToDate(),
         rutubeId = rutubeId,
-        url = "https://rutube.ru/play/embed/$rutubeId"
+        url = "https://rutube.ru/play/embed/$rutubeId",
     )
 }
 
@@ -91,15 +93,16 @@ fun ExternalPlaylistResponse.toDomain(releaseId: ReleaseId): ExternalPlaylist {
         tag,
         title,
         actionText,
-        episodes.map { it.toDomain(releaseId) }
+        episodes.map { it.toDomain(releaseId) },
     )
 }
 
-fun ExternalEpisodeResponse.toDomain(releaseId: ReleaseId): ExternalEpisode = ExternalEpisode(
-    id = id.toId(releaseId),
-    title = title,
-    url = url
-)
+fun ExternalEpisodeResponse.toDomain(releaseId: ReleaseId): ExternalEpisode =
+    ExternalEpisode(
+        id = id.toId(releaseId),
+        title = title,
+        url = url,
+    )
 
 private fun EpisodeResponse.createCombinedTitle(): String? {
     if (title == null && name == null) {

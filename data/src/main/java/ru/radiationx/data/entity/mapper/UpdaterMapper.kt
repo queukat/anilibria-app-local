@@ -15,17 +15,19 @@ fun UpdateDataResponse.toDomain(currentCode: Int): UpdateData {
         important = important,
         added = added,
         fixed = fixed,
-        changed = changed
+        changed = changed,
     )
 }
 
-fun UpdateDataResponse.UpdateLink.toDomain() = UpdateData.UpdateLink(
-    name = name ?: "Unknown",
-    url = url.orEmpty(),
-    type = when (type) {
-        "file" -> UpdateData.LinkType.FILE
-        "site" -> UpdateData.LinkType.SITE
-        else -> UpdateData.LinkType.SITE
-    },
-    sha256 = sha256,
-)
+fun UpdateDataResponse.UpdateLink.toDomain() =
+    UpdateData.UpdateLink(
+        name = name ?: "Unknown",
+        url = url.orEmpty(),
+        type =
+            when (type) {
+                "file" -> UpdateData.LinkType.FILE
+                "site" -> UpdateData.LinkType.SITE
+                else -> UpdateData.LinkType.SITE
+            },
+        sha256 = sha256,
+    )

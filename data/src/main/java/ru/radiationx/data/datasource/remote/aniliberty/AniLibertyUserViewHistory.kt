@@ -13,7 +13,6 @@ data class AniLibertyUserViewHistoryItem(
     @Json(name = "updated_at") val updatedAt: String?,
     @Json(name = "release_episode") val releaseEpisode: ReleaseEpisodeWithRelease?,
 ) {
-
     val episode: AniLibertyEpisode?
         get() = releaseEpisode?.toEpisode()
 
@@ -40,23 +39,24 @@ data class AniLibertyUserViewHistoryItem(
         @Json(name = "name_english") val nameEnglish: String?,
         @Json(name = "release") val release: AniLibertyRelease?,
     ) {
-        fun toEpisode(): AniLibertyEpisode = AniLibertyEpisode(
-            id = id,
-            name = name,
-            ordinal = ordinal,
-            ending = ending,
-            opening = opening,
-            preview = preview,
-            hls480 = hls480,
-            hls720 = hls720,
-            hls1080 = hls1080,
-            duration = duration,
-            rutubeId = rutubeId,
-            youtubeId = youtubeId,
-            updatedAt = updatedAt,
-            sortOrder = sortOrder,
-            releaseId = releaseId,
-            nameEnglish = nameEnglish,
-        )
+        fun toEpisode(): AniLibertyEpisode =
+            AniLibertyEpisode(
+                id = id,
+                name = name,
+                ordinal = ordinal,
+                ending = ending,
+                opening = opening,
+                preview = preview,
+                hls480 = hls480,
+                hls720 = hls720,
+                hls1080 = hls1080,
+                duration = duration,
+                rutubeId = rutubeId,
+                youtubeId = youtubeId,
+                updatedAt = updatedAt,
+                sortOrder = sortOrder,
+                releaseId = releaseId,
+                nameEnglish = nameEnglish,
+            )
     }
 }

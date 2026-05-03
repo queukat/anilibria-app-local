@@ -12,9 +12,13 @@ interface EpisodesCheckerHolder {
     }
 
     fun observeEpisodes(): Flow<List<EpisodeAccess>>
+
     suspend fun getEpisodes(): List<EpisodeAccess>
+
     suspend fun putEpisode(episode: EpisodeAccess)
+
     suspend fun putAllEpisode(episodes: List<EpisodeAccess>)
+
     suspend fun putAllEpisodeBatched(
         episodes: List<EpisodeAccess>,
         batchSize: Int = DEFAULT_BULK_BATCH_SIZE,
@@ -22,7 +26,10 @@ interface EpisodesCheckerHolder {
     ) {
         putAllEpisode(episodes)
     }
+
     suspend fun getEpisodes(releaseId: ReleaseId): List<EpisodeAccess>
+
     suspend fun getEpisode(episodeId: EpisodeId): EpisodeAccess?
+
     suspend fun remove(releaseId: ReleaseId)
 }

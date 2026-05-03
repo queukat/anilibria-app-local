@@ -9,11 +9,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import ru.radiationx.data.datasource.remote.aniliberty.moshi.AniLibertyMoshi
-import ru.radiationx.data.system.ApiUtils
 import ru.radiationx.data.entity.mapper.AniLibertyLegacyReleaseMapper
+import ru.radiationx.data.system.ApiUtils
 
 class AniLibertyContractSnapshotTest {
-
     private val moshi: Moshi = AniLibertyMoshi.configure(Moshi.Builder().build())
 
     @Test
@@ -72,10 +71,11 @@ class AniLibertyContractSnapshotTest {
     @Test
     fun catalogReleases_fixture_parsesPaginatedResponse() {
         val json = loadResource("aniliberty/catalog_releases_page1_limit3.json")
-        val type = Types.newParameterizedType(
-            AniLibertyPaginatedResponse::class.java,
-            AniLibertyRelease::class.java,
-        )
+        val type =
+            Types.newParameterizedType(
+                AniLibertyPaginatedResponse::class.java,
+                AniLibertyRelease::class.java,
+            )
 
         val parsed = moshi.adapter<AniLibertyPaginatedResponse<AniLibertyRelease>>(type).fromJson(json)
 
@@ -127,11 +127,12 @@ class AniLibertyContractSnapshotTest {
 
         val apiUtils = mockk<ApiUtils>()
         every { apiUtils.escapeHtml(any()) } answers { firstArg<String?>() }
-        val mapped = AniLibertyLegacyReleaseMapper.toLegacyReleaseOrNull(
-            parsed!!,
-            apiUtils,
-            false,
-        )
+        val mapped =
+            AniLibertyLegacyReleaseMapper.toLegacyReleaseOrNull(
+                parsed!!,
+                apiUtils,
+                false,
+            )
         assertNotNull(mapped)
         assertTrue(!mapped!!.series.isNullOrBlank())
     }

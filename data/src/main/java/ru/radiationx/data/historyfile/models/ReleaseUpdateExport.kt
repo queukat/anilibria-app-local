@@ -7,5 +7,5 @@ import com.squareup.moshi.JsonClass
 data class ReleaseUpdateExport(
     @Json(name = "rid") val id: Int,
     @Json(name = "ts") val timestamp: Int,
-    @Json(name = "lots") val lastOpenTimestamp: Int
+    @Json(name = "lots") val lastOpenTimestamp: Int,
 )

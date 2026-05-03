@@ -19,119 +19,131 @@ import javax.inject.Inject
 /**
  * Created by radiationx on 30.12.17.
  */
-class CookiesStorage @Inject constructor(
-    @DataPreferences private val plaintextPreferences: SharedPreferences,
-    @CriticalSecureDataPreferences private val encryptedPreferences: SharedPreferences,
-    private val criticalSecureStorageStatus: CriticalSecureStorageStatus,
-) : CookieHolder {
+class CookiesStorage
+    @Inject
+    constructor(
+        @DataPreferences private val plaintextPreferences: SharedPreferences,
+        @CriticalSecureDataPreferences private val encryptedPreferences: SharedPreferences,
+        private val criticalSecureStorageStatus: CriticalSecureStorageStatus,
+    ) : CookieHolder {
+        private val migrationDone = AtomicBoolean(false)
+        private val degradedModeWarningPrinted = AtomicBoolean(false)
 
-    private val migrationDone = AtomicBoolean(false)
-    private val degradedModeWarningPrinted = AtomicBoolean(false)
+        private val cookiesState =
+            SuspendMutableStateFlow {
+                migrateIfNeeded()
+                loadCookies()
+            }
 
-    private val cookiesState = SuspendMutableStateFlow {
-        migrateIfNeeded()
-        loadCookies()
-    }
-
-    override fun observeCookies(): Flow<Map<String, Cookie>> {
-        return cookiesState
-    }
-
-    override suspend fun getCookies(): Map<String, Cookie> {
-        return cookiesState.getValue()
-    }
-
-    override suspend fun putCookie(url: String, cookie: Cookie) {
-        migrateIfNeeded()
-        withContext(Dispatchers.IO) {
-            encryptedPreferences
-                .edit()
-                .putString("cookie_${cookie.name}", convertCookie(url, cookie))
-                .apply()
+        override fun observeCookies(): Flow<Map<String, Cookie>> {
+            return cookiesState
         }
-        updateCookies()
-    }
 
-    override suspend fun removeCookie(name: String) {
-        migrateIfNeeded()
-        withContext(Dispatchers.IO) {
-            encryptedPreferences
-                .edit()
-                .remove("cookie_$name")
-                .apply()
+        override suspend fun getCookies(): Map<String, Cookie> {
+            return cookiesState.getValue()
         }
-        updateCookies()
-    }
 
-    override suspend fun removeAuthCookie() {
-        removeCookie(CookieHolder.PHPSESSID)
-    }
-
-    private suspend fun updateCookies() {
-        cookiesState.setValue(loadCookies())
-    }
-
-    private suspend fun loadCookies(): Map<String, Cookie> {
-        migrateIfNeeded()
-        return withContext(Dispatchers.IO) {
-            val result = mutableMapOf<String, Cookie>()
-            cookieNames.forEach { s ->
+        override suspend fun putCookie(
+            url: String,
+            cookie: Cookie,
+        ) {
+            migrateIfNeeded()
+            withContext(Dispatchers.IO) {
                 encryptedPreferences
-                    .getString("cookie_$s", null)
-                    ?.let { parseCookie(it) }
-                    ?.let { cookie -> result[s] = cookie }
+                    .edit()
+                    .putString("cookie_${cookie.name}", convertCookie(url, cookie))
+                    .apply()
             }
-            result
+            updateCookies()
         }
-    }
 
-    private fun migrateIfNeeded() {
-        if (!migrationDone.compareAndSet(false, true)) {
-            return
-        }
-        if (!criticalSecureStorageStatus.isAvailable()) {
-            warnDegradedModeOnce()
-        }
-        val cookieKeys = cookieNames.map { "cookie_$it" }
-        SensitivePreferenceMigrator.migrateKeys(
-            keys = cookieKeys,
-            source = preferencesStore(plaintextPreferences),
-            target = preferencesStore(encryptedPreferences),
-        )
-    }
-
-    private fun preferencesStore(sharedPreferences: SharedPreferences): StringKeyValueStore {
-        return object : StringKeyValueStore {
-            override fun getString(key: String): String? = sharedPreferences.getString(key, null)
-
-            override fun putString(key: String, value: String) {
-                sharedPreferences.edit().putString(key, value).apply()
+        override suspend fun removeCookie(name: String) {
+            migrateIfNeeded()
+            withContext(Dispatchers.IO) {
+                encryptedPreferences
+                    .edit()
+                    .remove("cookie_$name")
+                    .apply()
             }
+            updateCookies()
+        }
 
-            override fun remove(key: String) {
-                sharedPreferences.edit().remove(key).apply()
+        override suspend fun removeAuthCookie() {
+            removeCookie(CookieHolder.PHPSESSID)
+        }
+
+        private suspend fun updateCookies() {
+            cookiesState.setValue(loadCookies())
+        }
+
+        private suspend fun loadCookies(): Map<String, Cookie> {
+            migrateIfNeeded()
+            return withContext(Dispatchers.IO) {
+                val result = mutableMapOf<String, Cookie>()
+                cookieNames.forEach { s ->
+                    encryptedPreferences
+                        .getString("cookie_$s", null)
+                        ?.let { parseCookie(it) }
+                        ?.let { cookie -> result[s] = cookie }
+                }
+                result
             }
         }
-    }
 
-    private fun warnDegradedModeOnce() {
-        if (degradedModeWarningPrinted.compareAndSet(false, true)) {
-            Timber.w(
-                criticalSecureStorageStatus.getUnavailableCause(),
-                "Secure cookies storage unavailable. Critical cookies are not persisted in plaintext.",
+        private fun migrateIfNeeded() {
+            if (!migrationDone.compareAndSet(false, true)) {
+                return
+            }
+            if (!criticalSecureStorageStatus.isAvailable()) {
+                warnDegradedModeOnce()
+            }
+            val cookieKeys = cookieNames.map { "cookie_$it" }
+            SensitivePreferenceMigrator.migrateKeys(
+                keys = cookieKeys,
+                source = preferencesStore(plaintextPreferences),
+                target = preferencesStore(encryptedPreferences),
             )
         }
-    }
 
-    private fun parseCookie(cookieFields: String): Cookie? {
-        val fields = cookieFields.split("\\|:\\|".toRegex())
-        val httpUrl = fields[0].toHttpUrlOrNull()
-            ?: throw RuntimeException("Unknown cookie url = ${fields[0]}")
-        val cookieString = fields[1]
-        return Cookie.parse(httpUrl, cookieString)
-    }
+        private fun preferencesStore(sharedPreferences: SharedPreferences): StringKeyValueStore {
+            return object : StringKeyValueStore {
+                override fun getString(key: String): String? = sharedPreferences.getString(key, null)
 
-    private fun convertCookie(url: String, cookie: Cookie): String {
-        return "$url|:|$cookie"
+                override fun putString(
+                    key: String,
+                    value: String,
+                ) {
+                    sharedPreferences.edit().putString(key, value).apply()
+                }
+
+                override fun remove(key: String) {
+                    sharedPreferences.edit().remove(key).apply()
+                }
+            }
+        }
+
+        private fun warnDegradedModeOnce() {
+            if (degradedModeWarningPrinted.compareAndSet(false, true)) {
+                Timber.w(
+                    criticalSecureStorageStatus.getUnavailableCause(),
+                    "Secure cookies storage unavailable. Critical cookies are not persisted in plaintext.",
+                )
+            }
+        }
+
+        private fun parseCookie(cookieFields: String): Cookie? {
+            val fields = cookieFields.split("\\|:\\|".toRegex())
+            val httpUrl =
+                fields[0].toHttpUrlOrNull()
+                    ?: throw RuntimeException("Unknown cookie url = ${fields[0]}")
+            val cookieString = fields[1]
+            return Cookie.parse(httpUrl, cookieString)
+        }
+
+        private fun convertCookie(
+            url: String,
+            cookie: Cookie,
+        ): String {
+            return "$url|:|$cookie"
+        }
     }
-}

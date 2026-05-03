@@ -8,6 +8,7 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoriteSorting
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseType
 
 private fun List<Int>.toCsv(): String = joinToString(",")
+
 private fun <T> List<T>.toCsv(mapper: (T) -> String): String = joinToString(",") { mapper(it) }
 
 @JsonClass(generateAdapter = true)
@@ -27,14 +28,15 @@ data class AniLibertyCommonFiltersBody(
             search: String? = null,
             ageRatings: List<AniLibertyAgeRating>? = null,
             sorting: AniLibertyFavoriteSorting? = null,
-        ): AniLibertyCommonFiltersBody = AniLibertyCommonFiltersBody(
-            genres = genres?.takeIf { it.isNotEmpty() }?.toCsv(),
-            types = types?.takeIf { it.isNotEmpty() }?.map { it.value },
-            years = years?.takeIf { it.isNotEmpty() }?.toCsv(),
-            search = search,
-            ageRatings = ageRatings?.takeIf { it.isNotEmpty() }?.map { it.value },
-            sorting = sorting?.value,
-        )
+        ): AniLibertyCommonFiltersBody =
+            AniLibertyCommonFiltersBody(
+                genres = genres?.takeIf { it.isNotEmpty() }?.toCsv(),
+                types = types?.takeIf { it.isNotEmpty() }?.map { it.value },
+                years = years?.takeIf { it.isNotEmpty() }?.toCsv(),
+                search = search,
+                ageRatings = ageRatings?.takeIf { it.isNotEmpty() }?.map { it.value },
+                sorting = sorting?.value,
+            )
     }
 }
 
@@ -55,13 +57,14 @@ data class AniLibertyCollectionsReleasesBody(
             f: AniLibertyCommonFiltersBody? = null,
             include: String? = null,
             exclude: String? = null,
-        ): AniLibertyCollectionsReleasesBody = AniLibertyCollectionsReleasesBody(
-            page = page,
-            limit = limit,
-            typeOfCollection = typeOfCollection,
-            f = f,
-            include = include,
-            exclude = exclude,
-        )
+        ): AniLibertyCollectionsReleasesBody =
+            AniLibertyCollectionsReleasesBody(
+                page = page,
+                limit = limit,
+                typeOfCollection = typeOfCollection,
+                f = f,
+                include = include,
+                exclude = exclude,
+            )
     }
 }

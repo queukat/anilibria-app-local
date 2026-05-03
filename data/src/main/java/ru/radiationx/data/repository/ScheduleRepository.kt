@@ -19,73 +19,82 @@ import java.util.Date
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
-class ScheduleRepository @Inject constructor(
-    private val scheduleApi: ScheduleApi,
-    private val updateMiddleware: ReleaseUpdateMiddleware,
-    private val apiUtils: ApiUtils,
-    private val apiConfig: ApiConfig,
-) {
+class ScheduleRepository
+    @Inject
+    constructor(
+        private val scheduleApi: ScheduleApi,
+        private val updateMiddleware: ReleaseUpdateMiddleware,
+        private val apiUtils: ApiUtils,
+        private val apiConfig: ApiConfig,
+    ) {
+        private val dataRelay = MutableStateFlow<List<ScheduleDay>?>(null)
 
-    private val dataRelay = MutableStateFlow<List<ScheduleDay>?>(null)
+        fun observeSchedule(): Flow<List<ScheduleDay>> = dataRelay.filterNotNull()
 
-    fun observeSchedule(): Flow<List<ScheduleDay>> = dataRelay.filterNotNull()
+        suspend fun loadSchedule(): List<ScheduleDay> =
+            withContext(Dispatchers.IO) {
+                scheduleApi
+                    .getSchedule()
+                    .map { it.toDomain(apiUtils, apiConfig) }
+                    .let { scheduleDays ->
+                        scheduleDays.map { scheduleDay ->
+                            val currentTime = System.currentTimeMillis().asMsk()
+                            val calendarDay =
+                                Calendar.getInstance().also {
+                                    it.timeInMillis = currentTime
+                                }.get(Calendar.DAY_OF_WEEK)
+                            if (scheduleDay.day == calendarDay) {
+                                val scheduleItems =
+                                    scheduleDay.items.map {
+                                        val millisTime = (it.releaseItem.torrentUpdate.toLong() * 1000L).asMsk()
 
-    suspend fun loadSchedule(): List<ScheduleDay> = withContext(Dispatchers.IO) {
-        scheduleApi
-            .getSchedule()
-            .map { it.toDomain(apiUtils, apiConfig) }
-            .let { scheduleDays ->
-                scheduleDays.map { scheduleDay ->
-                    val currentTime = System.currentTimeMillis().asMsk()
-                    val calendarDay = Calendar.getInstance().also {
-                        it.timeInMillis = currentTime
-                    }.get(Calendar.DAY_OF_WEEK)
-                    if (scheduleDay.day == calendarDay) {
+                                        val scheduleDates =
+                                            listOf(
+                                                millisTime,
+                                            )
+                                        val deviceDates =
+                                            listOf(
+                                                currentTime,
+                                                (currentTime - TimeUnit.DAYS.toMillis(1)),
+                                                (currentTime - TimeUnit.DAYS.toMillis(2)),
+                                            )
 
-                        val scheduleItems = scheduleDay.items.map {
-                            val millisTime = (it.releaseItem.torrentUpdate.toLong() * 1000L).asMsk()
-
-                            val scheduleDates = listOf(
-                                millisTime
-                            )
-                            val deviceDates = listOf(
-                                currentTime,
-                                (currentTime - TimeUnit.DAYS.toMillis(1)),
-                                (currentTime - TimeUnit.DAYS.toMillis(2))
-                            )
-
-                            val isSameDay = scheduleDates.any { scheduleDate ->
-                                deviceDates.any { deviceDate ->
-                                    Date(scheduleDate).isSameDay(Date(deviceDate))
-                                }
+                                        val isSameDay =
+                                            scheduleDates.any { scheduleDate ->
+                                                deviceDates.any { deviceDate ->
+                                                    Date(scheduleDate).isSameDay(Date(deviceDate))
+                                                }
+                                            }
+                                        it.copy(completed = isSameDay)
+                                    }
+                                scheduleDay.copy(items = scheduleItems)
+                            } else {
+                                scheduleDay
                             }
-                            it.copy(completed = isSameDay)
                         }
-                        scheduleDay.copy(items = scheduleItems)
-                    } else {
-                        scheduleDay
                     }
-                }
-            }
-            .let { scheduleDays ->
-                scheduleDays.map { scheduleDay ->
-                    scheduleDay.copy(
-                        items = scheduleDay.items.sortedWith(
-                            compareByDescending<ScheduleItem> {
-                                it.completed
-                            }.then(compareByDescending {
-                                it.releaseItem.torrentUpdate
-                            })
-                        )
-                    )
-                }
-            }
-            .also {
-                dataRelay.value = it
-            }
-            .also { scheduleDays ->
-                val releases = scheduleDays.map { it.items }.flatten().map { it.releaseItem }
-                updateMiddleware.handle(releases)
+                    .let { scheduleDays ->
+                        scheduleDays.map { scheduleDay ->
+                            scheduleDay.copy(
+                                items =
+                                    scheduleDay.items.sortedWith(
+                                        compareByDescending<ScheduleItem> {
+                                            it.completed
+                                        }.then(
+                                            compareByDescending {
+                                                it.releaseItem.torrentUpdate
+                                            },
+                                        ),
+                                    ),
+                            )
+                        }
+                    }
+                    .also {
+                        dataRelay.value = it
+                    }
+                    .also { scheduleDays ->
+                        val releases = scheduleDays.map { it.items }.flatten().map { it.releaseItem }
+                        updateMiddleware.handle(releases)
+                    }
             }
     }
-}

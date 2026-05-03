@@ -6,5 +6,5 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class FavoriteInfoResponse(
     @Json(name = "rating") val rating: Int,
-    @Json(name = "added") val isAdded: Boolean
+    @Json(name = "added") val isAdded: Boolean,
 )

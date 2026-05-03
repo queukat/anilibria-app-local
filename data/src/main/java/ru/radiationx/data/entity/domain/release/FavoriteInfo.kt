@@ -6,5 +6,5 @@ import kotlinx.parcelize.Parcelize
 @Parcelize
 data class FavoriteInfo(
     val rating: Int,
-    val isAdded: Boolean
+    val isAdded: Boolean,
 ) : Parcelable

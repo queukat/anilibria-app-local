@@ -16,42 +16,47 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-fun OtpInfoResponse.toDomain(): OtpInfo = OtpInfo(
-    code = code,
-    description = description,
-    expiresAt = expiredAt.secToDate(),
-    remainingTime = remainingTime.secToMillis()
-)
+fun OtpInfoResponse.toDomain(): OtpInfo =
+    OtpInfo(
+        code = code,
+        description = description,
+        expiresAt = expiredAt.secToDate(),
+        remainingTime = remainingTime.secToMillis(),
+    )
 
-fun SocialAuthResponse.toDomain(): SocialAuth = SocialAuth(
-    key = key,
-    title = title,
-    socialUrl = socialUrl,
-    resultPattern = resultPattern,
-    errorUrlPattern = errorUrlPattern
-)
+fun SocialAuthResponse.toDomain(): SocialAuth =
+    SocialAuth(
+        key = key,
+        title = title,
+        socialUrl = socialUrl,
+        resultPattern = resultPattern,
+        errorUrlPattern = errorUrlPattern,
+    )
 
-fun ProfileResponse.toDomain(apiConfig: ApiConfig): ProfileItem = ProfileItem(
-    id,
-    nick.orEmpty(),
-    avatarUrl?.appendBaseUrl(apiConfig.baseImagesUrl)
-)
+fun ProfileResponse.toDomain(apiConfig: ApiConfig): ProfileItem =
+    ProfileItem(
+        id,
+        nick.orEmpty(),
+        avatarUrl?.appendBaseUrl(apiConfig.baseImagesUrl),
+    )
 
 private const val ANI_LIBERTY_HOST = "https://aniliberty.top"
 
 /**
  * Маппинг профиля AniLiberty v1 в доменную модель.
  */
-fun AniLibertyUserProfile.toDomain(): ProfileItem = ProfileItem(
-    id = id ?: 0,
-    nick = (nickname ?: login ?: email).orEmpty(),
-    avatarUrl = (
-        avatar?.optimized?.preview
-            ?: avatar?.preview
-            ?: avatar?.optimized?.thumbnail
-            ?: avatar?.thumbnail
-        ).toAbsoluteAniLibertyUrl()
-)
+fun AniLibertyUserProfile.toDomain(): ProfileItem =
+    ProfileItem(
+        id = id ?: 0,
+        nick = (nickname ?: login ?: email).orEmpty(),
+        avatarUrl =
+            (
+                avatar?.optimized?.preview
+                    ?: avatar?.preview
+                    ?: avatar?.optimized?.thumbnail
+                    ?: avatar?.thumbnail
+            ).toAbsoluteAniLibertyUrl(),
+    )
 
 /**
  * Маппинг OTP (AniLiberty v1) в доменную модель.
@@ -68,8 +73,9 @@ fun AniLibertyOtpGetResponse.toDomain(): OtpInfo {
     val remainingSeconds = (remainingTime ?: 0.0).coerceAtLeast(0.0)
     val remainingMs = (remainingSeconds * 1000.0).toLong()
 
-    val expiresAtMs = otp?.expiredAt.parseAniLibertyDateMillisOrNull()
-        ?: (System.currentTimeMillis() + remainingMs)
+    val expiresAtMs =
+        otp?.expiredAt.parseAniLibertyDateMillisOrNull()
+            ?: (System.currentTimeMillis() + remainingMs)
 
     val description = "Введите этот код на сайте AniLiberty или в приложении, чтобы подтвердить вход на устройстве."
 
@@ -77,7 +83,7 @@ fun AniLibertyOtpGetResponse.toDomain(): OtpInfo {
         code = otpCode,
         description = description,
         expiresAt = Date(expiresAtMs),
-        remainingTime = remainingMs
+        remainingTime = remainingMs,
     )
 }
 
@@ -90,10 +96,11 @@ fun AniLibertyOtpGetResponse.toDomain(): OtpInfo {
  * В хранилище кладём «сырой» токен без префикса `Bearer`.
  */
 fun AniLibertyAuthTokenResponse.extractTokenOrNull(): String? {
-    val raw = sequenceOf(token, accessToken, sessionToken)
-        .firstOrNull { !it.isNullOrBlank() }
-        ?.trim()
-        ?: return null
+    val raw =
+        sequenceOf(token, accessToken, sessionToken)
+            .firstOrNull { !it.isNullOrBlank() }
+            ?.trim()
+            ?: return null
 
     return raw.removeBearerPrefix()
 }
@@ -139,23 +146,25 @@ private fun String?.parseAniLibertyDateMillisOrNull(): Long? {
         }
     }
 
-    val patterns = listOf(
-        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-        "yyyy-MM-dd'T'HH:mm:ss'Z'",
-        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-        "yyyy-MM-dd'T'HH:mm:ssXXX",
-        "yyyy-MM-dd HH:mm:ss",
-        "yyyy-MM-dd'T'HH:mm:ss",
-    )
+    val patterns =
+        listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss",
+        )
 
     for (pattern in patterns) {
         runCatching {
-            val sdf = SimpleDateFormat(pattern, Locale.US).apply {
-                // Для шаблонов без timezone уходим в UTC, чтобы результат не зависел от локали устройства.
-                if (!pattern.contains("X")) {
-                    timeZone = TimeZone.getTimeZone("UTC")
+            val sdf =
+                SimpleDateFormat(pattern, Locale.US).apply {
+                    // Для шаблонов без timezone уходим в UTC, чтобы результат не зависел от локали устройства.
+                    if (!pattern.contains("X")) {
+                        timeZone = TimeZone.getTimeZone("UTC")
+                    }
                 }
-            }
             sdf.parse(s)?.time
         }.getOrNull()?.let { return it }
     }

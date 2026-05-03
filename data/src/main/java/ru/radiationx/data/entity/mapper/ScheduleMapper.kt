@@ -8,10 +8,12 @@ import ru.radiationx.data.system.ApiUtils
 
 fun ScheduleDayResponse.toDomain(
     apiUtils: ApiUtils,
-    apiConfig: ApiConfig
-): ScheduleDay = ScheduleDay(
-    day = ScheduleDay.toCalendarDay(day),
-    items = items.map {
-        ScheduleItem(it.toDomain(apiUtils, apiConfig))
-    }
-)
+    apiConfig: ApiConfig,
+): ScheduleDay =
+    ScheduleDay(
+        day = ScheduleDay.toCalendarDay(day),
+        items =
+            items.map {
+                ScheduleItem(it.toDomain(apiUtils, apiConfig))
+            },
+    )

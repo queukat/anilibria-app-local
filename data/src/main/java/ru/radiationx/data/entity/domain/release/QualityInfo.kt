@@ -11,13 +11,13 @@ data class QualityInfo(
     val urlHd: String?,
     val urlFullHd: String?,
 ) : Parcelable {
-
     @IgnoredOnParcel
-    val available = buildSet(3) {
-        if (!urlSd.isNullOrEmpty()) add(PlayerQuality.SD)
-        if (!urlHd.isNullOrEmpty()) add(PlayerQuality.HD)
-        if (!urlFullHd.isNullOrEmpty()) add(PlayerQuality.FULLHD)
-    }
+    val available =
+        buildSet(3) {
+            if (!urlSd.isNullOrEmpty()) add(PlayerQuality.SD)
+            if (!urlHd.isNullOrEmpty()) add(PlayerQuality.HD)
+            if (!urlFullHd.isNullOrEmpty()) add(PlayerQuality.FULLHD)
+        }
 
     operator fun contains(quality: PlayerQuality): Boolean {
         return quality in available
@@ -42,12 +42,13 @@ data class QualityInfo(
     }
 
     fun getUrlFor(quality: PlayerQuality): String? {
-        val url = when (getActualFor(quality)) {
-            PlayerQuality.SD -> urlSd
-            PlayerQuality.HD -> urlHd
-            PlayerQuality.FULLHD -> urlFullHd
-            null -> null
-        }
+        val url =
+            when (getActualFor(quality)) {
+                PlayerQuality.SD -> urlSd
+                PlayerQuality.HD -> urlHd
+                PlayerQuality.FULLHD -> urlFullHd
+                null -> null
+            }
         return url
     }
 

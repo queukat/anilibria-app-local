@@ -5,5 +5,5 @@ import okhttp3.Response
 data class HttpException(
     val code: Int,
     override val message: String,
-    val response: Response
+    val response: Response,
 ) : RuntimeException()

@@ -56,9 +56,9 @@ import ru.radiationx.anilibria.screen.watching.rememberTvDescriptionOverlayClear
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
-import ru.radiationx.anilibria.ui.focus.rememberTvFocusRequesters
 import ru.radiationx.anilibria.ui.compose.DebouncedCardBackdropEffect
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
+import ru.radiationx.anilibria.ui.focus.rememberTvFocusRequesters
 import kotlin.math.max
 
 private enum class CatalogFocusTarget {

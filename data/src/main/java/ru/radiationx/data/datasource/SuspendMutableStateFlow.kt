@@ -1,11 +1,17 @@
 package ru.radiationx.data.datasource
 
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 
 class SuspendMutableStateFlow<T>(
-    private val initialBlock: suspend () -> T
+    private val initialBlock: suspend () -> T,
 ) : Flow<T> {
-
     private val _stateFlow = MutableStateFlow<Wrapper<T>?>(null)
 
     override suspend fun collect(collector: FlowCollector<T>) {
@@ -37,9 +43,10 @@ class SuspendMutableStateFlow<T>(
     }
 
     private suspend fun getOrInit(): T {
-        val wrapper = _stateFlow.updateAndGet {
-            it ?: Wrapper(initialBlock.invoke())
-        }
+        val wrapper =
+            _stateFlow.updateAndGet {
+                it ?: Wrapper(initialBlock.invoke())
+            }
         requireNotNull(wrapper) {
             "Wrapper is null after init"
         }
@@ -47,6 +54,6 @@ class SuspendMutableStateFlow<T>(
     }
 
     private data class Wrapper<T>(
-        val value: T
+        val value: T,
     )
 }

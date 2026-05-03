@@ -26,87 +26,104 @@ import javax.inject.Inject
 
 interface TvSearchUseCase {
     fun observeGenres(): Flow<List<GenreItem>>
+
     fun observeYears(): Flow<List<YearItem>>
+
     suspend fun loadGenres(): List<GenreItem>
+
     suspend fun loadYears(): List<YearItem>
+
     suspend fun loadSeasons(): List<SeasonItem>
-    suspend fun searchReleases(form: SearchForm, page: Int): List<Release>
+
+    suspend fun searchReleases(
+        form: SearchForm,
+        page: Int,
+    ): List<Release>
 }
 
-class TvSearchUseCaseImpl @Inject constructor(
-    private val aniLibertyApi: AniLibertyApi,
-    private val apiUtils: ApiUtils,
-) : TvSearchUseCase {
+class TvSearchUseCaseImpl
+    @Inject
+    constructor(
+        private val aniLibertyApi: AniLibertyApi,
+        private val apiUtils: ApiUtils,
+    ) : TvSearchUseCase {
+        private val genresState = MutableStateFlow<List<GenreItem>>(emptyList())
+        private val yearsState = MutableStateFlow<List<YearItem>>(emptyList())
 
-    private val genresState = MutableStateFlow<List<GenreItem>>(emptyList())
-    private val yearsState = MutableStateFlow<List<YearItem>>(emptyList())
+        override fun observeGenres(): Flow<List<GenreItem>> {
+            return genresState.asStateFlow()
+        }
 
-    override fun observeGenres(): Flow<List<GenreItem>> {
-        return genresState.asStateFlow()
+        override fun observeYears(): Flow<List<YearItem>> {
+            return yearsState.asStateFlow()
+        }
+
+        override suspend fun loadGenres(): List<GenreItem> {
+            return aniLibertyApi
+                .getCatalogReferenceGenres()
+                .mapNotNull { it.toGenreItemOrNull() }
+                .sortedBy(GenreItem::title)
+                .also { genresState.value = it }
+        }
+
+        override suspend fun loadYears(): List<YearItem> {
+            return aniLibertyApi
+                .getCatalogReferenceYears()
+                .distinct()
+                .sortedDescending()
+                .map(Int::toYearItem)
+                .also { yearsState.value = it }
+        }
+
+        override suspend fun loadSeasons(): List<SeasonItem> {
+            return aniLibertyApi
+                .getCatalogReferenceSeasons()
+                .mapNotNull { it.toSeasonItemOrNull() }
+                .distinctBy(SeasonItem::value)
+        }
+
+        override suspend fun searchReleases(
+            form: SearchForm,
+            page: Int,
+        ): List<Release> {
+            val years = form.years.mapNotNull { it.value.toIntOrNull() }
+            return aniLibertyApi.getCatalogReleases(
+                AniLibertyCatalogRequest(
+                    page = AniLibertyPage(page),
+                    limit = AniLibertyLimit(SEARCH_PAGE_LIMIT),
+                    genres = form.genres.mapNotNull { it.value.toIntOrNull() }.ifEmpty { null },
+                    fromYear = years.minOrNull(),
+                    toYear = years.maxOrNull(),
+                    seasons =
+                        form.seasons
+                            .map { AniLibertySeason(it.value) }
+                            .ifEmpty { null },
+                    publishStatuses =
+                        if (form.onlyCompleted) {
+                            listOf(AniLibertyCatalogPublishStatus.IsNotOngoing)
+                        } else {
+                            null
+                        },
+                    sorting =
+                        when (form.sort) {
+                            SearchForm.Sort.RATING -> AniLibertyCatalogSorting.RatingDesc
+                            SearchForm.Sort.DATE -> AniLibertyCatalogSorting.YearDesc
+                        },
+                    fields = SEARCH_FIELDS,
+                ),
+            ).data
+                .mapNotNull { it.toLegacyReleaseOrNull(apiUtils, isFavorite = false) }
+        }
+
+        private companion object {
+            val SEARCH_FIELDS: AniLibertyReleaseFields =
+                AniLibertyReleaseFields.Suggestions.copy(
+                    include =
+                        setOf(
+                            AniLibertyReleaseInclude.GENRES,
+                            AniLibertyReleaseInclude.LATEST_EPISODE,
+                        ),
+                )
+            const val SEARCH_PAGE_LIMIT = 20
+        }
     }
-
-    override fun observeYears(): Flow<List<YearItem>> {
-        return yearsState.asStateFlow()
-    }
-
-    override suspend fun loadGenres(): List<GenreItem> {
-        return aniLibertyApi
-            .getCatalogReferenceGenres()
-            .mapNotNull { it.toGenreItemOrNull() }
-            .sortedBy(GenreItem::title)
-            .also { genresState.value = it }
-    }
-
-    override suspend fun loadYears(): List<YearItem> {
-        return aniLibertyApi
-            .getCatalogReferenceYears()
-            .distinct()
-            .sortedDescending()
-            .map(Int::toYearItem)
-            .also { yearsState.value = it }
-    }
-
-    override suspend fun loadSeasons(): List<SeasonItem> {
-        return aniLibertyApi
-            .getCatalogReferenceSeasons()
-            .mapNotNull { it.toSeasonItemOrNull() }
-            .distinctBy(SeasonItem::value)
-    }
-
-    override suspend fun searchReleases(form: SearchForm, page: Int): List<Release> {
-        val years = form.years.mapNotNull { it.value.toIntOrNull() }
-        return aniLibertyApi.getCatalogReleases(
-            AniLibertyCatalogRequest(
-                page = AniLibertyPage(page),
-                limit = AniLibertyLimit(SEARCH_PAGE_LIMIT),
-                genres = form.genres.mapNotNull { it.value.toIntOrNull() }.ifEmpty { null },
-                fromYear = years.minOrNull(),
-                toYear = years.maxOrNull(),
-                seasons = form.seasons
-                    .map { AniLibertySeason(it.value) }
-                    .ifEmpty { null },
-                publishStatuses = if (form.onlyCompleted) {
-                    listOf(AniLibertyCatalogPublishStatus.IsNotOngoing)
-                } else {
-                    null
-                },
-                sorting = when (form.sort) {
-                    SearchForm.Sort.RATING -> AniLibertyCatalogSorting.RatingDesc
-                    SearchForm.Sort.DATE -> AniLibertyCatalogSorting.YearDesc
-                },
-                fields = SEARCH_FIELDS,
-            )
-        ).data
-            .mapNotNull { it.toLegacyReleaseOrNull(apiUtils, isFavorite = false) }
-    }
-
-    private companion object {
-        val SEARCH_FIELDS: AniLibertyReleaseFields = AniLibertyReleaseFields.Suggestions.copy(
-            include = setOf(
-                AniLibertyReleaseInclude.GENRES,
-                AniLibertyReleaseInclude.LATEST_EPISODE,
-            )
-        )
-        const val SEARCH_PAGE_LIMIT = 20
-    }
-}

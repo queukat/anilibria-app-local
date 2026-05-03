@@ -15,36 +15,39 @@ import javax.inject.Inject
 /**
  * Created by radiationx on 28.01.18.
  */
-class CheckerApi @Inject constructor(
-    @ApiClient private val client: IClient,
-    @MainClient private val mainClient: IClient,
-    private val apiConfig: ApiConfig,
-    private val reserveSources: CheckerReserveSources,
-    private val moshi: Moshi
-) {
-
-    suspend fun checkUpdate(versionCode: Int): UpdateDataRootResponse {
-        val args: MutableMap<String, String> = mutableMapOf(
-            "query" to "app_update",
-            "current" to versionCode.toString()
-        )
-        return try {
-            client
-                .post(apiConfig.apiUrl, args)
-                .fetchApiResponse(moshi)
-        } catch (ex: Throwable) {
-            reserveSources.sources.forEach { url ->
-                coRunCatching {
-                    getReserve(url)
-                }.onSuccess {
-                    return it
+class CheckerApi
+    @Inject
+    constructor(
+        @ApiClient private val client: IClient,
+        @MainClient private val mainClient: IClient,
+        private val apiConfig: ApiConfig,
+        private val reserveSources: CheckerReserveSources,
+        private val moshi: Moshi,
+    ) {
+        suspend fun checkUpdate(versionCode: Int): UpdateDataRootResponse {
+            val args: MutableMap<String, String> =
+                mutableMapOf(
+                    "query" to "app_update",
+                    "current" to versionCode.toString(),
+                )
+            return try {
+                client
+                    .post(apiConfig.apiUrl, args)
+                    .fetchApiResponse(moshi)
+            } catch (ex: Throwable) {
+                reserveSources.sources.forEach { url ->
+                    coRunCatching {
+                        getReserve(url)
+                    }.onSuccess {
+                        return it
+                    }
                 }
+                throw ex
             }
-            throw ex
         }
-    }
 
-    private suspend fun getReserve(url: String): UpdateDataRootResponse = mainClient
-        .get(url, emptyMap())
-        .fetchResponse(moshi)
-}
+        private suspend fun getReserve(url: String): UpdateDataRootResponse =
+            mainClient
+                .get(url, emptyMap())
+                .fetchResponse(moshi)
+    }

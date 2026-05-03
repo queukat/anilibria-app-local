@@ -29,7 +29,6 @@ import ru.radiationx.data.system.ApplicationCoroutineScope
 import ru.radiationx.quill.QuillModule
 
 class DataRepositoryModule : QuillModule() {
-
     init {
         single<AuthRepository>()
         single<ReleaseRepository>()

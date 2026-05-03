@@ -4,8 +4,7 @@ import android.content.Context
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.runBlocking
-import kotlin.io.path.createTempDirectory
+import kotlinx.coroutines.test.runTest
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
@@ -15,37 +14,39 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import ru.radiationx.data.datasource.remote.IClient
 import ru.radiationx.data.datasource.remote.NetworkResponse
-import java.io.File
 import java.util.UUID
+import kotlin.io.path.createTempDirectory
 
 class RemoteFileRepositoryTest {
-
     @Test
-    fun loadFile_emitsProgressAndCompletionEvents() = runBlocking {
-        val tempDir = createTempDirectory(prefix = "remote-file-test").toFile()
-        val context = mockk<Context>()
-        every { context.cacheDir } returns tempDir
+    fun loadFile_emitsProgressAndCompletionEvents() =
+        runTest {
+            val tempDir = createTempDirectory(prefix = "remote-file-test").toFile()
+            val context = mockk<Context>()
+            every { context.cacheDir } returns tempDir
 
-        val holder = FakeRemoteFileHolder()
-        val repository = RemoteFileRepository(
-            context = context,
-            client = FakeRawClient("payload"),
-            holder = holder,
-        )
+            val holder = FakeRemoteFileHolder()
+            val repository =
+                RemoteFileRepository(
+                    context = context,
+                    client = FakeRawClient("payload"),
+                    holder = holder,
+                )
 
-        val events = repository
-            .loadFile("https://example.org/app.apk", RemoteFile.Bucket.AppUpdates)
-            .toList()
+            val events =
+                repository
+                    .loadFile("https://example.org/app.apk", RemoteFile.Bucket.AppUpdates)
+                    .toList()
 
-        val progressValues = events.filterIsInstance<RemoteFileLoadEvent.Progress>().map { it.value }
-        val completed = events.filterIsInstance<RemoteFileLoadEvent.Completed>().lastOrNull()
+            val progressValues = events.filterIsInstance<RemoteFileLoadEvent.Progress>().map { it.value }
+            val completed = events.filterIsInstance<RemoteFileLoadEvent.Completed>().lastOrNull()
 
-        assertTrue(progressValues.isNotEmpty())
-        assertEquals(0, progressValues.first())
-        assertTrue(progressValues.contains(100))
-        assertTrue(completed != null)
-        assertTrue(completed!!.file.local.exists())
-    }
+            assertTrue(progressValues.isNotEmpty())
+            assertEquals(0, progressValues.first())
+            assertTrue(progressValues.contains(100))
+            assertTrue(completed != null)
+            assertTrue(completed!!.file.local.exists())
+        }
 }
 
 private class FakeRemoteFileHolder : RemoteFileHolder {
@@ -56,13 +57,14 @@ private class FakeRemoteFileHolder : RemoteFileHolder {
     override suspend fun get(url: String): RemoteFile? = store[url]
 
     override suspend fun put(data: RemoteFileSaveData): RemoteFile {
-        val remote = RemoteFile(
-            id = data.id,
-            url = data.url,
-            bucket = data.bucket,
-            name = "downloaded.file",
-            mimeType = data.contentType ?: "application/octet-stream",
-        )
+        val remote =
+            RemoteFile(
+                id = data.id,
+                url = data.url,
+                bucket = data.bucket,
+                name = "downloaded.file",
+                mimeType = data.contentType ?: "application/octet-stream",
+            )
         store[data.url] = remote
         return remote
     }
@@ -71,7 +73,10 @@ private class FakeRemoteFileHolder : RemoteFileHolder {
 private class FakeRawClient(
     private val payload: String,
 ) : IClient {
-    override suspend fun getRaw(url: String, args: Map<String, String>): Response {
+    override suspend fun getRaw(
+        url: String,
+        args: Map<String, String>,
+    ): Response {
         val request = Request.Builder().url(url).build()
         return Response.Builder()
             .request(request)
@@ -83,14 +88,48 @@ private class FakeRawClient(
             .build()
     }
 
-    override suspend fun postRaw(url: String, args: Map<String, String>): Response = error("Not used")
+    override suspend fun postRaw(
+        url: String,
+        args: Map<String, String>,
+    ): Response = error("Not used")
 
-    override suspend fun get(url: String, args: Map<String, String>): String = error("Not used")
-    override suspend fun post(url: String, args: Map<String, String>): String = error("Not used")
-    override suspend fun put(url: String, args: Map<String, String>): String = error("Not used")
-    override suspend fun delete(url: String, args: Map<String, String>): String = error("Not used")
-    override suspend fun getFull(url: String, args: Map<String, String>): NetworkResponse = error("Not used")
-    override suspend fun postFull(url: String, args: Map<String, String>): NetworkResponse = error("Not used")
-    override suspend fun putFull(url: String, args: Map<String, String>): NetworkResponse = error("Not used")
-    override suspend fun deleteFull(url: String, args: Map<String, String>): NetworkResponse = error("Not used")
+    override suspend fun get(
+        url: String,
+        args: Map<String, String>,
+    ): String = error("Not used")
+
+    override suspend fun post(
+        url: String,
+        args: Map<String, String>,
+    ): String = error("Not used")
+
+    override suspend fun put(
+        url: String,
+        args: Map<String, String>,
+    ): String = error("Not used")
+
+    override suspend fun delete(
+        url: String,
+        args: Map<String, String>,
+    ): String = error("Not used")
+
+    override suspend fun getFull(
+        url: String,
+        args: Map<String, String>,
+    ): NetworkResponse = error("Not used")
+
+    override suspend fun postFull(
+        url: String,
+        args: Map<String, String>,
+    ): NetworkResponse = error("Not used")
+
+    override suspend fun putFull(
+        url: String,
+        args: Map<String, String>,
+    ): NetworkResponse = error("Not used")
+
+    override suspend fun deleteFull(
+        url: String,
+        args: Map<String, String>,
+    ): NetworkResponse = error("Not used")
 }

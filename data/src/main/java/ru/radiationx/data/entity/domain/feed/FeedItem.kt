@@ -7,5 +7,5 @@ import ru.radiationx.data.entity.domain.youtube.YoutubeItem
 data class FeedItem(
     val id: FeedId,
     val release: Release?,
-    val youtube: YoutubeItem?
+    val youtube: YoutubeItem?,
 )

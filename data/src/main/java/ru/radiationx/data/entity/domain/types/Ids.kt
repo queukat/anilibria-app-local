@@ -3,7 +3,6 @@ package ru.radiationx.data.entity.domain.types
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 
-
 @Parcelize
 data class UserId(val id: Int) : Parcelable
 

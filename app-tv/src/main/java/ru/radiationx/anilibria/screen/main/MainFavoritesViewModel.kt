@@ -11,11 +11,11 @@ import ru.radiationx.anilibria.common.BaseCardsViewModel
 import ru.radiationx.anilibria.common.CardsDataConverter
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.common.LibriaCardRouter
+import ru.radiationx.anilibria.presentation.pagination.TvPagingLoadResult
+import ru.radiationx.anilibria.presentation.pagination.TvPagingState
 import ru.radiationx.data.entity.common.AuthState
 import ru.radiationx.data.entity.domain.Paginated
 import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
-import ru.radiationx.anilibria.presentation.pagination.TvPagingLoadResult
-import ru.radiationx.anilibria.presentation.pagination.TvPagingState
 import ru.radiationx.data.repository.AuthRepository
 import javax.inject.Inject
 

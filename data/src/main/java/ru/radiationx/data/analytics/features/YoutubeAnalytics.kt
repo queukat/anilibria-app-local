@@ -7,17 +7,21 @@ import ru.radiationx.data.analytics.features.extensions.toNavFromParam
 import ru.radiationx.data.analytics.features.extensions.toVidParam
 import javax.inject.Inject
 
-class YoutubeAnalytics @Inject constructor(
-    private val sender: AnalyticsSender
-) {
-
-    fun openVideo(from: String, id: Int, vid: String?) {
-        sender.send(
-            AnalyticsConstants.youtube_video_open,
-            from.toNavFromParam(),
-            id.toIdParam(),
-            vid.toVidParam()
-        )
+class YoutubeAnalytics
+    @Inject
+    constructor(
+        private val sender: AnalyticsSender,
+    ) {
+        fun openVideo(
+            from: String,
+            id: Int,
+            vid: String?,
+        ) {
+            sender.send(
+                AnalyticsConstants.youtube_video_open,
+                from.toNavFromParam(),
+                id.toIdParam(),
+                vid.toVidParam(),
+            )
+        }
     }
-
-}

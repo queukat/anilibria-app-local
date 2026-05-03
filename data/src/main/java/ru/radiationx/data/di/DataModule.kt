@@ -6,7 +6,6 @@ import android.content.Context
 import ru.radiationx.quill.QuillModule
 
 class DataModule(context: Context) : QuillModule() {
-
     init {
         include(
             DataStorageModule(context),

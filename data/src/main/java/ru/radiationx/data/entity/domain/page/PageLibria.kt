@@ -5,5 +5,5 @@ package ru.radiationx.data.entity.domain.page
  */
 data class PageLibria(
     val title: String,
-    val content: String
+    val content: String,
 )

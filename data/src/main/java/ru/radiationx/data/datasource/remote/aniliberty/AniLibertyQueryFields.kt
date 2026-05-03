@@ -5,5 +5,6 @@ data class AniLibertyQueryFields(
     val exclude: Set<String> = emptySet(),
 ) {
     fun includeParam(): String? = include.takeIf { it.isNotEmpty() }?.joinToString(",")
+
     fun excludeParam(): String? = exclude.takeIf { it.isNotEmpty() }?.joinToString(",")
 }

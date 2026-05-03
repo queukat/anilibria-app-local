@@ -7,9 +7,9 @@ data class DonationInfo(
     val cardRelease: DonationCard?,
     val detailContent: List<DonationContentItem>,
     val contentDialogs: List<DonationDialog>,
-    val yooMoneyDialog: YooMoneyDialog?
-){
-    companion object{
+    val yooMoneyDialog: YooMoneyDialog?,
+) {
+    companion object {
         const val YOOMONEY_TAG = "yoomoney_dialog"
     }
 }

@@ -9,9 +9,10 @@ data class SearchForm(
     val seasons: Set<SeasonItem> = emptySet(),
     val genres: Set<GenreItem> = emptySet(),
     val sort: Sort = Sort.RATING,
-    val onlyCompleted: Boolean = false
+    val onlyCompleted: Boolean = false,
 ) {
     enum class Sort {
-        RATING, DATE
+        RATING,
+        DATE,
     }
 }

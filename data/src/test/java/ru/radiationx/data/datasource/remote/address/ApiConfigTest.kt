@@ -8,18 +8,18 @@ import ru.radiationx.data.datasource.storage.ApiConfigStorage
 import ru.radiationx.data.system.ApplicationCoroutineScope
 
 class ApiConfigTest {
-
     @Test
     fun setConfig_withEmptyAddresses_doesNotCrash_andClearsPossibleIps() {
         val storage = mockk<ApiConfigStorage>(relaxed = true)
         coEvery { storage.getActive() } returns null
         coEvery { storage.get() } returns null
 
-        val apiConfig = ApiConfig(
-            configChanger = mockk(relaxed = true),
-            apiConfigStorage = storage,
-            applicationScope = ApplicationCoroutineScope(),
-        )
+        val apiConfig =
+            ApiConfig(
+                configChanger = mockk(relaxed = true),
+                apiConfigStorage = storage,
+                applicationScope = ApplicationCoroutineScope(),
+            )
 
         apiConfig.setConfig(ApiConfigData(addresses = emptyList()))
 

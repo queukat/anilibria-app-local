@@ -8,6 +8,6 @@ sealed class CriticalSecureStorageException(
 class CriticalSecureStorageUnavailableException(
     cause: Throwable? = null,
 ) : CriticalSecureStorageException(
-    message = "Secure token storage is unavailable. Enable device lock screen security and sign in again.",
-    cause = cause,
-)
+        message = "Secure token storage is unavailable. Enable device lock screen security and sign in again.",
+        cause = cause,
+    )

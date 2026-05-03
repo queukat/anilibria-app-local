@@ -7,5 +7,5 @@ import ru.radiationx.data.entity.response.release.ReleaseResponse
 @JsonClass(generateAdapter = true)
 data class ScheduleDayResponse(
     @Json(name = "day") val day: String,
-    @Json(name = "items") val items: List<ReleaseResponse>
+    @Json(name = "items") val items: List<ReleaseResponse>,
 )

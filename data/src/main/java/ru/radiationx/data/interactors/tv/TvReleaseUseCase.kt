@@ -11,31 +11,34 @@ import javax.inject.Inject
 
 interface TvReleaseUseCase {
     fun observeRelease(releaseId: ReleaseId): Flow<Release>
+
     suspend fun loadRelease(releaseId: ReleaseId): Release
+
     suspend fun loadWithFranchises(releaseId: ReleaseId): List<Release>
 }
 
-class TvReleaseUseCaseImpl @Inject constructor(
-    private val releaseRepository: ReleaseRepository,
-    private val releaseInteractor: ReleaseInteractor,
-) : TvReleaseUseCase {
+class TvReleaseUseCaseImpl
+    @Inject
+    constructor(
+        private val releaseRepository: ReleaseRepository,
+        private val releaseInteractor: ReleaseInteractor,
+    ) : TvReleaseUseCase {
+        override fun observeRelease(releaseId: ReleaseId): Flow<Release> {
+            return flow {
+                runCatching { loadRelease(releaseId) }
+                emit(Unit)
+            }.flatMapLatest {
+                releaseInteractor.observeCachedFull(releaseId = releaseId)
+            }
+        }
 
-    override fun observeRelease(releaseId: ReleaseId): Flow<Release> {
-        return flow {
-            runCatching { loadRelease(releaseId) }
-            emit(Unit)
-        }.flatMapLatest {
-            releaseInteractor.observeCachedFull(releaseId = releaseId)
+        override suspend fun loadRelease(releaseId: ReleaseId): Release {
+            return releaseRepository.getReleaseAniLiberty(releaseId).also(releaseInteractor::updateFullCache)
+        }
+
+        override suspend fun loadWithFranchises(releaseId: ReleaseId): List<Release> {
+            return releaseRepository
+                .loadWithFranchisesAniLiberty(releaseId)
+                .onEach(releaseInteractor::updateFullCache)
         }
     }
-
-    override suspend fun loadRelease(releaseId: ReleaseId): Release {
-        return releaseRepository.getReleaseAniLiberty(releaseId).also(releaseInteractor::updateFullCache)
-    }
-
-    override suspend fun loadWithFranchises(releaseId: ReleaseId): List<Release> {
-        return releaseRepository
-            .loadWithFranchisesAniLiberty(releaseId)
-            .onEach(releaseInteractor::updateFullCache)
-    }
-}

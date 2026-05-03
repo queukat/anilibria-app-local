@@ -13,27 +13,28 @@ import java.io.File
 import javax.inject.Inject
 
 @SuppressLint("UnsafeOptInUsageError")
-class PlayerCacheDataSourceProvider @Inject constructor(
-    private val context: Context
-) {
+class PlayerCacheDataSourceProvider
+    @Inject
+    constructor(
+        private val context: Context,
+    ) {
+        private val cache by lazy {
+            val directory = File(context.cacheDir, "player")
+            SimpleCache(
+                directory,
+                LeastRecentlyUsedCacheEvictor(1024 * 1024 * 50),
+                StandaloneDatabaseProvider(context),
+            )
+        }
 
-    private val cache by lazy {
-        val directory = File(context.cacheDir, "player")
-        SimpleCache(
-            directory,
-            LeastRecentlyUsedCacheEvictor(1024 * 1024 * 50),
-            StandaloneDatabaseProvider(context)
-        )
+        fun createCacheFactory(upstreamFactory: DataSource.Factory): DataSource.Factory {
+            val cacheSink = CacheDataSink.Factory().setCache(cache)
+            val downStreamFactory = FileDataSource.Factory()
+            return CacheDataSource.Factory()
+                .setCache(cache)
+                .setCacheWriteDataSinkFactory(cacheSink)
+                .setCacheReadDataSourceFactory(downStreamFactory)
+                .setUpstreamDataSourceFactory(upstreamFactory)
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        }
     }
-
-    fun createCacheFactory(upstreamFactory: DataSource.Factory): DataSource.Factory {
-        val cacheSink = CacheDataSink.Factory().setCache(cache)
-        val downStreamFactory = FileDataSource.Factory()
-        return CacheDataSource.Factory()
-            .setCache(cache)
-            .setCacheWriteDataSinkFactory(cacheSink)
-            .setCacheReadDataSourceFactory(downStreamFactory)
-            .setUpstreamDataSourceFactory(upstreamFactory)
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-    }
-}

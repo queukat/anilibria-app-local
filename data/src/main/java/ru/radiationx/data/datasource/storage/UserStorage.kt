@@ -14,76 +14,84 @@ import javax.inject.Inject
 /**
  * Created by radiationx on 11.01.18.
  */
-class UserStorage @Inject constructor(
-    private val sharedPreferences: SharedPreferences
-) : UserHolder {
-
-    companion object {
-        private const val KEY_SAVED_USER = "saved_user_v2"
-    }
-
-    private val userRelay = SuspendMutableStateFlow {
-        getSavedUser()
-    }
-
-    override suspend fun getUser(): ProfileItem? {
-        return userRelay.getValue()
-    }
-
-    override fun observeUser(): Flow<ProfileItem?> {
-        return userRelay
-    }
-
-    override suspend fun saveUser(user: ProfileItem) {
-        localSaveUser(user)
-        updateState()
-    }
-
-    override suspend fun delete() {
-        withContext(Dispatchers.IO) {
-            sharedPreferences.edit {
-                remove(KEY_SAVED_USER)
-            }
+class UserStorage
+    @Inject
+    constructor(
+        private val sharedPreferences: SharedPreferences,
+    ) : UserHolder {
+        companion object {
+            private const val KEY_SAVED_USER = "saved_user_v2"
         }
-        updateState()
-    }
 
-    private suspend fun updateState() {
-        userRelay.setValue(getSavedUser())
-    }
+        private val userRelay =
+            SuspendMutableStateFlow {
+                getSavedUser()
+            }
 
-    private suspend fun getSavedUser(): ProfileItem? {
-        return withContext(Dispatchers.IO) {
-            sharedPreferences
-                .getString(KEY_SAVED_USER, null)
-                ?.let { JSONObject(it) }
-                ?.let { userJson ->
-                    val rawAvatar = userJson
-                        .opt("avatar")
-                        ?.takeUnless { it == JSONObject.NULL }
-                        ?.toString()
-                    val avatarUrl = rawAvatar
-                        ?.takeUnless { it.isBlank() || it.equals("null", ignoreCase = true) }
+        override suspend fun getUser(): ProfileItem? {
+            return userRelay.getValue()
+        }
 
-                    ProfileItem(
-                        id = userJson.getInt("id"),
-                        nick = userJson.getString("nick"),
-                        avatarUrl = avatarUrl,
-                    )
+        override fun observeUser(): Flow<ProfileItem?> {
+            return userRelay
+        }
+
+        override suspend fun saveUser(user: ProfileItem) {
+            localSaveUser(user)
+            updateState()
+        }
+
+        override suspend fun delete() {
+            withContext(Dispatchers.IO) {
+                sharedPreferences.edit {
+                    remove(KEY_SAVED_USER)
                 }
-        }
-    }
-
-    private suspend fun localSaveUser(user: ProfileItem) {
-        withContext(Dispatchers.IO) {
-            val userJson = JSONObject().apply {
-                put("id", user.id)
-                put("nick", user.nick)
-                // не пиши "null" строкой
-                if (user.avatarUrl.isNullOrBlank()) put("avatar", JSONObject.NULL)
-                else put("avatar", user.avatarUrl)
             }
-            sharedPreferences.edit().putString(KEY_SAVED_USER, userJson.toString()).apply()
+            updateState()
+        }
+
+        private suspend fun updateState() {
+            userRelay.setValue(getSavedUser())
+        }
+
+        private suspend fun getSavedUser(): ProfileItem? {
+            return withContext(Dispatchers.IO) {
+                sharedPreferences
+                    .getString(KEY_SAVED_USER, null)
+                    ?.let { JSONObject(it) }
+                    ?.let { userJson ->
+                        val rawAvatar =
+                            userJson
+                                .opt("avatar")
+                                ?.takeUnless { it == JSONObject.NULL }
+                                ?.toString()
+                        val avatarUrl =
+                            rawAvatar
+                                ?.takeUnless { it.isBlank() || it.equals("null", ignoreCase = true) }
+
+                        ProfileItem(
+                            id = userJson.getInt("id"),
+                            nick = userJson.getString("nick"),
+                            avatarUrl = avatarUrl,
+                        )
+                    }
+            }
+        }
+
+        private suspend fun localSaveUser(user: ProfileItem) {
+            withContext(Dispatchers.IO) {
+                val userJson =
+                    JSONObject().apply {
+                        put("id", user.id)
+                        put("nick", user.nick)
+                        // не пиши "null" строкой
+                        if (user.avatarUrl.isNullOrBlank()) {
+                            put("avatar", JSONObject.NULL)
+                        } else {
+                            put("avatar", user.avatarUrl)
+                        }
+                    }
+                sharedPreferences.edit().putString(KEY_SAVED_USER, userJson.toString()).apply()
+            }
         }
     }
-}

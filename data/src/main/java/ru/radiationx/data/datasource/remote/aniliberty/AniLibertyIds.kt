@@ -31,6 +31,7 @@ sealed interface AniLibertyReleaseKey {
 
     companion object {
         fun id(value: Int): AniLibertyReleaseKey = ById(AniLibertyReleaseId(value))
+
         fun alias(value: String): AniLibertyReleaseKey = ByAlias(AniLibertyReleaseAlias(value))
     }
 }

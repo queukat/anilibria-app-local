@@ -8,13 +8,13 @@ import ru.radiationx.data.system.ApiUtils
 
 fun FeedResponse.toDomain(
     apiUtils: ApiUtils,
-    apiConfig: ApiConfig
+    apiConfig: ApiConfig,
 ): FeedItem {
     val domainRelease = release?.toDomain(apiUtils, apiConfig)
     val domainYoutube = youtube?.toDomain(apiUtils, apiConfig)
     return FeedItem(
         id = FeedId(domainRelease?.id, domainYoutube?.id),
         release = domainRelease,
-        youtube = domainYoutube
+        youtube = domainYoutube,
     )
 }

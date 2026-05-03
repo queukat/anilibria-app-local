@@ -39,16 +39,13 @@ data class AniLibertyRelease(
     @Json(name = "added_in_watching_collection") val watchingCount: Int?,
     @Json(name = "added_in_postponed_collection") val postponedCount: Int?,
     @Json(name = "added_in_abandoned_collection") val abandonedCount: Int?,
-
     @Json(name = "genres") val genres: List<AniLibertyGenre>?,
     @Json(name = "members") val members: List<AniLibertyReleaseMember>?,
     @Json(name = "episodes") val episodes: List<AniLibertyEpisode>?,
     @Json(name = "torrents") val torrents: List<AniLibertyTorrent>?,
     @Json(name = "sponsor") val sponsor: AniLibertySponsor?,
-
     @Json(name = "latest_episode") val latestEpisode: AniLibertyEpisode?,
 ) {
-
     @JsonClass(generateAdapter = true)
     data class Name(
         @Json(name = "main") val main: String?,

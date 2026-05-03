@@ -6,5 +6,5 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class PlayerSkipsResponse(
     @Json(name = "opening") val opening: List<Int>?,
-    @Json(name = "ending") val ending: List<Int>?
+    @Json(name = "ending") val ending: List<Int>?,
 )

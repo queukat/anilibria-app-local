@@ -20,7 +20,6 @@ import ru.radiationx.data.system.ApplicationCoroutineScope
 import java.util.concurrent.TimeUnit
 
 class AuthInterceptorsTest {
-
     @Test
     fun aniLibertyAuthInterceptor_addsAuthorizationHeader_forAniLibertyHost() {
         val tokenHolder = FakeAuthTokenHolder("token-123")
@@ -48,12 +47,13 @@ class AuthInterceptorsTest {
         val userHolder = FakeUserHolder()
         val cookieHolder = FakeCookieHolder()
         val tokenHolder = FakeAuthTokenHolder("token-123")
-        val interceptor = UnauthorizedInterceptor(
-            userHolder = userHolder,
-            cookieHolder = cookieHolder,
-            authTokenHolder = tokenHolder,
-            applicationScope = ApplicationCoroutineScope(),
-        )
+        val interceptor =
+            UnauthorizedInterceptor(
+                userHolder = userHolder,
+                cookieHolder = cookieHolder,
+                authTokenHolder = tokenHolder,
+                applicationScope = ApplicationCoroutineScope(),
+            )
         val chain = FakeChain("https://api.aniliberty.top/v1", responseCode = 401)
 
         interceptor.intercept(chain)
@@ -69,12 +69,13 @@ class AuthInterceptorsTest {
         val userHolder = FakeUserHolder()
         val cookieHolder = FakeCookieHolder()
         val tokenHolder = FakeAuthTokenHolder("token-123")
-        val interceptor = UnauthorizedInterceptor(
-            userHolder = userHolder,
-            cookieHolder = cookieHolder,
-            authTokenHolder = tokenHolder,
-            applicationScope = ApplicationCoroutineScope(),
-        )
+        val interceptor =
+            UnauthorizedInterceptor(
+                userHolder = userHolder,
+                cookieHolder = cookieHolder,
+                authTokenHolder = tokenHolder,
+                applicationScope = ApplicationCoroutineScope(),
+            )
         val chain = FakeChain("https://legacy.example.org/api", responseCode = 401)
 
         interceptor.intercept(chain)
@@ -142,7 +143,10 @@ private class FakeCookieHolder : CookieHolder {
 
     override suspend fun getCookies(): Map<String, okhttp3.Cookie> = emptyMap()
 
-    override suspend fun putCookie(url: String, cookie: okhttp3.Cookie) = Unit
+    override suspend fun putCookie(
+        url: String,
+        cookie: okhttp3.Cookie,
+    ) = Unit
 
     override suspend fun removeCookie(name: String) = Unit
 
@@ -179,13 +183,22 @@ private class FakeChain(
 
     override fun connectTimeoutMillis(): Int = TimeUnit.SECONDS.toMillis(10).toInt()
 
-    override fun withConnectTimeout(timeout: Int, unit: TimeUnit): Interceptor.Chain = this
+    override fun withConnectTimeout(
+        timeout: Int,
+        unit: TimeUnit,
+    ): Interceptor.Chain = this
 
     override fun readTimeoutMillis(): Int = TimeUnit.SECONDS.toMillis(10).toInt()
 
-    override fun withReadTimeout(timeout: Int, unit: TimeUnit): Interceptor.Chain = this
+    override fun withReadTimeout(
+        timeout: Int,
+        unit: TimeUnit,
+    ): Interceptor.Chain = this
 
     override fun writeTimeoutMillis(): Int = TimeUnit.SECONDS.toMillis(10).toInt()
 
-    override fun withWriteTimeout(timeout: Int, unit: TimeUnit): Interceptor.Chain = this
+    override fun withWriteTimeout(
+        timeout: Int,
+        unit: TimeUnit,
+    ): Interceptor.Chain = this
 }

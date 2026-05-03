@@ -132,11 +132,12 @@ class WatchingContinueViewModel
         }
 
         private suspend fun loadLocalContinue(): List<LibriaCard> {
-            val latestByRelease = episodesCheckerHolder.getEpisodes()
-                .groupBy { access -> access.id.releaseId }
-                .mapValues { (_, accesses) ->
-                    pickLatestLocalProgressOrNull(accesses) ?: accesses.first()
-                }
+            val latestByRelease =
+                episodesCheckerHolder.getEpisodes()
+                    .groupBy { access -> access.id.releaseId }
+                    .mapValues { (_, accesses) ->
+                        pickLatestLocalProgressOrNull(accesses) ?: accesses.first()
+                    }
 
             if (latestByRelease.isEmpty()) return emptyList()
 

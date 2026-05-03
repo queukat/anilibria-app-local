@@ -33,7 +33,6 @@ import ru.radiationx.data.analytics.profile.AnalyticsMainProfileDataSource
 import ru.radiationx.quill.QuillModule
 
 class DataAnalyticsModule : QuillModule() {
-
     init {
         single<AnalyticsInstallerProfileDataSource>()
         single<AnalyticsMainProfileDataSource>()

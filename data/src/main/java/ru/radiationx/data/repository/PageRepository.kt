@@ -15,38 +15,39 @@ import javax.inject.Inject
 /**
  * Created by radiationx on 13.01.18.
  */
-class PageRepository @Inject constructor(
-    @MainClient private val mainClient: IClient,
-    private val pageApi: PageApi
-) {
+class PageRepository
+    @Inject
+    constructor(
+        @MainClient private val mainClient: IClient,
+        private val pageApi: PageApi,
+    ) {
+        private var currentComments: VkComments? = null
 
-    private var currentComments: VkComments? = null
-
-    suspend fun getPage(pagePath: String): PageLibria = withContext(Dispatchers.IO) {
-        pageApi
-            .getPage(pagePath)
-    }
-
-    suspend fun getComments(): VkComments {
-        return withContext(Dispatchers.IO) {
-            currentComments ?: pageApi.getComments().toDomain().also {
-                currentComments = it
+        suspend fun getPage(pagePath: String): PageLibria =
+            withContext(Dispatchers.IO) {
+                pageApi
+                    .getPage(pagePath)
             }
-        }
-    }
 
-    suspend fun checkVkBlocked(): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                withTimeout(15_000) {
-                    mainClient
-                        .get("https://vk.com/", emptyMap())
-                        .let { false }
+        suspend fun getComments(): VkComments {
+            return withContext(Dispatchers.IO) {
+                currentComments ?: pageApi.getComments().toDomain().also {
+                    currentComments = it
                 }
-            } catch (ex: Throwable) {
-                ex !is UnknownHostException
+            }
+        }
+
+        suspend fun checkVkBlocked(): Boolean {
+            return withContext(Dispatchers.IO) {
+                try {
+                    withTimeout(15_000) {
+                        mainClient
+                            .get("https://vk.com/", emptyMap())
+                            .let { false }
+                    }
+                } catch (ex: Throwable) {
+                    ex !is UnknownHostException
+                }
             }
         }
     }
-
-}

@@ -6,13 +6,12 @@ import com.squareup.moshi.JsonClass
 data class ApiError constructor(
     val code: Int?,
     override val message: String?,
-    val description: String?
+    val description: String?,
 ) : RuntimeException()
-
 
 @JsonClass(generateAdapter = true)
 data class ApiErrorResponse(
     @Json(name = "code") val code: Int?,
     @Json(name = "message") val message: String?,
-    @Json(name = "description") val description: String?
+    @Json(name = "description") val description: String?,
 )

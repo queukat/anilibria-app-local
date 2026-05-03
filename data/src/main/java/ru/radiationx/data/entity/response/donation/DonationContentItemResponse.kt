@@ -2,7 +2,11 @@ package ru.radiationx.data.entity.response.donation
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
-import ru.radiationx.data.entity.response.donation.content.*
+import ru.radiationx.data.entity.response.donation.content.DonationContentButtonResponse
+import ru.radiationx.data.entity.response.donation.content.DonationContentCaptionResponse
+import ru.radiationx.data.entity.response.donation.content.DonationContentDividerResponse
+import ru.radiationx.data.entity.response.donation.content.DonationContentHeaderResponse
+import ru.radiationx.data.entity.response.donation.content.DonationContentSectionResponse
 
 @JsonClass(generateAdapter = true)
 data class DonationContentItemResponse(
@@ -17,5 +21,5 @@ data class DonationContentItemResponse(
     @Json(name = "button")
     val button: DonationContentButtonResponse?,
     @Json(name = "divider")
-    val divider: DonationContentDividerResponse?
+    val divider: DonationContentDividerResponse?,
 )

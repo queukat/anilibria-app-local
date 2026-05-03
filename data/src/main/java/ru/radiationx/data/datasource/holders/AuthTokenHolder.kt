@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
  * to attach Authorization header for AniLiberty requests.
  */
 interface AuthTokenHolder {
-
     fun observeToken(): Flow<String?>
 
     suspend fun getToken(): String?

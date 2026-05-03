@@ -52,157 +52,170 @@ class WatchingRowsSeparationTest {
     }
 
     @Test
-    fun continueUsesOnlyLocalProgressAndHistoryProjection() = runTest {
-        val release = release(id = 42)
-        val localAccess = EpisodeAccess(
-            id = EpisodeId("3", release.id),
-            seek = 65_000L,
-            isViewed = true,
-            lastAccess = 2_000L,
-        )
-        val episodesHolder = FakeEpisodesCheckerHolder(listOf(localAccess))
-        val historyFlow = MutableStateFlow(HistoryReleases(listOf(release), 1))
-        val historyRepository = mockHistoryRepository(historyFlow)
-        val converter = mockk<CardsDataConverter>()
-        every { converter.toCard(release) } returns libriaCard(release)
+    fun continueUsesOnlyLocalProgressAndHistoryProjection() =
+        runTest {
+            val release = release(id = 42)
+            val localAccess =
+                EpisodeAccess(
+                    id = EpisodeId("3", release.id),
+                    seek = 65_000L,
+                    isViewed = true,
+                    lastAccess = 2_000L,
+                )
+            val episodesHolder = FakeEpisodesCheckerHolder(listOf(localAccess))
+            val historyFlow = MutableStateFlow(HistoryReleases(listOf(release), 1))
+            val historyRepository = mockHistoryRepository(historyFlow)
+            val converter = mockk<CardsDataConverter>()
+            every { converter.toCard(release) } returns libriaCard(release)
 
-        val viewModel = track(
-            WatchingContinueViewModel(
-                converter = converter,
-                historyRepository = historyRepository,
-                episodesCheckerHolder = episodesHolder,
-                cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-            ),
-        )
-        viewModel.setLoaderDispatcherForTests(StandardTestDispatcher(testScheduler))
+            val viewModel =
+                track(
+                    WatchingContinueViewModel(
+                        converter = converter,
+                        historyRepository = historyRepository,
+                        episodesCheckerHolder = episodesHolder,
+                        cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+                    ),
+                )
+            viewModel.setLoaderDispatcherForTests(StandardTestDispatcher(testScheduler))
 
-        viewModel.onRefreshClick()
-        advanceUntilIdle()
+            viewModel.onRefreshClick()
+            advanceUntilIdle()
 
-        val firstCard = viewModel.cardsData.value.first() as LibriaCard
-        assertTrue(firstCard.description.contains("серии 3"))
-        assertTrue(firstCard.description.contains("1:05"))
-    }
-
-    @Test
-    fun continueClearsWhenLocalProgressClearsEvenIfHistoryRemains() = runTest {
-        val release = release(id = 51)
-        val localAccess = EpisodeAccess(
-            id = EpisodeId("1", release.id),
-            seek = 15_000L,
-            isViewed = true,
-            lastAccess = 1_000L,
-        )
-        val episodesHolder = FakeEpisodesCheckerHolder(listOf(localAccess))
-        val historyFlow = MutableStateFlow(HistoryReleases(listOf(release), 1))
-        val historyRepository = mockHistoryRepository(historyFlow)
-        val converter = mockk<CardsDataConverter>()
-        every { converter.toCard(release) } returns libriaCard(release)
-
-        val viewModel = track(
-            WatchingContinueViewModel(
-                converter = converter,
-                historyRepository = historyRepository,
-                episodesCheckerHolder = episodesHolder,
-                cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-            ),
-        )
-        viewModel.setLoaderDispatcherForTests(StandardTestDispatcher(testScheduler))
-
-        viewModel.onRefreshClick()
-        advanceUntilIdle()
-        assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
-
-        episodesHolder.setEpisodes(emptyList())
-        viewModel.onRefreshClick()
-        advanceUntilIdle()
-
-        assertFalse(viewModel.cardsData.value.any { it is LibriaCard })
-    }
+            val firstCard = viewModel.cardsData.value.first() as LibriaCard
+            assertTrue(firstCard.description.contains("серии 3"))
+            assertTrue(firstCard.description.contains("1:05"))
+        }
 
     @Test
-    fun continueDoesNotExposeUuidAsEpisodeNumber() = runTest {
-        val release = release(id = 77)
-        val localAccess = EpisodeAccess(
-            id = EpisodeId("9fa62e2e-f1aa-43f0-a001", release.id),
-            seek = 12_000L,
-            isViewed = true,
-            lastAccess = 1_500L,
-        )
-        val episodesHolder = FakeEpisodesCheckerHolder(listOf(localAccess))
-        val historyFlow = MutableStateFlow(HistoryReleases(listOf(release), 1))
-        val historyRepository = mockHistoryRepository(historyFlow)
-        val converter = mockk<CardsDataConverter>()
-        every { converter.toCard(release) } returns libriaCard(release)
+    fun continueClearsWhenLocalProgressClearsEvenIfHistoryRemains() =
+        runTest {
+            val release = release(id = 51)
+            val localAccess =
+                EpisodeAccess(
+                    id = EpisodeId("1", release.id),
+                    seek = 15_000L,
+                    isViewed = true,
+                    lastAccess = 1_000L,
+                )
+            val episodesHolder = FakeEpisodesCheckerHolder(listOf(localAccess))
+            val historyFlow = MutableStateFlow(HistoryReleases(listOf(release), 1))
+            val historyRepository = mockHistoryRepository(historyFlow)
+            val converter = mockk<CardsDataConverter>()
+            every { converter.toCard(release) } returns libriaCard(release)
 
-        val viewModel = track(
-            WatchingContinueViewModel(
-                converter = converter,
-                historyRepository = historyRepository,
-                episodesCheckerHolder = episodesHolder,
-                cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-            ),
-        )
-        viewModel.setLoaderDispatcherForTests(StandardTestDispatcher(testScheduler))
+            val viewModel =
+                track(
+                    WatchingContinueViewModel(
+                        converter = converter,
+                        historyRepository = historyRepository,
+                        episodesCheckerHolder = episodesHolder,
+                        cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+                    ),
+                )
+            viewModel.setLoaderDispatcherForTests(StandardTestDispatcher(testScheduler))
 
-        viewModel.onRefreshClick()
-        advanceUntilIdle()
+            viewModel.onRefreshClick()
+            advanceUntilIdle()
+            assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
 
-        val firstCard = viewModel.cardsData.value.first() as LibriaCard
-        assertFalse(firstCard.description.contains("9fa62e2e-f1aa"))
-        assertTrue(firstCard.description.contains("0:12"))
-    }
+            episodesHolder.setEpisodes(emptyList())
+            viewModel.onRefreshClick()
+            advanceUntilIdle()
 
-    @Test
-    fun historyUsesOnlyLocalHistoryProjection() = runTest {
-        val release = release(id = 88)
-        val historyFlow = MutableStateFlow(HistoryReleases(listOf(release), 1))
-        val historyRepository = mockHistoryRepository(historyFlow)
-        val converter = mockk<CardsDataConverter>()
-        every { converter.toCard(release) } returns libriaCard(release)
-
-        val viewModel = track(
-            WatchingHistoryViewModel(
-                converter = converter,
-                historyRepository = historyRepository,
-                cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-            ),
-        )
-        viewModel.setLoaderDispatcherForTests(StandardTestDispatcher(testScheduler))
-
-        viewModel.onRefreshClick()
-        advanceUntilIdle()
-
-        assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
-    }
+            assertFalse(viewModel.cardsData.value.any { it is LibriaCard })
+        }
 
     @Test
-    fun historyClearsWhenLocalHistoryClears() = runTest {
-        val release = release(id = 99)
-        val historyFlow = MutableStateFlow(HistoryReleases(listOf(release), 1))
-        val historyRepository = mockHistoryRepository(historyFlow)
-        val converter = mockk<CardsDataConverter>()
-        every { converter.toCard(release) } returns libriaCard(release)
+    fun continueDoesNotExposeUuidAsEpisodeNumber() =
+        runTest {
+            val release = release(id = 77)
+            val localAccess =
+                EpisodeAccess(
+                    id = EpisodeId("9fa62e2e-f1aa-43f0-a001", release.id),
+                    seek = 12_000L,
+                    isViewed = true,
+                    lastAccess = 1_500L,
+                )
+            val episodesHolder = FakeEpisodesCheckerHolder(listOf(localAccess))
+            val historyFlow = MutableStateFlow(HistoryReleases(listOf(release), 1))
+            val historyRepository = mockHistoryRepository(historyFlow)
+            val converter = mockk<CardsDataConverter>()
+            every { converter.toCard(release) } returns libriaCard(release)
 
-        val viewModel = track(
-            WatchingHistoryViewModel(
-                converter = converter,
-                historyRepository = historyRepository,
-                cardRouter = mockk<LibriaCardRouter>(relaxed = true),
-            ),
-        )
-        viewModel.setLoaderDispatcherForTests(StandardTestDispatcher(testScheduler))
+            val viewModel =
+                track(
+                    WatchingContinueViewModel(
+                        converter = converter,
+                        historyRepository = historyRepository,
+                        episodesCheckerHolder = episodesHolder,
+                        cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+                    ),
+                )
+            viewModel.setLoaderDispatcherForTests(StandardTestDispatcher(testScheduler))
 
-        viewModel.onRefreshClick()
-        advanceUntilIdle()
-        assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
+            viewModel.onRefreshClick()
+            advanceUntilIdle()
 
-        historyFlow.value = HistoryReleases(emptyList(), 0)
-        advanceTimeBy(300)
-        advanceUntilIdle()
+            val firstCard = viewModel.cardsData.value.first() as LibriaCard
+            assertFalse(firstCard.description.contains("9fa62e2e-f1aa"))
+            assertTrue(firstCard.description.contains("0:12"))
+        }
 
-        assertFalse(viewModel.cardsData.value.any { it is LibriaCard })
-    }
+    @Test
+    fun historyUsesOnlyLocalHistoryProjection() =
+        runTest {
+            val release = release(id = 88)
+            val historyFlow = MutableStateFlow(HistoryReleases(listOf(release), 1))
+            val historyRepository = mockHistoryRepository(historyFlow)
+            val converter = mockk<CardsDataConverter>()
+            every { converter.toCard(release) } returns libriaCard(release)
+
+            val viewModel =
+                track(
+                    WatchingHistoryViewModel(
+                        converter = converter,
+                        historyRepository = historyRepository,
+                        cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+                    ),
+                )
+            viewModel.setLoaderDispatcherForTests(StandardTestDispatcher(testScheduler))
+
+            viewModel.onRefreshClick()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
+        }
+
+    @Test
+    fun historyClearsWhenLocalHistoryClears() =
+        runTest {
+            val release = release(id = 99)
+            val historyFlow = MutableStateFlow(HistoryReleases(listOf(release), 1))
+            val historyRepository = mockHistoryRepository(historyFlow)
+            val converter = mockk<CardsDataConverter>()
+            every { converter.toCard(release) } returns libriaCard(release)
+
+            val viewModel =
+                track(
+                    WatchingHistoryViewModel(
+                        converter = converter,
+                        historyRepository = historyRepository,
+                        cardRouter = mockk<LibriaCardRouter>(relaxed = true),
+                    ),
+                )
+            viewModel.setLoaderDispatcherForTests(StandardTestDispatcher(testScheduler))
+
+            viewModel.onRefreshClick()
+            advanceUntilIdle()
+            assertTrue(viewModel.cardsData.value.any { it is LibriaCard })
+
+            historyFlow.value = HistoryReleases(emptyList(), 0)
+            advanceTimeBy(300)
+            advanceUntilIdle()
+
+            assertFalse(viewModel.cardsData.value.any { it is LibriaCard })
+        }
 
     @Test
     fun watchingPageSelectionRequestsBackgroundSync() {
@@ -210,11 +223,12 @@ class WatchingRowsSeparationTest {
         every { tvWatchingFacade.observeLocalContinueAvailable() } returns MutableStateFlow(false)
         every { tvWatchingFacade.observeLocalHistoryAvailable() } returns MutableStateFlow(false)
 
-        val viewModel = track(
-            WatchingViewModel(
-                tvWatchingFacade = tvWatchingFacade,
-            ),
-        )
+        val viewModel =
+            track(
+                WatchingViewModel(
+                    tvWatchingFacade = tvWatchingFacade,
+                ),
+            )
 
         viewModel.onPageSelected()
 
@@ -223,9 +237,7 @@ class WatchingRowsSeparationTest {
         }
     }
 
-    private fun mockHistoryRepository(
-        historyFlow: MutableStateFlow<HistoryReleases>,
-    ): HistoryRepository {
+    private fun mockHistoryRepository(historyFlow: MutableStateFlow<HistoryReleases>): HistoryRepository {
         val historyRepository = mockk<HistoryRepository>()
         coEvery { historyRepository.getReleases(any()) } answers { historyFlow.value }
         every { historyRepository.observeReleases(any()) } returns historyFlow

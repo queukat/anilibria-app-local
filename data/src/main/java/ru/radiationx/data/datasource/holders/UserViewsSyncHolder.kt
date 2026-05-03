@@ -1,7 +1,7 @@
 package ru.radiationx.data.datasource.holders
 
-import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.domain.types.EpisodeId
+import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.domain.watching.UserViewPendingUpload
 
 /**
@@ -14,7 +14,6 @@ import ru.radiationx.data.entity.domain.watching.UserViewPendingUpload
  * Any further incremental sync is done on app start (light import) and on player exit (per-episode upsert).
  */
 interface UserViewsSyncHolder {
-
     suspend fun getLastUploadTokenHash(): String?
 
     suspend fun setLastUploadTokenHash(value: String?)

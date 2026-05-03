@@ -29,159 +29,175 @@ import ru.radiationx.data.system.ApiUtils
 import ru.radiationx.shared.ktx.capitalizeDefault
 import javax.inject.Inject
 
-class SearchRepository @Inject constructor(
-    private val searchApi: SearchApi,
-    private val releaseApi: ReleaseApi,
-    private val aniLibertyApi: AniLibertyApi,
-    private val genresHolder: GenresHolder,
-    private val yearsHolder: YearsHolder,
-    private val updateMiddleware: ReleaseUpdateMiddleware,
-    private val apiUtils: ApiUtils,
-    private val apiConfig: ApiConfig,
-) {
+class SearchRepository
+    @Inject
+    constructor(
+        private val searchApi: SearchApi,
+        private val releaseApi: ReleaseApi,
+        private val aniLibertyApi: AniLibertyApi,
+        private val genresHolder: GenresHolder,
+        private val yearsHolder: YearsHolder,
+        private val updateMiddleware: ReleaseUpdateMiddleware,
+        private val apiUtils: ApiUtils,
+        private val apiConfig: ApiConfig,
+    ) {
+        private val searchIdRegex = Regex("^id(\\d{3,})\$")
 
-    private val searchIdRegex = Regex("^id(\\d{3,})\$")
+        fun observeGenres(): Flow<List<GenreItem>> =
+            genresHolder
+                .observeGenres()
+                .flowOn(Dispatchers.IO)
 
-    fun observeGenres(): Flow<List<GenreItem>> = genresHolder
-        .observeGenres()
-        .flowOn(Dispatchers.IO)
+        fun observeYears(): Flow<List<YearItem>> =
+            yearsHolder
+                .observeYears()
+                .flowOn(Dispatchers.IO)
 
-    fun observeYears(): Flow<List<YearItem>> = yearsHolder
-        .observeYears()
-        .flowOn(Dispatchers.IO)
-
-    private fun getQueryId(query: String): Int? {
-        return searchIdRegex.find(query)?.let { matchResult ->
-            matchResult.groupValues.getOrNull(1)?.toIntOrNull()
-        }
-    }
-
-    /**
-     * Быстрый поиск для подсказок (TV GlobalSearch / Suggestions).
-     *
-     * Приоритет:
-     * 1) AniLiberty v1 (новое API) — быстрее и стабильнее для подсказок
-     * 2) Legacy API — fallback на случай проблем/временной недоступности v1
-     */
-    suspend fun fastSearch(query: String): Suggestions = withContext(Dispatchers.IO) {
-        val releaseId = getQueryId(query)
-
-        val items = if (releaseId != null) {
-            // --- "id123" : точечная загрузка релиза ---
-            val v1Item = runCatching {
-                aniLibertyApi.getRelease(
-                    key = AniLibertyReleaseKey.id(releaseId),
-                    fields = AniLibertyReleaseFields.Suggestions,
-                ).toSuggestionDomainOrNull(apiUtils)
-            }.getOrNull()
-
-            if (v1Item != null) {
-                listOf(v1Item)
-            } else {
-                // fallback на legacy
-                runCatching {
-                    releaseApi
-                        .getReleasesByIds(listOf(releaseId))
-                        .map { it.toSuggestionDomain(apiUtils, apiConfig) }
-                }.getOrElse { emptyList() }
-            }
-        } else {
-            // --- обычный запрос ---
-            val v1Items = runCatching {
-                aniLibertyApi
-                    .searchAppReleases(
-                        query = query,
-                        fields = AniLibertyReleaseFields.Suggestions,
-                    )
-                    .mapNotNull { it.toSuggestionDomainOrNull(apiUtils) }
-            }.getOrNull()
-
-            if (!v1Items.isNullOrEmpty()) {
-                v1Items
-            } else {
-                // fallback на legacy
-                runCatching {
-                    searchApi
-                        .fastSearch(query)
-                        .map { it.toDomain(apiUtils, apiConfig) }
-                }.getOrElse { emptyList() }
+        private fun getQueryId(query: String): Int? {
+            return searchIdRegex.find(query)?.let { matchResult ->
+                matchResult.groupValues.getOrNull(1)?.toIntOrNull()
             }
         }
 
-        Suggestions(query, items)
-    }
+        /**
+         * Быстрый поиск для подсказок (TV GlobalSearch / Suggestions).
+         *
+         * Приоритет:
+         * 1) AniLiberty v1 (новое API) — быстрее и стабильнее для подсказок
+         * 2) Legacy API — fallback на случай проблем/временной недоступности v1
+         */
+        suspend fun fastSearch(query: String): Suggestions =
+            withContext(Dispatchers.IO) {
+                val releaseId = getQueryId(query)
 
-    suspend fun searchReleases(form: SearchForm, page: Int): Paginated<Release> {
-        val yearsQuery = form.years.joinToString(",") { it.value }
-        val seasonsQuery = form.seasons
-            .map(SeasonItem::toLegacySearchSeasonItem)
-            .joinToString(",") { it.value }
-        val genresQuery = form.genres.joinToString(",") { it.value }
-        val sortStr = when (form.sort) {
-            SearchForm.Sort.RATING -> "2"
-            SearchForm.Sort.DATE -> "1"
-        }
-        val onlyCompletedStr = if (form.onlyCompleted) "2" else "1"
+                val items =
+                    if (releaseId != null) {
+                        // --- "id123" : точечная загрузка релиза ---
+                        val v1Item =
+                            runCatching {
+                                aniLibertyApi.getRelease(
+                                    key = AniLibertyReleaseKey.id(releaseId),
+                                    fields = AniLibertyReleaseFields.Suggestions,
+                                ).toSuggestionDomainOrNull(apiUtils)
+                            }.getOrNull()
 
-        return searchReleases(
-            genresQuery,
-            yearsQuery,
-            seasonsQuery,
-            sortStr,
-            onlyCompletedStr,
-            page
-        )
-    }
+                        if (v1Item != null) {
+                            listOf(v1Item)
+                        } else {
+                            // fallback на legacy
+                            runCatching {
+                                releaseApi
+                                    .getReleasesByIds(listOf(releaseId))
+                                    .map { it.toSuggestionDomain(apiUtils, apiConfig) }
+                            }.getOrElse { emptyList() }
+                        }
+                    } else {
+                        // --- обычный запрос ---
+                        val v1Items =
+                            runCatching {
+                                aniLibertyApi
+                                    .searchAppReleases(
+                                        query = query,
+                                        fields = AniLibertyReleaseFields.Suggestions,
+                                    )
+                                    .mapNotNull { it.toSuggestionDomainOrNull(apiUtils) }
+                            }.getOrNull()
 
-    private suspend fun searchReleases(
-        genre: String,
-        year: String,
-        season: String,
-        sort: String,
-        onlyCompleted: String,
-        page: Int,
-    ): Paginated<Release> = withContext(Dispatchers.IO) {
-        searchApi
-            .searchReleases(genre, year, season, sort, onlyCompleted, page)
-            .toDomain { it.toDomain(apiUtils, apiConfig) }
-            .also { updateMiddleware.handle(it.data) }
-    }
+                        if (!v1Items.isNullOrEmpty()) {
+                            v1Items
+                        } else {
+                            // fallback на legacy
+                            runCatching {
+                                searchApi
+                                    .fastSearch(query)
+                                    .map { it.toDomain(apiUtils, apiConfig) }
+                            }.getOrElse { emptyList() }
+                        }
+                    }
 
-    suspend fun getGenres(): List<GenreItem> = withContext(Dispatchers.IO) {
-        searchApi
-            .getGenres()
-            .map { it.toGenreItem() }
-            .also {
-                genresHolder.saveGenres(it)
+                Suggestions(query, items)
             }
-    }
 
-    suspend fun getYears(): List<YearItem> = withContext(Dispatchers.IO) {
-        searchApi
-            .getYears()
-            .map { it.toYearItem() }
-            .also {
-                yearsHolder.saveYears(it)
+        suspend fun searchReleases(
+            form: SearchForm,
+            page: Int,
+        ): Paginated<Release> {
+            val yearsQuery = form.years.joinToString(",") { it.value }
+            val seasonsQuery =
+                form.seasons
+                    .map(SeasonItem::toLegacySearchSeasonItem)
+                    .joinToString(",") { it.value }
+            val genresQuery = form.genres.joinToString(",") { it.value }
+            val sortStr =
+                when (form.sort) {
+                    SearchForm.Sort.RATING -> "2"
+                    SearchForm.Sort.DATE -> "1"
+                }
+            val onlyCompletedStr = if (form.onlyCompleted) "2" else "1"
+
+            return searchReleases(
+                genresQuery,
+                yearsQuery,
+                seasonsQuery,
+                sortStr,
+                onlyCompletedStr,
+                page,
+            )
+        }
+
+        private suspend fun searchReleases(
+            genre: String,
+            year: String,
+            season: String,
+            sort: String,
+            onlyCompleted: String,
+            page: Int,
+        ): Paginated<Release> =
+            withContext(Dispatchers.IO) {
+                searchApi
+                    .searchReleases(genre, year, season, sort, onlyCompleted, page)
+                    .toDomain { it.toDomain(apiUtils, apiConfig) }
+                    .also { updateMiddleware.handle(it.data) }
             }
-    }
 
-    suspend fun getSeasons(): List<SeasonItem> {
-        return withContext(Dispatchers.IO) {
-            listOf("зима", "весна", "лето", "осень").map { SeasonItem(it.capitalizeDefault(), it) }
+        suspend fun getGenres(): List<GenreItem> =
+            withContext(Dispatchers.IO) {
+                searchApi
+                    .getGenres()
+                    .map { it.toGenreItem() }
+                    .also {
+                        genresHolder.saveGenres(it)
+                    }
+            }
+
+        suspend fun getYears(): List<YearItem> =
+            withContext(Dispatchers.IO) {
+                searchApi
+                    .getYears()
+                    .map { it.toYearItem() }
+                    .also {
+                        yearsHolder.saveYears(it)
+                    }
+            }
+
+        suspend fun getSeasons(): List<SeasonItem> {
+            return withContext(Dispatchers.IO) {
+                listOf("зима", "весна", "лето", "осень").map { SeasonItem(it.capitalizeDefault(), it) }
+            }
         }
     }
-}
 
 internal fun SeasonItem.toLegacySearchSeasonItem(): SeasonItem {
     val normalizedValue = value.trim().lowercase()
-    val legacyValue = when (normalizedValue) {
-        "winter" -> "зима"
-        "spring" -> "весна"
-        "summer" -> "лето"
-        "autumn",
-        "fall",
-        -> "осень"
-        else -> normalizedValue.ifBlank { value }
-    }
+    val legacyValue =
+        when (normalizedValue) {
+            "winter" -> "зима"
+            "spring" -> "весна"
+            "summer" -> "лето"
+            "autumn",
+            "fall",
+            -> "осень"
+            else -> normalizedValue.ifBlank { value }
+        }
     return copy(value = legacyValue)
 }

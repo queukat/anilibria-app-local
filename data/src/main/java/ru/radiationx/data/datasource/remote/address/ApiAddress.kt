@@ -10,5 +10,5 @@ data class ApiAddress(
     val base: String,
     val api: String,
     val ips: List<String>,
-    val proxies: List<ApiProxy>
+    val proxies: List<ApiProxy>,
 )

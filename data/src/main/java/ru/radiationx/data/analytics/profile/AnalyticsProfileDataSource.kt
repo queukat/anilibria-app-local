@@ -28,60 +28,73 @@ class AnalyticsProfileDataSource(
     private val releaseUpdateHolder: ReleaseUpdateHolder,
     private val authRepository: AuthRepository,
 ) {
+    fun getApiAddressTag(): Flow<String> =
+        single {
+            apiConfig.tag
+        }
 
-    fun getApiAddressTag(): Flow<String> = single {
-        apiConfig.tag
-    }
+    fun getAppTheme(): Flow<String> =
+        single {
+            analyticsThemeProvider.getTheme().value
+        }
 
-    fun getAppTheme(): Flow<String> = single {
-        analyticsThemeProvider.getTheme().value
-    }
+    fun getQualitySettings(): Flow<String> =
+        single {
+            preferencesHolder.playerQuality.value.toAnalyticsQuality().value
+        }
 
-    fun getQualitySettings(): Flow<String> = single {
-        preferencesHolder.playerQuality.value.toAnalyticsQuality().value
-    }
+    fun getPlaySpeedSettings(): Flow<Float> =
+        single {
+            preferencesHolder.playSpeed.value
+        }
 
-    fun getPlaySpeedSettings(): Flow<Float> = single {
-        preferencesHolder.playSpeed.value
-    }
+    fun getNotificationsAllSettings(): Flow<Boolean> =
+        single {
+            preferencesHolder.notificationsAll.value
+        }
 
-    fun getNotificationsAllSettings(): Flow<Boolean> = single {
-        preferencesHolder.notificationsAll.value
-    }
+    fun getNotificationsServiceSettings(): Flow<Boolean> =
+        single {
+            preferencesHolder.notificationsService.value
+        }
 
-    fun getNotificationsServiceSettings(): Flow<Boolean> = single {
-        preferencesHolder.notificationsService.value
-    }
+    fun getEpisodeOrderSettings(): Flow<Boolean> =
+        single {
+            preferencesHolder.episodesIsReverse.value
+        }
 
-    fun getEpisodeOrderSettings(): Flow<Boolean> = single {
-        preferencesHolder.episodesIsReverse.value
-    }
+    fun getAuthState(): Flow<String> =
+        single {
+            authRepository.getAuthState().toAnalyticsAuthState().value
+        }
 
-    fun getAuthState(): Flow<String> = single {
-        authRepository.getAuthState().toAnalyticsAuthState().value
-    }
+    fun getHistoryItemsCount(): Flow<Int> =
+        single {
+            historyHolder.getIds().size
+        }
 
-    fun getHistoryItemsCount(): Flow<Int> = single {
-        historyHolder.getIds().size
-    }
+    fun getEpisodesItemsCount(): Flow<Int> =
+        single {
+            episodesCheckerHolder.getEpisodes().size
+        }
 
-    fun getEpisodesItemsCount(): Flow<Int> = single {
-        episodesCheckerHolder.getEpisodes().size
-    }
+    fun getReleasesItemsCount(): Flow<Int> =
+        single {
+            releaseUpdateHolder.getReleases().size
+        }
 
-    fun getReleasesItemsCount(): Flow<Int> = single {
-        releaseUpdateHolder.getReleases().size
-    }
+    fun getDownloadsCount(): Flow<Int> =
+        single {
+            downloadsHolder.getDownloads().size
+        }
 
-    fun getDownloadsCount(): Flow<Int> = single {
-        downloadsHolder.getDownloads().size
-    }
+    fun getAppVersionsHistory(): Flow<String> =
+        single {
+            migrationDataSource.getHistory().joinToString()
+        }
 
-    fun getAppVersionsHistory(): Flow<String> = single {
-        migrationDataSource.getHistory().joinToString()
-    }
-
-    private fun <T> single(callable: suspend () -> T) = flow {
-        emit(callable.invoke())
-    }
+    private fun <T> single(callable: suspend () -> T) =
+        flow {
+            emit(callable.invoke())
+        }
 }

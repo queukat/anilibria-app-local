@@ -12,7 +12,6 @@ class CompatTrustManager(
     private val defaultManager: X509TrustManager,
     private val additionalKeyStores: List<KeyStore>,
 ) : X509TrustManager {
-
     private val managers = mutableListOf(defaultManager)
 
     init {
@@ -32,7 +31,10 @@ class CompatTrustManager(
      * Delegate to the default trust manager.
      */
     @Throws(CertificateException::class)
-    override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {
+    override fun checkClientTrusted(
+        chain: Array<X509Certificate>,
+        authType: String,
+    ) {
         defaultManager.checkClientTrusted(chain, authType)
     }
 
@@ -40,7 +42,10 @@ class CompatTrustManager(
      * Loop over the trustmanagers until we find one that accepts our server
      */
     @Throws(CertificateException::class)
-    override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {
+    override fun checkServerTrusted(
+        chain: Array<X509Certificate>,
+        authType: String,
+    ) {
         var latestException: CertificateException? = null
         for (manager in managers) {
             try {
@@ -54,9 +59,10 @@ class CompatTrustManager(
     }
 
     override fun getAcceptedIssuers(): Array<X509Certificate> {
-        val certificates = managers.flatMap {
-            it.acceptedIssuers.toList()
-        }
+        val certificates =
+            managers.flatMap {
+                it.acceptedIssuers.toList()
+            }
         return certificates.toTypedArray()
     }
 }

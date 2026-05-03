@@ -10,7 +10,6 @@ import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReleaseEpis
 import ru.radiationx.data.datasource.remote.aniliberty.moshi.AniLibertyMoshi
 
 class AniLibertyV1DocsSchemaParsingTest {
-
     private val moshi = AniLibertyMoshi.configure(Moshi.Builder().build())
 
     @Test
@@ -25,7 +24,8 @@ class AniLibertyV1DocsSchemaParsingTest {
 
     @Test
     fun otpGetResponse_parsesDocsExampleShape() {
-        val json = """
+        val json =
+            """
             {
               "otp": {
                 "code": "058701",
@@ -35,7 +35,7 @@ class AniLibertyV1DocsSchemaParsingTest {
               },
               "remaining_time": 120
             }
-        """.trimIndent()
+            """.trimIndent()
         val adapter = moshi.adapter(AniLibertyOtpGetResponse::class.java)
 
         val parsed = adapter.fromJson(json)
@@ -49,8 +49,9 @@ class AniLibertyV1DocsSchemaParsingTest {
     fun userViewTimecodes_parsesDocsTupleExample() {
         val json = """[["68d4d5c5-e3d5-419f-a21c-c511b6b251f5",743,true]]"""
 
-        val parsed = AniLibertyJsonListParser
-            .fetchListOrNestedList<AniLibertyReleaseEpisodeTimecode>(json, moshi)
+        val parsed =
+            AniLibertyJsonListParser
+                .fetchListOrNestedList<AniLibertyReleaseEpisodeTimecode>(json, moshi)
 
         assertEquals(1, parsed.size)
         assertEquals("68d4d5c5-e3d5-419f-a21c-c511b6b251f5", parsed.first().releaseEpisodeId.value)

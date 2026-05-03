@@ -8,5 +8,5 @@ import ru.radiationx.data.entity.domain.types.EpisodeId
 data class ExternalEpisode(
     val id: EpisodeId,
     val title: String?,
-    val url: String?
+    val url: String?,
 ) : Parcelable

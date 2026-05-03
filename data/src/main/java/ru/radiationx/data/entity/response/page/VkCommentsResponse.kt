@@ -6,5 +6,5 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 class VkCommentsResponse(
     @Json(name = "baseUrl") val baseUrl: String,
-    @Json(name = "script") val script: String
+    @Json(name = "script") val script: String,
 )

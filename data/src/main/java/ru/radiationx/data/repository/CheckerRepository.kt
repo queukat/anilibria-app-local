@@ -14,26 +14,26 @@ import javax.inject.Inject
 /**
  * Created by radiationx on 28.01.18.
  */
-class CheckerRepository @Inject constructor(
-    private val checkerApi: CheckerApi,
-    private val sharedBuildConfig: SharedBuildConfig,
-) {
+class CheckerRepository
+    @Inject
+    constructor(
+        private val checkerApi: CheckerApi,
+        private val sharedBuildConfig: SharedBuildConfig,
+    ) {
+        private val currentDataRelay = MutableStateFlow<UpdateData?>(null)
 
-    private val currentDataRelay = MutableStateFlow<UpdateData?>(null)
+        fun observeUpdate(): Flow<UpdateData> = currentDataRelay.filterNotNull()
 
-    fun observeUpdate(): Flow<UpdateData> = currentDataRelay.filterNotNull()
-
-    suspend fun checkUpdate(force: Boolean = false): UpdateData {
-        return withContext(Dispatchers.IO) {
-            if (!force && currentDataRelay.value != null) {
-                currentDataRelay.value!!
-            } else {
-                val currentCode = sharedBuildConfig.versionCode
-                checkerApi.checkUpdate(currentCode).update.toDomain(currentCode)
-            }.also {
-                currentDataRelay.value = it
+        suspend fun checkUpdate(force: Boolean = false): UpdateData {
+            return withContext(Dispatchers.IO) {
+                if (!force && currentDataRelay.value != null) {
+                    currentDataRelay.value!!
+                } else {
+                    val currentCode = sharedBuildConfig.versionCode
+                    checkerApi.checkUpdate(currentCode).update.toDomain(currentCode)
+                }.also {
+                    currentDataRelay.value = it
+                }
             }
         }
     }
-
-}

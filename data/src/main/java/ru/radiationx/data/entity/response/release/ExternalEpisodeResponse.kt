@@ -7,5 +7,5 @@ import com.squareup.moshi.JsonClass
 data class ExternalEpisodeResponse(
     @Json(name = "id") val id: Float,
     @Json(name = "title") val title: String?,
-    @Json(name = "url") val url: String?
+    @Json(name = "url") val url: String?,
 )

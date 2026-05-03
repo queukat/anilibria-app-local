@@ -20,6 +20,7 @@ sealed interface AniLibertyTorrentKey {
         init {
             require(id > 0) { "AniLibertyTorrentKey.ById id must be positive" }
         }
+
         override fun asPathSegment(): String = id.toString()
     }
 
@@ -27,11 +28,13 @@ sealed interface AniLibertyTorrentKey {
         init {
             require(hash.isNotBlank()) { "AniLibertyTorrentKey.ByHash hash must not be blank" }
         }
+
         override fun asPathSegment(): String = hash
     }
 
     companion object {
         fun id(value: Int): AniLibertyTorrentKey = ById(value)
+
         fun hash(value: String): AniLibertyTorrentKey = ByHash(value)
     }
 }

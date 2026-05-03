@@ -8,16 +8,17 @@ import ru.radiationx.data.entity.response.release.TorrentResponse
 
 fun TorrentResponse.toDomain(
     releaseId: ReleaseId,
-    apiConfig: ApiConfig
-): TorrentItem = TorrentItem(
-    id = TorrentId(id, releaseId),
-    hash = hash,
-    leechers = leechers,
-    seeders = seeders,
-    completed = completed,
-    quality = quality,
-    series = series,
-    size = size,
-    url = url.appendBaseUrl(apiConfig.baseImagesUrl),
-    date = date.secToDate()
-)
+    apiConfig: ApiConfig,
+): TorrentItem =
+    TorrentItem(
+        id = TorrentId(id, releaseId),
+        hash = hash,
+        leechers = leechers,
+        seeders = seeders,
+        completed = completed,
+        quality = quality,
+        series = series,
+        size = size,
+        url = url.appendBaseUrl(apiConfig.baseImagesUrl),
+        date = date.secToDate(),
+    )

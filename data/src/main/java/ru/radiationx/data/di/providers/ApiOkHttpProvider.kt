@@ -19,85 +19,87 @@ import java.net.Proxy
 import javax.inject.Inject
 import javax.inject.Provider
 
-class ApiOkHttpProvider @Inject constructor(
-    private val context: Context,
-    private val appCookieJar: AppCookieJar,
-    private val apiConfig: ApiConfig,
-    private val sharedBuildConfig: SharedBuildConfig,
-    private val aniLibertyAuthInterceptor: AniLibertyAuthInterceptor,
-    private val unauthorizedInterceptor: UnauthorizedInterceptor,
-    private val sslCompat: SslCompat,
-    private val sslCompatAnalytics: SslCompatAnalytics
-) : Provider<OkHttpClient> {
+class ApiOkHttpProvider
+    @Inject
+    constructor(
+        private val context: Context,
+        private val appCookieJar: AppCookieJar,
+        private val apiConfig: ApiConfig,
+        private val sharedBuildConfig: SharedBuildConfig,
+        private val aniLibertyAuthInterceptor: AniLibertyAuthInterceptor,
+        private val unauthorizedInterceptor: UnauthorizedInterceptor,
+        private val sslCompat: SslCompat,
+        private val sslCompatAnalytics: SslCompatAnalytics,
+    ) : Provider<OkHttpClient> {
+        override fun get(): OkHttpClient =
+            OkHttpClient.Builder()
+                .appendSslCompatAnalytics(sslCompat, sslCompatAnalytics)
+                .appendSslCompat(sslCompat)
+                .appendTimeouts()
+                .apply {
+                    val availableAddress =
+                        apiConfig.getAddresses().map { it.tag }.contains(apiConfig.active.tag)
 
-    override fun get(): OkHttpClient = OkHttpClient.Builder()
-        .appendSslCompatAnalytics(sslCompat, sslCompatAnalytics)
-        .appendSslCompat(sslCompat)
-        .appendTimeouts()
-        .apply {
-            val availableAddress =
-                apiConfig.getAddresses().map { it.tag }.contains(apiConfig.active.tag)
-
-            if (!availableAddress) {
-                val proxy = apiConfig.proxies.minByOrNull { it.ping }
-                proxy?.also {
-                    proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress(it.ip, it.port)))
-                    val username = it.user
-                    val password = it.password
-                    if (username != null && password != null) {
-                        proxyAuthenticator { _, response ->
-                            val credential = Credentials.basic(username, password)
-                            response.request.newBuilder()
-                                .header("Proxy-Authorization", credential)
-                                .build()
+                    if (!availableAddress) {
+                        val proxy = apiConfig.proxies.minByOrNull { it.ping }
+                        proxy?.also {
+                            proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress(it.ip, it.port)))
+                            val username = it.user
+                            val password = it.password
+                            if (username != null && password != null) {
+                                proxyAuthenticator { _, response ->
+                                    val credential = Credentials.basic(username, password)
+                                    response.request.newBuilder()
+                                        .header("Proxy-Authorization", credential)
+                                        .build()
+                                }
+                            }
                         }
                     }
-                }
-            }
 
-
-            addNetworkInterceptor {
-                val hostAddress =
-                    it.connection()?.route()?.socketAddress?.address?.hostAddress.orEmpty()
+                    addNetworkInterceptor {
+                        val hostAddress =
+                            it.connection()?.route()?.socketAddress?.address?.hostAddress.orEmpty()
                 /*if (!apiConfig.getPossibleIps().contains(hostAddress)) {
                     apiConfig.updateNeedConfig(true)
                     throw WrongHostException(hostAddress)
                 }*/
-                it.proceed(it.request()).newBuilder()
-                    .header("Remote-Address", hostAddress)
-                    .build()
-            }
+                        it.proceed(it.request()).newBuilder()
+                            .header("Remote-Address", hostAddress)
+                            .build()
+                    }
 
-            addInterceptor {
-                val additionalHeadersRequest = it.request()
-                    .newBuilder()
-                    .header("mobileApp", "true")
-                    // deprecated header
-                    //.header("Store-Published", "Google")
-                    .header("App-Id", sharedBuildConfig.applicationId)
-                    .header("App-Ver-Name", sharedBuildConfig.versionName)
-                    .header("App-Ver-Code", sharedBuildConfig.versionCode.toString())
-                    .header("User-Agent", Client.USER_AGENT)
-                    .build()
-                it.proceed(additionalHeadersRequest)
-            }
+                    addInterceptor {
+                        val additionalHeadersRequest =
+                            it.request()
+                                .newBuilder()
+                                .header("mobileApp", "true")
+                                // deprecated header
+                                // .header("Store-Published", "Google")
+                                .header("App-Id", sharedBuildConfig.applicationId)
+                                .header("App-Ver-Name", sharedBuildConfig.versionName)
+                                .header("App-Ver-Code", sharedBuildConfig.versionCode.toString())
+                                .header("User-Agent", Client.USER_AGENT)
+                                .build()
+                        it.proceed(additionalHeadersRequest)
+                    }
 
-            // Adds Authorization: Bearer <token> for AniLiberty host only.
-            addInterceptor(aniLibertyAuthInterceptor)
+                    // Adds Authorization: Bearer <token> for AniLiberty host only.
+                    addInterceptor(aniLibertyAuthInterceptor)
 
-            // Clears local auth state on 401.
-            addInterceptor(unauthorizedInterceptor)
+                    // Clears local auth state on 401.
+                    addInterceptor(unauthorizedInterceptor)
 
-            cookieJar(appCookieJar)
-        }
-        .apply {
-            // Contains auth-related requests; keep BODY disabled even if explicit flag is enabled.
-            DebugNetworkLoggingPolicy.appendTo(
-                builder = this,
-                context = context,
-                sharedBuildConfig = sharedBuildConfig,
-                allowBodyLogging = false,
-            )
-        }
-        .build()
-}
+                    cookieJar(appCookieJar)
+                }
+                .apply {
+                    // Contains auth-related requests; keep BODY disabled even if explicit flag is enabled.
+                    DebugNetworkLoggingPolicy.appendTo(
+                        builder = this,
+                        context = context,
+                        sharedBuildConfig = sharedBuildConfig,
+                        allowBodyLogging = false,
+                    )
+                }
+                .build()
+    }

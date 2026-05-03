@@ -15,40 +15,44 @@ import ru.radiationx.data.entity.mapper.toDomain
 import java.net.InetAddress
 import javax.inject.Inject
 
-class ConfigurationRepository @Inject constructor(
-    private val configurationApi: ConfigurationApi,
-    private val apiConfig: ApiConfig,
-    private val apiConfigStorage: ApiConfigStorage,
-) {
+class ConfigurationRepository
+    @Inject
+    constructor(
+        private val configurationApi: ConfigurationApi,
+        private val apiConfig: ApiConfig,
+        private val apiConfigStorage: ApiConfigStorage,
+    ) {
+        private val pingRelay = MutableStateFlow<Map<String, PingResult>?>(null)
 
-    private val pingRelay = MutableStateFlow<Map<String, PingResult>?>(null)
+        suspend fun checkAvailable(apiUrl: String): Boolean =
+            withContext(Dispatchers.IO) {
+                configurationApi
+                    .checkAvailable(apiUrl)
+            }
 
-    suspend fun checkAvailable(apiUrl: String): Boolean = withContext(Dispatchers.IO) {
-        configurationApi
-            .checkAvailable(apiUrl)
-    }
+        suspend fun getConfiguration(): ApiConfigData =
+            withContext(Dispatchers.IO) {
+                configurationApi
+                    .getConfiguration()
+                    .also { apiConfigStorage.save(it) }
+                    .toDomain()
+                    .also { apiConfig.setConfig(it) }
+            }
 
-    suspend fun getConfiguration(): ApiConfigData = withContext(Dispatchers.IO) {
-        configurationApi
-            .getConfiguration()
-            .also { apiConfigStorage.save(it) }
-            .toDomain()
-            .also { apiConfig.setConfig(it) }
-    }
-
-    suspend fun getPingHost(host: String): PingResult {
-        return withContext(Dispatchers.IO) {
-            withTimeout(15_000) {
-                PingTools.doNativePing(InetAddress.getByName(host), PingOptions())
-            }.also {
-                val map = if (pingRelay.value != null) {
-                    pingRelay.value!!.toMutableMap()
-                } else {
-                    mutableMapOf()
+        suspend fun getPingHost(host: String): PingResult {
+            return withContext(Dispatchers.IO) {
+                withTimeout(15_000) {
+                    PingTools.doNativePing(InetAddress.getByName(host), PingOptions())
+                }.also {
+                    val map =
+                        if (pingRelay.value != null) {
+                            pingRelay.value!!.toMutableMap()
+                        } else {
+                            mutableMapOf()
+                        }
+                    map[host] = it
+                    pingRelay.value = map
                 }
-                map[host] = it
-                pingRelay.value = map
             }
         }
     }
-}

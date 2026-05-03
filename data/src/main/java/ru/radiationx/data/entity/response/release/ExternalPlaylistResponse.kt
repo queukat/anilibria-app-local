@@ -8,5 +8,5 @@ data class ExternalPlaylistResponse(
     @Json(name = "tag") val tag: String,
     @Json(name = "title") val title: String,
     @Json(name = "actionText") val actionText: String,
-    @Json(name = "episodes") val episodes: List<ExternalEpisodeResponse>
+    @Json(name = "episodes") val episodes: List<ExternalEpisodeResponse>,
 )

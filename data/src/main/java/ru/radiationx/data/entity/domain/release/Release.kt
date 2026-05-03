@@ -5,7 +5,7 @@ import kotlinx.parcelize.Parcelize
 import ru.radiationx.data.entity.domain.types.ReleaseCode
 import ru.radiationx.data.entity.domain.types.ReleaseId
 
-/* Created by radiationx on 31.10.17. */
+// Created by radiationx on 31.10.17.
 
 @Parcelize
 data class Release(
@@ -30,7 +30,6 @@ data class Release(
     val favoriteInfo: FavoriteInfo,
     val link: String?,
     val franchises: List<Franchise>,
-
     // full
     val showDonateDialog: Boolean,
     val blockedInfo: BlockedInfo,
@@ -41,8 +40,6 @@ data class Release(
     val rutubePlaylist: List<RutubeEpisode>,
     val torrents: List<TorrentItem>,
 ) : Parcelable {
-
-
     companion object {
         const val STATUS_CODE_NOTHING = "0"
         const val STATUS_CODE_PROGRESS = "1"

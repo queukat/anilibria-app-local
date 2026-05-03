@@ -1,7 +1,6 @@
 package ru.radiationx.data.analytics.profile
 
 object ProfileConstants {
-
     const val address_tag = "address_tag"
     const val app_theme = "app_theme"
     const val quality = "quality"

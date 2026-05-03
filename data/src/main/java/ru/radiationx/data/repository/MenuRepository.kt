@@ -10,19 +10,22 @@ import ru.radiationx.data.entity.domain.other.LinkMenuItem
 import ru.radiationx.data.entity.mapper.toDomain
 import javax.inject.Inject
 
-class MenuRepository @Inject constructor(
-    private val menuHolder: MenuHolder,
-    private val menuApi: MenuApi,
-) {
+class MenuRepository
+    @Inject
+    constructor(
+        private val menuHolder: MenuHolder,
+        private val menuApi: MenuApi,
+    ) {
+        fun observeMenu(): Flow<List<LinkMenuItem>> =
+            menuHolder
+                .observe()
+                .flowOn(Dispatchers.IO)
 
-    fun observeMenu(): Flow<List<LinkMenuItem>> = menuHolder
-        .observe()
-        .flowOn(Dispatchers.IO)
-
-    suspend fun getMenu(): List<LinkMenuItem> = withContext(Dispatchers.IO) {
-        menuApi
-            .getMenu()
-            .map { it.toDomain() }
-            .also { menuHolder.save(it) }
+        suspend fun getMenu(): List<LinkMenuItem> =
+            withContext(Dispatchers.IO) {
+                menuApi
+                    .getMenu()
+                    .map { it.toDomain() }
+                    .also { menuHolder.save(it) }
+            }
     }
-}

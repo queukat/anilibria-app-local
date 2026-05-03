@@ -8,5 +8,5 @@ data class LinkMenuResponse(
     @Json(name = "title") val title: String,
     @Json(name = "absoluteLink") val absoluteLink: String?,
     @Json(name = "sitePagePath") val sitePagePath: String?,
-    @Json(name = "icon") val icon: String?
+    @Json(name = "icon") val icon: String?,
 )

@@ -9,11 +9,12 @@ interface TvFavoritesUseCase {
     suspend fun loadFavorites(page: Int): Paginated<Release>
 }
 
-class TvFavoritesUseCaseImpl @Inject constructor(
-    private val favoriteRepository: FavoriteRepository,
-) : TvFavoritesUseCase {
-
-    override suspend fun loadFavorites(page: Int): Paginated<Release> {
-        return favoriteRepository.getFavoritesAniLiberty(page)
+class TvFavoritesUseCaseImpl
+    @Inject
+    constructor(
+        private val favoriteRepository: FavoriteRepository,
+    ) : TvFavoritesUseCase {
+        override suspend fun loadFavorites(page: Int): Paginated<Release> {
+            return favoriteRepository.getFavoritesAniLiberty(page)
+        }
     }
-}

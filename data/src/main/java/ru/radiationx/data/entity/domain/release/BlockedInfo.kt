@@ -6,5 +6,5 @@ import kotlinx.parcelize.Parcelize
 @Parcelize
 data class BlockedInfo(
     val isBlocked: Boolean,
-    val reason: String?
+    val reason: String?,
 ) : Parcelable

@@ -8,5 +8,5 @@ import ru.radiationx.data.entity.response.youtube.YoutubeResponse
 @JsonClass(generateAdapter = true)
 data class FeedResponse(
     @Json(name = "release") val release: ReleaseResponse? = null,
-    @Json(name = "youtube") val youtube: YoutubeResponse? = null
+    @Json(name = "youtube") val youtube: YoutubeResponse? = null,
 )

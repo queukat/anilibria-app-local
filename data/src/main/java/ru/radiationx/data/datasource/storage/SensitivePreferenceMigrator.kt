@@ -2,7 +2,12 @@ package ru.radiationx.data.datasource.storage
 
 internal interface StringKeyValueStore {
     fun getString(key: String): String?
-    fun putString(key: String, value: String)
+
+    fun putString(
+        key: String,
+        value: String,
+    )
+
     fun remove(key: String)
 }
 

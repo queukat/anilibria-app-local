@@ -25,7 +25,6 @@ data class ReleaseResponse(
     @Json(name = "announce") val announce: String?,
     @Json(name = "favorite") val favorite: FavoriteInfoResponse?,
     @Json(name = "franchises") val franchises: List<FranchiseResponse>?,
-
     // full
     @Json(name = "showDonateDialog") val showDonateDialog: Boolean?,
     @Json(name = "blockedInfo") val blockedInfo: BlockedInfoResponse?,

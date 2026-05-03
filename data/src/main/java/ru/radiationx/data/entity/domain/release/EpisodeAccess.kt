@@ -12,7 +12,6 @@ data class EpisodeAccess(
     val isViewed: Boolean,
     private val lastAccess: Long,
 ) : Parcelable {
-
     @IgnoredOnParcel
     val lastAccessRaw = lastAccess
 

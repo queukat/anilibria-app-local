@@ -4,5 +4,5 @@ data class TeamUser(
     val nickname: String,
     val roles: List<TeamRole>,
     val isIntern: Boolean,
-    val isVacation: Boolean
+    val isVacation: Boolean,
 )

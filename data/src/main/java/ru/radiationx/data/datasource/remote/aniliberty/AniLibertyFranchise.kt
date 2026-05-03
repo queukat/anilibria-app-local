@@ -30,7 +30,6 @@ data class AniLibertyFranchiseReleaseItem(
     @Json(name = "sort_order") val sortOrder: Int?,
     @Json(name = "release_id") val releaseId: Int?,
     @Json(name = "franchise_id") val franchiseId: String?,
-
     @Json(name = "release") val release: AniLibertyRelease?,
 )
 
@@ -51,7 +50,6 @@ data class AniLibertyFranchiseDetails(
     @Json(name = "total_episodes") val totalEpisodes: Int?,
     @Json(name = "total_duration") val totalDuration: String?,
     @Json(name = "total_duration_in_seconds") val totalDurationInSeconds: Int?,
-
     @Json(name = "franchise_releases") val franchiseReleases: List<AniLibertyFranchiseReleaseItem>?,
 )
 

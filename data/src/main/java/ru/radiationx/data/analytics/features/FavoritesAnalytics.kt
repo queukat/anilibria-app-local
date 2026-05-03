@@ -6,38 +6,38 @@ import ru.radiationx.data.analytics.features.extensions.toNavFromParam
 import ru.radiationx.data.analytics.features.extensions.toPageParam
 import javax.inject.Inject
 
-class FavoritesAnalytics @Inject constructor(
-    private val sender: AnalyticsSender
-) {
+class FavoritesAnalytics
+    @Inject
+    constructor(
+        private val sender: AnalyticsSender,
+    ) {
+        fun open(from: String) {
+            sender.send(
+                AnalyticsConstants.favorites_open,
+                from.toNavFromParam(),
+            )
+        }
 
-    fun open(from: String) {
-        sender.send(
-            AnalyticsConstants.favorites_open,
-            from.toNavFromParam()
-        )
+        fun searchClick() {
+            sender.send(AnalyticsConstants.favorites_search_click)
+        }
+
+        fun searchReleaseClick() {
+            sender.send(AnalyticsConstants.favorites_search_release_click)
+        }
+
+        fun releaseClick() {
+            sender.send(AnalyticsConstants.favorites_release_click)
+        }
+
+        fun deleteFav() {
+            sender.send(AnalyticsConstants.favorites_delete_click)
+        }
+
+        fun loadPage(page: Int) {
+            sender.send(
+                AnalyticsConstants.favorites_load_page,
+                page.toPageParam(),
+            )
+        }
     }
-
-    fun searchClick() {
-        sender.send(AnalyticsConstants.favorites_search_click)
-    }
-
-    fun searchReleaseClick() {
-        sender.send(AnalyticsConstants.favorites_search_release_click)
-    }
-
-    fun releaseClick() {
-        sender.send(AnalyticsConstants.favorites_release_click)
-    }
-
-    fun deleteFav() {
-        sender.send(AnalyticsConstants.favorites_delete_click)
-    }
-
-    fun loadPage(page: Int) {
-        sender.send(
-            AnalyticsConstants.favorites_load_page,
-            page.toPageParam()
-        )
-    }
-
-}

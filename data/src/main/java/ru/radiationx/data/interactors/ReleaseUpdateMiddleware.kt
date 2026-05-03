@@ -5,19 +5,20 @@ import ru.radiationx.data.entity.domain.feed.FeedItem
 import ru.radiationx.data.entity.domain.release.Release
 import javax.inject.Inject
 
-class ReleaseUpdateMiddleware @Inject constructor(
-    private val holder: ReleaseUpdateHolder
-) {
+class ReleaseUpdateMiddleware
+    @Inject
+    constructor(
+        private val holder: ReleaseUpdateHolder,
+    ) {
+        suspend fun handle(releases: List<Release>) {
+            holder.putInitialRelease(releases)
+        }
 
-    suspend fun handle(releases: List<Release>) {
-        holder.putInitialRelease(releases)
-    }
+        suspend fun handle(release: Release) {
+            holder.putInitialRelease(listOf(release))
+        }
 
-    suspend fun handle(release: Release) {
-        holder.putInitialRelease(listOf(release))
+        suspend fun handleFeed(feedItems: List<FeedItem>) {
+            handle(feedItems.mapNotNull { it.release })
+        }
     }
-
-    suspend fun handleFeed(feedItems: List<FeedItem>) {
-        handle(feedItems.mapNotNull { it.release })
-    }
-}

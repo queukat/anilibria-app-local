@@ -10,4 +10,4 @@ data class EpisodeAccessDb(
     @Json(name = "seek") val seek: Long,
     @Json(name = "isViewed") val isViewed: Boolean,
     @Json(name = "lastAccess") val lastAccess: Long,
-) 
+)

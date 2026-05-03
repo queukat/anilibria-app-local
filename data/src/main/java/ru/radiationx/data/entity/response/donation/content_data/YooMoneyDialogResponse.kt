@@ -18,9 +18,8 @@ data class YooMoneyDialogResponse(
     @Json(name = "bt_donate_text")
     val btDonateText: String,
     @Json(name = "bt_cancel_text")
-    val btCancelText: String
+    val btCancelText: String,
 ) {
-
     @JsonClass(generateAdapter = true)
     data class Amounts(
         @Json(name = "title")
@@ -30,7 +29,7 @@ data class YooMoneyDialogResponse(
         @Json(name = "default_value")
         val defaultValue: Int?,
         @Json(name = "items")
-        val items: List<Int>
+        val items: List<Int>,
     )
 
     @JsonClass(generateAdapter = true)
@@ -40,7 +39,7 @@ data class YooMoneyDialogResponse(
         @Json(name = "selected_id")
         val selectedId: String?,
         @Json(name = "items")
-        val items: List<PaymentType>
+        val items: List<PaymentType>,
     )
 
     @JsonClass(generateAdapter = true)
@@ -48,7 +47,7 @@ data class YooMoneyDialogResponse(
         @Json(name = "id")
         val id: String,
         @Json(name = "title")
-        val title: String
+        val title: String,
     )
 
     @JsonClass(generateAdapter = true)
@@ -60,6 +59,6 @@ data class YooMoneyDialogResponse(
         @Json(name = "short_desc")
         val shortDesc: String?,
         @Json(name = "label")
-        val label: String?
+        val label: String?,
     )
 }

@@ -11,5 +11,5 @@ data class YoutubeResponse(
     @Json(name = "vid") val vid: String?,
     @Json(name = "views") val views: Int,
     @Json(name = "comments") val comments: Int,
-    @Json(name = "timestamp") val timestamp: Int
+    @Json(name = "timestamp") val timestamp: Int,
 )

@@ -12,7 +12,6 @@ class CompatSSLSocketFactory(
     private val mSSLSocketFactory: SSLSocketFactory,
     private val tlsVersions: List<TlsVersion>,
 ) : SSLSocketFactory() {
-
     private val protocols = tlsVersions.map { it.javaName }.toTypedArray()
 
     override fun getDefaultCipherSuites(): Array<String> {
@@ -29,12 +28,20 @@ class CompatSSLSocketFactory(
     }
 
     @Throws(IOException::class)
-    override fun createSocket(s: Socket, host: String, port: Int, autoClose: Boolean): Socket {
+    override fun createSocket(
+        s: Socket,
+        host: String,
+        port: Int,
+        autoClose: Boolean,
+    ): Socket {
         return mSSLSocketFactory.createSocket(s, host, port, autoClose).enableProtocols()
     }
 
     @Throws(IOException::class, UnknownHostException::class)
-    override fun createSocket(host: String, port: Int): Socket {
+    override fun createSocket(
+        host: String,
+        port: Int,
+    ): Socket {
         return mSSLSocketFactory.createSocket(host, port).enableProtocols()
     }
 
@@ -49,7 +56,10 @@ class CompatSSLSocketFactory(
     }
 
     @Throws(IOException::class)
-    override fun createSocket(host: InetAddress, port: Int): Socket {
+    override fun createSocket(
+        host: InetAddress,
+        port: Int,
+    ): Socket {
         return mSSLSocketFactory.createSocket(host, port).enableProtocols()
     }
 
@@ -64,7 +74,7 @@ class CompatSSLSocketFactory(
             address,
             port,
             localAddress,
-            localPort
+            localPort,
         ).enableProtocols()
     }
 

@@ -8,7 +8,7 @@ import ru.radiationx.data.system.ApiUtils
 
 fun YoutubeResponse.toDomain(
     apiUtils: ApiUtils,
-    apiConfig: ApiConfig
+    apiConfig: ApiConfig,
 ) = YoutubeItem(
     id = YoutubeId(id),
     title = apiUtils.escapeHtml(title),
@@ -16,5 +16,5 @@ fun YoutubeResponse.toDomain(
     vid = vid,
     views = views,
     comments = comments,
-    timestamp = timestamp
+    timestamp = timestamp,
 )

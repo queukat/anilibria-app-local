@@ -15,9 +15,10 @@ import ru.radiationx.data.entity.response.release.RandomReleaseResponse
 import ru.radiationx.data.entity.response.release.ReleaseResponse
 import ru.radiationx.data.system.ApiUtils
 
-fun RandomReleaseResponse.toDomain(): RandomRelease = RandomRelease(
-    code = ReleaseCode(code)
-)
+fun RandomReleaseResponse.toDomain(): RandomRelease =
+    RandomRelease(
+        code = ReleaseCode(code),
+    )
 
 fun ReleaseResponse.toDomain(
     apiUtils: ApiUtils,
@@ -43,7 +44,7 @@ fun ReleaseResponse.toDomain(
         description = description?.trim(),
         announce = announce?.trim(),
         favoriteInfo = favorite?.toDomain() ?: FavoriteInfo(0, false),
-        link = "${apiConfig.siteUrl}/release/${code}.html",
+        link = "${apiConfig.siteUrl}/release/$code.html",
         franchises = franchises?.map { it.toDomain() }.orEmpty(),
         showDonateDialog = showDonateDialog ?: false,
         blockedInfo = blockedInfo?.toDomain() ?: BlockedInfo(false, null),
@@ -52,24 +53,27 @@ fun ReleaseResponse.toDomain(
         sourceEpisodes = episodes?.mapNotNull { it.toSourceDomain(releaseId) }.orEmpty(),
         externalPlaylists = externalPlaylists?.map { it.toDomain(releaseId) }.orEmpty(),
         rutubePlaylist = episodes?.mapNotNull { it.toRutubeDomain(releaseId) }.orEmpty(),
-        torrents = torrents?.map { it.toDomain(releaseId, apiConfig) }.orEmpty()
+        torrents = torrents?.map { it.toDomain(releaseId, apiConfig) }.orEmpty(),
     )
 }
 
-fun FavoriteInfoResponse.toDomain(): FavoriteInfo = FavoriteInfo(
-    rating = rating,
-    isAdded = isAdded
-)
+fun FavoriteInfoResponse.toDomain(): FavoriteInfo =
+    FavoriteInfo(
+        rating = rating,
+        isAdded = isAdded,
+    )
 
-fun BlockedInfoResponse.toDomain(): BlockedInfo = BlockedInfo(
-    isBlocked = isBlocked,
-    reason = reason
-)
+fun BlockedInfoResponse.toDomain(): BlockedInfo =
+    BlockedInfo(
+        isBlocked = isBlocked,
+        reason = reason,
+    )
 
-fun MembersResponse.toDomain(): Members = Members(
-    timing = timing,
-    voicing = voicing,
-    editing = editing,
-    decorating = decorating,
-    translating = translating
-)
+fun MembersResponse.toDomain(): Members =
+    Members(
+        timing = timing,
+        voicing = voicing,
+        editing = editing,
+        decorating = decorating,
+        translating = translating,
+    )

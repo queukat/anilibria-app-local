@@ -4,7 +4,6 @@ import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyAuthTokenRe
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyCollectionAddBody
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyCollectionIdItem
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyCollectionsReleasesBody
-import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyFavoriteReleasesBody
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyOtpGetResponse
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReleaseEpisodeTimecode
 import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertySocialAuthenticateResponse
@@ -52,33 +51,41 @@ interface AniLibertyCatalogClient {
         productionStatuses: List<AniLibertyCatalogProductionStatus>? = null,
         sorting: AniLibertyCatalogSorting? = null,
         fields: AniLibertyFieldSpec? = null,
-    ): PaginatedResponse<AniLibertyRelease> = getCatalogReleases(
-        AniLibertyCatalogRequest(
-            page = AniLibertyPage(page),
-            limit = AniLibertyLimit(limit),
-            search = search,
-            genres = genres,
-            fromYear = fromYear,
-            toYear = toYear,
-            seasons = seasons,
-            types = types,
-            ageRatings = ageRatings,
-            publishStatuses = publishStatuses,
-            productionStatuses = productionStatuses,
-            sorting = sorting,
-            fields = fields,
+    ): PaginatedResponse<AniLibertyRelease> =
+        getCatalogReleases(
+            AniLibertyCatalogRequest(
+                page = AniLibertyPage(page),
+                limit = AniLibertyLimit(limit),
+                search = search,
+                genres = genres,
+                fromYear = fromYear,
+                toYear = toYear,
+                seasons = seasons,
+                types = types,
+                ageRatings = ageRatings,
+                publishStatuses = publishStatuses,
+                productionStatuses = productionStatuses,
+                sorting = sorting,
+                fields = fields,
+            ),
         )
-    )
 }
 
 interface AniLibertyCatalogReferencesClient {
     suspend fun getCatalogReferenceAgeRatings(): List<AniLibertyCatalogReferenceAgeRating>
+
     suspend fun getCatalogReferenceGenres(): List<AniLibertyGenre>
+
     suspend fun getCatalogReferenceProductionStatuses(): List<AniLibertyCatalogReferenceProductionStatus>
+
     suspend fun getCatalogReferencePublishStatuses(): List<AniLibertyCatalogReferencePublishStatus>
+
     suspend fun getCatalogReferenceSeasons(): List<AniLibertyCatalogReferenceSeason>
+
     suspend fun getCatalogReferenceSorting(): List<AniLibertyCatalogReferenceSorting>
+
     suspend fun getCatalogReferenceTypes(): List<AniLibertyCatalogReferenceType>
+
     suspend fun getCatalogReferenceYears(): List<Int>
 }
 
@@ -135,8 +142,16 @@ interface AniLibertyReleasesClient {
 
 interface AniLibertyGenresClient {
     suspend fun getGenres(fields: AniLibertyFieldSpec? = null): List<AniLibertyGenre>
-    suspend fun getGenre(genreId: AniLibertyGenreId, fields: AniLibertyFieldSpec? = null): AniLibertyGenre
-    suspend fun getRandomGenres(limit: Int? = null, fields: AniLibertyFieldSpec? = null): List<AniLibertyGenre>
+
+    suspend fun getGenre(
+        genreId: AniLibertyGenreId,
+        fields: AniLibertyFieldSpec? = null,
+    ): AniLibertyGenre
+
+    suspend fun getRandomGenres(
+        limit: Int? = null,
+        fields: AniLibertyFieldSpec? = null,
+    ): List<AniLibertyGenre>
 
     suspend fun getGenreReleases(
         genreId: AniLibertyGenreId,
@@ -148,24 +163,34 @@ interface AniLibertyGenresClient {
 
 interface AniLibertyScheduleClient {
     suspend fun getScheduleNow(fields: AniLibertyFieldSpec? = null): AniLibertyScheduleNowResponse
+
     suspend fun getScheduleWeek(fields: AniLibertyFieldSpec? = null): AniLibertyScheduleWeekResponse
 }
 
 interface AniLibertyTorrentsClient {
-    suspend fun getTorrents(page: Int = 1, limit: Int = 20): PaginatedResponse<AniLibertyTorrent>
+    suspend fun getTorrents(
+        page: Int = 1,
+        limit: Int = 20,
+    ): PaginatedResponse<AniLibertyTorrent>
+
     suspend fun getTorrent(key: AniLibertyTorrentKey): AniLibertyTorrent
+
     suspend fun getTorrentFile(key: AniLibertyTorrentKey): String
 
     suspend fun getTorrentsByRelease(releaseId: AniLibertyReleaseId): List<AniLibertyTorrent>
 
     suspend fun getTorrentsRss(): String
+
     suspend fun getTorrentsRssByRelease(releaseId: AniLibertyReleaseId): String
 }
 
 interface AniLibertyMediaClient {
     suspend fun getMediaVasts(): List<AniLibertyVast>
+
     suspend fun getMediaManifestXml(): String
+
     suspend fun getMediaPromotions(): AniLibertyMediaPromotionsResponse
+
     suspend fun getMediaVideos(): AniLibertyMediaVideosResponse
 }
 
@@ -177,39 +202,64 @@ interface AniLibertyAppClient {
     suspend fun searchAppReleases(
         query: String,
         fields: AniLibertyFieldSpec? = null,
-    ): List<AniLibertyRelease> = searchAppReleases(
-        AniLibertyAppSearchReleasesRequest(
-            query = query,
-            fields = fields,
+    ): List<AniLibertyRelease> =
+        searchAppReleases(
+            AniLibertyAppSearchReleasesRequest(
+                query = query,
+                fields = fields,
+            ),
         )
-    )
 }
 
 interface AniLibertyAccountsClient {
     // OTP
     suspend fun otpGet(deviceId: AniLibertyDeviceId): AniLibertyOtpGetResponse
+
     suspend fun otpAccept(code: AniLibertyOtpCode)
-    suspend fun otpLogin(code: AniLibertyOtpCode, deviceId: AniLibertyDeviceId): AniLibertyAuthTokenResponse
+
+    suspend fun otpLogin(
+        code: AniLibertyOtpCode,
+        deviceId: AniLibertyDeviceId,
+    ): AniLibertyAuthTokenResponse
 
     // Auth
-    suspend fun login(login: String, password: String): AniLibertyAuthTokenResponse
+    suspend fun login(
+        login: String,
+        password: String,
+    ): AniLibertyAuthTokenResponse
+
     suspend fun socialLogin(provider: AniLibertySocialProvider): AniLibertySocialLoginResponse
+
     suspend fun socialAuthenticate(state: String): AniLibertySocialAuthenticateResponse
+
     suspend fun logout(): AniLibertyAuthTokenResponse
+
     suspend fun passwordForget(email: AniLibertyEmail)
-    suspend fun passwordReset(token: String, password: String, passwordConfirmation: String)
+
+    suspend fun passwordReset(
+        token: String,
+        password: String,
+        passwordConfirmation: String,
+    )
 
     // References (Collections)
     suspend fun getUserCollectionsReferenceAgeRatings(): List<ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReferenceValueLabelDescription>
+
     suspend fun getUserCollectionsReferenceGenres(): List<AniLibertyGenre>
+
     suspend fun getUserCollectionsReferenceTypes(): List<ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReferenceValueDescription>
+
     suspend fun getUserCollectionsReferenceYears(): List<Int>
 
     // References (Favorites)
     suspend fun getUserFavoritesReferenceAgeRatings(): List<ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReferenceValueLabelDescription>
+
     suspend fun getUserFavoritesReferenceGenres(): List<AniLibertyGenre>
+
     suspend fun getUserFavoritesReferenceSorting(): List<ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReferenceValueDescription>
+
     suspend fun getUserFavoritesReferenceTypes(): List<ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReferenceValueDescription>
+
     suspend fun getUserFavoritesReferenceYears(): List<Int>
 
     // Favorites
@@ -234,34 +284,42 @@ interface AniLibertyAccountsClient {
         sorting: AniLibertyFavoriteSorting? = null,
         ageRatings: List<AniLibertyAgeRating>? = null,
         fields: AniLibertyFieldSpec? = null,
-    ): PaginatedResponse<AniLibertyRelease> = getUserFavoriteReleasesFiltered(
-        AniLibertyFavoritesFilterRequest(
-            page = AniLibertyPage(page),
-            limit = AniLibertyLimit(limit),
-            years = years,
-            types = types,
-            genres = genres,
-            search = search,
-            sorting = sorting,
-            ageRatings = ageRatings,
-            fields = fields,
+    ): PaginatedResponse<AniLibertyRelease> =
+        getUserFavoriteReleasesFiltered(
+            AniLibertyFavoritesFilterRequest(
+                page = AniLibertyPage(page),
+                limit = AniLibertyLimit(limit),
+                years = years,
+                types = types,
+                genres = genres,
+                search = search,
+                sorting = sorting,
+                ageRatings = ageRatings,
+                fields = fields,
+            ),
         )
-    )
 
     // Favorites mutate
     suspend fun addToFavorites(releaseIds: List<AniLibertyReleaseId>): List<AniLibertyReleaseId>
+
     suspend fun removeFromFavorites(releaseIds: List<AniLibertyReleaseId>): List<AniLibertyReleaseId>
 
     // Collections
     suspend fun getUserCollectionIds(): List<AniLibertyCollectionIdItem>
+
     suspend fun getUserCollectionReleasesFiltered(request: AniLibertyCollectionsFilterRequest): PaginatedResponse<AniLibertyRelease>
+
     suspend fun getUserCollectionReleasesByBody(body: AniLibertyCollectionsReleasesBody): PaginatedResponse<AniLibertyRelease>
+
     suspend fun addToCollections(items: List<AniLibertyCollectionAddBody>): List<AniLibertyCollectionIdItem>
+
     suspend fun removeFromCollections(releaseIds: List<AniLibertyReleaseId>): List<AniLibertyCollectionIdItem>
 
     // Views timecodes
     suspend fun getUserViewTimecodes(since: String? = null): List<AniLibertyViewTimecode>
+
     suspend fun upsertUserViewTimecodes(items: List<AniLibertyUserViewTimecodeUpsertBody>)
+
     suspend fun deleteUserViewTimecodes(items: List<AniLibertyUserViewTimecodeDeleteBody>)
 
     // Profile
@@ -304,6 +362,8 @@ interface AniLibertyFranchisesClient {
  */
 interface AniLibertyTeamsClient {
     suspend fun getTeams(fields: AniLibertyFieldSpec? = null): List<AniLibertyTeam>
+
     suspend fun getTeamRoles(fields: AniLibertyFieldSpec? = null): List<AniLibertyTeamRole>
+
     suspend fun getTeamUsers(fields: AniLibertyFieldSpec? = null): List<AniLibertyTeamUserItem>
 }

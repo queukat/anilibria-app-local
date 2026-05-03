@@ -15,40 +15,43 @@ interface TvSuggestionsUseCase {
     suspend fun loadSuggestions(query: String): List<SuggestionItem>
 }
 
-class TvSuggestionsUseCaseImpl @Inject constructor(
-    private val aniLibertyApi: AniLibertyApi,
-    private val apiUtils: ApiUtils,
-) : TvSuggestionsUseCase {
-    override suspend fun loadSuggestions(query: String): List<SuggestionItem> {
-        return withContext(Dispatchers.IO) {
-            val releaseId = searchIdRegex.find(query.trim())
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.toIntOrNull()
+class TvSuggestionsUseCaseImpl
+    @Inject
+    constructor(
+        private val aniLibertyApi: AniLibertyApi,
+        private val apiUtils: ApiUtils,
+    ) : TvSuggestionsUseCase {
+        override suspend fun loadSuggestions(query: String): List<SuggestionItem> {
+            return withContext(Dispatchers.IO) {
+                val releaseId =
+                    searchIdRegex.find(query.trim())
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        ?.toIntOrNull()
 
-            if (releaseId != null) {
-                return@withContext listOfNotNull(
-                    runCatching {
-                        aniLibertyApi.getRelease(
-                            key = AniLibertyReleaseKey.id(releaseId),
-                            fields = AniLibertyReleaseFields.Suggestions,
-                        ).toSuggestionDomainOrNull(apiUtils)
-                    }.getOrNull()
-                )
-            }
-
-            aniLibertyApi
-                .searchAppReleases(
-                    AniLibertyAppSearchReleasesRequest(
-                        query = query,
-                        fields = AniLibertyReleaseFields.Suggestions,
+                if (releaseId != null) {
+                    return@withContext listOfNotNull(
+                        runCatching {
+                            aniLibertyApi.getRelease(
+                                key = AniLibertyReleaseKey.id(releaseId),
+                                fields = AniLibertyReleaseFields.Suggestions,
+                            ).toSuggestionDomainOrNull(apiUtils)
+                        }.getOrNull(),
                     )
-                )
-                .mapNotNull { it.toSuggestionDomainOrNull(apiUtils) }
+                }
+
+                aniLibertyApi
+                    .searchAppReleases(
+                        AniLibertyAppSearchReleasesRequest(
+                            query = query,
+                            fields = AniLibertyReleaseFields.Suggestions,
+                        ),
+                    )
+                    .mapNotNull { it.toSuggestionDomainOrNull(apiUtils) }
+            }
+        }
+
+        private companion object {
+            val searchIdRegex = Regex("^id(\\d{3,})$")
         }
     }
-
-    private companion object {
-        val searchIdRegex = Regex("^id(\\d{3,})$")
-    }
-}

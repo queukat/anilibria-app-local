@@ -22,10 +22,11 @@ fun SuggestionResponse.toDomain(
 ) = SuggestionItem(
     id = ReleaseId(id),
     code = ReleaseCode(code),
-    names = names.map {
-        apiUtils.escapeHtml(it).toString()
-    },
-    poster = poster?.appendBaseUrl(apiConfig.baseImagesUrl)
+    names =
+        names.map {
+            apiUtils.escapeHtml(it).toString()
+        },
+    poster = poster?.appendBaseUrl(apiConfig.baseImagesUrl),
 )
 
 fun ReleaseResponse.toSuggestionDomain(
@@ -34,10 +35,11 @@ fun ReleaseResponse.toSuggestionDomain(
 ) = SuggestionItem(
     id = ReleaseId(id),
     code = ReleaseCode(code),
-    names = names.orEmpty().map {
-        apiUtils.escapeHtml(it).toString()
-    },
-    poster = poster?.appendBaseUrl(apiConfig.baseImagesUrl)
+    names =
+        names.orEmpty().map {
+            apiUtils.escapeHtml(it).toString()
+        },
+    poster = poster?.appendBaseUrl(apiConfig.baseImagesUrl),
 )
 
 private const val ANI_LIBERTY_HOST = "https://aniliberty.top"
@@ -48,20 +50,20 @@ private const val ANI_LIBERTY_HOST = "https://aniliberty.top"
  * Возвращает `null`, если в ответе отсутствует id (на практике это не должно происходить,
  * но wire-модель допускает nullable поля).
  */
-fun AniLibertyRelease.toSuggestionDomainOrNull(
-    apiUtils: ApiUtils,
-): SuggestionItem? {
+fun AniLibertyRelease.toSuggestionDomainOrNull(apiUtils: ApiUtils): SuggestionItem? {
     val idValue = id?.value ?: return null
 
-    val titleRu = name?.main
-        ?.let { apiUtils.escapeHtml(it).toString() }
-        ?.trim()
-        .orEmpty()
+    val titleRu =
+        name?.main
+            ?.let { apiUtils.escapeHtml(it).toString() }
+            ?.trim()
+            .orEmpty()
 
-    val titleEn = (name?.english ?: name?.alternative)
-        ?.let { apiUtils.escapeHtml(it).toString() }
-        ?.trim()
-        .orEmpty()
+    val titleEn =
+        (name?.english ?: name?.alternative)
+            ?.let { apiUtils.escapeHtml(it).toString() }
+            ?.trim()
+            .orEmpty()
 
     val names = mutableListOf<String>()
 
@@ -77,12 +79,13 @@ fun AniLibertyRelease.toSuggestionDomainOrNull(
 
     if (second.isNotBlank() && second != first) names.add(second)
 
-    val posterUrl = (
-        poster?.optimized?.preview
-            ?: poster?.preview
-            ?: poster?.thumbnail
+    val posterUrl =
+        (
+            poster?.optimized?.preview
+                ?: poster?.preview
+                ?: poster?.thumbnail
         )
-        .toAbsoluteAniLibertyUrl()
+            .toAbsoluteAniLibertyUrl()
 
     val codeValue = alias?.value?.trim()?.takeIf { it.isNotEmpty() } ?: idValue.toString()
 
@@ -105,17 +108,19 @@ private fun String?.toAbsoluteAniLibertyUrl(): String? {
     }
 }
 
-fun String.toYearItem(): YearItem = YearItem(
-    title = this,
-    value = this
-)
+fun String.toYearItem(): YearItem =
+    YearItem(
+        title = this,
+        value = this,
+    )
 
 fun Int.toYearItem(): YearItem = toString().toYearItem()
 
-fun String.toGenreItem(): GenreItem = GenreItem(
-    title = this.capitalizeDefault(),
-    value = this
-)
+fun String.toGenreItem(): GenreItem =
+    GenreItem(
+        title = this.capitalizeDefault(),
+        value = this,
+    )
 
 fun AniLibertyGenre.toGenreItemOrNull(): GenreItem? {
     val genreId = id ?: return null
@@ -135,10 +140,11 @@ fun AniLibertyCatalogReferenceSeason.toSeasonItemOrNull(): SeasonItem? {
     )
 }
 
-fun AniLibertySeason.toSeasonTitle(): String = when (value.lowercase()) {
-    AniLibertySeason.Winter.value -> "Зима"
-    AniLibertySeason.Spring.value -> "Весна"
-    AniLibertySeason.Summer.value -> "Лето"
-    AniLibertySeason.Autumn.value -> "Осень"
-    else -> value.capitalizeDefault()
-}
+fun AniLibertySeason.toSeasonTitle(): String =
+    when (value.lowercase()) {
+        AniLibertySeason.Winter.value -> "Зима"
+        AniLibertySeason.Spring.value -> "Весна"
+        AniLibertySeason.Summer.value -> "Лето"
+        AniLibertySeason.Autumn.value -> "Осень"
+        else -> value.capitalizeDefault()
+    }
