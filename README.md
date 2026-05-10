@@ -1,9 +1,13 @@
 # AniLibria
+
+<!-- public-repo-status -->
+> Status: Local source fork. This repository is for source review and personal builds only; Android downloads are not published through GitHub Releases here.
+
 Клиент для сайта [AniLibria.tv](https://anilibria.tv/)
 
-Мобильное приложение: [RuStore](https://www.rustore.ru/catalog/app/ru.radiationx.anilibria.app) | [Releases](https://github.com/anilibria/anilibria-app/releases?q=version)
+Мобильное приложение: [RuStore](https://www.rustore.ru/catalog/app/ru.radiationx.anilibria.app)
 
-Android TV приложение: [RuStore](https://www.rustore.ru/catalog/app/ru.radiationx.anilibria.app.tv) | [Releases](https://github.com/anilibria/anilibria-app/releases?q=tv)
+Android TV приложение: [RuStore](https://www.rustore.ru/catalog/app/ru.radiationx.anilibria.app.tv)
 
 # Сборка модулей
 В репозитории есть два app-модуля: `:app-mobile` и `:app-tv`.
