@@ -1,7 +1,7 @@
 package ru.radiationx.data.datasource.storage
 
 import android.content.SharedPreferences
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -10,7 +10,7 @@ import ru.radiationx.data.DataPreferences
 import ru.radiationx.data.datasource.SuspendMutableStateFlow
 import ru.radiationx.data.datasource.holders.GenresHolder
 import ru.radiationx.data.entity.domain.release.GenreItem
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 /**
  * Created by radiationx on 17.02.18.
@@ -39,7 +39,7 @@ class GenresStorage
         override suspend fun getGenres(): List<GenreItem> = localGenresRelay.getValue()
 
         private suspend fun saveAll() {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val jsonGenres = JSONArray()
                 localGenresRelay.getValue().forEach {
                     jsonGenres.put(
@@ -57,7 +57,7 @@ class GenresStorage
         }
 
         private suspend fun loadAll(): List<GenreItem> {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 val result = mutableListOf<GenreItem>()
                 val savedGenres = sharedPreferences.getString(LOCAL_GENRES_KEY, null)
                 savedGenres?.let { genre ->

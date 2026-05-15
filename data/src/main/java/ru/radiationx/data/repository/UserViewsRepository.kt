@@ -1,6 +1,8 @@
 package ru.radiationx.data.repository
 
-import kotlinx.coroutines.Dispatchers
+import java.math.BigDecimal
+import javax.inject.Inject
+import kotlin.math.roundToLong
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -25,10 +27,8 @@ import ru.radiationx.data.entity.domain.watching.UserViewHistoryItem
 import ru.radiationx.data.entity.domain.watching.UserViewPendingUpload
 import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.system.ApplicationCoroutineScope
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import timber.log.Timber
-import java.math.BigDecimal
-import javax.inject.Inject
-import kotlin.math.roundToLong
 
 /**
  * Repository for AniLiberty user views:
@@ -88,7 +88,7 @@ class UserViewsRepository
             page: Int,
             limit: Int,
         ): PaginatedResponse<UserViewHistoryItem> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val safeLimit = limit.coerceIn(1, MAX_USER_VIEWS_HISTORY_LIMIT)
                 val response =
                     aniLibertyApi.getUserViewsHistory(
@@ -160,7 +160,7 @@ class UserViewsRepository
          * Useful when local episode id is AniLiberty UUID and UI needs "series N" label.
          */
         suspend fun resolveEpisodeOrdinal(episodeId: EpisodeId): String? =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 normalizeOrdinalStringOrNull(episodeId.id)?.let { return@withContext it }
 
                 val releaseCache = getReleaseEpisodesCacheOrNull(episodeId.releaseId) ?: return@withContext null
@@ -183,7 +183,7 @@ class UserViewsRepository
             episodeId: EpisodeId,
             positionMs: Long,
             isWatched: Boolean,
-        ) = withContext(Dispatchers.IO) {
+        ) = withContext(AppDispatchers.io) {
             if (positionMs < 0) return@withContext
 
             syncHolder.upsertPendingUpload(
@@ -202,7 +202,7 @@ class UserViewsRepository
          * Best-effort: swallows network/auth errors.
          */
         suspend fun deleteEpisodeTimecode(episodeId: EpisodeId) =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val aniEpisodeId = resolveAniEpisodeIdOrNull(episodeId) ?: return@withContext
                 val body = AniLibertyUserViewTimecodeDeleteBody.from(aniEpisodeId)
                 syncHolder.removePendingUploadsByEpisodeIds(listOf(episodeId))
@@ -221,7 +221,7 @@ class UserViewsRepository
          * Best-effort: swallows network/auth errors.
          */
         suspend fun deleteAllTimecodesForRelease(releaseId: ReleaseId) =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 syncHolder.removePendingUploadsByReleaseId(releaseId)
                 cache[releaseId]?.allIds?.let { allIds ->
                     removeTimecodeCache(allIds)
@@ -243,7 +243,7 @@ class UserViewsRepository
          * Best-effort: swallows network/auth errors.
          */
         suspend fun markAllWatchedForRelease(releaseId: ReleaseId) =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 syncHolder.removePendingUploadsByReleaseId(releaseId)
                 cache[releaseId]?.allIds?.takeIf { allIds -> allIds.isNotEmpty() }?.let { allIds ->
                     updateTimecodeCache(
@@ -274,7 +274,7 @@ class UserViewsRepository
             }
 
         suspend fun flushPendingUploads(reason: String = "manual") =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 pendingUploadsMutex.withLock {
                     val pendingUploads =
                         syncHolder.getPendingUploads()
@@ -348,7 +348,7 @@ class UserViewsRepository
             maxPages: Int,
             limit: Int,
         ): EpisodeId? =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 if (maxPages <= 0 || limit <= 0) return@withContext null
 
                 var page = 1

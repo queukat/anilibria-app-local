@@ -1,7 +1,13 @@
 package ru.radiationx.data.interactors
 
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.security.MessageDigest
+import java.text.SimpleDateFormat
+import java.util.Locale
+import javax.inject.Inject
+import kotlin.math.roundToLong
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -28,14 +34,8 @@ import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.repository.UserViewsRepository
 import ru.radiationx.data.system.ApplicationCoroutineScope
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import timber.log.Timber
-import java.math.BigDecimal
-import java.math.RoundingMode
-import java.security.MessageDigest
-import java.text.SimpleDateFormat
-import java.util.Locale
-import javax.inject.Inject
-import kotlin.math.roundToLong
 
 /**
  * One-time migration + lightweight ongoing sync for AniLiberty user views.
@@ -91,7 +91,7 @@ class UserViewsSyncInteractor
          * NOTE: minSdk is 21, so we avoid a hard dependency on java.time here.
          */
         suspend fun syncIfNeeded() =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val token = authTokenHolder.getToken()?.takeIf { it.isNotBlank() } ?: return@withContext
 
                 // Hash is used only to detect "same user/session" across launches without persisting raw token.
@@ -206,7 +206,7 @@ class UserViewsSyncInteractor
          * - and all upsert chunks completed successfully
          */
         private suspend fun uploadLocalToRemoteWithConflicts(): Boolean =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val remoteSnapshot =
                     runCatching { aniLibertyApi.getUserViewTimecodes(since = null) }
                         .onFailure { Timber.w(it, "UserViewsSync: failed to load remote timecodes snapshot") }
@@ -298,7 +298,7 @@ class UserViewsSyncInteractor
             maxPages: Int,
             syncSessionStartedAtMs: Long,
         ): Boolean =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val dirtyLocalEpisodeIds =
                     syncHolder.getPendingUploads()
                         .mapTo(linkedSetOf()) { upload -> upload.toEpisodeId() }

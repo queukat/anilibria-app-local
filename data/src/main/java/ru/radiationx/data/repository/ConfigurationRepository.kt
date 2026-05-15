@@ -3,7 +3,8 @@ package ru.radiationx.data.repository
 import com.stealthcopter.networktools.ping.PingOptions
 import com.stealthcopter.networktools.ping.PingResult
 import com.stealthcopter.networktools.ping.PingTools
-import kotlinx.coroutines.Dispatchers
+import java.net.InetAddress
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -12,8 +13,7 @@ import ru.radiationx.data.datasource.remote.address.ApiConfigData
 import ru.radiationx.data.datasource.remote.api.ConfigurationApi
 import ru.radiationx.data.datasource.storage.ApiConfigStorage
 import ru.radiationx.data.entity.mapper.toDomain
-import java.net.InetAddress
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class ConfigurationRepository
     @Inject
@@ -28,7 +28,7 @@ class ConfigurationRepository
             configurationApi.checkAvailable(apiUrl)
 
         suspend fun getConfiguration(): ApiConfigData =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 configurationApi
                     .getConfiguration()
                     .also { apiConfigStorage.save(it) }
@@ -37,7 +37,7 @@ class ConfigurationRepository
             }
 
         suspend fun getPingHost(host: String): PingResult {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 withTimeout(15_000) {
                     PingTools.doNativePing(InetAddress.getByName(host), PingOptions())
                 }.also {

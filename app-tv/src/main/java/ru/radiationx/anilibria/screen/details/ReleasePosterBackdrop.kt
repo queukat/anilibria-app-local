@@ -17,8 +17,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import ru.radiationx.shared_app.imageloader.loadImageBitmap
 
 @Composable
@@ -37,7 +37,7 @@ internal fun ReleasePosterImage(
                 null
             } else {
                 runCatching {
-                    withContext(Dispatchers.IO) {
+                    withContext(AppDispatchers.io) {
                         context.loadImageBitmap(imageUrl).asImageBitmap()
                     }
                 }.getOrNull()

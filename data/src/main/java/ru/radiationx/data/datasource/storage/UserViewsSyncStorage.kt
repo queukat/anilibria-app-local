@@ -4,7 +4,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.withContext
 import ru.radiationx.data.DataPreferences
 import ru.radiationx.data.datasource.SuspendMutableStateFlow
@@ -12,7 +12,7 @@ import ru.radiationx.data.datasource.holders.UserViewsSyncHolder
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.domain.watching.UserViewPendingUpload
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class UserViewsSyncStorage
     @Inject
@@ -82,14 +82,14 @@ class UserViewsSyncStorage
         }
 
         private suspend fun load(key: String): String? =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 sharedPreferences.getString(key, null)
             }
 
         private suspend fun save(
             key: String,
             value: String?,
-        ) = withContext(Dispatchers.IO) {
+        ) = withContext(AppDispatchers.io) {
             sharedPreferences.edit {
                 if (value == null) {
                     remove(key)
@@ -100,14 +100,14 @@ class UserViewsSyncStorage
         }
 
         private suspend fun loadPendingUploads(): List<UserViewPendingUpload> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 sharedPreferences.getString(KEY_PENDING_UPLOADS, null)
                     ?.let { json -> pendingUploadsAdapter.fromJson(json) }
                     .orEmpty()
             }
 
         private suspend fun savePendingUploads(value: List<UserViewPendingUpload>) =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 sharedPreferences.edit {
                     if (value.isEmpty()) {
                         remove(KEY_PENDING_UPLOADS)

@@ -4,9 +4,9 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ru.radiationx.data.entity.response.PaginatedResponse
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 /**
  * Вспомогательные DTO и функции для работы с обёрткой AniLiberty:
@@ -48,7 +48,7 @@ data class AniLibertyPaginatedResponse<T>(
  * Парсинг "сырых" JSON-ответов AniLiberty в AniLibertyPaginatedResponse<T>
  */
 suspend inline fun <reified T> String.fetchAniLibertyPaginated(moshi: Moshi): AniLibertyPaginatedResponse<T> =
-    withContext(Dispatchers.Default) {
+    withContext(AppDispatchers.default) {
         val type =
             Types.newParameterizedType(
                 AniLibertyPaginatedResponse::class.java,

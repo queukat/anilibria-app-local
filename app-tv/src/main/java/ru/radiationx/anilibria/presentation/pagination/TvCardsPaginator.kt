@@ -2,18 +2,18 @@ package ru.radiationx.anilibria.presentation.pagination
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class TvCardsPaginator<T>(
     private val scope: CoroutineScope,
     private val firstPage: Int = 1,
-    private val dispatcherProvider: () -> CoroutineDispatcher = { Dispatchers.IO },
+    private val dispatcherProvider: () -> CoroutineDispatcher = { AppDispatchers.io },
     private val loadPage: suspend (Int, TvPagingState<T>) -> TvPagingLoadResult<T>,
     private val onStateChanged: (TvPagingState<T>) -> Unit = {},
 ) {

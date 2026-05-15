@@ -2,14 +2,14 @@ package ru.radiationx.data.datasource.storage
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import ru.radiationx.data.datasource.SuspendMutableStateFlow
 import ru.radiationx.data.datasource.holders.UserHolder
 import ru.radiationx.data.entity.domain.other.ProfileItem
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 /**
  * Created by radiationx on 11.01.18.
@@ -42,7 +42,7 @@ class UserStorage
         }
 
         override suspend fun delete() {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 sharedPreferences.edit {
                     remove(KEY_SAVED_USER)
                 }
@@ -55,7 +55,7 @@ class UserStorage
         }
 
         private suspend fun getSavedUser(): ProfileItem? {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 sharedPreferences
                     .getString(KEY_SAVED_USER, null)
                     ?.let { JSONObject(it) }
@@ -79,7 +79,7 @@ class UserStorage
         }
 
         private suspend fun localSaveUser(user: ProfileItem) {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val userJson =
                     JSONObject().apply {
                         put("id", user.id)

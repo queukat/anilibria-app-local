@@ -1,6 +1,6 @@
 package ru.radiationx.data.repository
 
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
@@ -14,7 +14,7 @@ import ru.radiationx.data.entity.domain.HistoryReleases
 import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.interactors.HistoryRuntimeCache
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 /**
  * Created by radiationx on 18.02.18.
@@ -27,7 +27,7 @@ class HistoryRepository
         private val historyRuntimeCache: HistoryRuntimeCache,
     ) {
         suspend fun getReleases(count: Int = Int.MAX_VALUE): HistoryReleases =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val allIds = historyStorage.getIds()
                 val trimmedReleases =
                     allIds
@@ -48,7 +48,7 @@ class HistoryRepository
                     }
                 }
                 .filterNotNull()
-                .flowOn(Dispatchers.IO)
+                .flowOn(AppDispatchers.io)
 
         suspend fun putReleaseId(id: ReleaseId) {
             historyStorage.putId(id)

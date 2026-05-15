@@ -1,7 +1,10 @@
 package ru.radiationx.data.downloader
 
 import android.content.Context
-import kotlinx.coroutines.Dispatchers
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
@@ -9,10 +12,7 @@ import kotlinx.coroutines.flow.flowOn
 import okhttp3.ResponseBody
 import ru.radiationx.data.SimpleClient
 import ru.radiationx.data.datasource.remote.IClient
-import java.io.File
-import java.io.InputStream
-import java.io.OutputStream
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class RemoteFileRepository
     @Inject
@@ -69,7 +69,7 @@ class RemoteFileRepository
                     }
                     throw ex
                 }
-            }.flowOn(Dispatchers.IO)
+            }.flowOn(AppDispatchers.io)
 
         private fun getCacheDir(): File {
             val file = File(context.cacheDir, "anilibria_remote")
@@ -126,5 +126,5 @@ private fun InputStream.copyToWithProgress(
         }
         emit(100)
     }
-        .flowOn(Dispatchers.IO)
+        .flowOn(AppDispatchers.io)
         .distinctUntilChanged()

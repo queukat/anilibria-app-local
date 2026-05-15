@@ -1,6 +1,6 @@
 package ru.radiationx.data.repository
 
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
@@ -27,7 +27,7 @@ import ru.radiationx.data.entity.mapper.toYearItem
 import ru.radiationx.data.interactors.ReleaseUpdateMiddleware
 import ru.radiationx.data.system.ApiUtils
 import ru.radiationx.shared.ktx.capitalizeDefault
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class SearchRepository
     @Inject
@@ -46,12 +46,12 @@ class SearchRepository
         fun observeGenres(): Flow<List<GenreItem>> =
             genresHolder
                 .observeGenres()
-                .flowOn(Dispatchers.IO)
+                .flowOn(AppDispatchers.io)
 
         fun observeYears(): Flow<List<YearItem>> =
             yearsHolder
                 .observeYears()
-                .flowOn(Dispatchers.IO)
+                .flowOn(AppDispatchers.io)
 
         private fun getQueryId(query: String): Int? {
             return searchIdRegex.find(query)?.let { matchResult ->
@@ -67,7 +67,7 @@ class SearchRepository
          * 2) Legacy API — fallback на случай проблем/временной недоступности v1
          */
         suspend fun fastSearch(query: String): Suggestions =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val releaseId = getQueryId(query)
 
                 val items =
@@ -153,7 +153,7 @@ class SearchRepository
             onlyCompleted: String,
             page: Int,
         ): Paginated<Release> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 searchApi
                     .searchReleases(genre, year, season, sort, onlyCompleted, page)
                     .toDomain { it.toDomain(apiUtils, apiConfig) }
@@ -161,7 +161,7 @@ class SearchRepository
             }
 
         suspend fun getGenres(): List<GenreItem> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 searchApi
                     .getGenres()
                     .map { it.toGenreItem() }
@@ -171,7 +171,7 @@ class SearchRepository
             }
 
         suspend fun getYears(): List<YearItem> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 searchApi
                     .getYears()
                     .map { it.toYearItem() }
@@ -181,7 +181,7 @@ class SearchRepository
             }
 
         suspend fun getSeasons(): List<SeasonItem> {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 listOf("зима", "весна", "лето", "осень").map { SeasonItem(it.capitalizeDefault(), it) }
             }
         }

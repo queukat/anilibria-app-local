@@ -3,7 +3,12 @@ package ru.radiationx.data.historyfile
 import android.content.Context
 import android.net.Uri
 import com.squareup.moshi.Moshi
-import kotlinx.coroutines.Dispatchers
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import javax.inject.Inject
 import kotlinx.coroutines.withContext
 import okio.buffer
 import okio.sink
@@ -15,12 +20,7 @@ import ru.radiationx.data.downloader.LocalFile
 import ru.radiationx.data.historyfile.mapper.toDomain
 import ru.radiationx.data.historyfile.mapper.toExport
 import ru.radiationx.data.historyfile.models.HistoryExport
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class HistoryFileRepository
     @Inject
@@ -36,7 +36,7 @@ class HistoryFileRepository
         }
 
         suspend fun exportFile(): LocalFile {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 val data =
                     HistoryExport(
                         history = historyHolder.getIds().map { it.toExport() },
@@ -54,7 +54,7 @@ class HistoryFileRepository
         }
 
         suspend fun importFile(uri: Uri) {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val data =
                     context.contentResolver.openFileDescriptor(uri, "r").use { descriptor ->
                         requireNotNull(descriptor) {

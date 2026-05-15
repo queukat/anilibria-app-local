@@ -3,14 +3,14 @@ package ru.radiationx.data.downloader
 import android.content.SharedPreferences
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import kotlinx.coroutines.Dispatchers
+import java.util.UUID
+import javax.inject.Inject
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import ru.radiationx.data.DataPreferences
 import ru.radiationx.data.datasource.SuspendMutableStateFlow
 import ru.radiationx.data.entity.domain.types.ReleaseId
-import java.util.UUID
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class RemoteFileStorage
     @Inject
@@ -65,7 +65,7 @@ class RemoteFileStorage
         }
 
         private suspend fun saveAll() {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val jsonEpisodes =
                     remoteFilesState.getValue()
                         .let { dataAdapter.toJson(it) }
@@ -77,7 +77,7 @@ class RemoteFileStorage
         }
 
         private suspend fun loadAll(): List<RemoteFileDb> {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 sharedPreferences
                     .getString(REMOTE_FILES_KEY, null)
                     ?.let { dataAdapter.fromJson(it) }

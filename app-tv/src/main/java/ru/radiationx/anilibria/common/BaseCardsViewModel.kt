@@ -2,7 +2,6 @@ package ru.radiationx.anilibria.common
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,6 +10,7 @@ import ru.radiationx.anilibria.presentation.pagination.TvCardsPaginator
 import ru.radiationx.anilibria.presentation.pagination.TvPagingLoadResult
 import ru.radiationx.anilibria.presentation.pagination.TvPagingState
 import ru.radiationx.anilibria.screen.LifecycleViewModel
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 abstract class BaseCardsViewModel : LifecycleViewModel() {
     /** Итоговые карточки для показа (LibriaCard, LinkCard, LoadingCard и т.д.) */
@@ -57,7 +57,7 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
     /** Карточка для отображения «в процессе загрузки». */
     protected open val loadingCard = LoadingCard("Загрузка данных")
 
-    private var loaderDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private var loaderDispatcher: CoroutineDispatcher = AppDispatchers.io
     private val paginator by lazy(LazyThreadSafetyMode.NONE) { createPaginator() }
 
     override fun onColdCreate() {
@@ -151,7 +151,7 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
 
     /**
      * Test hook to make asynchronous loading deterministic.
-     * Production keeps using Dispatchers.IO.
+     * Production keeps using AppDispatchers.io.
      */
     internal fun setLoaderDispatcherForTests(dispatcher: CoroutineDispatcher) {
         loaderDispatcher = dispatcher

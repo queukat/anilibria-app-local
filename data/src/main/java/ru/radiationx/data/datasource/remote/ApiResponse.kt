@@ -4,10 +4,10 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import kotlinx.coroutines.Dispatchers
+import java.lang.reflect.Type
 import kotlinx.coroutines.withContext
 import ru.radiationx.data.entity.response.PaginatedResponse
-import java.lang.reflect.Type
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 @JsonClass(generateAdapter = true)
 data class ApiResponse<T>(
@@ -27,7 +27,7 @@ suspend fun <T> String.fetchResponse(
     moshi: Moshi,
     dataType: Type,
 ): T {
-    return withContext(Dispatchers.Default) {
+    return withContext(AppDispatchers.default) {
         val adapter = moshi.adapter<T>(dataType)
         val response = adapter.fromJson(this@fetchResponse)
         requireNotNull(response) {
@@ -50,7 +50,7 @@ suspend fun <T> String.fetchApiResponse(
     moshi: Moshi,
     dataType: Type,
 ): T {
-    return withContext(Dispatchers.Default) {
+    return withContext(AppDispatchers.default) {
         val responseType = Types.newParameterizedType(ApiResponse::class.java, dataType)
         val adapter = moshi.adapter<ApiResponse<T>>(responseType)
         val apiResponse = adapter.fromJson(this@fetchApiResponse)

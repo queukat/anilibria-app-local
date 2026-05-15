@@ -1,7 +1,7 @@
 package ru.radiationx.data.repository
 
+import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ru.radiationx.data.datasource.holders.AuthTokenHolder
 import ru.radiationx.data.datasource.holders.CookieHolder
@@ -25,8 +25,8 @@ import ru.radiationx.data.entity.response.PaginatedResponse
 import ru.radiationx.data.interactors.ReleaseUpdateMiddleware
 import ru.radiationx.data.system.ApiUtils
 import ru.radiationx.data.system.HttpException
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import timber.log.Timber
-import javax.inject.Inject
 
 class FavoriteRepository
     @Inject
@@ -52,12 +52,12 @@ class FavoriteRepository
             )
 
         suspend fun addFavoriteAniLiberty(releaseId: ReleaseId) =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 aniLibertyApi.addToFavorites(listOf(AniLibertyReleaseId(releaseId.id)))
             }
 
         suspend fun deleteFavoriteAniLiberty(releaseId: ReleaseId) =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 aniLibertyApi.removeFromFavorites(listOf(AniLibertyReleaseId(releaseId.id)))
             }
 
@@ -67,7 +67,7 @@ class FavoriteRepository
          * We map AniLiberty v1 wire releases into legacy domain [Release] (subset, safe for lists).
          */
         suspend fun getFavorites(page: Int): Paginated<Release> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val hasToken = !authTokenHolder.getToken().isNullOrBlank()
                 val hasLegacyCookie = cookieHolder.getCookies()[CookieHolder.PHPSESSID] != null
 
@@ -182,7 +182,7 @@ class FavoriteRepository
         }
 
         suspend fun deleteFavorite(releaseId: ReleaseId): Release =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 // 1) v1 mutate (main source of truth after migration)
                 runCatching {
                     aniLibertyApi.removeFromFavorites(listOf(AniLibertyReleaseId(releaseId.id)))
@@ -209,7 +209,7 @@ class FavoriteRepository
             }
 
         suspend fun addFavorite(releaseId: ReleaseId): Release =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 // 1) v1 mutate (main source of truth after migration)
                 runCatching {
                     aniLibertyApi.addToFavorites(listOf(AniLibertyReleaseId(releaseId.id)))

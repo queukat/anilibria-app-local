@@ -1,6 +1,9 @@
 package ru.radiationx.data.repository
 
-import kotlinx.coroutines.Dispatchers
+import java.util.Calendar
+import java.util.Date
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -13,11 +16,8 @@ import ru.radiationx.data.entity.mapper.toDomain
 import ru.radiationx.data.interactors.ReleaseUpdateMiddleware
 import ru.radiationx.data.system.ApiUtils
 import ru.radiationx.shared.ktx.asMsk
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import ru.radiationx.shared.ktx.isSameDay
-import java.util.Calendar
-import java.util.Date
-import java.util.concurrent.TimeUnit
-import javax.inject.Inject
 
 class ScheduleRepository
     @Inject
@@ -32,7 +32,7 @@ class ScheduleRepository
         fun observeSchedule(): Flow<List<ScheduleDay>> = dataRelay.filterNotNull()
 
         suspend fun loadSchedule(): List<ScheduleDay> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 scheduleApi
                     .getSchedule()
                     .map { it.toDomain(apiUtils, apiConfig) }

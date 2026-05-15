@@ -2,8 +2,11 @@ package ru.radiationx.data.repository
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import java.math.BigDecimal
+import javax.inject.Inject
+import kotlin.math.max
+import kotlin.math.roundToLong
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -23,11 +26,8 @@ import ru.radiationx.data.entity.domain.release.isNearEpisodeEnd
 import ru.radiationx.data.entity.domain.types.EpisodeId
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.system.HttpException
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import timber.log.Timber
-import java.math.BigDecimal
-import javax.inject.Inject
-import kotlin.math.max
-import kotlin.math.roundToLong
 
 /**
  * One-time migration/sync of **local** episode progresses (EpisodeAccess) to AniLiberty user timecodes.
@@ -72,7 +72,7 @@ class UserViewsMigration
         private val mutex = Mutex()
 
         suspend fun syncIfNeeded(userId: Int) =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 mutex.withLock {
                     val token = authTokenHolder.getToken()
                     if (token.isNullOrBlank()) return@withLock

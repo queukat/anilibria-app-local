@@ -1,6 +1,6 @@
 package ru.radiationx.data.interactors.tv
 
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.withContext
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyAppSearchReleasesRequest
@@ -9,7 +9,7 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseKey
 import ru.radiationx.data.entity.domain.search.SuggestionItem
 import ru.radiationx.data.entity.mapper.toSuggestionDomainOrNull
 import ru.radiationx.data.system.ApiUtils
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 fun interface TvSuggestionsUseCase {
     suspend fun loadSuggestions(query: String): List<SuggestionItem>
@@ -22,7 +22,7 @@ class TvSuggestionsUseCaseImpl
         private val apiUtils: ApiUtils,
     ) : TvSuggestionsUseCase {
         override suspend fun loadSuggestions(query: String): List<SuggestionItem> {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 val releaseId =
                     searchIdRegex.find(query.trim())
                         ?.groupValues

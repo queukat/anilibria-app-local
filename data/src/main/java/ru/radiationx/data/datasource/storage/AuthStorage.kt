@@ -2,7 +2,8 @@ package ru.radiationx.data.datasource.storage
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
-import kotlinx.coroutines.Dispatchers
+import java.util.UUID
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -10,8 +11,7 @@ import kotlinx.coroutines.withContext
 import ru.radiationx.data.DataPreferences
 import ru.radiationx.data.datasource.SuspendMutableStateFlow
 import ru.radiationx.data.datasource.holders.AuthHolder
-import java.util.UUID
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 /**
  * Created by radiationx on 30.12.17.
@@ -40,7 +40,7 @@ class AuthStorage
         }
 
         override suspend fun getDeviceId(): String {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 var uid = sharedPreferences.getString(KEY_DEVICE_UID, null)
 
                 if (uid == null) {
@@ -60,7 +60,7 @@ class AuthStorage
         }
 
         override suspend fun setAuthSkipped(value: Boolean) {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 sharedPreferences.edit {
                     putBoolean(KEY_AUTH_SKIPPED, value)
                 }
@@ -69,7 +69,7 @@ class AuthStorage
         }
 
         private suspend fun loadAuthSkipped(): Boolean {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 sharedPreferences.getBoolean(KEY_AUTH_SKIPPED, false)
             }
         }

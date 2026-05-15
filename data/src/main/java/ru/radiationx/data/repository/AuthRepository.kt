@@ -1,6 +1,6 @@
 package ru.radiationx.data.repository
 
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -29,8 +29,8 @@ import ru.radiationx.data.entity.mapper.extractTokenOrNull
 import ru.radiationx.data.entity.mapper.toDomain
 import ru.radiationx.data.interactors.UserViewsSyncInteractor
 import ru.radiationx.shared.ktx.coRunCatching
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * Created by radiationx on 30.12.17.
@@ -62,10 +62,10 @@ class AuthRepository
                 profileItem?.takeIf { authState == AuthState.AUTH }
             }
                 .distinctUntilChanged()
-                .flowOn(Dispatchers.IO)
+                .flowOn(AppDispatchers.io)
 
         suspend fun getUser(): ProfileItem? {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 userHolder.getUser()?.takeIf {
                     getAuthState() == AuthState.AUTH
                 }
@@ -81,10 +81,10 @@ class AuthRepository
                 computeAuthState(cookies, token, skipped)
             }
                 .distinctUntilChanged()
-                .flowOn(Dispatchers.IO)
+                .flowOn(AppDispatchers.io)
 
         suspend fun getAuthState(): AuthState {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 computeAuthState(
                     cookies = cookieHolder.getCookies(),
                     token = authTokenHolder.getToken(),
@@ -98,7 +98,7 @@ class AuthRepository
         }
 
         suspend fun loadUser(): ProfileItem =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val profile = loadUserInternal()
                 updateUser(profile)
 
@@ -125,7 +125,7 @@ class AuthRepository
         }
 
         suspend fun getOtpInfo(): OtpInfo =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val deviceId = AniLibertyDeviceId(authHolder.getDeviceId())
 
                 runCatching {
@@ -136,7 +136,7 @@ class AuthRepository
             }
 
         suspend fun acceptOtp(code: String) =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val otpCode =
                     code.trim().toIntOrNull()
                         ?: throw IllegalArgumentException("OTP code must be numeric")
@@ -159,7 +159,7 @@ class AuthRepository
             }
 
         suspend fun signInOtp(code: String): ProfileItem =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val deviceIdRaw = authHolder.getDeviceId()
                 val deviceId = AniLibertyDeviceId(deviceIdRaw)
 
@@ -217,7 +217,7 @@ class AuthRepository
             password: String,
             code2fa: String,
         ): ProfileItem =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val tokenResponse = aniLibertyApi.login(login = login, password = password, code2fa = code2fa)
                 val token =
                     tokenResponse.extractTokenOrNull()
@@ -247,7 +247,7 @@ class AuthRepository
             }
 
         suspend fun signOut() {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 coRunCatching {
                     // token logout (v1)
                     aniLibertyApi.logout()
@@ -271,10 +271,10 @@ class AuthRepository
         fun observeSocialAuth(): Flow<List<SocialAuth>> =
             socialAuthHolder
                 .observe()
-                .flowOn(Dispatchers.IO)
+                .flowOn(AppDispatchers.io)
 
         suspend fun loadSocialAuth(): List<SocialAuth> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 authApi
                     .loadSocialAuth()
                     .map { it.toDomain() }
@@ -282,7 +282,7 @@ class AuthRepository
             }
 
         suspend fun getSocialAuth(key: String): SocialAuth =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 socialAuthHolder.get().first { it.key == key }
             }
 
@@ -290,7 +290,7 @@ class AuthRepository
             resultUrl: String,
             item: SocialAuth,
         ): ProfileItem =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 authApi
                     .signInSocial(resultUrl, item)
                     .toDomain(apiConfig)

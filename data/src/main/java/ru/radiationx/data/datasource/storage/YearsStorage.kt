@@ -1,7 +1,7 @@
 package ru.radiationx.data.datasource.storage
 
 import android.content.SharedPreferences
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -10,7 +10,7 @@ import ru.radiationx.data.DataPreferences
 import ru.radiationx.data.datasource.SuspendMutableStateFlow
 import ru.radiationx.data.datasource.holders.YearsHolder
 import ru.radiationx.data.entity.domain.release.YearItem
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 /**
  * Created by radiationx on 17.02.18.
@@ -39,7 +39,7 @@ class YearsStorage
         override suspend fun getYears(): List<YearItem> = localYearsRelay.getValue()
 
         private suspend fun saveAll() {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val jsonYears = JSONArray()
                 localYearsRelay.getValue().forEach {
                     jsonYears.put(
@@ -57,7 +57,7 @@ class YearsStorage
         }
 
         private suspend fun loadAll(): List<YearItem> {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 val result = mutableListOf<YearItem>()
                 val savedYears = sharedPreferences.getString(LOCAL_YEARS_KEY, null)
                 savedYears?.let { year ->

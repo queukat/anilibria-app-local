@@ -1,7 +1,7 @@
 package ru.radiationx.data.datasource.storage
 
 import android.content.SharedPreferences
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -13,8 +13,8 @@ import ru.radiationx.data.datasource.SuspendMutableStateFlow
 import ru.radiationx.data.datasource.holders.HistoryHolder
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.shared.ktx.android.mapObjects
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * Created by radiationx on 18.02.18.
@@ -176,7 +176,7 @@ class HistoryStorage
         }
 
         private suspend fun saveAll(ids: List<ReleaseId>) {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val jsonEpisodes = JSONArray()
                 ids.forEach {
                     jsonEpisodes.put(
@@ -193,7 +193,7 @@ class HistoryStorage
         }
 
         private suspend fun loadAll(): List<ReleaseId> {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 val result = mutableListOf<ReleaseId>()
                 sharedPreferences
                     .getString(LOCAL_HISTORY_KEY, null)

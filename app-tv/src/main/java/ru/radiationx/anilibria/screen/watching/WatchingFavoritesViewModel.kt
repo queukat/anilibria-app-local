@@ -4,8 +4,8 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +33,7 @@ import ru.radiationx.data.entity.domain.search.SearchForm
 import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
 import ru.radiationx.data.interactors.tv.TvSearchUseCase
 import ru.radiationx.data.repository.AuthRepository
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class WatchingFavoritesViewModel
     @Inject
@@ -227,7 +227,7 @@ class WatchingFavoritesViewModel
                             syncController.loadAllFavoritesIncremental { partial ->
                                 releasesCache = partial
                                 val filters =
-                                    withContext(Dispatchers.Default) {
+                                    withContext(AppDispatchers.default) {
                                         cardsPresenter.computeAvailableFilters(partial)
                                     }
                                 updateAvailableFilters(filters)
@@ -238,7 +238,7 @@ class WatchingFavoritesViewModel
                         lastSuccessfulSyncMs = System.currentTimeMillis()
 
                         val filters =
-                            withContext(Dispatchers.Default) {
+                            withContext(AppDispatchers.default) {
                                 cardsPresenter.computeAvailableFilters(all)
                             }
                         updateAvailableFilters(filters)
@@ -296,7 +296,7 @@ class WatchingFavoritesViewModel
                 viewModelScope.launch {
                     val src = releasesCache
                     val cards =
-                        withContext(Dispatchers.Default) {
+                        withContext(AppDispatchers.default) {
                             cardsPresenter.present(
                                 releases = src,
                                 filterState =

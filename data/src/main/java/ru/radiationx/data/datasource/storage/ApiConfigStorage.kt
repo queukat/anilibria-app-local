@@ -4,15 +4,15 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
-import kotlinx.coroutines.Dispatchers
+import java.util.concurrent.atomic.AtomicBoolean
+import javax.inject.Inject
 import kotlinx.coroutines.withContext
 import ru.radiationx.data.CriticalSecureDataPreferences
 import ru.radiationx.data.DataPreferences
 import ru.radiationx.data.di.CriticalSecureStorageStatus
 import ru.radiationx.data.entity.response.config.ApiConfigResponse
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import timber.log.Timber
-import java.util.concurrent.atomic.AtomicBoolean
-import javax.inject.Inject
 
 class ApiConfigStorage
     @Inject
@@ -37,7 +37,7 @@ class ApiConfigStorage
         private val degradedModeWarningPrinted = AtomicBoolean(false)
 
         suspend fun save(config: ApiConfigResponse) {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 try {
                     warnIfSecureStorageUnavailable()
                     val sanitizedConfig = sanitizeConfig(config)
@@ -54,7 +54,7 @@ class ApiConfigStorage
         }
 
         suspend fun get(): ApiConfigResponse? {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 val config =
                     sharedPreferences
                         .getString(KEY_API_CONFIG, null)
@@ -67,13 +67,13 @@ class ApiConfigStorage
         }
 
         suspend fun setActive(tag: String) {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 sharedPreferences.edit().putString(KEY_API_CONFIG_ACTIVE, tag).apply()
             }
         }
 
         suspend fun getActive(): String? {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 sharedPreferences
                     .getString(KEY_API_CONFIG_ACTIVE, null)
             }

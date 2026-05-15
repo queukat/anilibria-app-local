@@ -1,7 +1,8 @@
 package ru.radiationx.data.datasource.storage
 
 import android.content.SharedPreferences
-import kotlinx.coroutines.Dispatchers
+import java.util.concurrent.atomic.AtomicBoolean
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
@@ -12,9 +13,8 @@ import ru.radiationx.data.datasource.SuspendMutableStateFlow
 import ru.radiationx.data.datasource.holders.CookieHolder
 import ru.radiationx.data.datasource.holders.CookieHolder.Companion.cookieNames
 import ru.radiationx.data.di.CriticalSecureStorageStatus
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import timber.log.Timber
-import java.util.concurrent.atomic.AtomicBoolean
-import javax.inject.Inject
 
 /**
  * Created by radiationx on 30.12.17.
@@ -48,7 +48,7 @@ class CookiesStorage
             cookie: Cookie,
         ) {
             migrateIfNeeded()
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 encryptedPreferences
                     .edit()
                     .putString("cookie_${cookie.name}", convertCookie(url, cookie))
@@ -59,7 +59,7 @@ class CookiesStorage
 
         override suspend fun removeCookie(name: String) {
             migrateIfNeeded()
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 encryptedPreferences
                     .edit()
                     .remove("cookie_$name")
@@ -78,7 +78,7 @@ class CookiesStorage
 
         private suspend fun loadCookies(): Map<String, Cookie> {
             migrateIfNeeded()
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 val result = mutableMapOf<String, Cookie>()
                 cookieNames.forEach { s ->
                     encryptedPreferences

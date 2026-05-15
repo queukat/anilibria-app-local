@@ -1,6 +1,6 @@
 package ru.radiationx.data.repository
 
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -10,7 +10,7 @@ import ru.radiationx.data.datasource.remote.api.DonationApi
 import ru.radiationx.data.entity.domain.donation.DonationInfo
 import ru.radiationx.data.entity.domain.donation.yoomoney.YooMoneyDialog
 import ru.radiationx.data.entity.mapper.toDomain
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class DonationRepository
     @Inject
@@ -19,7 +19,7 @@ class DonationRepository
         private val donationHolder: DonationHolder,
     ) {
         suspend fun requestUpdate() =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 donationApi
                     .getDonationDetail()
                     .also { donationHolder.save(it) }
@@ -29,7 +29,7 @@ class DonationRepository
             donationHolder
                 .observe()
                 .map { it.toDomain() }
-                .flowOn(Dispatchers.IO)
+                .flowOn(AppDispatchers.io)
 
         suspend fun createYooMoneyPayLink(
             amount: Int,

@@ -1,6 +1,9 @@
 package ru.radiationx.data.system
 
-import kotlinx.coroutines.Dispatchers
+import java.io.IOException
+import javax.inject.Inject
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -17,10 +20,7 @@ import okhttp3.Response
 import ru.radiationx.data.SharedBuildConfig
 import ru.radiationx.data.datasource.remote.IClient
 import ru.radiationx.data.datasource.remote.NetworkResponse
-import java.io.IOException
-import javax.inject.Inject
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 open class Client
     @Inject
@@ -111,7 +111,7 @@ open class Client
             url: String,
             args: Map<String, String>,
         ): Response {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 var attempt = 0
                 var delayMs = RetryPolicy.initialBackoffMs
                 while (true) {
@@ -257,7 +257,7 @@ open class Client
             url: String,
             jsonBody: String,
         ): Response {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 val mediaType = "application/json; charset=utf-8".toMediaType()
                 val body = jsonBody.toRequestBody(mediaType)
 

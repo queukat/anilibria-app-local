@@ -1,7 +1,7 @@
 package ru.radiationx.data.interactors
 
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -28,8 +28,8 @@ import ru.radiationx.data.datasource.remote.address.ApiAddress
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.entity.common.ConfigScreenState
 import ru.radiationx.data.repository.ConfigurationRepository
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import timber.log.Timber
-import javax.inject.Inject
 
 class ConfiguringInteractor
     @Inject
@@ -44,7 +44,7 @@ class ConfiguringInteractor
 
         private var currentState = initialState
 
-        private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+        private val scope = CoroutineScope(AppDispatchers.mainImmediate + SupervisorJob())
 
         private val fullTimeCounter = TimeCounter()
 

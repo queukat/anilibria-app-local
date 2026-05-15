@@ -1,7 +1,7 @@
 package ru.radiationx.data.datasource.storage
 
 import android.content.SharedPreferences
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -10,7 +10,7 @@ import ru.radiationx.data.DataPreferences
 import ru.radiationx.data.datasource.SuspendMutableStateFlow
 import ru.radiationx.data.datasource.holders.SocialAuthHolder
 import ru.radiationx.data.entity.domain.auth.SocialAuth
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class SocialAuthStorage
     @Inject
@@ -37,7 +37,7 @@ class SocialAuthStorage
         }
 
         private suspend fun getSavedData(): List<SocialAuth> {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 val resultItems = mutableListOf<SocialAuth>()
                 sharedPreferences.getString("social_auth", null)?.also {
                     val itemsJson = JSONArray(it)
@@ -59,7 +59,7 @@ class SocialAuthStorage
         }
 
         private suspend fun saveData(items: List<SocialAuth>) {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val resultJson = JSONArray()
                 items.forEach { item ->
                     resultJson.put(

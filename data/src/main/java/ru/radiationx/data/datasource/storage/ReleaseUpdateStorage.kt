@@ -3,7 +3,7 @@ package ru.radiationx.data.datasource.storage
 import android.content.SharedPreferences
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import ru.radiationx.data.DataPreferences
@@ -15,7 +15,7 @@ import ru.radiationx.data.entity.domain.release.ReleaseUpdate
 import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.mapper.toDb
 import ru.radiationx.data.entity.mapper.toDomain
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 /**
  * Created by radiationx on 18.02.18.
@@ -87,7 +87,7 @@ class ReleaseUpdateStorage
         }
 
         private suspend fun saveAll() {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val jsonEpisodes =
                     localReleasesRelay.getValue()
                         .map { it.toDb() }
@@ -100,7 +100,7 @@ class ReleaseUpdateStorage
         }
 
         private suspend fun loadAll(): List<ReleaseUpdate> {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 sharedPreferences
                     .getString(LOCAL_HISTORY_KEY, null)
                     ?.let { dataAdapter.fromJson(it) }

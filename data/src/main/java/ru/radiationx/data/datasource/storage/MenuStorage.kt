@@ -1,7 +1,7 @@
 package ru.radiationx.data.datasource.storage
 
 import android.content.SharedPreferences
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -12,7 +12,7 @@ import ru.radiationx.data.datasource.holders.MenuHolder
 import ru.radiationx.data.entity.domain.other.DataIcons
 import ru.radiationx.data.entity.domain.other.LinkMenuItem
 import ru.radiationx.shared.ktx.android.nullString
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class MenuStorage
     @Inject
@@ -72,7 +72,7 @@ class MenuStorage
         override suspend fun get(): List<LinkMenuItem> = localMenuRelay.getValue()
 
         private suspend fun saveAll() {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val jsonMenu = JSONArray()
                 localMenuRelay.getValue().forEach {
                     jsonMenu.put(
@@ -92,7 +92,7 @@ class MenuStorage
         }
 
         private suspend fun loadAll(): List<LinkMenuItem> {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 val result = defaultLocalMenu.toMutableList()
                 sharedPreferences.getString(LOCAL_MENU_KEY, null)?.also { savedMenu ->
                     val jsonMenu = JSONArray(savedMenu)

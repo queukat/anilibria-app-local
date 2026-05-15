@@ -5,13 +5,13 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.pm.Signature
 import android.os.Build
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import timber.log.Timber
 import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
 import javax.inject.Inject
+import kotlinx.coroutines.withContext
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
+import timber.log.Timber
 
 class ApkVerifier
     @Inject
@@ -28,7 +28,7 @@ class ApkVerifier
             apkFile: File,
             expectedSha256: String?,
         ): Result =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 if (!apkFile.exists() || !apkFile.isFile) {
                     return@withContext Result.Failure("Файл обновления не найден.")
                 }

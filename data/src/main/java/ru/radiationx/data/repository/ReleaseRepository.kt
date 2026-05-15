@@ -1,6 +1,6 @@
 package ru.radiationx.data.repository
 
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -31,8 +31,8 @@ import ru.radiationx.data.entity.mapper.toLegacyFullReleaseOrNull
 import ru.radiationx.data.entity.mapper.toLegacyReleaseOrNull
 import ru.radiationx.data.interactors.ReleaseUpdateMiddleware
 import ru.radiationx.data.system.ApiUtils
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * Releases repository.
@@ -66,7 +66,7 @@ class ReleaseRepository
             )
 
         suspend fun getRandomRelease(): RandomRelease =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val v1 =
                     runCatching {
                         aniLibertyApi.getRandomReleases(
@@ -88,7 +88,7 @@ class ReleaseRepository
             }
 
         suspend fun getRelease(releaseId: ReleaseId): Release =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val v1 =
                     loadV1FullReleaseOrNull(
                         key = AniLibertyReleaseKey.id(releaseId.id),
@@ -104,7 +104,7 @@ class ReleaseRepository
             }
 
         suspend fun getReleaseAniLiberty(releaseId: ReleaseId): Release =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val release =
                     requireNotNull(
                         loadV1FullReleaseOrNull(
@@ -119,7 +119,7 @@ class ReleaseRepository
             }
 
         suspend fun getRelease(releaseIdName: ReleaseCode): Release =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val v1 =
                     runCatching {
                         // AniLiberty "alias" ~= legacy "code"
@@ -139,7 +139,7 @@ class ReleaseRepository
             }
 
         suspend fun getReleasesById(ids: List<ReleaseId>): List<Release> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 if (ids.isEmpty()) return@withContext emptyList()
 
                 val v1 =
@@ -167,7 +167,7 @@ class ReleaseRepository
             }
 
         suspend fun getFullReleasesByIdAniLiberty(ids: List<ReleaseId>): List<Release> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 if (ids.isEmpty()) return@withContext emptyList()
 
                 val releases =
@@ -190,7 +190,7 @@ class ReleaseRepository
             }
 
         suspend fun getFullReleasesById(ids: List<ReleaseId>): List<Release> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 if (ids.isEmpty()) return@withContext emptyList()
 
                 // 1) v1: берём релизы по id параллельно
@@ -237,7 +237,7 @@ class ReleaseRepository
             }
 
         suspend fun loadWithFranchisesAniLiberty(releaseId: ReleaseId): List<Release> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val rootRelease = getReleaseAniLiberty(releaseId)
                 val rootReleaseIds = rootRelease.getFranchisesIds()
                 if (rootReleaseIds.isEmpty()) {
@@ -256,7 +256,7 @@ class ReleaseRepository
             }
 
         suspend fun getReleases(page: Int): Paginated<Release> =
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val v1 =
                     runCatching {
                         val request =

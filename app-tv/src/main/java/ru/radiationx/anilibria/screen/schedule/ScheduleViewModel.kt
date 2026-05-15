@@ -1,7 +1,8 @@
 package ru.radiationx.anilibria.screen.schedule
 
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
+import java.util.Calendar
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,8 +16,7 @@ import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.data.interactors.tv.TvContentUseCase
 import ru.radiationx.shared.ktx.asDayName
-import java.util.Calendar
-import javax.inject.Inject
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class ScheduleViewModel
     @Inject
@@ -37,7 +37,7 @@ class ScheduleViewModel
 
         private fun loadSchedule() {
             _loadingState.value = true
-            viewModelScope.launch(Dispatchers.IO) {
+            viewModelScope.launch(AppDispatchers.io) {
                 runCatching {
                     tvContentUseCase.loadWeekSchedule()
                 }.onSuccess { grouped ->

@@ -3,7 +3,7 @@ package ru.radiationx.data.datasource.storage
 import android.content.SharedPreferences
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -22,8 +22,8 @@ import ru.radiationx.data.entity.domain.types.ReleaseId
 import ru.radiationx.data.entity.mapper.toDb
 import ru.radiationx.data.entity.mapper.toDomain
 import ru.radiationx.data.system.ApplicationCoroutineScope
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * Created by radiationx on 17.02.18.
@@ -289,7 +289,7 @@ class EpisodesCheckerStorage
         }
 
         private suspend fun saveAll(episodes: List<EpisodeAccess>) {
-            withContext(Dispatchers.IO) {
+            withContext(AppDispatchers.io) {
                 val jsonEpisodes =
                     episodes
                         .map { episode -> episode.toDb() }
@@ -304,7 +304,7 @@ class EpisodesCheckerStorage
         private fun nowMs(): Long = System.currentTimeMillis()
 
         private suspend fun loadAll(): List<EpisodeAccess> {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 val actualData =
                     sharedPreferences
                         .getString(LOCAL_EPISODES_KEY, null)
@@ -315,7 +315,7 @@ class EpisodesCheckerStorage
         }
 
         private suspend fun loadAllLegacy(): List<EpisodeAccessLegacyDb>? {
-            return withContext(Dispatchers.IO) {
+            return withContext(AppDispatchers.io) {
                 sharedPreferences
                     .getString(LEGACY_LOCAL_EPISODES_KEY, null)
                     ?.let { legacyDataAdapter.fromJson(it) }

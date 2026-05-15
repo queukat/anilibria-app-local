@@ -1,7 +1,7 @@
 package ru.radiationx.data.interactors
 
+import java.util.Collections
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -10,10 +10,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import ru.radiationx.shared.ktx.coRunCatching
-import java.util.Collections
+import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 
 class SharedRequests<KEY, DATA> {
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val scope = CoroutineScope(AppDispatchers.default + SupervisorJob())
 
     private val requestEvent = MutableSharedFlow<Pair<KEY, Result<DATA>>>()
 
