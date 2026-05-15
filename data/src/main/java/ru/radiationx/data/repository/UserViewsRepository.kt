@@ -148,12 +148,11 @@ class UserViewsRepository
          * - release/history/per-episode endpoints lag behind live writes and are not suitable
          *   as immediate read-after-write truth for TV resume
          */
-        suspend fun getEpisodeTimecode(episodeId: EpisodeId): EpisodeTimecode? =
-            withContext(Dispatchers.IO) {
-                val aniEpisodeId = resolveAniEpisodeIdOrNull(episodeId) ?: return@withContext null
-                val snapshot = getTimecodesSnapshot()
-                snapshot[aniEpisodeId]
-            }
+        suspend fun getEpisodeTimecode(episodeId: EpisodeId): EpisodeTimecode? {
+            val aniEpisodeId = resolveAniEpisodeIdOrNull(episodeId) ?: return null
+            val snapshot = getTimecodesSnapshot()
+            return snapshot[aniEpisodeId]
+        }
 
         /**
          * Resolve human-readable episode ordinal for an [EpisodeId].

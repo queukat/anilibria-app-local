@@ -18,8 +18,8 @@ class FavoriteApi
         private val moshi: Moshi,
     ) {
         suspend fun getFavorites(page: Int): PaginatedResponse<ReleaseResponse> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "favorites",
                     "page" to page.toString(),
                     "filter" to "id,torrents,playlist,externalPlaylist,favorite,moon,blockedInfo",
@@ -30,8 +30,8 @@ class FavoriteApi
         }
 
         suspend fun addFavorite(releaseId: Int): ReleaseResponse {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "favorites",
                     "action" to "add",
                     "id" to releaseId.toString(),
@@ -41,8 +41,8 @@ class FavoriteApi
         }
 
         suspend fun deleteFavorite(releaseId: Int): ReleaseResponse {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "favorites",
                     "action" to "delete",
                     "id" to releaseId.toString(),

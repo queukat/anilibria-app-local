@@ -51,20 +51,14 @@ class HistoryRepository
                 .flowOn(Dispatchers.IO)
 
         suspend fun putReleaseId(id: ReleaseId) {
-            withContext(Dispatchers.IO) {
-                historyStorage.putId(id)
-            }
+            historyStorage.putId(id)
         }
 
         suspend fun putRelease(releaseItem: Release) {
-            withContext(Dispatchers.IO) {
-                historyStorage.putId(releaseItem.id)
-                updateHolder.viewRelease(releaseItem)
-            }
+            historyStorage.putId(releaseItem.id)
+            updateHolder.viewRelease(releaseItem)
         }
 
         suspend fun removeRelease(id: ReleaseId) =
-            withContext(Dispatchers.IO) {
-                historyStorage.removeId(id)
-            }
+            historyStorage.removeId(id)
     }

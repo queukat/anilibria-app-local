@@ -42,16 +42,14 @@ class FavoriteRepository
         private val cookieHolder: CookieHolder,
     ) {
         suspend fun getFavoritesAniLiberty(page: Int): Paginated<Release> =
-            withContext(Dispatchers.IO) {
-                mapAniLibertyFavorites(
-                    aniLibertyApi.getUserFavoriteReleasesFiltered(
-                        page = page,
-                        limit = DEFAULT_LIMIT,
-                        sorting = AniLibertyFavoriteSorting.YearDesc,
-                        fields = AniLibertyReleaseFields.FavoritesList,
-                    ),
-                )
-            }
+            mapAniLibertyFavorites(
+                aniLibertyApi.getUserFavoriteReleasesFiltered(
+                    page = page,
+                    limit = DEFAULT_LIMIT,
+                    sorting = AniLibertyFavoriteSorting.YearDesc,
+                    fields = AniLibertyReleaseFields.FavoritesList,
+                ),
+            )
 
         suspend fun addFavoriteAniLiberty(releaseId: ReleaseId) =
             withContext(Dispatchers.IO) {

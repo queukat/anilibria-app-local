@@ -24,10 +24,7 @@ class PageRepository
         private var currentComments: VkComments? = null
 
         suspend fun getPage(pagePath: String): PageLibria =
-            withContext(Dispatchers.IO) {
-                pageApi
-                    .getPage(pagePath)
-            }
+            pageApi.getPage(pagePath)
 
         suspend fun getComments(): VkComments {
             return withContext(Dispatchers.IO) {

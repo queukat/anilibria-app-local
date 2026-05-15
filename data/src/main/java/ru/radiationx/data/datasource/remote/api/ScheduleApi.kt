@@ -16,8 +16,8 @@ class ScheduleApi
         private val moshi: Moshi,
     ) {
         suspend fun getSchedule(): List<ScheduleDayResponse> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "schedule",
                     "filter" to "id,torrents,playlist,externalPlaylist,favorite,moon,blockedInfo",
                     "rm" to "true",

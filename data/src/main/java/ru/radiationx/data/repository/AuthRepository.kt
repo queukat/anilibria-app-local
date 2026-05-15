@@ -94,9 +94,7 @@ class AuthRepository
         }
 
         suspend fun setAuthSkipped(value: Boolean) {
-            withContext(Dispatchers.IO) {
-                authHolder.setAuthSkipped(value)
-            }
+            authHolder.setAuthSkipped(value)
         }
 
         suspend fun loadUser(): ProfileItem =
@@ -300,9 +298,7 @@ class AuthRepository
             }
 
         private suspend fun updateUser(newUser: ProfileItem) {
-            withContext(Dispatchers.IO) {
-                userHolder.saveUser(newUser)
-            }
+            userHolder.saveUser(newUser)
         }
 
         private fun computeAuthState(

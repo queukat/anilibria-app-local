@@ -17,8 +17,8 @@ class YoutubeApi
         private val moshi: Moshi,
     ) {
         suspend fun getYoutubeList(page: Int): PaginatedResponse<YoutubeResponse> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "youtube",
                     "page" to page.toString(),
                 )

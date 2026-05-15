@@ -1,7 +1,5 @@
 package ru.radiationx.data.ads
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import ru.radiationx.data.SharedBuildConfig
 import ru.radiationx.data.ads.domain.AdsConfig
 import ru.radiationx.data.ads.domain.BannerAdConfig
@@ -100,13 +98,11 @@ class AdsConfigRepository
         }
 
         private suspend fun loadConfig(): AdsConfigResponse {
-            return withContext(Dispatchers.IO) {
-                val response =
-                    requests.request("ads") {
-                        api.getConfig().androidMain
-                    }
-                storage.save(response)
-                response
-            }
+            val response =
+                requests.request("ads") {
+                    api.getConfig().androidMain
+                }
+            storage.save(response)
+            return response
         }
     }

@@ -22,8 +22,8 @@ class ReleaseApi
         private val moshi: Moshi,
     ) {
         suspend fun getRandomRelease(): RandomReleaseResponse {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "random_release",
                 )
             return client.post(apiConfig.apiUrl, args)
@@ -31,8 +31,8 @@ class ReleaseApi
         }
 
         suspend fun getRelease(releaseId: Int): ReleaseResponse {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "release",
                     "id" to releaseId.toString(),
                 )
@@ -41,8 +41,8 @@ class ReleaseApi
         }
 
         suspend fun getRelease(releaseCode: String): ReleaseResponse {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "release",
                     "code" to releaseCode,
                 )
@@ -51,8 +51,8 @@ class ReleaseApi
         }
 
         suspend fun getReleasesByIds(ids: List<Int>): List<ReleaseResponse> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "info",
                     "id" to ids.joinToString(","),
                     "filter" to "id,torrents,playlist,externalPlaylist,favorite,moon,blockedInfo",
@@ -63,8 +63,8 @@ class ReleaseApi
         }
 
         suspend fun getFullReleasesByIds(ids: List<Int>): List<ReleaseResponse> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "info",
                     "id" to ids.joinToString(","),
                 )
@@ -73,8 +73,8 @@ class ReleaseApi
         }
 
         suspend fun getReleases(page: Int): PaginatedResponse<ReleaseResponse> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "list",
                     "page" to page.toString(),
                     "filter" to "id,torrents,playlist,externalPlaylist,favorite,moon,blockedInfo",

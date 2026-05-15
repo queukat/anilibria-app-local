@@ -16,8 +16,8 @@ class FeedApi
         private val moshi: Moshi,
     ) {
         suspend fun getFeed(page: Int): List<FeedResponse> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "feed",
                     "page" to page.toString(),
                     "filter" to "id,torrents,playlist,externalPlaylist,favorite,moon,blockedInfo",

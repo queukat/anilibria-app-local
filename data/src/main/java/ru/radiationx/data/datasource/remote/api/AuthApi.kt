@@ -34,8 +34,8 @@ class AuthApi
         private val moshi: Moshi,
     ) {
         suspend fun loadUser(): ProfileResponse {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "user",
                 )
             return client.post(apiConfig.apiUrl, args)
@@ -43,8 +43,8 @@ class AuthApi
         }
 
         suspend fun loadOtpInfo(deviceId: String): OtpInfoResponse {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "auth_get_otp",
                     "deviceId" to deviceId,
                 )
@@ -58,8 +58,8 @@ class AuthApi
         }
 
         suspend fun acceptOtp(code: String) {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "auth_accept_otp",
                     "code" to code,
                 )
@@ -76,8 +76,8 @@ class AuthApi
             code: String,
             deviceId: String,
         ): ProfileResponse {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "auth_login_otp",
                     "deviceId" to deviceId,
                     "code" to code,
@@ -97,8 +97,8 @@ class AuthApi
             password: String,
             code2fa: String,
         ): ProfileResponse {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "mail" to login,
                     "passwd" to password,
                     "fa2code" to code2fa,
@@ -110,8 +110,8 @@ class AuthApi
         }
 
         suspend fun loadSocialAuth(): List<SocialAuthResponse> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "social_auth",
                 )
             return client
@@ -123,7 +123,7 @@ class AuthApi
             resultUrl: String,
             item: SocialAuth,
         ): ProfileResponse {
-            val args: MutableMap<String, String> = mutableMapOf()
+            val args: Map<String, String> = emptyMap()
 
             val fixedUrl =
                 Uri.parse(apiConfig.baseUrl).host?.let { redirectDomain ->

@@ -25,10 +25,7 @@ class ConfigurationRepository
         private val pingRelay = MutableStateFlow<Map<String, PingResult>?>(null)
 
         suspend fun checkAvailable(apiUrl: String): Boolean =
-            withContext(Dispatchers.IO) {
-                configurationApi
-                    .checkAvailable(apiUrl)
-            }
+            configurationApi.checkAvailable(apiUrl)
 
         suspend fun getConfiguration(): ApiConfigData =
             withContext(Dispatchers.IO) {

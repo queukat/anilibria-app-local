@@ -129,7 +129,7 @@ internal class TvCollectionFilterController(
                 if (!add(index)) {
                     remove(index)
                 }
-            }
+            }.toSet()
         _pickerState.value = current.copy(selectedIndices = nextSelection)
     }
 

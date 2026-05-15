@@ -25,8 +25,8 @@ class CheckerApi
         private val moshi: Moshi,
     ) {
         suspend fun checkUpdate(versionCode: Int): UpdateDataRootResponse {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "app_update",
                     "current" to versionCode.toString(),
                 )

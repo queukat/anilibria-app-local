@@ -36,7 +36,5 @@ class DonationRepository
             type: String,
             form: YooMoneyDialog.YooMoneyForm,
         ): String =
-            withContext(Dispatchers.IO) {
-                donationApi.createYooMoneyPayLink(amount, type, form)
-            }
+            donationApi.createYooMoneyPayLink(amount, type, form)
     }

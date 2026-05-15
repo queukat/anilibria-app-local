@@ -103,13 +103,11 @@ class GradientBackgroundManager
                     delay(PALETTE_APPLY_DEBOUNCE_MS)
                     coRunCatching {
                         val bitmap =
-                            withContext(Dispatchers.IO) {
-                                activity.loadImageBitmap(
-                                    url = normalizedUrl,
-                                    widthPx = PALETTE_BITMAP_SIZE_PX,
-                                    heightPx = PALETTE_BITMAP_SIZE_PX,
-                                )
-                            }
+                            activity.loadImageBitmap(
+                                url = normalizedUrl,
+                                widthPx = PALETTE_BITMAP_SIZE_PX,
+                                heightPx = PALETTE_BITMAP_SIZE_PX,
+                            )
                         withContext(Dispatchers.Default) {
                             bitmap.asSoftware {
                                 Palette.Builder(it).generate()

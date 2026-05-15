@@ -54,7 +54,7 @@ class SystemUtils @Inject constructor(
         val resolves = context.packageManager.queryIntentActivities(
             chooserIntent,
             PackageManager.MATCH_DEFAULT_ONLY
-        )
+        ).toList()
         resolves.forEach {
             val packageName = it.activityInfo.packageName
             context.grantUriPermission(packageName, data, Intent.FLAG_GRANT_READ_URI_PERMISSION)

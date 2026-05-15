@@ -20,8 +20,8 @@ class SearchApi
         private val moshi: Moshi,
     ) {
         suspend fun getGenres(): List<String> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "genres",
                 )
             return client.post(apiConfig.apiUrl, args)
@@ -29,8 +29,8 @@ class SearchApi
         }
 
         suspend fun getYears(): List<String> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "years",
                 )
             return client.post(apiConfig.apiUrl, args)
@@ -38,8 +38,8 @@ class SearchApi
         }
 
         suspend fun fastSearch(name: String): List<SuggestionResponse> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "search",
                     "search" to name,
                     "filter" to "id,code,names,poster",
@@ -56,8 +56,8 @@ class SearchApi
             complete: String,
             page: Int,
         ): PaginatedResponse<ReleaseResponse> {
-            val args: MutableMap<String, String> =
-                mutableMapOf(
+            val args =
+                mapOf(
                     "query" to "catalog",
                     "search" to
                         JSONObject().apply {
