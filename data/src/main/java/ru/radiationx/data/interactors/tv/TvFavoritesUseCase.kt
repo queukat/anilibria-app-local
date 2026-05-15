@@ -5,7 +5,7 @@ import ru.radiationx.data.entity.domain.release.Release
 import ru.radiationx.data.repository.FavoriteRepository
 import javax.inject.Inject
 
-interface TvFavoritesUseCase {
+fun interface TvFavoritesUseCase {
     suspend fun loadFavorites(page: Int): Paginated<Release>
 }
 

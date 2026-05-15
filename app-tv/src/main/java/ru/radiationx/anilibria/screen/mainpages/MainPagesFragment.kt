@@ -139,17 +139,15 @@ class MainPagesFragment : Fragment() {
         currentPageContent()?.onSelected()
 
         initialFocusRunnable =
-            object : Runnable {
-                override fun run() {
-                    if (isRailExpanded) {
-                        return
-                    }
-                    if (!requestCurrentContentFocus()) {
-                        listenerHostView?.post(this)
-                        return
-                    }
-                    isRailExpanded = false
+            Runnable {
+                if (isRailExpanded) {
+                    return@Runnable
                 }
+                if (!requestCurrentContentFocus()) {
+                    listenerHostView?.post(initialFocusRunnable)
+                    return@Runnable
+                }
+                isRailExpanded = false
             }
         view.post(initialFocusRunnable)
     }

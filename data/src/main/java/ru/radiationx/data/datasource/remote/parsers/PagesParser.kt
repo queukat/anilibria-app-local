@@ -11,15 +11,15 @@ class PagesParser
     @Inject
     constructor() {
         private val pagePatternSource =
-            "(<div[^>]*?class=\"[^\"]*?news-body[^\"]*?\"[^>]*?>[\\s\\S]*?<\\/div>)[^<]*?<div[^>]*?(?:id=\"vk_comments|class=\"[^\"]*?side[^\"]*?\")"
-        private val titlePatternSource = "<title>([\\s\\S]*?)<\\/title>"
+            "(<div[^>]*?class=\"[^\"]*?news-body[^\"]*?\"[^>]*?>.*?</div>)[^<]*?<div[^>]*?(?:id=\"vk_comments|class=\"[^\"]*?side[^\"]*?\")"
+        private val titlePatternSource = "<title>(.*?)</title>"
 
         private val pagePattern: Pattern by lazy {
-            Pattern.compile(pagePatternSource, Pattern.CASE_INSENSITIVE)
+            Pattern.compile(pagePatternSource, Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
         }
 
         private val titlePattern: Pattern by lazy {
-            Pattern.compile(titlePatternSource, Pattern.CASE_INSENSITIVE)
+            Pattern.compile(titlePatternSource, Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
         }
 
         fun baseParse(httpResponse: String): PageLibria {

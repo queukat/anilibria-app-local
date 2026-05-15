@@ -15,23 +15,21 @@ import ru.radiationx.data.datasource.remote.aniliberty.dto.AniLibertyReleaseEpis
 import java.lang.reflect.Type
 import kotlin.math.roundToInt
 
-object AniLibertyTupleAdapterFactory : JsonAdapter.Factory {
-    override fun create(
-        type: Type,
-        annotations: Set<Annotation>,
-        moshi: Moshi,
-    ): JsonAdapter<*>? {
-        if (annotations.isNotEmpty()) return null
-        val raw = Types.getRawType(type)
+val AniLibertyTupleAdapterFactory =
+    JsonAdapter.Factory { type: Type, annotations: Set<Annotation>, _: Moshi ->
+        if (annotations.isNotEmpty()) {
+            null
+        } else {
+            val raw = Types.getRawType(type)
 
-        return when (raw) {
-            AniLibertyReleaseEpisodeTimecode::class.java -> AniLibertyReleaseEpisodeTimecodeJsonAdapter()
-            AniLibertyEpisodeTimecode::class.java -> AniLibertyEpisodeTimecodeJsonAdapter()
-            AniLibertyCollectionIdItem::class.java -> AniLibertyCollectionIdItemJsonAdapter()
-            else -> null
+            when (raw) {
+                AniLibertyReleaseEpisodeTimecode::class.java -> AniLibertyReleaseEpisodeTimecodeJsonAdapter()
+                AniLibertyEpisodeTimecode::class.java -> AniLibertyEpisodeTimecodeJsonAdapter()
+                AniLibertyCollectionIdItem::class.java -> AniLibertyCollectionIdItemJsonAdapter()
+                else -> null
+            }
         }
     }
-}
 
 private fun JsonReader.readIntFlexible(fieldName: String): Int {
     return when (peek()) {

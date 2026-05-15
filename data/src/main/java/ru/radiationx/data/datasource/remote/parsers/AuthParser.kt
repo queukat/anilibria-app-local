@@ -73,7 +73,6 @@ class AuthParser
             val message =
                 parsed.message
                     ?: error.message
-                    ?: "HTTP ${error.code}"
 
             if (!description.isNullOrBlank()) {
                 return when (description) {

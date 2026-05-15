@@ -43,22 +43,22 @@ open class Client
         override suspend fun get(
             url: String,
             args: Map<String, String>,
-        ): String = requireNotNull(getFull(url, args).body)
+        ): String = getFull(url, args).body
 
         override suspend fun post(
             url: String,
             args: Map<String, String>,
-        ): String = requireNotNull(postFull(url, args).body)
+        ): String = postFull(url, args).body
 
         override suspend fun put(
             url: String,
             args: Map<String, String>,
-        ): String = requireNotNull(putFull(url, args).body)
+        ): String = putFull(url, args).body
 
         override suspend fun delete(
             url: String,
             args: Map<String, String>,
-        ): String = requireNotNull(deleteFull(url, args).body)
+        ): String = deleteFull(url, args).body
 
         override suspend fun getFull(
             url: String,
@@ -209,17 +209,17 @@ open class Client
         override suspend fun postJson(
             url: String,
             jsonBody: String,
-        ): String = requireNotNull(postJsonFull(url, jsonBody).body)
+        ): String = postJsonFull(url, jsonBody).body
 
         override suspend fun putJson(
             url: String,
             jsonBody: String,
-        ): String = requireNotNull(putJsonFull(url, jsonBody).body)
+        ): String = putJsonFull(url, jsonBody).body
 
         override suspend fun deleteJson(
             url: String,
             jsonBody: String,
-        ): String = requireNotNull(deleteJsonFull(url, jsonBody).body)
+        ): String = deleteJsonFull(url, jsonBody).body
 
         private suspend fun postJsonFull(
             url: String,

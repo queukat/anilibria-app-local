@@ -1,6 +1,6 @@
 package ru.radiationx.data.migration
 
-interface MigrationExecutor {
+fun interface MigrationExecutor {
     fun execute(
         current: Int,
         lastSaved: Int,

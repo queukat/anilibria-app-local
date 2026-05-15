@@ -158,9 +158,9 @@ internal class SuggestionQueryExecutor<T>(
         val future =
             workerExecutor.submit<List<T>> {
                 fetch(query).take(maxResults)
-            }
+        }
         return try {
-            future.get(timeoutMs, TimeUnit.MILLISECONDS)
+            future[timeoutMs, TimeUnit.MILLISECONDS]
         } catch (_: TimeoutException) {
             future.cancel(true)
             null

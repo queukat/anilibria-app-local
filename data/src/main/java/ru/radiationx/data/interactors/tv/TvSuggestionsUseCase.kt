@@ -11,7 +11,7 @@ import ru.radiationx.data.entity.mapper.toSuggestionDomainOrNull
 import ru.radiationx.data.system.ApiUtils
 import javax.inject.Inject
 
-interface TvSuggestionsUseCase {
+fun interface TvSuggestionsUseCase {
     suspend fun loadSuggestions(query: String): List<SuggestionItem>
 }
 

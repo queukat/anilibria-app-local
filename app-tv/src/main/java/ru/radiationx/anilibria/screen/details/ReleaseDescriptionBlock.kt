@@ -313,7 +313,7 @@ internal fun VerticalScrollIndicator(
             if (scrollState.maxValue == 0) {
                 0
             } else {
-                (((scrollState.value.toFloat() / scrollState.maxValue) * (viewportHeightPx - thumbHeightPx)))
+                ((scrollState.value.toFloat() / scrollState.maxValue) * (viewportHeightPx - thumbHeightPx))
                     .roundToInt()
             }
         }

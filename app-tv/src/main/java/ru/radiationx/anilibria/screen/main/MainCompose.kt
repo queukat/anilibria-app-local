@@ -439,6 +439,16 @@ internal fun MainSectionBlock(
         return onLeftEdge()
     }
 
+    fun firstItemLeftEdgeHandler(
+        index: Int,
+        item: CardItem,
+    ): (() -> Boolean)? =
+        if (index == 0) {
+            { requestLeftEdge(index, item) }
+        } else {
+            null
+        }
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(TvSectionHeaderSpacing),
@@ -540,12 +550,7 @@ internal fun MainSectionBlock(
                                     ),
                                 onClick = { onItemClick(item) },
                                 onFocused = { onItemFocused(index, item) },
-                                onLeft =
-                                    if (index == 0) {
-                                        { requestLeftEdge(index, item) }
-                                    } else {
-                                        null
-                                    },
+                                onLeft = firstItemLeftEdgeHandler(index, item),
                                 onUp = { onUp(index) },
                                 onDown = { onDown(index) },
                             )
@@ -563,12 +568,7 @@ internal fun MainSectionBlock(
                                     onItemClick(item)
                                 },
                                 onFocused = { onItemFocused(index, item) },
-                                onLeft =
-                                    if (index == 0) {
-                                        { requestLeftEdge(index, item) }
-                                    } else {
-                                        null
-                                    },
+                                onLeft = firstItemLeftEdgeHandler(index, item),
                                 onUp = { onUp(index) },
                                 onDown = { onDown(index) },
                             )
@@ -594,12 +594,7 @@ internal fun MainSectionBlock(
                                 loading = !item.isError,
                                 onClick = { onItemClick(item) },
                                 onFocused = { onItemFocused(index, item) },
-                                onLeft =
-                                    if (index == 0) {
-                                        { requestLeftEdge(index, item) }
-                                    } else {
-                                        null
-                                    },
+                                onLeft = firstItemLeftEdgeHandler(index, item),
                                 onUp = { onUp(index) },
                                 onDown = { onDown(index) },
                             )
@@ -613,12 +608,7 @@ internal fun MainSectionBlock(
                                 enabled = interactionsEnabled,
                                 onClick = { onItemClick(item) },
                                 onFocused = { onItemFocused(index, item) },
-                                onLeft =
-                                    if (index == 0) {
-                                        { requestLeftEdge(index, item) }
-                                    } else {
-                                        null
-                                    },
+                                onLeft = firstItemLeftEdgeHandler(index, item),
                                 onUp = { onUp(index) },
                                 onDown = { onDown(index) },
                             )

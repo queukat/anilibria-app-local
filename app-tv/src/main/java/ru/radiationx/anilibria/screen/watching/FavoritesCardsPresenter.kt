@@ -24,6 +24,8 @@ internal data class FavoritesAvailableFilters(
     val genres: List<String>,
 )
 
+private const val RETRY_TITLE = "Повторить"
+
 internal class FavoritesCardsPresenter(
     private val converter: CardsDataConverter,
 ) {
@@ -52,12 +54,12 @@ internal class FavoritesCardsPresenter(
                 description = message,
                 isError = true,
             ),
-            LinkCard("Повторить"),
+            LinkCard(RETRY_TITLE),
         )
     }
 
     fun appendRetryCards(currentCards: List<CardItem>): List<CardItem> {
-        return currentCards.filterNot { it is LinkCard && it.title == "Повторить" } + LinkCard("Повторить")
+        return currentCards.filterNot { it is LinkCard && it.title == RETRY_TITLE } + LinkCard(RETRY_TITLE)
     }
 
     fun present(

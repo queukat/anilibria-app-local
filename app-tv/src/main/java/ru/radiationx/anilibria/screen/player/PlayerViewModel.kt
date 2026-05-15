@@ -84,7 +84,9 @@ class PlayerViewModel
         private var currentReleases: List<Release> = emptyList()
         private var currentEpisodes: List<Episode> = emptyList()
 
-        private var currentRelease: Release? = null
+        private var selectedRelease: Release? = null
+        private val currentRelease: Release?
+            get() = selectedRelease ?: currentReleases.firstOrNull()
         private var currentEpisode: Episode? = null
 
         private var currentDuration: Long = 0L
@@ -135,7 +137,7 @@ class PlayerViewModel
                 }
                 currentReleases = releases
 
-                currentRelease = releases.firstOrNull { it.id == argExtra.releaseId } ?: releases.firstOrNull()
+                selectedRelease = releases.firstOrNull { it.id == argExtra.releaseId } ?: releases.firstOrNull()
                 currentEpisodes = releases.toPlaybackEpisodesOrder()
                 val releaseEpisodes =
                     currentRelease
@@ -281,7 +283,7 @@ class PlayerViewModel
             position: Long,
             syncRemote: Boolean = true,
         ) {
-            getCurrentRelease() ?: return
+            currentRelease ?: return
             val episode = currentEpisode ?: return
 
             val snapshot =
@@ -327,7 +329,7 @@ class PlayerViewModel
             currentDuration = 0L
             dismissCompletionOverlay()
             currentEpisode = episode
-            currentRelease = currentReleases.firstOrNull { it.id == episode.id.releaseId } ?: currentReleases.firstOrNull()
+            selectedRelease = currentReleases.firstOrNull { it.id == episode.id.releaseId } ?: currentReleases.firstOrNull()
             _episodeOptions.value = currentEpisodes.map(::toEpisodeOptionUiModel)
             _selectedEpisodeId.value = episode.id
             updateEpisode(
@@ -336,12 +338,8 @@ class PlayerViewModel
             )
         }
 
-        private fun getCurrentRelease(): Release? {
-            return currentRelease ?: currentReleases.firstOrNull()
-        }
-
         private fun getCurrentReleaseFirstEpisode(): Episode? {
-            return getCurrentRelease()
+            return currentRelease
                 ?.episodes
                 ?.sortedByEpisodeOrdinalAsc()
                 ?.firstOrNull()
@@ -365,7 +363,7 @@ class PlayerViewModel
             force: Boolean = false,
             playbackStart: PlayerPlaybackStart = PlayerPlaybackStart.ResumeSavedProgress,
         ) {
-            val release = getCurrentRelease() ?: return
+            val release = currentRelease ?: return
             val episode = currentEpisode ?: return
             val quality = currentQuality
             _availableQualities.value = episode.qualityInfo.available.toList()

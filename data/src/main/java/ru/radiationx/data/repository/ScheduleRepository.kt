@@ -42,7 +42,7 @@ class ScheduleRepository
                             val calendarDay =
                                 Calendar.getInstance().also {
                                     it.timeInMillis = currentTime
-                                }.get(Calendar.DAY_OF_WEEK)
+                                }[Calendar.DAY_OF_WEEK]
                             if (scheduleDay.day == calendarDay) {
                                 val scheduleItems =
                                     scheduleDay.items.map {

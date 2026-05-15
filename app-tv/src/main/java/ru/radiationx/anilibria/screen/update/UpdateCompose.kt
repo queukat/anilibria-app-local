@@ -480,7 +480,7 @@ private fun UpdateScrollIndicator(
             .coerceAtMost(viewportHeightPx)
     val thumbOffsetPx by remember(scrollState, maxValue, viewportHeightPx, thumbHeightPx) {
         derivedStateOf {
-            (((scrollState.value.toFloat() / maxValue) * (viewportHeightPx - thumbHeightPx)))
+            ((scrollState.value.toFloat() / maxValue) * (viewportHeightPx - thumbHeightPx))
                 .toInt()
                 .coerceIn(0, viewportHeightPx - thumbHeightPx)
         }

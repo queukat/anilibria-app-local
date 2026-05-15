@@ -27,126 +27,123 @@ import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyTeamRoleId
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyTeamUserId
 import java.lang.reflect.Type
 
-object AniLibertyValueAdapters : JsonAdapter.Factory {
-    override fun create(
-        type: Type,
-        annotations: Set<Annotation>,
-        moshi: Moshi,
-    ): JsonAdapter<*>? {
-        if (annotations.isNotEmpty()) return null
+val AniLibertyValueAdapters =
+    JsonAdapter.Factory { type: Type, annotations: Set<Annotation>, _: Moshi ->
+        if (annotations.isNotEmpty()) {
+            null
+        } else {
+            val raw = Types.getRawType(type)
 
-        val raw = Types.getRawType(type)
+            when (raw) {
+                AniLibertyReleaseType::class.java ->
+                    StringValueClassAdapter(::AniLibertyReleaseType) { it.value }
 
-        return when (raw) {
-            AniLibertyReleaseType::class.java ->
-                StringValueClassAdapter(::AniLibertyReleaseType) { it.value }
+                AniLibertySeason::class.java ->
+                    StringValueClassAdapter(::AniLibertySeason) { it.value }
 
-            AniLibertySeason::class.java ->
-                StringValueClassAdapter(::AniLibertySeason) { it.value }
+                AniLibertyAgeRating::class.java ->
+                    StringValueClassAdapter(::AniLibertyAgeRating) { it.value }
 
-            AniLibertyAgeRating::class.java ->
-                StringValueClassAdapter(::AniLibertyAgeRating) { it.value }
+                AniLibertyCatalogSorting::class.java ->
+                    StringValueClassAdapter(::AniLibertyCatalogSorting) { it.value }
 
-            AniLibertyCatalogSorting::class.java ->
-                StringValueClassAdapter(::AniLibertyCatalogSorting) { it.value }
+                AniLibertyCatalogPublishStatus::class.java ->
+                    StringValueClassAdapter(::AniLibertyCatalogPublishStatus) { it.value }
 
-            AniLibertyCatalogPublishStatus::class.java ->
-                StringValueClassAdapter(::AniLibertyCatalogPublishStatus) { it.value }
+                AniLibertyCatalogProductionStatus::class.java ->
+                    StringValueClassAdapter(::AniLibertyCatalogProductionStatus) { it.value }
 
-            AniLibertyCatalogProductionStatus::class.java ->
-                StringValueClassAdapter(::AniLibertyCatalogProductionStatus) { it.value }
+                AniLibertyReleaseMemberRoleType::class.java ->
+                    StringValueClassAdapter(::AniLibertyReleaseMemberRoleType) { it.value }
 
-            AniLibertyReleaseMemberRoleType::class.java ->
-                StringValueClassAdapter(::AniLibertyReleaseMemberRoleType) { it.value }
+                AniLibertyReleaseAlias::class.java ->
+                    StringValueClassAdapter(::AniLibertyReleaseAlias) { it.value }
 
-            AniLibertyReleaseAlias::class.java ->
-                StringValueClassAdapter(::AniLibertyReleaseAlias) { it.value }
+                AniLibertyReleaseEpisodeId::class.java ->
+                    StringValueClassAdapter(::AniLibertyReleaseEpisodeId) { it.value }
 
-            AniLibertyReleaseEpisodeId::class.java ->
-                StringValueClassAdapter(::AniLibertyReleaseEpisodeId) { it.value }
+                AniLibertyTeamId::class.java ->
+                    StringValueClassAdapter(::AniLibertyTeamId) { it.value }
 
-            AniLibertyTeamId::class.java ->
-                StringValueClassAdapter(::AniLibertyTeamId) { it.value }
+                AniLibertyTeamRoleId::class.java ->
+                    StringValueClassAdapter(::AniLibertyTeamRoleId) { it.value }
 
-            AniLibertyTeamRoleId::class.java ->
-                StringValueClassAdapter(::AniLibertyTeamRoleId) { it.value }
+                AniLibertyTeamUserId::class.java ->
+                    StringValueClassAdapter(::AniLibertyTeamUserId) { it.value }
 
-            AniLibertyTeamUserId::class.java ->
-                StringValueClassAdapter(::AniLibertyTeamUserId) { it.value }
+                AniLibertyCollectionType::class.java ->
+                    StringValueClassAdapter(::AniLibertyCollectionType) { it.value }
 
-            AniLibertyCollectionType::class.java ->
-                StringValueClassAdapter(::AniLibertyCollectionType) { it.value }
+                AniLibertyFavoriteSorting::class.java ->
+                    StringValueClassAdapter(::AniLibertyFavoriteSorting) { it.value }
 
-            AniLibertyFavoriteSorting::class.java ->
-                StringValueClassAdapter(::AniLibertyFavoriteSorting) { it.value }
+                AniLibertySocialProvider::class.java ->
+                    StringValueClassAdapter(::AniLibertySocialProvider) { it.value }
 
-            AniLibertySocialProvider::class.java ->
-                StringValueClassAdapter(::AniLibertySocialProvider) { it.value }
+                AniLibertyDeviceId::class.java ->
+                    StringValueClassAdapter(::AniLibertyDeviceId) { it.value }
 
-            AniLibertyDeviceId::class.java ->
-                StringValueClassAdapter(::AniLibertyDeviceId) { it.value }
+                AniLibertyEmail::class.java ->
+                    StringValueClassAdapter(::AniLibertyEmail) { it.value }
 
-            AniLibertyEmail::class.java ->
-                StringValueClassAdapter(::AniLibertyEmail) { it.value }
+                AniLibertyReleaseId::class.java ->
+                    IntValueClassAdapter(::AniLibertyReleaseId) { it.value }
 
-            AniLibertyReleaseId::class.java ->
-                IntValueClassAdapter(::AniLibertyReleaseId) { it.value }
+                AniLibertyPublishDay::class.java ->
+                    IntValueClassAdapter(::AniLibertyPublishDay) { it.value }
 
-            AniLibertyPublishDay::class.java ->
-                IntValueClassAdapter(::AniLibertyPublishDay) { it.value }
+                AniLibertyOtpCode::class.java ->
+                    IntValueClassAdapter(::AniLibertyOtpCode) { it.value }
 
-            AniLibertyOtpCode::class.java ->
-                IntValueClassAdapter(::AniLibertyOtpCode) { it.value }
-
-            else -> null
+                else -> null
+            }
         }
     }
 
-    private class StringValueClassAdapter<T>(
-        private val wrap: (String) -> T,
-        private val unwrap: (T) -> String,
-    ) : JsonAdapter<T>() {
-        override fun fromJson(reader: JsonReader): T? {
-            if (reader.peek() == JsonReader.Token.NULL) {
-                reader.nextNull<Unit>()
-                return null
-            }
-            return wrap(reader.nextString())
+private class StringValueClassAdapter<T>(
+    private val wrap: (String) -> T,
+    private val unwrap: (T) -> String,
+) : JsonAdapter<T>() {
+    override fun fromJson(reader: JsonReader): T? {
+        if (reader.peek() == JsonReader.Token.NULL) {
+            reader.nextNull<Unit>()
+            return null
         }
-
-        override fun toJson(
-            writer: JsonWriter,
-            value: T?,
-        ) {
-            if (value == null) {
-                writer.nullValue()
-                return
-            }
-            writer.value(unwrap(value))
-        }
+        return wrap(reader.nextString())
     }
 
-    private class IntValueClassAdapter<T>(
-        private val wrap: (Int) -> T,
-        private val unwrap: (T) -> Int,
-    ) : JsonAdapter<T>() {
-        override fun fromJson(reader: JsonReader): T? {
-            if (reader.peek() == JsonReader.Token.NULL) {
-                reader.nextNull<Unit>()
-                return null
-            }
-            return wrap(reader.nextInt())
+    override fun toJson(
+        writer: JsonWriter,
+        value: T?,
+    ) {
+        if (value == null) {
+            writer.nullValue()
+            return
         }
+        writer.value(unwrap(value))
+    }
+}
 
-        override fun toJson(
-            writer: JsonWriter,
-            value: T?,
-        ) {
-            if (value == null) {
-                writer.nullValue()
-                return
-            }
-            writer.value(unwrap(value))
+private class IntValueClassAdapter<T>(
+    private val wrap: (Int) -> T,
+    private val unwrap: (T) -> Int,
+) : JsonAdapter<T>() {
+    override fun fromJson(reader: JsonReader): T? {
+        if (reader.peek() == JsonReader.Token.NULL) {
+            reader.nextNull<Unit>()
+            return null
         }
+        return wrap(reader.nextInt())
+    }
+
+    override fun toJson(
+        writer: JsonWriter,
+        value: T?,
+    ) {
+        if (value == null) {
+            writer.nullValue()
+            return
+        }
+        writer.value(unwrap(value))
     }
 }

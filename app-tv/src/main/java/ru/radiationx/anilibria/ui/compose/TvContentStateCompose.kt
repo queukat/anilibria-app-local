@@ -53,7 +53,6 @@ internal fun TvContentStatePanel(
     onDown: (() -> Boolean)? = null,
     action: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
-    val isFocusable = focusRequester != null
     var isFocused by remember(focusRequester) { mutableStateOf(false) }
     val panelStyle =
         TvUiDefaults.contentStatePanelStyle(
@@ -69,9 +68,9 @@ internal fun TvContentStatePanel(
                 .widthIn(max = panelMaxWidth)
                 .tvPanelSurface(panelStyle)
                 .then(
-                    if (isFocusable) {
+                    focusRequester?.let { requester ->
                         Modifier
-                            .focusRequester(focusRequester!!)
+                            .focusRequester(requester)
                             .onFocusChanged {
                                 val nowFocused = it.isFocused
                                 isFocused = nowFocused
@@ -92,9 +91,7 @@ internal fun TvContentStatePanel(
                                 }
                             }
                             .focusable()
-                    } else {
-                        Modifier
-                    },
+                    } ?: Modifier,
                 )
                 .padding(TvUiDefaults.ContentStatePanelPadding),
         horizontalArrangement = Arrangement.spacedBy(18.dp),

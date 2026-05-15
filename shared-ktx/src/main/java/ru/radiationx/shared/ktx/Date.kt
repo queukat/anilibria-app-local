@@ -34,7 +34,7 @@ fun Long.asMsk() = this.asUtc() + TimeUnit.HOURS.toMillis(3)
 
 fun Long.getDayOfWeek() = Calendar.getInstance().also {
     it.timeInMillis = this
-}.get(Calendar.DAY_OF_WEEK)
+}[Calendar.DAY_OF_WEEK]
 
 fun Int.asDayName() = when (this) {
     Calendar.MONDAY -> "Понедельник"
@@ -74,7 +74,7 @@ fun Date.isSameDay(date: Date): Boolean {
     cal1.time = this
     val cal2: Calendar = Calendar.getInstance()
     cal2.time = date
-    return cal1.get(Calendar.ERA) == cal2.get(Calendar.ERA) &&
-            cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
-            cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    return cal1[Calendar.ERA] == cal2[Calendar.ERA] &&
+            cal1[Calendar.YEAR] == cal2[Calendar.YEAR] &&
+            cal1[Calendar.DAY_OF_YEAR] == cal2[Calendar.DAY_OF_YEAR]
 }

@@ -109,17 +109,13 @@ class GradientBackgroundManager
                                     widthPx = PALETTE_BITMAP_SIZE_PX,
                                     heightPx = PALETTE_BITMAP_SIZE_PX,
                                 )
-                            } ?: return@coRunCatching null
+                            }
                         withContext(Dispatchers.Default) {
                             bitmap.asSoftware {
                                 Palette.Builder(it).generate()
                             }
                         }
                     }.onSuccess { palette ->
-                        if (palette == null) {
-                            applyDefault()
-                            return@onSuccess
-                        }
                         if (colorSelector == defaultColorSelector) {
                             cacheDefaultColor(
                                 normalizedUrl,

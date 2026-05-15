@@ -1,5 +1,5 @@
 package ru.radiationx.data.analytics.profile
 
-interface AnalyticsProfile {
+fun interface AnalyticsProfile {
     fun update()
 }

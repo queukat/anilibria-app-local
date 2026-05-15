@@ -78,7 +78,7 @@ internal fun ScheduleScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val verticalState = remember { LazyListState() }
-    val todaySectionTitle = remember { Calendar.getInstance().get(Calendar.DAY_OF_WEEK).asDayName() }
+    val todaySectionTitle = remember { Calendar.getInstance()[Calendar.DAY_OF_WEEK].asDayName() }
     val timezoneLabel = remember { buildScheduleTimezoneLabel(TimeZone.getDefault()) }
     val sectionItems = remember(sections) { sections.map(MainSectionUiModel::items) }
     val sectionKeys =

@@ -55,6 +55,10 @@ class AniLibertyApi
             const val BaseUrl: String = "https://aniliberty.top/api/v1"
             const val ScheduleRequestTimeoutMs: Long = 12_000L
             const val RecommendedMaxLimit: Int = 14
+            const val FilterSearch: String = "f[search]"
+            const val FilterGenres: String = "f[genres]"
+            const val FilterTypes: String = "f[types]"
+            const val FilterAgeRatings: String = "f[age_ratings]"
         }
 
         private val scheduleFallbackLogged = AtomicBoolean(false)
@@ -102,15 +106,15 @@ class AniLibertyApi
                     put("page", request.page.value.toString())
                     put("limit", request.limit.value.toString())
 
-                    putIfNotBlank("f[search]", request.search)
-                    putCsv("f[genres]", request.genres)
+                    putIfNotBlank(Config.FilterSearch, request.search)
+                    putCsv(Config.FilterGenres, request.genres)
                     putCsv("f[seasons]", request.seasons) { it.value }
-                    putCsv("f[types]", request.types) { it.value }
+                    putCsv(Config.FilterTypes, request.types) { it.value }
 
                     if (request.fromYear != null) put("f[years][from_year]", request.fromYear.toString())
                     if (request.toYear != null) put("f[years][to_year]", request.toYear.toString())
 
-                    putCsv("f[age_ratings]", request.ageRatings) { it.value }
+                    putCsv(Config.FilterAgeRatings, request.ageRatings) { it.value }
                     putCsv("f[publish_statuses]", request.publishStatuses) { it.value }
                     putCsv("f[production_statuses]", request.productionStatuses) { it.value }
 
@@ -428,11 +432,11 @@ class AniLibertyApi
                     put("limit", request.limit.value.toString())
 
                     putCsv("f[years]", request.years)
-                    putCsv("f[types]", request.types) { it.value }
-                    putCsv("f[genres]", request.genres)
-                    putIfNotBlank("f[search]", request.search)
+                    putCsv(Config.FilterTypes, request.types) { it.value }
+                    putCsv(Config.FilterGenres, request.genres)
+                    putIfNotBlank(Config.FilterSearch, request.search)
                     putIfNotBlank("f[sorting]", request.sorting?.value)
-                    putCsv("f[age_ratings]", request.ageRatings) { it.value }
+                    putCsv(Config.FilterAgeRatings, request.ageRatings) { it.value }
 
                     applyFields(request.fields)
                 }
@@ -478,11 +482,11 @@ class AniLibertyApi
                     put("limit", request.limit.value.toString())
                     put("type_of_collection", request.typeOfCollection.value)
 
-                    putCsv("f[genres]", request.genres)
-                    putCsv("f[types]", request.types) { it.value }
+                    putCsv(Config.FilterGenres, request.genres)
+                    putCsv(Config.FilterTypes, request.types) { it.value }
                     putCsv("f[years]", request.years)
-                    putIfNotBlank("f[search]", request.search)
-                    putCsv("f[age_ratings]", request.ageRatings) { it.value }
+                    putIfNotBlank(Config.FilterSearch, request.search)
+                    putCsv(Config.FilterAgeRatings, request.ageRatings) { it.value }
 
                     applyFields(request.fields)
                 }
