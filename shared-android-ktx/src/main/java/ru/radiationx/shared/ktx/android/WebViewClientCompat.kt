@@ -62,6 +62,7 @@ open class WebViewClientCompat {
     }
 }
 
+@Suppress("OVERRIDE_DEPRECATION")
 private class DefaultWebviewClient(
     private val compat: WebViewClientCompat,
 ) : WebViewClient() {
@@ -92,12 +93,10 @@ private class DefaultWebviewClient(
         return compat.shouldOverrideUrlLoading(view, request.toCompat())
     }
 
-    @Deprecated("Deprecated in Java")
     override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
         return compat.shouldOverrideUrlLoading(view, url.asWebResourceRequest())
     }
 
-    @Deprecated("Deprecated in Java")
     override fun onReceivedError(
         view: WebView,
         errorCode: Int,
@@ -135,7 +134,6 @@ private class DefaultWebviewClient(
         return compat.shouldInterceptRequest(view, request.toCompat())
     }
 
-    @Deprecated("Deprecated in Java")
     override fun shouldInterceptRequest(view: WebView, url: String): WebResourceResponse? {
         return compat.shouldInterceptRequest(view, url.asWebResourceRequest())
     }

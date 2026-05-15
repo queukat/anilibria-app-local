@@ -21,14 +21,6 @@ data class LibriaCard(
                 is LibriaCard.Type.Youtube -> "youtube:${t.link}"
             }
 
-    @Deprecated("Use stableKey for Compose keys and TV focus identity.")
-    override val itemId: Int
-        get() =
-            when (val t = type) {
-                is LibriaCard.Type.Release -> t.releaseId.id
-                is LibriaCard.Type.Youtube -> t.link.hashCode()
-            }
-
     override val backgroundImageUrl: String?
         get() = image.trim().takeIf(String::isNotEmpty)
 
