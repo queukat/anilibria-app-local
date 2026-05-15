@@ -122,17 +122,32 @@ class UserViewsSyncInteractorMergeGuardTest {
         remoteTimestampTrusted: Boolean,
         syncSessionStartedAtMs: Long,
     ): EpisodeAccess? {
+        val remoteProgressClass =
+            Class.forName("${UserViewsSyncInteractor::class.java.name}\$RemoteEpisodeProgress")
+        val remoteProgress =
+            remoteProgressClass
+                .getDeclaredConstructor(
+                    Long::class.javaPrimitiveType,
+                    Boolean::class.javaPrimitiveType,
+                    java.lang.Long::class.java,
+                    java.lang.Long::class.java,
+                    Boolean::class.javaPrimitiveType,
+                ).apply {
+                    isAccessible = true
+                }.newInstance(
+                    remoteSeekMs,
+                    remoteIsWatched,
+                    durationMs,
+                    remoteLastAccessMs,
+                    remoteTimestampTrusted,
+                )
         val method =
             UserViewsSyncInteractor::class.java.getDeclaredMethod(
                 "mergeEpisodeProgress",
                 EpisodeId::class.java,
                 EpisodeAccess::class.java,
                 Boolean::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Boolean::class.javaPrimitiveType,
-                java.lang.Long::class.java,
-                java.lang.Long::class.java,
-                Boolean::class.javaPrimitiveType,
+                remoteProgressClass,
                 Long::class.javaPrimitiveType,
             ).apply {
                 isAccessible = true
@@ -143,11 +158,7 @@ class UserViewsSyncInteractorMergeGuardTest {
             episodeId,
             local,
             localHasPendingUpload,
-            remoteSeekMs,
-            remoteIsWatched,
-            durationMs,
-            remoteLastAccessMs,
-            remoteTimestampTrusted,
+            remoteProgress,
             syncSessionStartedAtMs,
         ) as EpisodeAccess?
     }

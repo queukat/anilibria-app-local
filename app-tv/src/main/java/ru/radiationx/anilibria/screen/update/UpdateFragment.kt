@@ -50,12 +50,15 @@ class UpdateFragment : Fragment() {
             setContent {
                 ProvideGradientBackground(backgroundManager) {
                     UpdateScreen(
-                        updateData = updateDataState,
-                        isInitialLoading = initialLoadingState,
-                        isDownloading = downloadVisibleState,
-                        downloadProgress = downloadProgressState,
-                        isSourceChooserVisible = sourceChooserVisibleState,
-                        focusRequestToken = focusRequestToken,
+                        state =
+                            UpdateScreenState(
+                                updateData = updateDataState,
+                                isInitialLoading = initialLoadingState,
+                                isDownloading = downloadVisibleState,
+                                downloadProgress = downloadProgressState,
+                                isSourceChooserVisible = sourceChooserVisibleState,
+                                focusRequestToken = focusRequestToken,
+                            ),
                         onActionClick = viewModel::onActionClick,
                         onSourceSelected = viewModel::onSourceSelected,
                     )

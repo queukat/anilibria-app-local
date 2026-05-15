@@ -383,16 +383,20 @@ class UserViewsSyncInteractor
                         // Merge with local
                         val local = localEpisodeMap[episodeId]
                         val remoteTimestamp = extractRemoteTimestamp(item)
+                        val remoteProgress =
+                            RemoteEpisodeProgress(
+                                seekMs = remoteSeekMs,
+                                isWatched = remoteIsWatched,
+                                durationMs = durationMs,
+                                lastAccessMs = remoteTimestamp.lastAccessMs,
+                                timestampTrusted = remoteTimestamp.isTrusted,
+                            )
                         val merged =
                             mergeEpisodeProgress(
                                 episodeId = episodeId,
                                 local = local,
                                 localHasPendingUpload = episodeId in dirtyLocalEpisodeIds,
-                                remoteSeekMs = remoteSeekMs,
-                                remoteIsWatched = remoteIsWatched,
-                                durationMs = durationMs,
-                                remoteLastAccessMs = remoteTimestamp.lastAccessMs,
-                                remoteTimestampTrusted = remoteTimestamp.isTrusted,
+                                remote = remoteProgress,
                                 syncSessionStartedAtMs = syncSessionStartedAtMs,
                             ) ?: return@forEach
 
@@ -479,24 +483,22 @@ class UserViewsSyncInteractor
             episodeId: EpisodeId,
             local: EpisodeAccess?,
             localHasPendingUpload: Boolean,
-            remoteSeekMs: Long,
-            remoteIsWatched: Boolean,
-            durationMs: Long?,
-            remoteLastAccessMs: Long?,
-            remoteTimestampTrusted: Boolean,
+            remote: RemoteEpisodeProgress,
             syncSessionStartedAtMs: Long,
         ): EpisodeAccess? {
             val localSeekMs = local?.seek ?: 0L
             val localLastAccessMs = local?.lastAccessRaw ?: 0L
+            val remoteSeekMs = remote.seekMs
+            val remoteIsWatched = remote.isWatched
+            val durationMs = remote.durationMs
+            val remoteLastAccessMs = remote.lastAccessMs
+            val remoteTimestampTrusted = remote.timestampTrusted
 
             if (localHasPendingUpload && local != null) {
                 logMergeDecision(
                     episodeId = episodeId,
                     local = local,
-                    remoteSeekMs = remoteSeekMs,
-                    remoteIsWatched = remoteIsWatched,
-                    remoteLastAccessMs = remoteLastAccessMs,
-                    remoteTimestampTrusted = remoteTimestampTrusted,
+                    remote = remote,
                     winner = "local",
                     reason = "local_pending_upload",
                 )
@@ -508,10 +510,7 @@ class UserViewsSyncInteractor
                 logMergeDecision(
                     episodeId = episodeId,
                     local = local,
-                    remoteSeekMs = remoteSeekMs,
-                    remoteIsWatched = remoteIsWatched,
-                    remoteLastAccessMs = remoteLastAccessMs,
-                    remoteTimestampTrusted = remoteTimestampTrusted,
+                    remote = remote,
                     winner = if (local == null) "skip" else "local",
                     reason = "remote_empty_progress",
                 )
@@ -522,10 +521,7 @@ class UserViewsSyncInteractor
                 logMergeDecision(
                     episodeId = episodeId,
                     local = local,
-                    remoteSeekMs = remoteSeekMs,
-                    remoteIsWatched = remoteIsWatched,
-                    remoteLastAccessMs = remoteLastAccessMs,
-                    remoteTimestampTrusted = remoteTimestampTrusted,
+                    remote = remote,
                     winner = "local",
                     reason = "local_modified_after_sync_start",
                 )
@@ -542,10 +538,7 @@ class UserViewsSyncInteractor
                 logMergeDecision(
                     episodeId = episodeId,
                     local = local,
-                    remoteSeekMs = remoteSeekMs,
-                    remoteIsWatched = remoteIsWatched,
-                    remoteLastAccessMs = remoteLastAccessMs,
-                    remoteTimestampTrusted = true,
+                    remote = remote.copy(timestampTrusted = true),
                     winner = "local",
                     reason = "remote_timestamp_older_than_local",
                 )
@@ -577,10 +570,7 @@ class UserViewsSyncInteractor
                 logMergeDecision(
                     episodeId = episodeId,
                     local = local,
-                    remoteSeekMs = remoteSeekMs,
-                    remoteIsWatched = remoteIsWatched,
-                    remoteLastAccessMs = remoteLastAccessMs,
-                    remoteTimestampTrusted = remoteTimestampTrusted,
+                    remote = remote,
                     winner = if (local == null) "skip" else "local",
                     reason = "progress_not_better",
                 )
@@ -612,10 +602,7 @@ class UserViewsSyncInteractor
             logMergeDecision(
                 episodeId = episodeId,
                 local = local,
-                remoteSeekMs = remoteSeekMs,
-                remoteIsWatched = remoteIsWatched,
-                remoteLastAccessMs = remoteLastAccessMs,
-                remoteTimestampTrusted = remoteTimestampTrusted,
+                remote = remote,
                 winner = "remote",
                 reason = "remote_progress_selected",
             )
@@ -961,10 +948,7 @@ class UserViewsSyncInteractor
         private fun logMergeDecision(
             episodeId: EpisodeId,
             local: EpisodeAccess?,
-            remoteSeekMs: Long,
-            remoteIsWatched: Boolean,
-            remoteLastAccessMs: Long?,
-            remoteTimestampTrusted: Boolean,
+            remote: RemoteEpisodeProgress,
             winner: String,
             reason: String,
         ) {
@@ -972,12 +956,12 @@ class UserViewsSyncInteractor
                 "UserViewsSync.merge episodeId=%s localSeekMs=%d remoteSeekMs=%d localViewed=%s remoteViewed=%s localLastAccessMs=%d remoteLastAccessMs=%d remoteTimestampTrusted=%s winner=%s reason=%s",
                 episodeId,
                 local?.seek ?: 0L,
-                remoteSeekMs,
+                remote.seekMs,
                 local?.isViewed == true,
-                remoteIsWatched,
+                remote.isWatched,
                 local?.lastAccessRaw ?: 0L,
-                remoteLastAccessMs ?: -1L,
-                remoteTimestampTrusted,
+                remote.lastAccessMs ?: -1L,
+                remote.timestampTrusted,
                 winner,
                 reason,
             )
@@ -1079,6 +1063,14 @@ class UserViewsSyncInteractor
         private data class RemoteTimestampInfo(
             val lastAccessMs: Long?,
             val isTrusted: Boolean,
+        )
+
+        private data class RemoteEpisodeProgress(
+            val seekMs: Long,
+            val isWatched: Boolean,
+            val durationMs: Long?,
+            val lastAccessMs: Long?,
+            val timestampTrusted: Boolean,
         )
 
         private data class HistoryPagesLoadResult(

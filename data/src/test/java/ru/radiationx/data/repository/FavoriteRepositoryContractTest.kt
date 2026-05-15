@@ -16,6 +16,9 @@ import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyEpisode
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoriteSorting
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoritesFilterRequest
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyLimit
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyPage
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyPublishDay
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseAlias
@@ -61,17 +64,7 @@ class FavoriteRepositoryContractTest {
     fun getFavorites_requestsAniLibertyWithSortingAndSlimFields() =
         runTest {
             coEvery {
-                aniLibertyApi.getUserFavoriteReleasesFiltered(
-                    page = 1,
-                    limit = 25,
-                    years = null,
-                    types = null,
-                    genres = null,
-                    search = null,
-                    sorting = AniLibertyFavoriteSorting.YearDesc,
-                    ageRatings = null,
-                    fields = AniLibertyReleaseFields.FavoritesList,
-                )
+                aniLibertyApi.getUserFavoriteReleasesFiltered(favoritesRequest())
             } returns
                 PaginatedResponse(
                     data = listOf(release(id = 10096, titleRu = "Hell Mode")),
@@ -88,17 +81,7 @@ class FavoriteRepositoryContractTest {
 
             assertEquals(1, result.data.size)
             coVerify(exactly = 1) {
-                aniLibertyApi.getUserFavoriteReleasesFiltered(
-                    page = 1,
-                    limit = 25,
-                    years = null,
-                    types = null,
-                    genres = null,
-                    search = null,
-                    sorting = AniLibertyFavoriteSorting.YearDesc,
-                    ageRatings = null,
-                    fields = AniLibertyReleaseFields.FavoritesList,
-                )
+                aniLibertyApi.getUserFavoriteReleasesFiltered(favoritesRequest())
             }
         }
 
@@ -130,17 +113,7 @@ class FavoriteRepositoryContractTest {
     fun getFavorites_whenCancelled_doesNotFallbackToLegacy() =
         runTest {
             coEvery {
-                aniLibertyApi.getUserFavoriteReleasesFiltered(
-                    page = 1,
-                    limit = 25,
-                    years = null,
-                    types = null,
-                    genres = null,
-                    search = null,
-                    sorting = AniLibertyFavoriteSorting.YearDesc,
-                    ageRatings = null,
-                    fields = AniLibertyReleaseFields.FavoritesList,
-                )
+                aniLibertyApi.getUserFavoriteReleasesFiltered(favoritesRequest())
             } throws CancellationException("cancelled")
 
             val error = runCatching { repository.getFavorites(page = 1) }.exceptionOrNull()
@@ -153,17 +126,7 @@ class FavoriteRepositoryContractTest {
     fun getFavorites_resolvesAmbiguousStoppedReleaseStatusFromFullRelease() =
         runTest {
             coEvery {
-                aniLibertyApi.getUserFavoriteReleasesFiltered(
-                    page = 1,
-                    limit = 25,
-                    years = null,
-                    types = null,
-                    genres = null,
-                    search = null,
-                    sorting = AniLibertyFavoriteSorting.YearDesc,
-                    ageRatings = null,
-                    fields = AniLibertyReleaseFields.FavoritesList,
-                )
+                aniLibertyApi.getUserFavoriteReleasesFiltered(favoritesRequest())
             } returns
                 PaginatedResponse(
                     data =
@@ -251,6 +214,15 @@ class FavoriteRepositoryContractTest {
                 )
             }
         }
+
+    private fun favoritesRequest(page: Int = 1): AniLibertyFavoritesFilterRequest {
+        return AniLibertyFavoritesFilterRequest(
+            page = AniLibertyPage(page),
+            limit = AniLibertyLimit(25),
+            sorting = AniLibertyFavoriteSorting.YearDesc,
+            fields = AniLibertyReleaseFields.FavoritesList,
+        )
+    }
 
     private fun release(
         id: Int,

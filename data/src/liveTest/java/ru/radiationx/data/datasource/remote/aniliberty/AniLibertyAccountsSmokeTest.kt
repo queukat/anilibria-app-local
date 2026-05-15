@@ -83,18 +83,20 @@ class AniLibertyAccountsSmokeTest {
     fun getUserFavoriteReleases_fieldsPreset_notLargerThanFullPayload() {
         runTest {
             api.getUserFavoriteReleasesFiltered(
-                page = 1,
-                limit = 5,
-                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
-                fields = null,
+                favoritesRequest(
+                    limit = 5,
+                    sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                    fields = null,
+                ),
             )
             val fullBytes = liveClient.lastResponseBodyBytes
 
             api.getUserFavoriteReleasesFiltered(
-                page = 1,
-                limit = 5,
-                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
-                fields = AniLibertyReleaseFields.FavoritesList,
+                favoritesRequest(
+                    limit = 5,
+                    sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                    fields = AniLibertyReleaseFields.FavoritesList,
+                ),
             )
             val slimBytes = liveClient.lastResponseBodyBytes
             val slimExclude = liveClient.lastRequestUrl?.queryParameter("exclude").orEmpty()
@@ -115,10 +117,10 @@ class AniLibertyAccountsSmokeTest {
         runTest {
             val response =
                 api.getUserFavoriteReleasesFiltered(
-                    page = 1,
-                    limit = 25,
-                    sorting = AniLibertyFavoriteSorting.FreshAtDesc,
-                    fields = AniLibertyReleaseFields.FavoritesList,
+                    favoritesRequest(
+                        sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                        fields = AniLibertyReleaseFields.FavoritesList,
+                    ),
                 )
 
             val freshAtInstants =
@@ -206,17 +208,17 @@ class AniLibertyAccountsSmokeTest {
     private suspend fun verifySlimFieldsPreserveMappedStatusCodes(sorting: AniLibertyFavoriteSorting): String {
         val fullResponse =
             api.getUserFavoriteReleasesFiltered(
-                page = 1,
-                limit = 25,
-                sorting = sorting,
-                fields = null,
+                favoritesRequest(
+                    sorting = sorting,
+                    fields = null,
+                ),
             )
         val slimResponse =
             api.getUserFavoriteReleasesFiltered(
-                page = 1,
-                limit = 25,
-                sorting = sorting,
-                fields = AniLibertyReleaseFields.FavoritesList,
+                favoritesRequest(
+                    sorting = sorting,
+                    fields = AniLibertyReleaseFields.FavoritesList,
+                ),
             )
         val ambiguousIds =
             slimResponse.data
@@ -332,6 +334,19 @@ class AniLibertyAccountsSmokeTest {
                 append(completedTitles)
             }
         }
+    }
+
+    private fun favoritesRequest(
+        limit: Int = 25,
+        sorting: AniLibertyFavoriteSorting,
+        fields: AniLibertyFieldSpec?,
+    ): AniLibertyFavoritesFilterRequest {
+        return AniLibertyFavoritesFilterRequest(
+            page = AniLibertyPage(1),
+            limit = AniLibertyLimit(limit),
+            sorting = sorting,
+            fields = fields,
+        )
     }
 
     private fun parseInstantOrNull(value: String?): Instant? {

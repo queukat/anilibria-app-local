@@ -8,6 +8,9 @@ import ru.radiationx.data.datasource.holders.CookieHolder
 import ru.radiationx.data.datasource.remote.address.ApiConfig
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyApi
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoriteSorting
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyFavoritesFilterRequest
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyLimit
+import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyPage
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyRelease
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseFields
 import ru.radiationx.data.datasource.remote.aniliberty.AniLibertyReleaseId
@@ -44,10 +47,12 @@ class FavoriteRepository
         suspend fun getFavoritesAniLiberty(page: Int): Paginated<Release> =
             mapAniLibertyFavorites(
                 aniLibertyApi.getUserFavoriteReleasesFiltered(
-                    page = page,
-                    limit = DEFAULT_LIMIT,
-                    sorting = AniLibertyFavoriteSorting.YearDesc,
-                    fields = AniLibertyReleaseFields.FavoritesList,
+                    AniLibertyFavoritesFilterRequest(
+                        page = AniLibertyPage(page),
+                        limit = AniLibertyLimit(DEFAULT_LIMIT),
+                        sorting = AniLibertyFavoriteSorting.YearDesc,
+                        fields = AniLibertyReleaseFields.FavoritesList,
+                    ),
                 ),
             )
 
@@ -75,10 +80,12 @@ class FavoriteRepository
                 runCatching {
                     mapAniLibertyFavorites(
                         aniLibertyApi.getUserFavoriteReleasesFiltered(
-                            page = page,
-                            limit = DEFAULT_LIMIT,
-                            sorting = AniLibertyFavoriteSorting.YearDesc,
-                            fields = AniLibertyReleaseFields.FavoritesList,
+                            AniLibertyFavoritesFilterRequest(
+                                page = AniLibertyPage(page),
+                                limit = AniLibertyLimit(DEFAULT_LIMIT),
+                                sorting = AniLibertyFavoriteSorting.YearDesc,
+                                fields = AniLibertyReleaseFields.FavoritesList,
+                            ),
                         ),
                     )
                 }.getOrElse { error ->

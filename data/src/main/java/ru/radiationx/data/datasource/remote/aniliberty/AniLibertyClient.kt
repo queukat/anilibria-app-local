@@ -33,42 +33,8 @@ interface AniLibertyClient :
     AniLibertyFranchisesClient,
     AniLibertyTeamsClient
 
-interface AniLibertyCatalogClient {
+fun interface AniLibertyCatalogClient {
     suspend fun getCatalogReleases(request: AniLibertyCatalogRequest): PaginatedResponse<AniLibertyRelease>
-
-    @Suppress("LongParameterList")
-    suspend fun getCatalogReleases(
-        page: Int,
-        limit: Int,
-        search: String? = null,
-        genres: List<Int>? = null,
-        fromYear: Int? = null,
-        toYear: Int? = null,
-        seasons: List<AniLibertySeason>? = null,
-        types: List<AniLibertyReleaseType>? = null,
-        ageRatings: List<AniLibertyAgeRating>? = null,
-        publishStatuses: List<AniLibertyCatalogPublishStatus>? = null,
-        productionStatuses: List<AniLibertyCatalogProductionStatus>? = null,
-        sorting: AniLibertyCatalogSorting? = null,
-        fields: AniLibertyFieldSpec? = null,
-    ): PaginatedResponse<AniLibertyRelease> =
-        getCatalogReleases(
-            AniLibertyCatalogRequest(
-                page = AniLibertyPage(page),
-                limit = AniLibertyLimit(limit),
-                search = search,
-                genres = genres,
-                fromYear = fromYear,
-                toYear = toYear,
-                seasons = seasons,
-                types = types,
-                ageRatings = ageRatings,
-                publishStatuses = publishStatuses,
-                productionStatuses = productionStatuses,
-                sorting = sorting,
-                fields = fields,
-            ),
-        )
 }
 
 interface AniLibertyCatalogReferencesClient {
@@ -272,32 +238,6 @@ interface AniLibertyAccountsClient {
     ): PaginatedResponse<AniLibertyRelease>
 
     suspend fun getUserFavoriteReleasesFiltered(request: AniLibertyFavoritesFilterRequest): PaginatedResponse<AniLibertyRelease>
-
-    @Suppress("LongParameterList")
-    suspend fun getUserFavoriteReleasesFiltered(
-        page: Int,
-        limit: Int,
-        years: List<Int>? = null,
-        types: List<AniLibertyReleaseType>? = null,
-        genres: List<Int>? = null,
-        search: String? = null,
-        sorting: AniLibertyFavoriteSorting? = null,
-        ageRatings: List<AniLibertyAgeRating>? = null,
-        fields: AniLibertyFieldSpec? = null,
-    ): PaginatedResponse<AniLibertyRelease> =
-        getUserFavoriteReleasesFiltered(
-            AniLibertyFavoritesFilterRequest(
-                page = AniLibertyPage(page),
-                limit = AniLibertyLimit(limit),
-                years = years,
-                types = types,
-                genres = genres,
-                search = search,
-                sorting = sorting,
-                ageRatings = ageRatings,
-                fields = fields,
-            ),
-        )
 
     // Favorites mutate
     suspend fun addToFavorites(releaseIds: List<AniLibertyReleaseId>): List<AniLibertyReleaseId>

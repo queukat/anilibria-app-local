@@ -72,17 +72,27 @@ import ru.radiationx.data.entity.domain.updater.UpdateData
 private const val MIN_SCROLLBAR_THUMB_HEIGHT_PX = 18
 private const val UPDATE_CONTENT_MAX_WIDTH = 980
 
+internal data class UpdateScreenState(
+    val updateData: UpdateData?,
+    val isInitialLoading: Boolean,
+    val isDownloading: Boolean,
+    val downloadProgress: Int,
+    val isSourceChooserVisible: Boolean,
+    val focusRequestToken: Int,
+)
+
 @Composable
 internal fun UpdateScreen(
-    updateData: UpdateData?,
-    isInitialLoading: Boolean,
-    isDownloading: Boolean,
-    downloadProgress: Int,
-    isSourceChooserVisible: Boolean,
-    focusRequestToken: Int,
+    state: UpdateScreenState,
     onActionClick: () -> Unit,
     onSourceSelected: (Int) -> Unit,
 ) {
+    val updateData = state.updateData
+    val isInitialLoading = state.isInitialLoading
+    val isDownloading = state.isDownloading
+    val downloadProgress = state.downloadProgress
+    val isSourceChooserVisible = state.isSourceChooserVisible
+    val focusRequestToken = state.focusRequestToken
     val palette = rememberWatchingPalette()
     val actionRequester = remember { FocusRequester() }
     val notesRequester = remember { FocusRequester() }

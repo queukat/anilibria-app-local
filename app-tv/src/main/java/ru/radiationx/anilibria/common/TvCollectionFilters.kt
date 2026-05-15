@@ -50,23 +50,18 @@ internal object TvCollectionFilterLabels {
 }
 
 internal fun buildTvCollectionFiltersUiState(
-    yearLabel: String,
-    yearEmphasized: Boolean,
-    seasonLabel: String,
-    seasonEmphasized: Boolean,
-    genreLabel: String,
-    genreEmphasized: Boolean,
-    sortLabel: String,
-    sortEmphasized: Boolean,
-    onlyCompletedLabel: String,
-    onlyCompletedEmphasized: Boolean,
+    year: TvCollectionFilterChipState,
+    season: TvCollectionFilterChipState,
+    genre: TvCollectionFilterChipState,
+    sort: TvCollectionFilterChipState,
+    onlyCompleted: TvCollectionFilterChipState,
 ): TvCollectionFiltersUiState {
     return TvCollectionFiltersUiState(
-        year = TvCollectionFilterChipState(yearLabel, yearEmphasized),
-        season = TvCollectionFilterChipState(seasonLabel, seasonEmphasized),
-        genre = TvCollectionFilterChipState(genreLabel, genreEmphasized),
-        sort = TvCollectionFilterChipState(sortLabel, sortEmphasized),
-        onlyCompleted = TvCollectionFilterChipState(onlyCompletedLabel, onlyCompletedEmphasized),
+        year = year,
+        season = season,
+        genre = genre,
+        sort = sort,
+        onlyCompleted = onlyCompleted,
     )
 }
 

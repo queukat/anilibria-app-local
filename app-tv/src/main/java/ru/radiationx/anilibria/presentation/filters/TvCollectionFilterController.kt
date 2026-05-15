@@ -3,6 +3,7 @@ package ru.radiationx.anilibria.presentation.filters
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import ru.radiationx.anilibria.common.TvCollectionFilterChipState
 import ru.radiationx.anilibria.common.TvCollectionFilterLabels
 import ru.radiationx.anilibria.common.TvCollectionFilterPickerKind
 import ru.radiationx.anilibria.common.TvCollectionFilterPickerState
@@ -312,21 +313,36 @@ internal class TvCollectionFilterController(
                 .map(TvCollectionFilterOption::label)
                 .ifEmpty { state.genres.sorted() }
         return buildTvCollectionFiltersUiState(
-            yearLabel = buildTvCollectionListLabel(orderedYears, TvCollectionFilterLabels.ALL_YEARS),
-            yearEmphasized = state.years.isNotEmpty(),
-            seasonLabel = buildTvCollectionListLabel(orderedSeasons, TvCollectionFilterLabels.ALL_SEASONS),
-            seasonEmphasized = state.seasons.isNotEmpty(),
-            genreLabel = buildTvCollectionListLabel(orderedGenres, TvCollectionFilterLabels.ALL_GENRES),
-            genreEmphasized = state.genres.isNotEmpty(),
-            sortLabel = state.sort.toLabel(),
-            sortEmphasized = state.sort != defaultSort,
-            onlyCompletedLabel =
-                if (state.onlyCompleted) {
-                    TvCollectionFilterLabels.ONLY_COMPLETED
-                } else {
-                    TvCollectionFilterLabels.ALL
-                },
-            onlyCompletedEmphasized = state.onlyCompleted,
+            year =
+                TvCollectionFilterChipState(
+                    label = buildTvCollectionListLabel(orderedYears, TvCollectionFilterLabels.ALL_YEARS),
+                    emphasized = state.years.isNotEmpty(),
+                ),
+            season =
+                TvCollectionFilterChipState(
+                    label = buildTvCollectionListLabel(orderedSeasons, TvCollectionFilterLabels.ALL_SEASONS),
+                    emphasized = state.seasons.isNotEmpty(),
+                ),
+            genre =
+                TvCollectionFilterChipState(
+                    label = buildTvCollectionListLabel(orderedGenres, TvCollectionFilterLabels.ALL_GENRES),
+                    emphasized = state.genres.isNotEmpty(),
+                ),
+            sort =
+                TvCollectionFilterChipState(
+                    label = state.sort.toLabel(),
+                    emphasized = state.sort != defaultSort,
+                ),
+            onlyCompleted =
+                TvCollectionFilterChipState(
+                    label =
+                        if (state.onlyCompleted) {
+                            TvCollectionFilterLabels.ONLY_COMPLETED
+                        } else {
+                            TvCollectionFilterLabels.ALL
+                        },
+                    emphasized = state.onlyCompleted,
+                ),
         )
     }
 

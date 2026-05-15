@@ -19,10 +19,12 @@ class AniLibertyApiFavoritesBehaviorTest {
 
             val result =
                 api.getUserFavoriteReleasesFiltered(
-                    page = 1,
-                    limit = 25,
-                    sorting = AniLibertyFavoriteSorting.FreshAtDesc,
-                    fields = AniLibertyReleaseFields.FavoritesList,
+                    AniLibertyFavoritesFilterRequest(
+                        page = AniLibertyPage(1),
+                        limit = AniLibertyLimit(25),
+                        sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                        fields = AniLibertyReleaseFields.FavoritesList,
+                    ),
                 )
 
             val args = client.calls.single()
@@ -49,10 +51,12 @@ class AniLibertyApiFavoritesBehaviorTest {
             val api = AniLibertyApi(client = client, moshi = Moshi.Builder().build())
 
             api.getUserFavoriteReleasesFiltered(
-                page = 1,
-                limit = 25,
-                sorting = AniLibertyFavoriteSorting.FreshAtDesc,
-                fields = null,
+                AniLibertyFavoritesFilterRequest(
+                    page = AniLibertyPage(1),
+                    limit = AniLibertyLimit(25),
+                    sorting = AniLibertyFavoriteSorting.FreshAtDesc,
+                    fields = null,
+                ),
             )
 
             val args = client.calls.single()
