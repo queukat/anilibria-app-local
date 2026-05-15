@@ -170,7 +170,7 @@ internal class TvCollectionFilterController(
 
     fun applyFilterPicker(): Boolean {
         val current = _pickerState.value ?: return false
-        val wasApplied = if (current.multiSelect) applyMultiSelectPickerSelection(current) else false
+        val wasApplied = current.multiSelect && applyMultiSelectPickerSelection(current)
         _pickerState.value = null
         return wasApplied
     }
@@ -185,7 +185,7 @@ internal class TvCollectionFilterController(
 
     fun dismissFilterPicker(): Boolean {
         val current = _pickerState.value
-        val wasApplied = if (current?.multiSelect == true) applyMultiSelectPickerSelection(current) else false
+        val wasApplied = current?.let { it.multiSelect && applyMultiSelectPickerSelection(it) } ?: false
         _pickerState.value = null
         return wasApplied
     }

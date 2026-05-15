@@ -58,9 +58,6 @@ class ApiConfig
         fun setConfig(configData: ApiConfigData) {
             val items = configData.addresses
             addresses.clear()
-        /*if (items.find { it.tag == Api.DEFAULT_ADDRESS.tag } == null) {
-            addresses.add(Api.DEFAULT_ADDRESS)
-        }*/
             addresses.addAll(items)
 
             possibleIps.clear()

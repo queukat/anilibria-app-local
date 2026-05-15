@@ -101,7 +101,7 @@ abstract class BaseCardsViewModel : LifecycleViewModel() {
     }
 
     /** При клике по обычной карточке (LibriaCard). Переопределяйте в наследниках. */
-    open fun onLibriaCardClick(card: LibriaCard) {}
+    open fun onLibriaCardClick(card: LibriaCard) = Unit
 
     /**
      * Нужно реализовать в наследниках:

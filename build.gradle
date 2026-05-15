@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.testing.jacoco.tasks.JacocoReport
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
@@ -34,6 +35,8 @@ plugins {
     alias libs.plugins.gms apply false
     alias libs.plugins.appmetrica apply false
     alias(libs.plugins.version.catalog.update)
+    alias(libs.plugins.sonarqube)
+    id "jacoco"
 }
 
 // todo delete after fixes in conscrypt library
@@ -56,7 +59,13 @@ def analyzeDependencyProjects = [
     project(":shared-ktx"),
 ]
 
+def skippedSonarProjects = subprojects.findAll { Project moduleProject ->
+    !analyzeDependencyProjects.contains(moduleProject)
+}
+
 configure(analyzeDependencyProjects) { Project moduleProject ->
+    apply plugin: "jacoco"
+
     tasks.withType(KotlinJvmCompile).configureEach {
         compilerOptions.jvmTarget.set(JvmTarget.fromTarget(jvm_bytecode_version.toString()))
     }
@@ -64,6 +73,14 @@ configure(analyzeDependencyProjects) { Project moduleProject ->
     tasks.withType(JavaCompile).configureEach {
         sourceCompatibility = jvm_bytecode_version.toString()
         targetCompatibility = jvm_bytecode_version.toString()
+    }
+
+    tasks.withType(Test).configureEach {
+        jacoco {
+            destinationFile = moduleProject.layout.buildDirectory.file("jacoco/${name}.exec").get().asFile
+            includeNoLocationClasses = true
+            excludes = ["jdk.internal.*"]
+        }
     }
 
     pluginManager.withPlugin("com.android.application") {
@@ -83,4 +100,186 @@ configure(analyzeDependencyProjects) { Project moduleProject ->
             }
         }
     }
+}
+
+configure(skippedSonarProjects) {
+    sonar {
+        skipProject = true
+    }
+}
+
+def jacocoClassExcludes = [
+    '**/R.class',
+    '**/R$*.class',
+    '**/BuildConfig.*',
+    '**/Manifest*.*',
+    '**/*Test*.*',
+    '**/*$serializer.*',
+    '**/*_Factory.*',
+    '**/*Factory.*',
+    '**/*MembersInjector.*',
+    '**/*_MembersInjector.*',
+    '**/*ComposableSingletons*.*',
+]
+
+def sonarCoverageReport = tasks.register("sonarCoverageReport", JacocoReport) {
+    group = "verification"
+    description = "Generates an aggregate JaCoCo XML report for SonarQube."
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+}
+
+def resolveGradlePropertyOrEnv = { String gradlePropertyName, String envName ->
+    def gradleValue = findProperty(gradlePropertyName)?.toString()
+    if (gradleValue != null && !gradleValue.trim().isEmpty()) {
+        return gradleValue.trim()
+    }
+
+    def envValue = System.getenv(envName)
+    if (envValue != null && !envValue.trim().isEmpty()) {
+        return envValue.trim()
+    }
+
+    return null
+}
+
+def inferGitHubOriginOwner = {
+    def gitConfig = rootProject.file(".git/config")
+    if (!gitConfig.isFile()) {
+        return null
+    }
+
+    def inOrigin = false
+    def originUrl = null
+    gitConfig.eachLine { String line ->
+        def trimmed = line.trim()
+        if (trimmed.startsWith("[remote ")) {
+            inOrigin = trimmed == '[remote "origin"]'
+            return
+        }
+        if (inOrigin && trimmed.startsWith("url =")) {
+            originUrl = trimmed.substring("url =".length()).trim()
+        }
+    }
+
+    if (originUrl == null) {
+        return null
+    }
+
+    def matcher = originUrl =~ /github\.com[:\/]([^\/:]+)\//
+    return matcher.find() ? matcher.group(1).toLowerCase(Locale.US) : null
+}
+
+gradle.projectsEvaluated {
+    analyzeDependencyProjects.each { Project moduleProject ->
+        moduleProject.tasks.withType(Test).configureEach { Test testTask ->
+            jacoco.destinationFile = moduleProject.layout.buildDirectory.file("jacoco/${testTask.name}.exec").get().asFile
+        }
+    }
+
+    sonarCoverageReport.configure { JacocoReport reportTask ->
+        analyzeDependencyProjects.each { Project moduleProject ->
+            def isAndroidModule = moduleProject.plugins.hasPlugin("com.android.application") ||
+                    moduleProject.plugins.hasPlugin("com.android.library")
+            def isJvmModule = moduleProject.plugins.hasPlugin("org.jetbrains.kotlin.jvm")
+
+            if (isAndroidModule && moduleProject.tasks.findByName("testDebugUnitTest") != null) {
+                reportTask.dependsOn(moduleProject.tasks.named("testDebugUnitTest"))
+                reportTask.sourceDirectories.from(moduleProject.files("src/main/java", "src/main/kotlin"))
+                reportTask.classDirectories.from(
+                    moduleProject.fileTree(
+                        dir: "${moduleProject.buildDir}/tmp/kotlin-classes/debug",
+                        excludes: jacocoClassExcludes
+                    ),
+                    moduleProject.fileTree(
+                        dir: "${moduleProject.buildDir}/intermediates/javac/debug/classes",
+                        excludes: jacocoClassExcludes
+                    )
+                )
+            }
+
+            if (isJvmModule && moduleProject.tasks.findByName("test") != null) {
+                reportTask.dependsOn(moduleProject.tasks.named("test"))
+                reportTask.sourceDirectories.from(moduleProject.files("src/main/java", "src/main/kotlin"))
+                reportTask.classDirectories.from(
+                    moduleProject.fileTree(
+                        dir: "${moduleProject.buildDir}/classes/java/main",
+                        excludes: jacocoClassExcludes
+                    ),
+                    moduleProject.fileTree(
+                        dir: "${moduleProject.buildDir}/classes/kotlin/main",
+                        excludes: jacocoClassExcludes
+                    )
+                )
+            }
+
+            reportTask.executionData.from(
+                moduleProject.fileTree("${moduleProject.buildDir}") {
+                    include("jacoco/*.exec")
+                    include("outputs/unit_test_code_coverage/debugUnitTest/*.exec")
+                    include("outputs/code_coverage/debugUnitTest/connected/*.ec")
+                }
+            )
+        }
+    }
+}
+
+sonar {
+    properties {
+        def sonarOrganization =
+                resolveGradlePropertyOrEnv("sonarOrganization", "SONAR_ORGANIZATION") ?: inferGitHubOriginOwner()
+        def sonarProjectKey =
+                resolveGradlePropertyOrEnv("sonarProjectKey", "SONAR_PROJECT_KEY") ?: rootProject.name
+
+        property "sonar.projectKey", sonarProjectKey
+        property "sonar.projectName", "AniLibria App Local"
+        if (sonarOrganization != null) {
+            property "sonar.organization", sonarOrganization
+        }
+        property "sonar.coverage.jacoco.xmlReportPaths",
+                layout.buildDirectory.file("reports/jacoco/sonarCoverageReport/sonarCoverageReport.xml").get().asFile.absolutePath
+        property "sonar.exclusions", [
+            "app-mobile/**",
+            "media-mobile/**",
+            "searchbar/**",
+            "taiwa/**",
+            "envoy/**",
+            "**/build/**",
+            "**/generated/**",
+        ].join(",")
+        def sonarCoverageExclusions = [
+            '**/src/androidTest/**',
+            '**/BuildConfig.*',
+            '**/R.class',
+            '**/R$*.class',
+            '**/Manifest*.*',
+        ]
+        def sonarCoverageBaselineFile = rootProject.file("config/sonar-coverage-exclusions.txt")
+        if (sonarCoverageBaselineFile.isFile()) {
+            sonarCoverageExclusions.addAll(
+                    sonarCoverageBaselineFile.readLines()
+                            .collect { it.trim() }
+                            .findAll { !it.isEmpty() && !it.startsWith("#") }
+            )
+        }
+        property "sonar.coverage.exclusions", sonarCoverageExclusions.unique().join(",")
+
+        def sonarHostUrl = System.getenv("SONAR_HOST_URL")
+        if (sonarHostUrl != null && !sonarHostUrl.trim().isEmpty()) {
+            property "sonar.host.url", sonarHostUrl
+        }
+
+        def sonarToken = System.getenv("SONAR_TOKEN")
+        if (sonarToken != null && !sonarToken.trim().isEmpty()) {
+            property "sonar.token", sonarToken
+        }
+    }
+}
+
+tasks.named("sonar").configure {
+    dependsOn(sonarCoverageReport)
 }

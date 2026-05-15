@@ -721,13 +721,15 @@ class AniLibertyApi
                         tomorrow = emptyList(),
                         yesterday = emptyList(),
                     )
-            if (fields != null && primaryResponse.isMeaningfullyEmpty()) {
+            if (
+                fields != null &&
+                primaryResponse.isMeaningfullyEmpty() &&
+                scheduleFallbackLogged.compareAndSet(false, true)
+            ) {
                 // OpenAPI allows include/exclude for schedule endpoints, but production payload
                 // with params is unstable for week/now in real traffic. We intentionally
                 // keep a no-args production request to avoid empty schedules.
-                if (scheduleFallbackLogged.compareAndSet(false, true)) {
-                    Timber.w("AniLiberty schedule/now: include/exclude disabled in production request due unstable payload.")
-                }
+                Timber.w("AniLiberty schedule/now: include/exclude disabled in production request due unstable payload.")
             }
             return primaryResponse
         }
@@ -736,10 +738,12 @@ class AniLibertyApi
             val primaryResponse =
                 requestScheduleWeek(emptyMap())
                     ?: AniLibertyScheduleWeekResponse(data = emptyList())
-            if (fields != null && primaryResponse.data.orEmpty().isEmpty()) {
-                if (scheduleFallbackLogged.compareAndSet(false, true)) {
-                    Timber.w("AniLiberty schedule/week: include/exclude disabled in production request due unstable payload.")
-                }
+            if (
+                fields != null &&
+                primaryResponse.data.orEmpty().isEmpty() &&
+                scheduleFallbackLogged.compareAndSet(false, true)
+            ) {
+                Timber.w("AniLiberty schedule/week: include/exclude disabled in production request due unstable payload.")
             }
             return primaryResponse
         }

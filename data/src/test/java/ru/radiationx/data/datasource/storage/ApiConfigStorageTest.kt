@@ -70,6 +70,31 @@ class ApiConfigStorageTest {
             assertTrue(secureValues.contains("legacy-password"))
         }
 
+    @Test
+    fun save_whenSecureStorageUnavailable_warnsOnceAndKeepsCredentialsOutOfPlaintext() =
+        runTest {
+            val plaintextPrefs = ApiConfigInMemorySharedPreferences()
+            val securePrefs = ApiConfigInMemorySharedPreferences()
+            val secureStorageStatus =
+                CriticalSecureStorageStatus().apply {
+                    markUnavailable(IllegalStateException("secure storage unavailable"))
+                }
+            val storage =
+                ApiConfigStorage(
+                    sharedPreferences = plaintextPrefs,
+                    securePreferences = securePrefs,
+                    criticalSecureStorageStatus = secureStorageStatus,
+                    moshi = Moshi.Builder().build(),
+                )
+
+            storage.save(sampleConfig(user = "proxy-user", password = "proxy-password"))
+            storage.save(sampleConfig(user = "proxy-user", password = "proxy-password"))
+
+            val plaintextJson = plaintextPrefs.getString("data.apiconfig_v2", null).orEmpty()
+            assertFalse(plaintextJson.contains("proxy-user"))
+            assertFalse(plaintextJson.contains("proxy-password"))
+        }
+
     private fun sampleConfig(
         user: String?,
         password: String?,

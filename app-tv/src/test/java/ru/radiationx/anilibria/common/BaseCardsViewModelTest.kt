@@ -114,6 +114,13 @@ class BaseCardsViewModelTest {
             assertTrue(viewModel.requestedPages == listOf(1, 2, 2))
         }
 
+    @Test
+    fun defaultLibriaCardClick_isNoop() {
+        val viewModel = TestCardsViewModel(ArrayDeque())
+
+        viewModel.onLibriaCardClick(card(title = "A"))
+    }
+
     private suspend fun waitUntil(predicate: () -> Boolean) {
         repeat(100) {
             if (predicate()) return

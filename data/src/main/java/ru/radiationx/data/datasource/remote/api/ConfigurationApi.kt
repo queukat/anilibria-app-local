@@ -34,8 +34,8 @@ class ConfigurationApi
 
         suspend fun getConfiguration(): ApiConfigResponse {
             return getMergeConfig().also {
-                if (it.addresses.isEmpty()) {
-                    throw IllegalStateException("Empty config adresses")
+                check(it.addresses.isNotEmpty()) {
+                    "Empty config addresses"
                 }
             }
         }

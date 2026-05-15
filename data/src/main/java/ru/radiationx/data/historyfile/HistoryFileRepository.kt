@@ -75,7 +75,9 @@ class HistoryFileRepository
 
         private fun getCacheDir(): File {
             val file = File(context.cacheDir, "anilibria_export")
-            file.mkdir()
+            check(file.isDirectory || file.mkdirs()) {
+                "Unable to create cache directory: ${file.absolutePath}"
+            }
             return file
         }
     }

@@ -87,6 +87,5 @@ fun Bitmap.centerCrop(
     canvas.translate(-srcX / scaleFactor, -srcY / scaleFactor)
     canvas.scale(1 / scaleFactor, 1 / scaleFactor)
     canvas.drawBitmap(src, 0f, 0f, Paint(Paint.FILTER_BITMAP_FLAG))
-    //src.recycle();
     return overlay
 }

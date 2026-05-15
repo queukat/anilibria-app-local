@@ -6,7 +6,6 @@ import android.graphics.drawable.BitmapDrawable
 import android.widget.ImageView
 import androidx.core.graphics.drawable.toBitmap
 import coil.ImageLoader
-import coil.clear
 import coil.dispose
 import coil.load
 import coil.request.ErrorResult

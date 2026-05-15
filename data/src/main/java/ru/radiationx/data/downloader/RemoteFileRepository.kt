@@ -62,14 +62,20 @@ class RemoteFileRepository
                     val remoteFile = holder.put(saveData)
                     emit(RemoteFileLoadEvent.Completed(DownloadedFile(remoteFile, loadingFile)))
                 } catch (ex: Exception) {
-                    loadingFile.delete()
+                    if (loadingFile.exists() && !loadingFile.delete()) {
+                        ex.addSuppressed(
+                            IllegalStateException("Unable to delete incomplete file: ${loadingFile.absolutePath}"),
+                        )
+                    }
                     throw ex
                 }
             }.flowOn(Dispatchers.IO)
 
         private fun getCacheDir(): File {
             val file = File(context.cacheDir, "anilibria_remote")
-            file.mkdir()
+            check(file.isDirectory || file.mkdirs()) {
+                "Unable to create cache directory: ${file.absolutePath}"
+            }
             return file
         }
 

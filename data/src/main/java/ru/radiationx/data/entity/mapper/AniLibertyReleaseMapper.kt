@@ -313,6 +313,7 @@ private fun parseIsoToEpochSeconds(raw: String?): Int {
             val sec = (d.time / 1000L).toInt()
             if (sec > 0) return sec
         } catch (_: Throwable) {
+            // Try the next supported timestamp format.
         }
     }
     return 0

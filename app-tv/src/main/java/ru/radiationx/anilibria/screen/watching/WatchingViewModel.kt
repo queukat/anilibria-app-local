@@ -15,8 +15,6 @@ class WatchingViewModel
         companion object {
             const val HISTORY_ROW_ID = 1L
             const val CONTINUE_ROW_ID = 2L
-
-            //        const val FAVORITES_ROW_ID = 3L
             const val RECOMMENDS_ROW_ID = 4L
         }
 
@@ -24,7 +22,6 @@ class WatchingViewModel
             listOf(
                 CONTINUE_ROW_ID,
                 HISTORY_ROW_ID,
-//            FAVORITES_ROW_ID,
                 RECOMMENDS_ROW_ID,
             )
 
@@ -38,7 +35,6 @@ class WatchingViewModel
             ) { hasLocalContinue, hasLocalHistory ->
                 updateAvailableRow(CONTINUE_ROW_ID, hasLocalContinue)
                 updateAvailableRow(HISTORY_ROW_ID, hasLocalHistory)
-//            updateAvailableRow(FAVORITES_ROW_ID, hasAuth)
             }.launchIn(viewModelScope)
         }
 

@@ -39,7 +39,7 @@ import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.clampedTvSectionTargetIndex
 import ru.radiationx.anilibria.screen.watching.defaultTvSectionTargetIndex
-import ru.radiationx.anilibria.screen.watching.findAdjacentTvSectionTarget
+import ru.radiationx.anilibria.screen.watching.findAdjacentVisibleTvSectionTarget
 import ru.radiationx.anilibria.screen.watching.findTvSectionRestoreTarget
 import ru.radiationx.anilibria.screen.watching.launchKeepTvSectionItemVisible
 import ru.radiationx.anilibria.screen.watching.launchTvSectionFocus
@@ -153,8 +153,9 @@ internal fun DetailScreen(
         preferredItemIndex: Int,
     ): Boolean {
         val target =
-            findAdjacentTvSectionTarget(
+            findAdjacentVisibleTvSectionTarget(
                 sections = sectionItems,
+                rowStates = rowStates,
                 currentSectionIndex = currentSectionIndex,
                 direction = direction,
                 preferredItemIndex = preferredItemIndex,

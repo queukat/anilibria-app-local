@@ -175,13 +175,11 @@ class ApiConfigStorage
         }
 
         private fun warnIfSecureStorageUnavailable() {
-            if (!criticalSecureStorageStatus.isAvailable()) {
-                if (degradedModeWarningPrinted.compareAndSet(false, true)) {
-                    Timber.w(
-                        criticalSecureStorageStatus.getUnavailableCause(),
-                        "Secure proxy credentials storage unavailable. Proxy credentials are not persisted in plaintext.",
-                    )
-                }
+            if (!criticalSecureStorageStatus.isAvailable() && degradedModeWarningPrinted.compareAndSet(false, true)) {
+                Timber.w(
+                    criticalSecureStorageStatus.getUnavailableCause(),
+                    "Secure proxy credentials storage unavailable. Proxy credentials are not persisted in plaintext.",
+                )
             }
         }
     }

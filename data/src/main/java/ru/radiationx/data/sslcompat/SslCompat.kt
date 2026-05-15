@@ -27,10 +27,7 @@ class SslCompat
                 Security.insertProviderAt(conscrypt, 1)
 
                 val trustManager = createTrustManager()
-                val sslContext =
-                    SSLContext.getInstance("TLS", conscrypt).apply {
-                        init(null, arrayOf<TrustManager>(trustManager), null)
-                    }
+                val sslContext = createSslContext(conscrypt, trustManager)
                 val tlsVersions =
                     connectionSpecs.flatMap {
                         it.tlsVersions.orEmpty()
@@ -52,6 +49,19 @@ class SslCompat
                 defaultManager = defaultTrustManager,
                 additionalKeyStores = listOfNotNull(compatKeyStore),
             )
+        }
+
+        private fun createSslContext(
+            conscrypt: Provider,
+            trustManager: X509TrustManager,
+        ): SSLContext {
+            return runCatching {
+                SSLContext.getInstance("TLSv1.3", conscrypt)
+            }.getOrElse {
+                SSLContext.getInstance("TLSv1.2", conscrypt)
+            }.apply {
+                init(null, arrayOf<TrustManager>(trustManager), null)
+            }
         }
 
         private fun createCompatKeyStore(): KeyStore? {

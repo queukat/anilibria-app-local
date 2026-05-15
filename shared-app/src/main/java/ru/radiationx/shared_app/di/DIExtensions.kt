@@ -11,10 +11,3 @@ inline fun <reified T : ViewModel> Fragment.quillParentViewModel(
     val parent = requireParentFragment()
     parent.getViewModel(T::class, extraProvider)
 }
-//// добавьте рядом с quillParentViewModel в том же пакете
-//inline fun <reified T : ViewModel> Fragment.quillActivityViewModel(
-//    noinline extraProvider: (() -> QuillExtra)? = null
-//): Lazy<T> = lazy {
-//    requireActivity().getViewModel(T::class, extraProvider)
-//}
-

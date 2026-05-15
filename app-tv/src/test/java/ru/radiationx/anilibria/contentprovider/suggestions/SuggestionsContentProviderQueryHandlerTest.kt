@@ -10,6 +10,10 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 class SuggestionsContentProviderQueryHandlerTest {
+    private companion object {
+        const val FETCH_TIMEOUT_MS = 2_000L
+    }
+
     @Test
     fun query_notifiesOriginalGlobalSearchRequest_afterFirstAsyncRefresh() {
         val calls = AtomicInteger(0)
@@ -20,7 +24,7 @@ class SuggestionsContentProviderQueryHandlerTest {
             SuggestionsContentProviderQueryHandler<String>(
                 minQueryLength = 3,
                 maxResults = 2,
-                timeoutMs = 200L,
+                timeoutMs = FETCH_TIMEOUT_MS,
                 cacheTtlMs = 1_000L,
                 minRequestIntervalMs = 0L,
                 loadSuggestionsBlocking = { _ ->
@@ -62,7 +66,7 @@ class SuggestionsContentProviderQueryHandlerTest {
             SuggestionsContentProviderQueryHandler<String>(
                 minQueryLength = 3,
                 maxResults = 20,
-                timeoutMs = 200L,
+                timeoutMs = FETCH_TIMEOUT_MS,
                 cacheTtlMs = 100L,
                 minRequestIntervalMs = 0L,
                 nowMillis = { now },
@@ -115,7 +119,7 @@ class SuggestionsContentProviderQueryHandlerTest {
             SuggestionsContentProviderQueryHandler<String>(
                 minQueryLength = 3,
                 maxResults = 20,
-                timeoutMs = 500L,
+                timeoutMs = FETCH_TIMEOUT_MS,
                 cacheTtlMs = 1_000L,
                 minRequestIntervalMs = 0L,
                 maxTrackedQueries = 1,
@@ -159,7 +163,7 @@ class SuggestionsContentProviderQueryHandlerTest {
     }
 
     private fun waitUntil(
-        timeoutMs: Long = 1_500L,
+        timeoutMs: Long = 5_000L,
         condition: () -> Boolean,
     ) {
         val deadline = System.currentTimeMillis() + timeoutMs

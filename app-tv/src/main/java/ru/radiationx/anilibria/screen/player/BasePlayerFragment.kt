@@ -263,30 +263,30 @@ open class BasePlayerFragment : Fragment() {
         skipsPartState = null
     }
 
-    protected open fun onCompletePlaying() {}
+    protected open fun onCompletePlaying() = Unit
 
-    protected open fun onPreparePlaying() {}
+    protected open fun onPreparePlaying() = Unit
 
-    protected open fun onPreviousAction(position: Long) {}
+    protected open fun onPreviousAction(position: Long) = Unit
 
-    protected open fun onNextAction(position: Long) {}
+    protected open fun onNextAction(position: Long) = Unit
 
     protected open fun onQualitySelected(
         position: Long,
         quality: PlayerQuality,
-    ) {}
+    ) = Unit
 
     protected open fun onEpisodeSelected(
         position: Long,
         episodeId: EpisodeId,
-    ) {}
+    ) = Unit
 
     @Composable
     protected open fun RenderPlayerOverlay() = Unit
 
     protected open fun handlePlayerOverlayBack(): Boolean = false
 
-    protected open fun onSpeedSelected(speed: Float) {}
+    protected open fun onSpeedSelected(speed: Float) = Unit
 
     protected open fun onAspectRatioSelected(mode: PlayerAspectRatioMode) {
         updatePlayerAspectRatio(mode)

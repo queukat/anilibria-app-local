@@ -395,16 +395,6 @@ internal fun PlayerScreenContent(
                         Key.DirectionCenter,
                         Key.Enter,
                         Key.NumPadEnter,
-                        -> {
-                            if (!controlsVisible && !skipVisible) {
-                                registerInteraction()
-                                onShowControls(PlayerOverlayFocusTarget.PlayPause)
-                                true
-                            } else {
-                                false
-                            }
-                        }
-
                         Key.DirectionUp,
                         Key.DirectionDown,
                         -> {

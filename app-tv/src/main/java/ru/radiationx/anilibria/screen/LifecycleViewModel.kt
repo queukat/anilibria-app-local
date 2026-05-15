@@ -23,7 +23,7 @@ open class LifecycleViewModel : ViewModel(), DefaultLifecycleObserver {
         }
     }
 
-    protected open fun onColdCreate() {}
+    protected open fun onColdCreate() = Unit
 
     override fun onStart(owner: LifecycleOwner) {
         super.onStart(owner)
@@ -34,10 +34,9 @@ open class LifecycleViewModel : ViewModel(), DefaultLifecycleObserver {
         }
     }
 
-    protected open fun onStart() {}
+    protected open fun onStart() = Unit
 
-    protected open fun onColdStart() {
-    }
+    protected open fun onColdStart() = Unit
 
     override fun onResume(owner: LifecycleOwner) {
         super.onResume(owner)
@@ -48,29 +47,28 @@ open class LifecycleViewModel : ViewModel(), DefaultLifecycleObserver {
         }
     }
 
-    protected open fun onResume() {}
+    protected open fun onResume() = Unit
 
-    protected open fun onColdResume() {
-    }
+    protected open fun onColdResume() = Unit
 
     override fun onPause(owner: LifecycleOwner) {
         super.onPause(owner)
         onPause()
     }
 
-    protected open fun onPause() {}
+    protected open fun onPause() = Unit
 
     override fun onStop(owner: LifecycleOwner) {
         super.onStop(owner)
         onStop()
     }
 
-    protected open fun onStop() {}
+    protected open fun onStop() = Unit
 
     override fun onDestroy(owner: LifecycleOwner) {
         super.onDestroy(owner)
         onDestroy()
     }
 
-    protected open fun onDestroy() {}
+    protected open fun onDestroy() = Unit
 }

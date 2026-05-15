@@ -5,10 +5,17 @@ import androidx.compose.ui.focus.FocusRequester
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import ru.radiationx.anilibria.common.CardItem
+import kotlin.math.abs
 
 internal data class TvSectionFocusTarget(
     val sectionIndex: Int,
     val itemIndex: Int,
+)
+
+internal data class TvSectionVisibleItem(
+    val index: Int,
+    val offset: Int,
+    val size: Int,
 )
 
 internal typealias TvSectionTargetIndexResolver = (items: List<CardItem>, preferredItemIndex: Int) -> Int?
@@ -109,6 +116,67 @@ internal fun findAdjacentTvSectionTarget(
     return null
 }
 
+internal fun resolveTvSectionTargetIndexFromViewport(
+    items: List<CardItem>,
+    visibleItems: List<TvSectionVisibleItem>,
+    firstVisibleItemIndex: Int?,
+    horizontalAnchorPx: Int?,
+    preferredItemIndex: Int,
+    resolveTargetIndex: TvSectionTargetIndexResolver = ::defaultTvSectionTargetIndex,
+): Int? {
+    if (items.isEmpty()) {
+        return null
+    }
+    if (!items.hasTvPosterContent()) {
+        return resolveTargetIndex(items, preferredItemIndex)
+    }
+
+    val validVisibleItems = visibleItems.filter { it.index in items.indices }
+    if (validVisibleItems.isNotEmpty()) {
+        val anchorPx = horizontalAnchorPx ?: validVisibleItems.first().centerPx
+        return validVisibleItems.minByOrNull { item -> abs(item.centerPx - anchorPx) }?.index
+    }
+
+    val rowPreferredIndex = firstVisibleItemIndex ?: preferredItemIndex
+    return resolveTargetIndex(items, rowPreferredIndex)
+}
+
+internal fun findAdjacentVisibleTvSectionTarget(
+    sections: List<List<CardItem>>,
+    rowStates: List<LazyListState>,
+    currentSectionIndex: Int,
+    direction: Int,
+    preferredItemIndex: Int,
+    resolveTargetIndex: TvSectionTargetIndexResolver = ::defaultTvSectionTargetIndex,
+): TvSectionFocusTarget? {
+    val horizontalAnchorPx =
+        rowStates
+            .getOrNull(currentSectionIndex)
+            ?.focusedItemCenterPx(preferredItemIndex)
+    var targetSectionIndex = currentSectionIndex + direction
+    while (targetSectionIndex in sections.indices) {
+        val items = sections.getOrNull(targetSectionIndex).orEmpty()
+        val rowState = rowStates.getOrNull(targetSectionIndex)
+        val targetItemIndex =
+            resolveTvSectionTargetIndexFromViewport(
+                items = items,
+                visibleItems = rowState?.visibleTvSectionItems().orEmpty(),
+                firstVisibleItemIndex = rowState?.firstVisibleItemIndex,
+                horizontalAnchorPx = horizontalAnchorPx,
+                preferredItemIndex = preferredItemIndex,
+                resolveTargetIndex = resolveTargetIndex,
+            )
+        if (targetItemIndex != null) {
+            return TvSectionFocusTarget(
+                sectionIndex = targetSectionIndex,
+                itemIndex = targetItemIndex.coerceIn(0, items.lastIndex),
+            )
+        }
+        targetSectionIndex += direction
+    }
+    return null
+}
+
 internal fun launchTvSectionFocus(
     scope: CoroutineScope,
     verticalState: LazyListState,
@@ -171,4 +239,23 @@ internal fun launchKeepTvSectionItemVisible(
         )
         rowStates.getOrNull(sectionIndex)?.scrollItemIntoViewIfNeeded(itemIndex)
     }
+}
+
+private val TvSectionVisibleItem.centerPx: Int
+    get() = offset + size / 2
+
+private fun LazyListState.visibleTvSectionItems(): List<TvSectionVisibleItem> {
+    return layoutInfo.visibleItemsInfo.map { item ->
+        TvSectionVisibleItem(
+            index = item.index,
+            offset = item.offset,
+            size = item.size,
+        )
+    }
+}
+
+private fun LazyListState.focusedItemCenterPx(itemIndex: Int): Int? {
+    return visibleTvSectionItems()
+        .firstOrNull { item -> item.index == itemIndex }
+        ?.centerPx
 }

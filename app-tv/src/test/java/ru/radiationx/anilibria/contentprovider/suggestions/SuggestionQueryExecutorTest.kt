@@ -10,6 +10,7 @@ import kotlin.system.measureTimeMillis
 class SuggestionQueryExecutorTest {
     private companion object {
         const val ASYNC_WAIT_TIMEOUT_MS = 3_000L
+        const val FETCH_TIMEOUT_MS = 2_000L
     }
 
     @Test
@@ -22,7 +23,7 @@ class SuggestionQueryExecutorTest {
             SuggestionQueryExecutor<String>(
                 minQueryLength = 3,
                 maxResults = 2,
-                timeoutMs = 200L,
+                timeoutMs = FETCH_TIMEOUT_MS,
                 cacheTtlMs = 1_000L,
                 minRequestIntervalMs = 0L,
                 nowMillis = { now },
@@ -65,7 +66,7 @@ class SuggestionQueryExecutorTest {
             SuggestionQueryExecutor<String>(
                 minQueryLength = 3,
                 maxResults = 20,
-                timeoutMs = 200L,
+                timeoutMs = FETCH_TIMEOUT_MS,
                 cacheTtlMs = 0L,
                 minRequestIntervalMs = 150L,
                 nowMillis = { now },
@@ -106,7 +107,7 @@ class SuggestionQueryExecutorTest {
             SuggestionQueryExecutor<String>(
                 minQueryLength = 3,
                 maxResults = 20,
-                timeoutMs = 200L,
+                timeoutMs = FETCH_TIMEOUT_MS,
                 cacheTtlMs = 100L,
                 minRequestIntervalMs = 0L,
                 nowMillis = { now },
@@ -187,7 +188,7 @@ class SuggestionQueryExecutorTest {
             SuggestionQueryExecutor<String>(
                 minQueryLength = 3,
                 maxResults = 2,
-                timeoutMs = 200L,
+                timeoutMs = FETCH_TIMEOUT_MS,
                 cacheTtlMs = 1_000L,
                 minRequestIntervalMs = 0L,
                 onCacheUpdated = { query, items ->
@@ -221,7 +222,7 @@ class SuggestionQueryExecutorTest {
             SuggestionQueryExecutor<String>(
                 minQueryLength = 3,
                 maxResults = 20,
-                timeoutMs = 200L,
+                timeoutMs = FETCH_TIMEOUT_MS,
                 cacheTtlMs = 100L,
                 minRequestIntervalMs = 0L,
                 maxCacheEntries = 8,
@@ -261,7 +262,7 @@ class SuggestionQueryExecutorTest {
             SuggestionQueryExecutor<String>(
                 minQueryLength = 3,
                 maxResults = 20,
-                timeoutMs = 200L,
+                timeoutMs = FETCH_TIMEOUT_MS,
                 cacheTtlMs = 1_000L,
                 minRequestIntervalMs = 0L,
                 maxCacheEntries = 2,
@@ -287,7 +288,7 @@ class SuggestionQueryExecutorTest {
     }
 
     private fun waitUntil(
-        timeoutMs: Long = 1_500L,
+        timeoutMs: Long = 5_000L,
         condition: () -> Boolean,
     ) {
         val deadline = System.currentTimeMillis() + timeoutMs

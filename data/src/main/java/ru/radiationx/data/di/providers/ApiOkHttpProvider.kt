@@ -60,10 +60,6 @@ class ApiOkHttpProvider
                     addNetworkInterceptor {
                         val hostAddress =
                             it.connection()?.route()?.socketAddress?.address?.hostAddress.orEmpty()
-                /*if (!apiConfig.getPossibleIps().contains(hostAddress)) {
-                    apiConfig.updateNeedConfig(true)
-                    throw WrongHostException(hostAddress)
-                }*/
                         it.proceed(it.request()).newBuilder()
                             .header("Remote-Address", hostAddress)
                             .build()

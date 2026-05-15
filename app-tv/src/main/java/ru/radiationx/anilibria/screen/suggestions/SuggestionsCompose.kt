@@ -27,7 +27,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -58,7 +57,7 @@ import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
 import ru.radiationx.anilibria.screen.watching.defaultTvSectionTargetIndex
 import ru.radiationx.anilibria.screen.watching.edgeAwareHorizontalTransformOrigin
-import ru.radiationx.anilibria.screen.watching.findAdjacentTvSectionTarget
+import ru.radiationx.anilibria.screen.watching.findAdjacentVisibleTvSectionTarget
 import ru.radiationx.anilibria.screen.watching.findTvSectionRestoreTarget
 import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
 import ru.radiationx.anilibria.screen.watching.isTvStateOnlySection
@@ -156,8 +155,9 @@ internal fun SuggestionsScreen(
         preferredItemIndex: Int,
     ): Boolean {
         val target =
-            findAdjacentTvSectionTarget(
+            findAdjacentVisibleTvSectionTarget(
                 sections = sectionItems,
+                rowStates = rowStates,
                 currentSectionIndex = currentSectionIndex,
                 direction = direction,
                 preferredItemIndex = preferredItemIndex,

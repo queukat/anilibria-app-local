@@ -49,7 +49,7 @@ import ru.radiationx.anilibria.screen.watching.WatchingPalette
 import ru.radiationx.anilibria.screen.watching.WatchingPosterCard
 import ru.radiationx.anilibria.screen.watching.defaultTvSectionTargetIndex
 import ru.radiationx.anilibria.screen.watching.edgeAwareHorizontalTransformOrigin
-import ru.radiationx.anilibria.screen.watching.findAdjacentTvSectionTarget
+import ru.radiationx.anilibria.screen.watching.findAdjacentVisibleTvSectionTarget
 import ru.radiationx.anilibria.screen.watching.findTvSectionRestoreTarget
 import ru.radiationx.anilibria.screen.watching.hasTvPosterContent
 import ru.radiationx.anilibria.screen.watching.isTvStateOnlySection
@@ -102,7 +102,6 @@ internal fun MainScreen(
         TvStartupTrace.markOnce("main_loading_ui_visible")
     }
     val palette = rememberWatchingPalette()
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val verticalState = remember { LazyListState() }
     val sectionItems = remember(sections) { sections.map(MainSectionUiModel::items) }
@@ -150,8 +149,9 @@ internal fun MainScreen(
         preferredItemIndex: Int,
     ): Boolean {
         val target =
-            findAdjacentTvSectionTarget(
+            findAdjacentVisibleTvSectionTarget(
                 sections = sectionItems,
+                rowStates = rowStates,
                 currentSectionIndex = currentSectionIndex,
                 direction = direction,
                 preferredItemIndex = preferredItemIndex,
@@ -431,6 +431,14 @@ internal fun MainSectionBlock(
         }
     }
 
+    fun requestLeftEdge(
+        index: Int,
+        item: CardItem,
+    ): Boolean {
+        onItemFocused(index, item)
+        return onLeftEdge()
+    }
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(TvSectionHeaderSpacing),
@@ -479,7 +487,7 @@ internal fun MainSectionBlock(
                 onFocused = {
                     onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
                 },
-                onLeft = onLeftEdge,
+                onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
                 onUp = { onUp(stateFocusIndex ?: 0) },
                 onDown = { onDown(stateFocusIndex ?: 0) },
                 action =
@@ -496,7 +504,7 @@ internal fun MainSectionBlock(
                                 onFocused = {
                                     onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
                                 },
-                                onLeft = onLeftEdge,
+                                onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
                                 onUp = { onUp(stateFocusIndex ?: 0) },
                                 onDown = { onDown(stateFocusIndex ?: 0) },
                             )
@@ -532,7 +540,12 @@ internal fun MainSectionBlock(
                                     ),
                                 onClick = { onItemClick(item) },
                                 onFocused = { onItemFocused(index, item) },
-                                onLeft = if (index == 0) onLeftEdge else null,
+                                onLeft =
+                                    if (index == 0) {
+                                        { requestLeftEdge(index, item) }
+                                    } else {
+                                        null
+                                    },
                                 onUp = { onUp(index) },
                                 onDown = { onDown(index) },
                             )
@@ -550,7 +563,12 @@ internal fun MainSectionBlock(
                                     onItemClick(item)
                                 },
                                 onFocused = { onItemFocused(index, item) },
-                                onLeft = if (index == 0) onLeftEdge else null,
+                                onLeft =
+                                    if (index == 0) {
+                                        { requestLeftEdge(index, item) }
+                                    } else {
+                                        null
+                                    },
                                 onUp = { onUp(index) },
                                 onDown = { onDown(index) },
                             )
@@ -576,7 +594,12 @@ internal fun MainSectionBlock(
                                 loading = !item.isError,
                                 onClick = { onItemClick(item) },
                                 onFocused = { onItemFocused(index, item) },
-                                onLeft = if (index == 0) onLeftEdge else null,
+                                onLeft =
+                                    if (index == 0) {
+                                        { requestLeftEdge(index, item) }
+                                    } else {
+                                        null
+                                    },
                                 onUp = { onUp(index) },
                                 onDown = { onDown(index) },
                             )
@@ -590,7 +613,12 @@ internal fun MainSectionBlock(
                                 enabled = interactionsEnabled,
                                 onClick = { onItemClick(item) },
                                 onFocused = { onItemFocused(index, item) },
-                                onLeft = if (index == 0) onLeftEdge else null,
+                                onLeft =
+                                    if (index == 0) {
+                                        { requestLeftEdge(index, item) }
+                                    } else {
+                                        null
+                                    },
                                 onUp = { onUp(index) },
                                 onDown = { onDown(index) },
                             )

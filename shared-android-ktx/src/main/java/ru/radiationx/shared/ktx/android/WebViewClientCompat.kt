@@ -25,21 +25,17 @@ open class WebViewClientCompat {
 
     /* Normal methods */
 
-    open fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
-    }
+    open fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) = Unit
 
-    open fun onPageFinished(view: WebView, url: String) {
-    }
+    open fun onPageFinished(view: WebView, url: String) = Unit
 
-    open fun onPageCommitVisible(view: WebView, url: String) {
-    }
+    open fun onPageCommitVisible(view: WebView, url: String) = Unit
 
     open fun onReceivedSslError(
         view: WebView,
         handler: SslErrorHandler,
         error: SslError,
-    ) {
-    }
+    ) = Unit
 
     /* Compat methods */
     open fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequestCompat): Boolean {
@@ -50,15 +46,13 @@ open class WebViewClientCompat {
         view: WebView,
         request: WebResourceRequestCompat,
         error: WebResourceErrorCompat,
-    ) {
-    }
+    ) = Unit
 
     open fun onReceivedHttpError(
         view: WebView,
         request: WebResourceRequestCompat,
         errorResponse: WebResourceResponse,
-    ) {
-    }
+    ) = Unit
 
     open fun shouldInterceptRequest(
         view: WebView,

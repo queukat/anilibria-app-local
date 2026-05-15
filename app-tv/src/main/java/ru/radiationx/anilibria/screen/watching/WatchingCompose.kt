@@ -95,8 +95,9 @@ internal fun WatchingScreen(
         preferredItemIndex: Int,
     ): Boolean {
         val target =
-            findAdjacentTvSectionTarget(
+            findAdjacentVisibleTvSectionTarget(
                 sections = sectionItems,
+                rowStates = rowStates,
                 currentSectionIndex = currentSectionIndex,
                 direction = direction,
                 preferredItemIndex = preferredItemIndex,
@@ -347,6 +348,17 @@ private fun WatchingSectionBlock(
             }
         }
 
+    fun requestLeftEdge(
+        index: Int,
+        item: CardItem,
+    ): Boolean {
+        when (item) {
+            is LibriaCard -> onCardFocused(index, item)
+            else -> onMessageFocused(index, item)
+        }
+        return onLeftEdge()
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(TvSectionHeaderSpacing),
@@ -393,7 +405,7 @@ private fun WatchingSectionBlock(
                         null
                     },
                 onFocused = { onMessageFocused(stateFocusIndex ?: 0, stateFocusItem) },
-                onLeft = onLeftEdge,
+                onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
                 onUp = { onUp(stateFocusIndex ?: 0) },
                 onDown = { onDown(stateFocusIndex ?: 0) },
                 action =
@@ -410,7 +422,7 @@ private fun WatchingSectionBlock(
                                 onFocused = {
                                     onMessageFocused(stateFocusIndex ?: 0, stateFocusItem)
                                 },
-                                onLeft = onLeftEdge,
+                                onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
                                 onUp = { onUp(stateFocusIndex ?: 0) },
                                 onDown = { onDown(stateFocusIndex ?: 0) },
                             )
@@ -442,7 +454,12 @@ private fun WatchingSectionBlock(
                                     ),
                                 onClick = { onItemClick(item) },
                                 onFocused = { onCardFocused(index, item) },
-                                onLeft = if (index == 0) onLeftEdge else null,
+                                onLeft =
+                                    if (index == 0) {
+                                        { requestLeftEdge(index, item) }
+                                    } else {
+                                        null
+                                    },
                                 onUp = {
                                     onUp(index)
                                 },
@@ -460,7 +477,12 @@ private fun WatchingSectionBlock(
                                 enabled = interactionsEnabled,
                                 onClick = { onItemClick(item) },
                                 onFocused = { onMessageFocused(index, item) },
-                                onLeft = if (index == 0) onLeftEdge else null,
+                                onLeft =
+                                    if (index == 0) {
+                                        { requestLeftEdge(index, item) }
+                                    } else {
+                                        null
+                                    },
                                 onUp = { onUp(index) },
                                 onDown = { onDown(index) },
                             )
@@ -486,7 +508,12 @@ private fun WatchingSectionBlock(
                                 loading = !item.isError,
                                 onClick = { onItemClick(item) },
                                 onFocused = { onMessageFocused(index, item) },
-                                onLeft = if (index == 0) onLeftEdge else null,
+                                onLeft =
+                                    if (index == 0) {
+                                        { requestLeftEdge(index, item) }
+                                    } else {
+                                        null
+                                    },
                                 onUp = { onUp(index) },
                                 onDown = { onDown(index) },
                             )
@@ -500,7 +527,12 @@ private fun WatchingSectionBlock(
                                 enabled = interactionsEnabled,
                                 onClick = { onItemClick(item) },
                                 onFocused = { onMessageFocused(index, item) },
-                                onLeft = if (index == 0) onLeftEdge else null,
+                                onLeft =
+                                    if (index == 0) {
+                                        { requestLeftEdge(index, item) }
+                                    } else {
+                                        null
+                                    },
                                 onUp = { onUp(index) },
                                 onDown = { onDown(index) },
                             )
