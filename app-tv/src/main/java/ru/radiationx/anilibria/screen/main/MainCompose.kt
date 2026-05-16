@@ -64,9 +64,12 @@ import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
 import ru.radiationx.anilibria.ui.compose.DebouncedCardBackdropEffect
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
+import ru.radiationx.anilibria.ui.compose.TvContentStatePanelOptions
 import ru.radiationx.anilibria.ui.compose.TvPosterCardFocusStyle
 import ru.radiationx.anilibria.ui.compose.TvSectionHeader
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
+import ru.radiationx.anilibria.ui.compose.tvContentStateActionFocus
+import ru.radiationx.anilibria.ui.compose.tvContentStatePanelFocus
 
 internal data class MainSectionUiModel(
     val id: Long,
@@ -482,24 +485,30 @@ internal fun MainSectionBlock(
                         else -> ""
                     },
                 palette = palette,
-                accent = stateItem is LoadingCard && stateItem.isError,
-                loading = stateItem is LoadingCard && !stateItem.isError,
-                focusRequester =
-                    if (stateActionLabel == null) {
-                        if (interactionsEnabled) {
-                            requesters.getOrNull(stateFocusIndex ?: -1)
-                        } else {
-                            null
-                        }
-                    } else {
-                        null
-                    },
-                onFocused = {
-                    onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
-                },
-                onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
-                onUp = { onUp(stateFocusIndex ?: 0) },
-                onDown = { onDown(stateFocusIndex ?: 0) },
+                options =
+                    TvContentStatePanelOptions(
+                        accent = stateItem is LoadingCard && stateItem.isError,
+                        loading = stateItem is LoadingCard && !stateItem.isError,
+                    ),
+                focus =
+                    tvContentStatePanelFocus(
+                        requester =
+                            if (stateActionLabel == null) {
+                                if (interactionsEnabled) {
+                                    requesters.getOrNull(stateFocusIndex ?: -1)
+                                } else {
+                                    null
+                                }
+                            } else {
+                                null
+                            },
+                        onFocused = {
+                            onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
+                        },
+                        onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
+                        onUp = { onUp(stateFocusIndex ?: 0) },
+                        onDown = { onDown(stateFocusIndex ?: 0) },
+                    ),
                 action =
                     stateActionLabel?.let { actionLabel ->
                         {
@@ -511,12 +520,15 @@ internal fun MainSectionBlock(
                                         ?: androidx.compose.ui.focus.FocusRequester.Default,
                                 onClick = { onItemClick(stateFocusItem) },
                                 enabled = interactionsEnabled,
-                                onFocused = {
-                                    onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
-                                },
-                                onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
-                                onUp = { onUp(stateFocusIndex ?: 0) },
-                                onDown = { onDown(stateFocusIndex ?: 0) },
+                                focus =
+                                    tvContentStateActionFocus(
+                                        onFocused = {
+                                            onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
+                                        },
+                                        onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
+                                        onUp = { onUp(stateFocusIndex ?: 0) },
+                                        onDown = { onDown(stateFocusIndex ?: 0) },
+                                    ),
                             )
                         }
                     },

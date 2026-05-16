@@ -33,9 +33,11 @@ import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.LibriaCard
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
+import ru.radiationx.anilibria.ui.compose.TvContentStatePanelOptions
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvPanelSurface
+import ru.radiationx.anilibria.ui.compose.tvContentStateActionFocus
 import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
 
 internal data class TvCollectionFilterAction(
@@ -253,9 +255,12 @@ internal fun TvCollectionGridStateContent(
                 title = statePanel.title,
                 subtitle = statePanel.subtitle,
                 palette = palette,
-                accent = statePanel.accent,
-                loading = statePanel.loading,
                 modifier = Modifier.align(Alignment.TopCenter),
+                options =
+                    TvContentStatePanelOptions(
+                        accent = statePanel.accent,
+                        loading = statePanel.loading,
+                    ),
                 action =
                     if (statePanel.actionText != null && onStateActionClick != null) {
                         {
@@ -264,9 +269,12 @@ internal fun TvCollectionGridStateContent(
                                 palette = palette,
                                 focusRequester = stateActionRequester,
                                 onClick = onStateActionClick,
-                                onLeft = onStateActionLeft,
-                                onUp = onStateActionUp,
-                                onDown = { true },
+                                focus =
+                                    tvContentStateActionFocus(
+                                        onLeft = onStateActionLeft,
+                                        onUp = onStateActionUp,
+                                        onDown = { true },
+                                    ),
                             )
                         }
                     } else {

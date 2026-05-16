@@ -36,28 +36,86 @@ import androidx.compose.ui.unit.sp
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.screen.watching.WatchingPalette
 
+internal data class TvDirectionalFocusActions(
+    val onLeft: (() -> Boolean)? = null,
+    val onUp: (() -> Boolean)? = null,
+    val onRight: (() -> Boolean)? = null,
+    val onDown: (() -> Boolean)? = null,
+)
+
+internal data class TvContentStatePanelOptions(
+    val accent: Boolean = false,
+    val loading: Boolean = false,
+    val panelMaxWidth: Dp = 840.dp,
+)
+
+internal data class TvContentStatePanelFocus(
+    val requester: FocusRequester? = null,
+    val onFocused: (() -> Unit)? = null,
+    val directionalActions: TvDirectionalFocusActions = TvDirectionalFocusActions(),
+)
+
+internal data class TvContentStateActionFocus(
+    val onFocused: (() -> Unit)? = null,
+    val directionalActions: TvDirectionalFocusActions = TvDirectionalFocusActions(),
+)
+
+internal fun tvContentStatePanelFocus(
+    requester: FocusRequester? = null,
+    onFocused: (() -> Unit)? = null,
+    onLeft: (() -> Boolean)? = null,
+    onUp: (() -> Boolean)? = null,
+    onRight: (() -> Boolean)? = null,
+    onDown: (() -> Boolean)? = null,
+): TvContentStatePanelFocus {
+    return TvContentStatePanelFocus(
+        requester = requester,
+        onFocused = onFocused,
+        directionalActions =
+            TvDirectionalFocusActions(
+                onLeft = onLeft,
+                onUp = onUp,
+                onRight = onRight,
+                onDown = onDown,
+            ),
+    )
+}
+
+internal fun tvContentStateActionFocus(
+    onFocused: (() -> Unit)? = null,
+    onLeft: (() -> Boolean)? = null,
+    onUp: (() -> Boolean)? = null,
+    onRight: (() -> Boolean)? = null,
+    onDown: (() -> Boolean)? = null,
+): TvContentStateActionFocus {
+    return TvContentStateActionFocus(
+        onFocused = onFocused,
+        directionalActions =
+            TvDirectionalFocusActions(
+                onLeft = onLeft,
+                onUp = onUp,
+                onRight = onRight,
+                onDown = onDown,
+            ),
+    )
+}
+
 @Composable
 internal fun TvContentStatePanel(
     title: String,
     subtitle: String,
     palette: WatchingPalette,
     modifier: Modifier = Modifier,
-    accent: Boolean = false,
-    loading: Boolean = false,
-    panelMaxWidth: Dp = 840.dp,
-    focusRequester: FocusRequester? = null,
-    onFocused: (() -> Unit)? = null,
-    onLeft: (() -> Boolean)? = null,
-    onUp: (() -> Boolean)? = null,
-    onRight: (() -> Boolean)? = null,
-    onDown: (() -> Boolean)? = null,
+    options: TvContentStatePanelOptions = TvContentStatePanelOptions(),
+    focus: TvContentStatePanelFocus = TvContentStatePanelFocus(),
     action: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
-    var isFocused by remember(focusRequester) { mutableStateOf(false) }
+    val directionalActions = focus.directionalActions
+    var isFocused by remember(focus.requester) { mutableStateOf(false) }
     val panelStyle =
         TvUiDefaults.contentStatePanelStyle(
             palette = palette,
-            accent = accent,
+            accent = options.accent,
             focused = isFocused,
         )
 
@@ -65,17 +123,17 @@ internal fun TvContentStatePanel(
         modifier =
             modifier
                 .fillMaxWidth()
-                .widthIn(max = panelMaxWidth)
+                .widthIn(max = options.panelMaxWidth)
                 .tvPanelSurface(panelStyle)
                 .then(
-                    focusRequester?.let { requester ->
+                    focus.requester?.let { requester ->
                         Modifier
                             .focusRequester(requester)
                             .onFocusChanged {
                                 val nowFocused = it.isFocused
                                 isFocused = nowFocused
                                 if (nowFocused) {
-                                    onFocused?.invoke()
+                                    focus.onFocused?.invoke()
                                 }
                             }
                             .onPreviewKeyEvent { event ->
@@ -83,10 +141,10 @@ internal fun TvContentStatePanel(
                                     return@onPreviewKeyEvent false
                                 }
                                 when (event.key) {
-                                    Key.DirectionLeft -> onLeft?.invoke() == true
-                                    Key.DirectionUp -> onUp?.invoke() == true
-                                    Key.DirectionRight -> onRight?.invoke() == true
-                                    Key.DirectionDown -> onDown?.invoke() == true
+                                    Key.DirectionLeft -> directionalActions.onLeft?.invoke() == true
+                                    Key.DirectionUp -> directionalActions.onUp?.invoke() == true
+                                    Key.DirectionRight -> directionalActions.onRight?.invoke() == true
+                                    Key.DirectionDown -> directionalActions.onDown?.invoke() == true
                                     else -> false
                                 }
                             }
@@ -97,7 +155,7 @@ internal fun TvContentStatePanel(
         horizontalArrangement = Arrangement.spacedBy(18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (loading) {
+        if (options.loading) {
             CircularProgressIndicator(
                 color = palette.textColor,
                 trackColor = palette.textColor.copy(alpha = 0.16f),
@@ -127,7 +185,7 @@ internal fun TvContentStatePanel(
                 Text(
                     text = subtitle,
                     color =
-                        if (accent) {
+                        if (options.accent) {
                             palette.textColor.copy(alpha = 0.92f)
                         } else {
                             palette.secondaryTextColor
@@ -155,12 +213,9 @@ internal fun TvContentStateActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    onFocused: (() -> Unit)? = null,
-    onLeft: (() -> Boolean)? = null,
-    onUp: (() -> Boolean)? = null,
-    onRight: (() -> Boolean)? = null,
-    onDown: (() -> Boolean)? = null,
+    focus: TvContentStateActionFocus = TvContentStateActionFocus(),
 ) {
+    val directionalActions = focus.directionalActions
     TvTextActionButton(
         text = text,
         palette = palette,
@@ -181,10 +236,10 @@ internal fun TvContentStateActionButton(
                 vertical = 13.dp,
             ),
         fontSize = 15.sp,
-        onFocused = onFocused,
-        onLeft = onLeft,
-        onUp = onUp,
-        onRight = onRight,
-        onDown = onDown,
+        onFocused = focus.onFocused,
+        onLeft = directionalActions.onLeft,
+        onUp = directionalActions.onUp,
+        onRight = directionalActions.onRight,
+        onDown = directionalActions.onDown,
     )
 }

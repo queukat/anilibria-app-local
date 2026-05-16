@@ -58,6 +58,7 @@ import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
+import ru.radiationx.anilibria.ui.compose.TvContentStatePanelOptions
 import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceItem
 import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceList
 import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceSection
@@ -206,11 +207,11 @@ internal fun UpdateScreen(
                             title = "Проверяем обновление",
                             subtitle = "Подождите немного: версия, заметки к релизу и основное действие появятся здесь автоматически.",
                             palette = palette,
-                            loading = true,
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
                                     .widthIn(max = UPDATE_CONTENT_MAX_WIDTH.dp),
+                            options = TvContentStatePanelOptions(loading = true),
                         )
                     } else {
                         UpdateNotesCard(

@@ -72,10 +72,16 @@ import ru.radiationx.anilibria.screen.watching.tvStateFocusIndex
 import ru.radiationx.anilibria.ui.compose.DebouncedCardBackdropEffect
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
+import ru.radiationx.anilibria.ui.compose.TvContentStatePanelOptions
 import ru.radiationx.anilibria.ui.compose.TvOverlayTextField
+import ru.radiationx.anilibria.ui.compose.TvOverlayTextFieldFocus
+import ru.radiationx.anilibria.ui.compose.TvOverlayTextFieldInput
+import ru.radiationx.anilibria.ui.compose.TvOverlayTextFieldState
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.anilibria.ui.compose.TvSectionHeader
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
+import ru.radiationx.anilibria.ui.compose.tvContentStateActionFocus
+import ru.radiationx.anilibria.ui.compose.tvContentStatePanelFocus
 
 internal data class SuggestionsSectionUiModel(
     val id: Long,
@@ -384,13 +390,19 @@ private fun SuggestionsSearchField(
     ) {
         TvOverlayTextField(
             label = "Запрос",
-            value = value,
-            onValueChange = onValueChange,
+            state =
+                TvOverlayTextFieldState(
+                    value = value,
+                    onValueChange = onValueChange,
+                ),
             palette = palette,
-            focusRequester = focusRequester,
-            singleLine = true,
-            minLines = 1,
-            maxLines = 1,
+            focus = TvOverlayTextFieldFocus(requester = focusRequester),
+            input =
+                TvOverlayTextFieldInput(
+                    singleLine = true,
+                    minLines = 1,
+                    maxLines = 1,
+                ),
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -509,19 +521,25 @@ private fun SuggestionsSectionBlock(
                         else -> ""
                     },
                 palette = palette,
-                accent = stateItem is LoadingCard && stateItem.isError,
-                loading = stateItem is LoadingCard && !stateItem.isError,
-                focusRequester =
-                    if (stateActionItem == null) {
-                        requesters.getOrNull(stateFocusIndex ?: -1)
-                    } else {
-                        null
-                    },
-                onFocused = {
-                    onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
-                },
-                onUp = { onUp(stateFocusIndex ?: 0) },
-                onDown = { onDown(stateFocusIndex ?: 0) },
+                options =
+                    TvContentStatePanelOptions(
+                        accent = stateItem is LoadingCard && stateItem.isError,
+                        loading = stateItem is LoadingCard && !stateItem.isError,
+                    ),
+                focus =
+                    tvContentStatePanelFocus(
+                        requester =
+                            if (stateActionItem == null) {
+                                requesters.getOrNull(stateFocusIndex ?: -1)
+                            } else {
+                                null
+                            },
+                        onFocused = {
+                            onItemFocused(stateFocusIndex ?: 0, stateFocusItem)
+                        },
+                        onUp = { onUp(stateFocusIndex ?: 0) },
+                        onDown = { onDown(stateFocusIndex ?: 0) },
+                    ),
                 action =
                     stateActionItem?.let { actionItem ->
                         {
@@ -530,13 +548,16 @@ private fun SuggestionsSectionBlock(
                                 palette = palette,
                                 focusRequester =
                                     requesters.getOrNull(stateFocusIndex ?: -1)
-                                        ?: FocusRequester.Default,
+                                    ?: FocusRequester.Default,
                                 onClick = { onItemClick(actionItem) },
-                                onFocused = {
-                                    onItemFocused(stateFocusIndex ?: 0, actionItem)
-                                },
-                                onUp = { onUp(stateFocusIndex ?: 0) },
-                                onDown = { onDown(stateFocusIndex ?: 0) },
+                                focus =
+                                    tvContentStateActionFocus(
+                                        onFocused = {
+                                            onItemFocused(stateFocusIndex ?: 0, actionItem)
+                                        },
+                                        onUp = { onUp(stateFocusIndex ?: 0) },
+                                        onDown = { onDown(stateFocusIndex ?: 0) },
+                                    ),
                             )
                         }
                     },

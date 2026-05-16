@@ -88,6 +88,40 @@ internal enum class TvOverlayVerticalMoveAction {
     Consume,
 }
 
+internal data class TvOverlayActionButtonState(
+    val enabled: Boolean = true,
+    val destructive: Boolean = false,
+    val loading: Boolean = false,
+)
+
+internal data class TvOverlayActionButtonFocus(
+    val requester: FocusRequester = FocusRequester.Default,
+    val upRequester: FocusRequester? = null,
+    val downRequester: FocusRequester? = null,
+)
+
+internal data class TvOverlayTextFieldState(
+    val value: String,
+    val onValueChange: (String) -> Unit,
+    val enabled: Boolean = true,
+    val supportingText: String? = null,
+    val isError: Boolean = false,
+)
+
+internal data class TvOverlayTextFieldFocus(
+    val requester: FocusRequester = FocusRequester.Default,
+    val upRequester: FocusRequester = FocusRequester.Default,
+    val downRequester: FocusRequester = FocusRequester.Default,
+)
+
+internal data class TvOverlayTextFieldInput(
+    val singleLine: Boolean = false,
+    val minLines: Int = 1,
+    val maxLines: Int = 3,
+    val keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    val visualTransformation: VisualTransformation = VisualTransformation.None,
+)
+
 internal fun resolveTvOverlayVerticalMoveAction(hasTarget: Boolean): TvOverlayVerticalMoveAction {
     return if (hasTarget) {
         TvOverlayVerticalMoveAction.MoveFocus
@@ -182,17 +216,13 @@ internal fun TvOverlayActionButton(
     text: String,
     palette: WatchingPalette,
     modifier: Modifier = Modifier,
-    focusRequester: FocusRequester = FocusRequester.Default,
-    upRequester: FocusRequester? = null,
-    downRequester: FocusRequester? = null,
-    enabled: Boolean = true,
-    destructive: Boolean = false,
-    loading: Boolean = false,
+    focus: TvOverlayActionButtonFocus = TvOverlayActionButtonFocus(),
+    state: TvOverlayActionButtonState = TvOverlayActionButtonState(),
     onClick: () -> Unit,
 ) {
-    val interactiveEnabled = enabled && !loading
+    val interactiveEnabled = state.enabled && !state.loading
     val colors =
-        if (destructive) {
+        if (state.destructive) {
             TvUiDefaults.accentActionColors(
                 palette = palette,
                 focusedBackgroundAlpha = 0.24f,
@@ -207,17 +237,17 @@ internal fun TvOverlayActionButton(
         }
 
     WatchingFocusableSurface(
-        focusRequester = focusRequester,
+        focusRequester = focus.requester,
         enabled = interactiveEnabled,
         backgroundColor = colors.backgroundColor,
         focusedBackgroundColor = colors.focusedBackgroundColor,
         borderColor = colors.borderColor,
         onClick = onClick,
         onUp = {
-            requestOverlayVerticalFocus(upRequester)
+            requestOverlayVerticalFocus(focus.upRequester)
         },
         onDown = {
-            requestOverlayVerticalFocus(downRequester)
+            requestOverlayVerticalFocus(focus.downRequester)
         },
         modifier = modifier,
         paddingValues = TvUiDefaults.ActionButtonPadding,
@@ -226,7 +256,7 @@ internal fun TvOverlayActionButton(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (loading) {
+            if (state.loading) {
                 CircularProgressIndicator(
                     strokeWidth = 2.dp,
                     color = palette.textColor,
@@ -235,7 +265,7 @@ internal fun TvOverlayActionButton(
             }
             Text(
                 text = text,
-                color = if (enabled) palette.textColor else palette.secondaryTextColor,
+                color = if (state.enabled) palette.textColor else palette.secondaryTextColor,
                 fontSize = 17.sp,
             )
         }
@@ -245,31 +275,21 @@ internal fun TvOverlayActionButton(
 @Composable
 internal fun TvOverlayTextField(
     label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
+    state: TvOverlayTextFieldState,
     palette: WatchingPalette,
     modifier: Modifier = Modifier,
-    focusRequester: FocusRequester = FocusRequester.Default,
-    upRequester: FocusRequester = FocusRequester.Default,
-    downRequester: FocusRequester = FocusRequester.Default,
-    enabled: Boolean = true,
-    supportingText: String? = null,
-    isError: Boolean = false,
-    singleLine: Boolean = false,
-    minLines: Int = 1,
-    maxLines: Int = 3,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
+    focus: TvOverlayTextFieldFocus = TvOverlayTextFieldFocus(),
+    input: TvOverlayTextFieldInput = TvOverlayTextFieldInput(),
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val fieldShape = TvUiDefaults.OverlayPanelShape
     OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        enabled = enabled,
+        value = state.value,
+        onValueChange = state.onValueChange,
+        enabled = state.enabled,
         label = { Text(text = label, fontSize = 15.sp) },
         supportingText =
-            supportingText?.let {
+            state.supportingText?.let {
                 {
                     Text(
                         text = it,
@@ -278,12 +298,12 @@ internal fun TvOverlayTextField(
                     )
                 }
             },
-        singleLine = singleLine,
-        minLines = minLines,
-        maxLines = maxLines,
-        isError = isError,
-        keyboardOptions = keyboardOptions,
-        visualTransformation = visualTransformation,
+        singleLine = input.singleLine,
+        minLines = input.minLines,
+        maxLines = input.maxLines,
+        isError = state.isError,
+        keyboardOptions = input.keyboardOptions,
+        visualTransformation = input.visualTransformation,
         shape = fieldShape,
         textStyle =
             TextStyle(
@@ -316,16 +336,16 @@ internal fun TvOverlayTextField(
                     width = if (isFocused) 2.dp else 1.dp,
                     color =
                         when {
-                            isError -> palette.accentColor.copy(alpha = 0.92f)
+                            state.isError -> palette.accentColor.copy(alpha = 0.92f)
                             isFocused -> palette.textColor.copy(alpha = 0.78f)
                             else -> palette.textColor.copy(alpha = 0.16f)
                         },
                     shape = fieldShape,
                 )
-                .focusRequester(focusRequester)
+                .focusRequester(focus.requester)
                 .focusProperties {
-                    up = upRequester
-                    down = downRequester
+                    up = focus.upRequester
+                    down = focus.downRequester
                 }
                 .onFocusChanged { isFocused = it.isFocused },
     )

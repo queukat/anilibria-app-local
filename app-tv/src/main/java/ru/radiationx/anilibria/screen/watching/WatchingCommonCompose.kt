@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.ui.compose.TvAsyncImage
+import ru.radiationx.anilibria.ui.compose.TvAsyncImageOptions
 import ru.radiationx.anilibria.ui.compose.TvPosterCardFocusStyle
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
@@ -280,8 +281,8 @@ internal fun WatchingPosterCard(
         ) {
             TvAsyncImage(
                 imageUrl = imageUrl,
-                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
+                options = TvAsyncImageOptions(contentScale = ContentScale.Crop),
             )
         }
     }

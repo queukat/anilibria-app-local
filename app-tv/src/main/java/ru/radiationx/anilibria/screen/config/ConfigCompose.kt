@@ -35,6 +35,7 @@ import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvOverlayActionButton
+import ru.radiationx.anilibria.ui.compose.TvOverlayActionButtonFocus
 import ru.radiationx.anilibria.ui.compose.TvOverlayInfoBlock
 import ru.radiationx.anilibria.ui.compose.TvOverlayPanelSurface
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
@@ -199,18 +200,21 @@ private fun ConfigStatusContent(
                 TvOverlayActionButton(
                     text = stringResource(R.string.config_action_repeat),
                     palette = palette,
-                    focusRequester = repeatRequester,
+                    focus = TvOverlayActionButtonFocus(requester = repeatRequester),
                     onClick = onRepeatClick,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 TvOverlayActionButton(
                     text = stringResource(R.string.config_action_skip),
                     palette = palette,
-                    focusRequester = skipRequester,
+                    focus =
+                        TvOverlayActionButtonFocus(
+                            requester = skipRequester,
+                            upRequester = repeatRequester,
+                            downRequester = nextRequester,
+                        ),
                     onClick = onSkipClick,
                     modifier = Modifier.fillMaxWidth(),
-                    upRequester = repeatRequester,
-                    downRequester = nextRequester,
                 )
                 TvOverlayActionButton(
                     text =
@@ -220,12 +224,15 @@ private fun ConfigStatusContent(
                             } else {
                                 R.string.config_action_restart
                             },
-                        ),
+                    ),
                     palette = palette,
-                    focusRequester = nextRequester,
+                    focus =
+                        TvOverlayActionButtonFocus(
+                            requester = nextRequester,
+                            upRequester = skipRequester,
+                        ),
                     onClick = onNextClick,
                     modifier = Modifier.fillMaxWidth(),
-                    upRequester = skipRequester,
                 )
             }
         }

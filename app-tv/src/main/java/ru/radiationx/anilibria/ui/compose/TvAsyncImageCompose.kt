@@ -27,16 +27,20 @@ internal sealed interface TvAsyncImageState {
     data class Error(val throwable: Throwable?) : TvAsyncImageState
 }
 
+internal data class TvAsyncImageOptions(
+    val contentDescription: String? = null,
+    val contentScale: ContentScale = ContentScale.Crop,
+    val alignment: Alignment = Alignment.Center,
+    val placeholderRes: Int? = null,
+    val errorRes: Int? = placeholderRes,
+    val onStateChanged: ((TvAsyncImageState) -> Unit)? = null,
+)
+
 @Composable
 internal fun TvAsyncImage(
     imageUrl: String?,
     modifier: Modifier = Modifier,
-    contentDescription: String? = null,
-    contentScale: ContentScale = ContentScale.Crop,
-    alignment: Alignment = Alignment.Center,
-    placeholderRes: Int? = null,
-    errorRes: Int? = placeholderRes,
-    onStateChanged: ((TvAsyncImageState) -> Unit)? = null,
+    options: TvAsyncImageOptions = TvAsyncImageOptions(),
 ) {
     val context = LocalContext.current
     val normalizedUrl = imageUrl?.trim().takeIf { !it.isNullOrEmpty() }
@@ -52,8 +56,8 @@ internal fun TvAsyncImage(
                     .build()
             }
         }
-    val placeholderPainter = placeholderRes?.let { painterResource(it) }
-    val errorPainter = errorRes?.let { painterResource(it) } ?: placeholderPainter
+    val placeholderPainter = options.placeholderRes?.let { painterResource(it) }
+    val errorPainter = options.errorRes?.let { painterResource(it) } ?: placeholderPainter
     var state by remember(normalizedUrl) {
         mutableStateOf(
             if (normalizedUrl == null) {
@@ -74,15 +78,15 @@ internal fun TvAsyncImage(
     }
 
     LaunchedEffect(state) {
-        onStateChanged?.invoke(state)
+        options.onStateChanged?.invoke(state)
     }
 
     AsyncImage(
         model = imageRequest,
         imageLoader = imageLoader,
-        contentDescription = contentDescription,
-        contentScale = contentScale,
-        alignment = alignment,
+        contentDescription = options.contentDescription,
+        contentScale = options.contentScale,
+        alignment = options.alignment,
         placeholder = placeholderPainter,
         error = errorPainter,
         fallback = placeholderPainter,

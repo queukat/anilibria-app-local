@@ -11,6 +11,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvOverlayActionButton
+import ru.radiationx.anilibria.ui.compose.TvOverlayActionButtonFocus
+import ru.radiationx.anilibria.ui.compose.TvOverlayActionButtonState
 import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceItem
 import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceList
 import ru.radiationx.anilibria.ui.compose.TvOverlayChoiceSection
@@ -79,8 +81,11 @@ internal fun DetailOverlayHost(
                 TvOverlayActionButton(
                     text = "Закрыть",
                     palette = palette,
-                    focusRequester = closeRequester,
-                    upRequester = textRequester,
+                    focus =
+                        TvOverlayActionButtonFocus(
+                            requester = closeRequester,
+                            upRequester = textRequester,
+                        ),
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -110,17 +115,23 @@ internal fun DetailOverlayHost(
                 TvOverlayActionButton(
                     text = "Сбросить историю просмотров",
                     palette = palette,
-                    focusRequester = clearRequester,
-                    downRequester = markRequester,
-                    destructive = true,
+                    focus =
+                        TvOverlayActionButtonFocus(
+                            requester = clearRequester,
+                            downRequester = markRequester,
+                        ),
+                    state = TvOverlayActionButtonState(destructive = true),
                     onClick = onClearHistoryClick,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 TvOverlayActionButton(
                     text = "Отметить всё как просмотренные",
                     palette = palette,
-                    focusRequester = markRequester,
-                    upRequester = clearRequester,
+                    focus =
+                        TvOverlayActionButtonFocus(
+                            requester = markRequester,
+                            upRequester = clearRequester,
+                        ),
                     onClick = onMarkAllViewedClick,
                     modifier = Modifier.fillMaxWidth(),
                 )

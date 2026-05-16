@@ -58,9 +58,12 @@ import ru.radiationx.anilibria.screen.watching.scrollItemIntoViewIfNeeded
 import ru.radiationx.anilibria.ui.compose.DebouncedCardBackdropEffect
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
+import ru.radiationx.anilibria.ui.compose.TvContentStatePanelOptions
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
+import ru.radiationx.anilibria.ui.compose.tvContentStateActionFocus
+import ru.radiationx.anilibria.ui.compose.tvContentStatePanelFocus
 import ru.radiationx.shared.ktx.asDayName
 import java.util.Calendar
 import java.util.TimeZone
@@ -447,11 +450,17 @@ internal fun ScheduleScreen(
                         title = stateTitle,
                         subtitle = stateSubtitle,
                         palette = palette,
-                        accent = stateAccent,
-                        loading = stateLoading,
-                        focusRequester = if (stateActionCard == null) statePanelRequester else null,
-                        onUp = { false },
-                        onDown = { true },
+                        options =
+                            TvContentStatePanelOptions(
+                                accent = stateAccent,
+                                loading = stateLoading,
+                            ),
+                        focus =
+                            tvContentStatePanelFocus(
+                                requester = if (stateActionCard == null) statePanelRequester else null,
+                                onUp = { false },
+                                onDown = { true },
+                            ),
                         action =
                             stateActionCard?.let { actionCard ->
                                 {
@@ -460,8 +469,11 @@ internal fun ScheduleScreen(
                                         palette = palette,
                                         focusRequester = stateActionRequester,
                                         onClick = { onItemClick(-1L, actionCard) },
-                                        onUp = { false },
-                                        onDown = { true },
+                                        focus =
+                                            tvContentStateActionFocus(
+                                                onUp = { false },
+                                                onDown = { true },
+                                            ),
                                     )
                                 }
                             },

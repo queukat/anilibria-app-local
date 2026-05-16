@@ -32,8 +32,11 @@ import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.ui.compose.DebouncedCardBackdropEffect
 import ru.radiationx.anilibria.ui.compose.TvContentStateActionButton
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
+import ru.radiationx.anilibria.ui.compose.TvContentStatePanelOptions
 import ru.radiationx.anilibria.ui.compose.TvSectionHeader
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
+import ru.radiationx.anilibria.ui.compose.tvContentStateActionFocus
+import ru.radiationx.anilibria.ui.compose.tvContentStatePanelFocus
 
 internal data class WatchingSectionUiModel(
     val id: Long,
@@ -392,22 +395,28 @@ private fun WatchingSectionBlock(
                         else -> ""
                     },
                 palette = palette,
-                accent = stateItem is LoadingCard && stateItem.isError,
-                loading = stateItem is LoadingCard && !stateItem.isError,
-                focusRequester =
-                    if (stateActionLabel == null) {
-                        if (interactionsEnabled) {
-                            requesters.getOrNull(stateFocusIndex ?: -1)
-                        } else {
-                            null
-                        }
-                    } else {
-                        null
-                    },
-                onFocused = { onMessageFocused(stateFocusIndex ?: 0, stateFocusItem) },
-                onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
-                onUp = { onUp(stateFocusIndex ?: 0) },
-                onDown = { onDown(stateFocusIndex ?: 0) },
+                options =
+                    TvContentStatePanelOptions(
+                        accent = stateItem is LoadingCard && stateItem.isError,
+                        loading = stateItem is LoadingCard && !stateItem.isError,
+                    ),
+                focus =
+                    tvContentStatePanelFocus(
+                        requester =
+                            if (stateActionLabel == null) {
+                                if (interactionsEnabled) {
+                                    requesters.getOrNull(stateFocusIndex ?: -1)
+                                } else {
+                                    null
+                                }
+                            } else {
+                                null
+                            },
+                        onFocused = { onMessageFocused(stateFocusIndex ?: 0, stateFocusItem) },
+                        onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
+                        onUp = { onUp(stateFocusIndex ?: 0) },
+                        onDown = { onDown(stateFocusIndex ?: 0) },
+                    ),
                 action =
                     stateActionLabel?.let { actionLabel ->
                         {
@@ -419,12 +428,15 @@ private fun WatchingSectionBlock(
                                         ?: androidx.compose.ui.focus.FocusRequester.Default,
                                 onClick = { onItemClick(stateFocusItem) },
                                 enabled = interactionsEnabled,
-                                onFocused = {
-                                    onMessageFocused(stateFocusIndex ?: 0, stateFocusItem)
-                                },
-                                onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
-                                onUp = { onUp(stateFocusIndex ?: 0) },
-                                onDown = { onDown(stateFocusIndex ?: 0) },
+                                focus =
+                                    tvContentStateActionFocus(
+                                        onFocused = {
+                                            onMessageFocused(stateFocusIndex ?: 0, stateFocusItem)
+                                        },
+                                        onLeft = { requestLeftEdge(stateFocusIndex ?: 0, stateFocusItem) },
+                                        onUp = { onUp(stateFocusIndex ?: 0) },
+                                        onDown = { onDown(stateFocusIndex ?: 0) },
+                                    ),
                             )
                         }
                     },

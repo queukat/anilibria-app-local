@@ -37,6 +37,7 @@ import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvAsyncImage
+import ru.radiationx.anilibria.ui.compose.TvAsyncImageOptions
 import ru.radiationx.anilibria.ui.compose.TvFocusableSurfaceColors
 import ru.radiationx.anilibria.ui.compose.TvPageHeader
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
@@ -189,9 +190,12 @@ private fun ProfileAvatar(
         } else {
             TvAsyncImage(
                 imageUrl = avatarUrl,
-                contentScale = ContentScale.Crop,
-                placeholderRes = R.drawable.ic_anilibria_splash,
                 modifier = Modifier.fillMaxSize(),
+                options =
+                    TvAsyncImageOptions(
+                        contentScale = ContentScale.Crop,
+                        placeholderRes = R.drawable.ic_anilibria_splash,
+                    ),
             )
         }
     }

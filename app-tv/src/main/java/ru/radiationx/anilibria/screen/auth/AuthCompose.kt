@@ -25,9 +25,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvOverlayActionButton
+import ru.radiationx.anilibria.ui.compose.TvOverlayActionButtonFocus
+import ru.radiationx.anilibria.ui.compose.TvOverlayActionButtonState
 import ru.radiationx.anilibria.ui.compose.TvOverlayInfoBlock
 import ru.radiationx.anilibria.ui.compose.TvOverlayScreen
 import ru.radiationx.anilibria.ui.compose.TvOverlayTextField
+import ru.radiationx.anilibria.ui.compose.TvOverlayTextFieldFocus
+import ru.radiationx.anilibria.ui.compose.TvOverlayTextFieldInput
+import ru.radiationx.anilibria.ui.compose.TvOverlayTextFieldState
 import ru.radiationx.data.entity.domain.auth.OtpInfo
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -69,8 +74,11 @@ internal fun AuthMenuOverlay(
             TvOverlayActionButton(
                 text = "Продолжить по коду",
                 palette = palette,
-                focusRequester = codeRequester,
-                downRequester = classicRequester,
+                focus =
+                    TvOverlayActionButtonFocus(
+                        requester = codeRequester,
+                        downRequester = classicRequester,
+                    ),
                 onClick = onCodeClick,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -82,17 +90,23 @@ internal fun AuthMenuOverlay(
             TvOverlayActionButton(
                 text = "Войти логином и паролем",
                 palette = palette,
-                focusRequester = classicRequester,
-                upRequester = codeRequester,
-                downRequester = skipRequester,
+                focus =
+                    TvOverlayActionButtonFocus(
+                        requester = classicRequester,
+                        upRequester = codeRequester,
+                        downRequester = skipRequester,
+                    ),
                 onClick = onClassicClick,
                 modifier = Modifier.fillMaxWidth(),
             )
             TvOverlayActionButton(
                 text = "Пропустить сейчас",
                 palette = palette,
-                focusRequester = skipRequester,
-                upRequester = classicRequester,
+                focus =
+                    TvOverlayActionButtonFocus(
+                        requester = skipRequester,
+                        upRequester = classicRequester,
+                    ),
                 onClick = onSkipClick,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -146,59 +160,93 @@ internal fun AuthCredentialsOverlay(
             }
             TvOverlayTextField(
                 label = "Логин или email",
-                value = login,
-                onValueChange = { login = it },
+                state =
+                    TvOverlayTextFieldState(
+                        value = login,
+                        onValueChange = { login = it },
+                        enabled = !isLoading,
+                        supportingText = if (login.isEmpty()) "Введите логин или email" else null,
+                    ),
                 palette = palette,
-                focusRequester = loginRequester,
-                downRequester = passwordRequester,
-                enabled = !isLoading,
-                supportingText = if (login.isEmpty()) "Введите логин или email" else null,
-                singleLine = true,
+                focus =
+                    TvOverlayTextFieldFocus(
+                        requester = loginRequester,
+                        downRequester = passwordRequester,
+                    ),
+                input = TvOverlayTextFieldInput(singleLine = true),
             )
             TvOverlayTextField(
                 label = "Пароль",
-                value = password,
-                onValueChange = { password = it },
+                state =
+                    TvOverlayTextFieldState(
+                        value = password,
+                        onValueChange = { password = it },
+                        enabled = !isLoading,
+                        supportingText = if (password.isEmpty()) "Введите пароль" else null,
+                    ),
                 palette = palette,
-                focusRequester = passwordRequester,
-                upRequester = loginRequester,
-                downRequester = codeRequester,
-                enabled = !isLoading,
-                visualTransformation = PasswordVisualTransformation(),
-                supportingText = if (password.isEmpty()) "Введите пароль" else null,
-                singleLine = true,
+                focus =
+                    TvOverlayTextFieldFocus(
+                        requester = passwordRequester,
+                        upRequester = loginRequester,
+                        downRequester = codeRequester,
+                    ),
+                input =
+                    TvOverlayTextFieldInput(
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                    ),
             )
             TvOverlayTextField(
                 label = "2FA код, если включен",
-                value = code,
-                onValueChange = { code = it.filter(Char::isDigit) },
+                state =
+                    TvOverlayTextFieldState(
+                        value = code,
+                        onValueChange = { code = it.filter(Char::isDigit) },
+                        enabled = !isLoading,
+                        isError = code.isNotBlank() && !codeValid,
+                        supportingText = "Оставьте пустым, если двухфакторная авторизация не настроена",
+                    ),
                 palette = palette,
-                focusRequester = codeRequester,
-                upRequester = passwordRequester,
-                downRequester = buttonRequester,
-                enabled = !isLoading,
-                isError = code.isNotBlank() && !codeValid,
-                supportingText = "Оставьте пустым, если двухфакторная авторизация не настроена",
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
+                focus =
+                    TvOverlayTextFieldFocus(
+                        requester = codeRequester,
+                        upRequester = passwordRequester,
+                        downRequester = buttonRequester,
+                    ),
+                input =
+                    TvOverlayTextFieldInput(
+                        singleLine = true,
+                        keyboardOptions =
+                            androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                    ),
             )
             TvOverlayActionButton(
                 text = "Войти",
                 palette = palette,
-                focusRequester = buttonRequester,
-                upRequester = codeRequester,
-                downRequester = backRequester,
-                enabled = canSubmit,
-                loading = isLoading,
+                focus =
+                    TvOverlayActionButtonFocus(
+                        requester = buttonRequester,
+                        upRequester = codeRequester,
+                        downRequester = backRequester,
+                    ),
+                state =
+                    TvOverlayActionButtonState(
+                        enabled = canSubmit,
+                        loading = isLoading,
+                    ),
                 onClick = { onSubmit(login.trim(), password, code.trim()) },
                 modifier = Modifier.fillMaxWidth(),
             )
             TvOverlayActionButton(
                 text = "Выбрать другой способ входа",
                 palette = palette,
-                focusRequester = backRequester,
-                upRequester = buttonRequester,
-                enabled = !isLoading,
+                focus =
+                    TvOverlayActionButtonFocus(
+                        requester = backRequester,
+                        upRequester = buttonRequester,
+                    ),
+                state = TvOverlayActionButtonState(enabled = !isLoading),
                 onClick = onBackClick,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -294,18 +342,24 @@ internal fun AuthOtpOverlay(
             TvOverlayActionButton(
                 text = primaryTitle,
                 palette = palette,
-                focusRequester = buttonRequester,
-                downRequester = backRequester,
-                loading = state.progress,
+                focus =
+                    TvOverlayActionButtonFocus(
+                        requester = buttonRequester,
+                        downRequester = backRequester,
+                    ),
+                state = TvOverlayActionButtonState(loading = state.progress),
                 onClick = onPrimaryClick,
                 modifier = Modifier.fillMaxWidth(),
             )
             TvOverlayActionButton(
                 text = "Выбрать другой способ входа",
                 palette = palette,
-                focusRequester = backRequester,
-                upRequester = buttonRequester,
-                enabled = !state.progress,
+                focus =
+                    TvOverlayActionButtonFocus(
+                        requester = backRequester,
+                        upRequester = buttonRequester,
+                    ),
+                state = TvOverlayActionButtonState(enabled = !state.progress),
                 onClick = onBackClick,
                 modifier = Modifier.fillMaxWidth(),
             )
