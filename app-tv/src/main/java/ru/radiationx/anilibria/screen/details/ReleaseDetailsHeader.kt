@@ -216,15 +216,21 @@ internal fun ReleaseDetailsRowContent(
                             style = ruTitleStyle,
                             measure = ruMeasure,
                             textColor = textColor,
-                            focusRequester = ruTitleRequester,
-                            enabled = interactionsEnabled,
-                            canFocus = hasRuFocusStop,
-                            upRequester = FocusRequester.Default,
-                            downRequester =
-                                when {
-                                    hasEnFocusStop -> enTitleRequester
-                                    else -> descriptionRequester
-                                },
+                            focus =
+                                ScrollableTitleFocus(
+                                    requester = ruTitleRequester,
+                                    upRequester = FocusRequester.Default,
+                                    downRequester =
+                                        when {
+                                            hasEnFocusStop -> enTitleRequester
+                                            else -> descriptionRequester
+                                        },
+                                ),
+                            state =
+                                ScrollableTitleState(
+                                    enabled = interactionsEnabled,
+                                    canFocus = hasRuFocusStop,
+                                ),
                         )
                     }
 
@@ -235,11 +241,17 @@ internal fun ReleaseDetailsRowContent(
                             style = enTitleStyle,
                             measure = enMeasure,
                             textColor = textColor,
-                            focusRequester = enTitleRequester,
-                            enabled = interactionsEnabled,
-                            canFocus = hasEnFocusStop,
-                            upRequester = if (hasRuFocusStop) ruTitleRequester else FocusRequester.Default,
-                            downRequester = descriptionRequester,
+                            focus =
+                                ScrollableTitleFocus(
+                                    requester = enTitleRequester,
+                                    upRequester = if (hasRuFocusStop) ruTitleRequester else FocusRequester.Default,
+                                    downRequester = descriptionRequester,
+                                ),
+                            state =
+                                ScrollableTitleState(
+                                    enabled = interactionsEnabled,
+                                    canFocus = hasEnFocusStop,
+                                ),
                         )
                     }
 
@@ -265,17 +277,23 @@ internal fun ReleaseDetailsRowContent(
 
                     DescriptionCard(
                         text = details?.description.orEmpty(),
-                        textColor = textColor,
-                        backgroundColor = cardBackground.copy(alpha = 0.86f),
-                        focusRequester = descriptionRequester,
+                        colors =
+                            DescriptionCardColors(
+                                textColor = textColor,
+                                backgroundColor = cardBackground.copy(alpha = 0.86f),
+                            ),
+                        focus =
+                            DescriptionCardFocus(
+                                requester = descriptionRequester,
+                                upRequester =
+                                    when {
+                                        hasEnFocusStop -> enTitleRequester
+                                        hasRuFocusStop -> ruTitleRequester
+                                        else -> FocusRequester.Default
+                                    },
+                                downRequester = startActionRequester,
+                            ),
                         enabled = interactionsEnabled,
-                        upRequester =
-                            when {
-                                hasEnFocusStop -> enTitleRequester
-                                hasRuFocusStop -> ruTitleRequester
-                                else -> FocusRequester.Default
-                            },
-                        downRequester = startActionRequester,
                         onClick = callbacks.descriptionClick,
                         modifier =
                             Modifier
@@ -302,19 +320,28 @@ internal fun ReleaseDetailsRowContent(
 
             ActionsRow(
                 details = details,
-                textColor = textColor,
-                backgroundColor = actionBackground,
-                focusUpRequester = descriptionRequester,
-                focusDownRequester = actionsDownRequester,
-                continueRequester = continueRequester,
-                playRequester = playRequester,
-                favoriteRequester = favoriteRequester,
-                otherRequester = otherRequester,
+                colors =
+                    ReleaseActionColors(
+                        textColor = textColor,
+                        backgroundColor = actionBackground,
+                    ),
+                focus =
+                    ReleaseActionsFocus(
+                        upRequester = descriptionRequester,
+                        downRequester = actionsDownRequester,
+                        continueRequester = continueRequester,
+                        playRequester = playRequester,
+                        favoriteRequester = favoriteRequester,
+                        otherRequester = otherRequester,
+                    ),
                 enabled = interactionsEnabled,
-                onContinueClick = callbacks.continueClick,
-                onPlayClick = callbacks.playClick,
-                onFavoriteClick = callbacks.favoriteClick,
-                onOtherClick = callbacks.otherClick,
+                callbacks =
+                    ReleaseActionsCallbacks(
+                        continueClick = callbacks.continueClick,
+                        playClick = callbacks.playClick,
+                        favoriteClick = callbacks.favoriteClick,
+                        otherClick = callbacks.otherClick,
+                    ),
                 modifier =
                     Modifier
                         .constrainAs(actionsRow) {

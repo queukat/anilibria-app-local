@@ -63,6 +63,28 @@ internal data class ScrollableTextMeasure(
     val isScrollable: Boolean,
 )
 
+internal data class ScrollableTitleFocus(
+    val requester: FocusRequester,
+    val upRequester: FocusRequester,
+    val downRequester: FocusRequester,
+)
+
+internal data class ScrollableTitleState(
+    val enabled: Boolean,
+    val canFocus: Boolean,
+)
+
+internal data class DescriptionCardColors(
+    val textColor: Color,
+    val backgroundColor: Color,
+)
+
+internal data class DescriptionCardFocus(
+    val requester: FocusRequester,
+    val upRequester: FocusRequester,
+    val downRequester: FocusRequester,
+)
+
 @Composable
 internal fun MetadataRow(
     details: LibriaDetails,
@@ -149,17 +171,14 @@ internal fun ScrollableTitle(
     style: TextStyle,
     measure: ScrollableTextMeasure,
     textColor: Color,
-    focusRequester: FocusRequester,
-    enabled: Boolean,
-    canFocus: Boolean,
-    upRequester: FocusRequester,
-    downRequester: FocusRequester,
+    focus: ScrollableTitleFocus,
+    state: ScrollableTitleState,
 ) {
     key(text) {
         val scrollState = rememberScrollState()
         val viewportHeight = measure.viewportHeight
         val modifier =
-            if (enabled && canFocus) {
+            if (state.enabled && state.canFocus) {
                 Modifier
                     .fillMaxWidth()
                     .height(viewportHeight)
@@ -167,9 +186,9 @@ internal fun ScrollableTitle(
                         scrollState = scrollState,
                         viewportHeightPx = measure.viewportHeightPx,
                         scrollStepPx = measure.scrollStepPx,
-                        focusRequester = focusRequester,
-                        upRequester = upRequester,
-                        downRequester = downRequester,
+                        focusRequester = focus.requester,
+                        upRequester = focus.upRequester,
+                        downRequester = focus.downRequester,
                     )
             } else {
                 Modifier
@@ -188,7 +207,7 @@ internal fun ScrollableTitle(
                         .padding(end = if (measure.isScrollable) 10.dp else 0.dp)
                         .verticalScroll(
                             state = scrollState,
-                            enabled = enabled && measure.isScrollable,
+                            enabled = state.enabled && measure.isScrollable,
                         ),
             )
             VerticalScrollIndicator(
@@ -207,12 +226,9 @@ internal fun ScrollableTitle(
 @Composable
 internal fun DescriptionCard(
     text: String,
-    textColor: Color,
-    backgroundColor: Color,
-    focusRequester: FocusRequester,
+    colors: DescriptionCardColors,
+    focus: DescriptionCardFocus,
     enabled: Boolean,
-    upRequester: FocusRequester,
-    downRequester: FocusRequester,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -223,10 +239,10 @@ internal fun DescriptionCard(
         val interactiveModifier =
             if (enabled) {
                 Modifier
-                    .focusRequester(focusRequester)
+                    .focusRequester(focus.requester)
                     .focusProperties {
-                        up = upRequester
-                        down = downRequester
+                        up = focus.upRequester
+                        down = focus.downRequester
                     }
                     .onFocusChanged { isFocused = it.isFocused }
                     .onSizeChanged { viewportHeightPx = it.height }
@@ -248,14 +264,14 @@ internal fun DescriptionCard(
             modifier =
                 modifier
                     .clip(RoundedCornerShape(18.dp))
-                    .background(backgroundColor)
+                    .background(colors.backgroundColor)
                     .border(
                         width = if (isFocused) 2.dp else 1.dp,
                         color =
                             if (isFocused) {
-                                textColor.copy(alpha = 0.75f)
+                                colors.textColor.copy(alpha = 0.75f)
                             } else {
-                                textColor.copy(alpha = 0.08f)
+                                colors.textColor.copy(alpha = 0.08f)
                             },
                         shape = RoundedCornerShape(18.dp),
                     )
@@ -265,7 +281,7 @@ internal fun DescriptionCard(
         ) {
             Text(
                 text = text,
-                color = textColor.copy(alpha = 0.9f),
+                color = colors.textColor.copy(alpha = 0.9f),
                 fontSize = 17.sp,
                 lineHeight = 26.sp,
                 modifier =
@@ -277,7 +293,7 @@ internal fun DescriptionCard(
             VerticalScrollIndicator(
                 scrollState = scrollState,
                 viewportHeightPx = viewportHeightPx,
-                color = textColor,
+                color = colors.textColor,
                 modifier =
                     Modifier
                         .align(Alignment.CenterEnd)

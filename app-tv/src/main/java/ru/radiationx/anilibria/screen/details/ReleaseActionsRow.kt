@@ -2,6 +2,7 @@ package ru.radiationx.anilibria.screen.details
 
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
@@ -21,22 +22,48 @@ import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.LibriaDetails
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 
+internal data class ReleaseActionColors(
+    val textColor: Color,
+    val backgroundColor: Color,
+)
+
+internal data class ReleaseActionsFocus(
+    val upRequester: FocusRequester,
+    val downRequester: FocusRequester?,
+    val continueRequester: FocusRequester,
+    val playRequester: FocusRequester,
+    val favoriteRequester: FocusRequester,
+    val otherRequester: FocusRequester,
+)
+
+internal data class ReleaseActionsCallbacks(
+    val continueClick: () -> Unit,
+    val playClick: () -> Unit,
+    val favoriteClick: () -> Unit,
+    val otherClick: () -> Unit,
+)
+
+private data class ReleaseActionButtonFocus(
+    val requester: FocusRequester,
+    val upRequester: FocusRequester,
+    val downRequester: FocusRequester?,
+)
+
+private fun ReleaseActionsFocus.toButtonFocus(requester: FocusRequester): ReleaseActionButtonFocus {
+    return ReleaseActionButtonFocus(
+        requester = requester,
+        upRequester = upRequester,
+        downRequester = downRequester,
+    )
+}
+
 @Composable
 internal fun ActionsRow(
     details: LibriaDetails?,
-    textColor: Color,
-    backgroundColor: Color,
-    focusUpRequester: FocusRequester,
-    focusDownRequester: FocusRequester?,
-    continueRequester: FocusRequester,
-    playRequester: FocusRequester,
-    favoriteRequester: FocusRequester,
-    otherRequester: FocusRequester,
+    colors: ReleaseActionColors,
+    focus: ReleaseActionsFocus,
     enabled: Boolean,
-    onContinueClick: () -> Unit,
-    onPlayClick: () -> Unit,
-    onFavoriteClick: () -> Unit,
-    onOtherClick: () -> Unit,
+    callbacks: ReleaseActionsCallbacks,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -46,13 +73,10 @@ internal fun ActionsRow(
         if (details?.hasViewed == true) {
             ActionChipButton(
                 text = "Продолжить",
-                textColor = textColor,
-                backgroundColor = backgroundColor,
-                focusRequester = continueRequester,
-                upRequester = focusUpRequester,
-                downRequester = focusDownRequester,
+                colors = colors,
+                focus = focus.toButtonFocus(focus.continueRequester),
                 enabled = enabled,
-                onClick = onContinueClick,
+                onClick = callbacks.continueClick,
             )
             Spacer(modifier = Modifier.width(16.dp))
         }
@@ -60,13 +84,10 @@ internal fun ActionsRow(
         if (details?.hasEpisodes == true) {
             ActionChipButton(
                 text = "Смотреть",
-                textColor = textColor,
-                backgroundColor = backgroundColor,
-                focusRequester = playRequester,
-                upRequester = focusUpRequester,
-                downRequester = focusDownRequester,
+                colors = colors,
+                focus = focus.toButtonFocus(focus.playRequester),
                 enabled = enabled,
-                onClick = onPlayClick,
+                onClick = callbacks.playClick,
             )
             Spacer(modifier = Modifier.width(16.dp))
         }
@@ -78,26 +99,20 @@ internal fun ActionsRow(
                 } else {
                     "Добавить в избранное"
                 },
-            textColor = textColor,
-            backgroundColor = backgroundColor,
-            focusRequester = favoriteRequester,
-            upRequester = focusUpRequester,
-            downRequester = focusDownRequester,
+            colors = colors,
+            focus = focus.toButtonFocus(focus.favoriteRequester),
             enabled = enabled,
-            onClick = onFavoriteClick,
+            onClick = callbacks.favoriteClick,
         )
 
         if (details?.let { it.hasEpisodes || it.hasViewed } == true) {
             Spacer(modifier = Modifier.width(16.dp))
             IconChipButton(
                 iconRes = R.drawable.ic_more_vert,
-                contentColor = textColor,
-                backgroundColor = backgroundColor,
-                focusRequester = otherRequester,
-                upRequester = focusUpRequester,
-                downRequester = focusDownRequester,
+                colors = colors,
+                focus = focus.toButtonFocus(focus.otherRequester),
                 enabled = enabled,
-                onClick = onOtherClick,
+                onClick = callbacks.otherClick,
             )
         }
     }
@@ -106,37 +121,26 @@ internal fun ActionsRow(
 @Composable
 private fun ActionChipButton(
     text: String,
-    textColor: Color,
-    backgroundColor: Color,
-    focusRequester: FocusRequester,
-    upRequester: FocusRequester,
-    downRequester: FocusRequester?,
+    colors: ReleaseActionColors,
+    focus: ReleaseActionButtonFocus,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    WatchingFocusableSurface(
-        focusRequester = focusRequester,
+    ReleaseActionSurface(
+        colors = colors,
+        focus = focus,
         enabled = enabled,
-        backgroundColor = backgroundColor.copy(alpha = 0.88f),
-        focusedBackgroundColor = backgroundColor,
-        borderColor = textColor.copy(alpha = 0.8f),
         onClick = onClick,
-        onUp = {
-            requestReleaseDetailsFocus(upRequester)
-        },
-        onDown = {
-            requestReleaseDetailsFocusOrConsumeBoundary(downRequester)
-        },
         modifier = Modifier.heightIn(min = 54.dp),
         paddingValues =
-            androidx.compose.foundation.layout.PaddingValues(
+            PaddingValues(
                 horizontal = 22.dp,
                 vertical = 15.dp,
             ),
     ) {
         Text(
             text = text,
-            color = textColor,
+            color = colors.textColor,
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
         )
@@ -146,30 +150,19 @@ private fun ActionChipButton(
 @Composable
 private fun IconChipButton(
     iconRes: Int,
-    contentColor: Color,
-    backgroundColor: Color,
-    focusRequester: FocusRequester,
-    upRequester: FocusRequester,
-    downRequester: FocusRequester?,
+    colors: ReleaseActionColors,
+    focus: ReleaseActionButtonFocus,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    WatchingFocusableSurface(
-        focusRequester = focusRequester,
+    ReleaseActionSurface(
+        colors = colors,
+        focus = focus,
         enabled = enabled,
-        backgroundColor = backgroundColor.copy(alpha = 0.88f),
-        focusedBackgroundColor = backgroundColor,
-        borderColor = contentColor.copy(alpha = 0.8f),
         onClick = onClick,
-        onUp = {
-            requestReleaseDetailsFocus(upRequester)
-        },
-        onDown = {
-            requestReleaseDetailsFocusOrConsumeBoundary(downRequester)
-        },
         modifier = Modifier.heightIn(min = 54.dp),
         paddingValues =
-            androidx.compose.foundation.layout.PaddingValues(
+            PaddingValues(
                 horizontal = 20.dp,
                 vertical = 14.dp,
             ),
@@ -180,8 +173,37 @@ private fun IconChipButton(
             Icon(
                 painter = painterResource(iconRes),
                 contentDescription = null,
-                tint = contentColor,
+                tint = colors.textColor,
             )
         }
     }
+}
+
+@Composable
+private fun ReleaseActionSurface(
+    colors: ReleaseActionColors,
+    focus: ReleaseActionButtonFocus,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    paddingValues: PaddingValues,
+    content: @Composable () -> Unit,
+) {
+    WatchingFocusableSurface(
+        focusRequester = focus.requester,
+        enabled = enabled,
+        backgroundColor = colors.backgroundColor.copy(alpha = 0.88f),
+        focusedBackgroundColor = colors.backgroundColor,
+        borderColor = colors.textColor.copy(alpha = 0.8f),
+        onClick = onClick,
+        onUp = {
+            requestReleaseDetailsFocus(focus.upRequester)
+        },
+        onDown = {
+            requestReleaseDetailsFocusOrConsumeBoundary(focus.downRequester)
+        },
+        modifier = modifier,
+        paddingValues = paddingValues,
+        content = content,
+    )
 }
