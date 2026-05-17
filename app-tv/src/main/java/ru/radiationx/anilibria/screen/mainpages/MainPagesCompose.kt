@@ -7,7 +7,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -71,30 +73,102 @@ internal enum class MainHeaderAction {
     Update,
 }
 
+internal data class MainPagesRootState(
+    val items: List<MainShellItem>,
+    val selectedPageId: Long,
+    val hasUpdates: Boolean,
+    val headerVisible: Boolean,
+    val railExpanded: Boolean,
+)
+
+internal data class MainPagesRootFocus(
+    val preferredHeaderAction: MainHeaderAction,
+    val headerFocusRequestToken: Int,
+    val railFocusRequestToken: Int,
+)
+
+internal data class MainPagesRootCallbacks(
+    val onHeaderFocused: (MainHeaderAction) -> Unit,
+    val onSearchClick: () -> Unit,
+    val onCatalogClick: () -> Unit,
+    val onUpdateClick: () -> Unit,
+    val onPageFocused: (Long) -> Unit,
+    val onRequestHeaderFocus: () -> Boolean,
+    val onRequestContentFocus: () -> Boolean,
+)
+
+internal data class MainPagesHeaderState(
+    val selectedPageTitle: String,
+    val hasUpdates: Boolean,
+    val preferredAction: MainHeaderAction,
+    val focusRequestToken: Int,
+)
+
+internal data class MainPagesHeaderCallbacks(
+    val onSearchClick: () -> Unit,
+    val onCatalogClick: () -> Unit,
+    val onUpdateClick: () -> Unit,
+    val onRequestContentFocus: () -> Boolean,
+    val onFocused: (MainHeaderAction) -> Unit,
+)
+
+internal data class MainPagesRailState(
+    val items: List<MainShellItem>,
+    val selectedPageId: Long,
+    val expanded: Boolean,
+    val railWidth: Dp,
+    val focusRequestToken: Int,
+)
+
+internal data class MainPagesRailCallbacks(
+    val onPageFocused: (Long) -> Unit,
+    val onRequestHeaderFocus: () -> Boolean,
+    val onRequestContentFocus: () -> Boolean,
+)
+
+private data class MainPagesRailColors(
+    val accentColor: Color,
+    val textColor: Color,
+    val secondaryTextColor: Color,
+)
+
+private data class ShellButtonColors(
+    val backgroundColor: Color,
+    val textColor: Color,
+    val borderColor: Color,
+    val focusedBackgroundColor: Color = backgroundColor,
+)
+
+private data class ShellButtonCallbacks(
+    val onClick: () -> Unit,
+    val onFocused: (() -> Unit)? = null,
+    val onLeft: (() -> Boolean)? = null,
+    val onUp: (() -> Boolean)? = null,
+    val onRight: (() -> Boolean)? = null,
+    val onDown: (() -> Boolean)? = null,
+)
+
+private data class ShellButtonStyle(
+    val horizontalPadding: Dp,
+    val verticalPadding: Dp,
+    val modifier: Modifier = Modifier,
+    val minWidth: Dp = 120.dp,
+    val selected: Boolean = false,
+    val textAlign: TextAlign = TextAlign.Start,
+)
+
 @Composable
 internal fun MainPagesRoot(
-    items: List<MainShellItem>,
-    selectedPageId: Long,
-    hasUpdates: Boolean,
-    headerVisible: Boolean,
-    railExpanded: Boolean,
-    preferredHeaderAction: MainHeaderAction,
-    headerFocusRequestToken: Int,
-    railFocusRequestToken: Int,
-    onHeaderFocused: (MainHeaderAction) -> Unit,
-    onSearchClick: () -> Unit,
-    onCatalogClick: () -> Unit,
-    onUpdateClick: () -> Unit,
-    onPageFocused: (Long) -> Unit,
-    onRequestHeaderFocus: () -> Boolean,
-    onRequestContentFocus: () -> Boolean,
-    content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
+    state: MainPagesRootState,
+    focus: MainPagesRootFocus,
+    callbacks: MainPagesRootCallbacks,
+    content: @Composable BoxScope.() -> Unit,
 ) {
     val palette = rememberWatchingPalette()
     val headerHeight = dimensionResource(R.dimen.main_pages_header_height)
     val headerSpacing = dimensionResource(R.dimen.main_pages_header_spacing)
     val railWidth = dimensionResource(R.dimen.main_pages_rail_width)
-    val shellTopOffset = if (headerVisible) headerHeight + headerSpacing else 0.dp
+    val shellTopOffset = if (state.headerVisible) headerHeight + headerSpacing else 0.dp
     val contentTopOffset by animateDpAsState(
         targetValue = shellTopOffset,
         label = "mainPagesContentOffset",
@@ -116,7 +190,7 @@ internal fun MainPagesRoot(
         }
 
         AnimatedVisibility(
-            visible = headerVisible,
+            visible = state.headerVisible,
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
@@ -124,15 +198,21 @@ internal fun MainPagesRoot(
                     .height(headerHeight),
         ) {
             MainPagesHeader(
-                selectedPageTitle = MainPagesSpec.titles.getValue(selectedPageId),
-                hasUpdates = hasUpdates,
-                preferredAction = preferredHeaderAction,
-                headerFocusRequestToken = headerFocusRequestToken,
-                onSearchClick = onSearchClick,
-                onCatalogClick = onCatalogClick,
-                onUpdateClick = onUpdateClick,
-                onRequestContentFocus = onRequestContentFocus,
-                onFocused = onHeaderFocused,
+                state =
+                    MainPagesHeaderState(
+                        selectedPageTitle = MainPagesSpec.titles.getValue(state.selectedPageId),
+                        hasUpdates = state.hasUpdates,
+                        preferredAction = focus.preferredHeaderAction,
+                        focusRequestToken = focus.headerFocusRequestToken,
+                    ),
+                callbacks =
+                    MainPagesHeaderCallbacks(
+                        onSearchClick = callbacks.onSearchClick,
+                        onCatalogClick = callbacks.onCatalogClick,
+                        onUpdateClick = callbacks.onUpdateClick,
+                        onRequestContentFocus = callbacks.onRequestContentFocus,
+                        onFocused = callbacks.onHeaderFocused,
+                    ),
             )
         }
 
@@ -146,14 +226,20 @@ internal fun MainPagesRoot(
                     .padding(top = shellTopOffset),
         ) {
             MainPagesShell(
-                items = items,
-                selectedPageId = selectedPageId,
-                expanded = railExpanded,
-                railWidth = railWidth,
-                railFocusRequestToken = railFocusRequestToken,
-                onPageFocused = onPageFocused,
-                onRequestHeaderFocus = onRequestHeaderFocus,
-                onRequestContentFocus = onRequestContentFocus,
+                state =
+                    MainPagesRailState(
+                        items = state.items,
+                        selectedPageId = state.selectedPageId,
+                        expanded = state.railExpanded,
+                        railWidth = railWidth,
+                        focusRequestToken = focus.railFocusRequestToken,
+                    ),
+                callbacks =
+                    MainPagesRailCallbacks(
+                        onPageFocused = callbacks.onPageFocused,
+                        onRequestHeaderFocus = callbacks.onRequestHeaderFocus,
+                        onRequestContentFocus = callbacks.onRequestContentFocus,
+                    ),
             )
         }
     }
@@ -161,15 +247,8 @@ internal fun MainPagesRoot(
 
 @Composable
 internal fun MainPagesHeader(
-    selectedPageTitle: String,
-    hasUpdates: Boolean,
-    preferredAction: MainHeaderAction,
-    headerFocusRequestToken: Int,
-    onSearchClick: () -> Unit,
-    onCatalogClick: () -> Unit,
-    onUpdateClick: () -> Unit,
-    onRequestContentFocus: () -> Boolean,
-    onFocused: (MainHeaderAction) -> Unit,
+    state: MainPagesHeaderState,
+    callbacks: MainPagesHeaderCallbacks,
 ) {
     val palette = rememberWatchingPalette()
     val textColor = colorResource(R.color.dark_textDefault)
@@ -181,15 +260,15 @@ internal fun MainPagesHeader(
     val catalogRequester = remember { FocusRequester() }
     val updateRequester = remember { FocusRequester() }
 
-    LaunchedEffect(headerFocusRequestToken, hasUpdates, preferredAction) {
-        if (headerFocusRequestToken <= 0) {
+    LaunchedEffect(state.focusRequestToken, state.hasUpdates, state.preferredAction) {
+        if (state.focusRequestToken <= 0) {
             return@LaunchedEffect
         }
         val preferredRequester =
-            when (preferredAction) {
+            when (state.preferredAction) {
                 MainHeaderAction.Search -> searchRequester
                 MainHeaderAction.Catalog -> catalogRequester
-                MainHeaderAction.Update -> if (hasUpdates) updateRequester else catalogRequester
+                MainHeaderAction.Update -> if (state.hasUpdates) updateRequester else catalogRequester
             }
         requestWatchingFocusAfterAttach(
             requester = preferredRequester,
@@ -240,7 +319,7 @@ internal fun MainPagesHeader(
                     fontSize = 13.sp,
                 )
                 Text(
-                    text = selectedPageTitle,
+                    text = state.selectedPageTitle,
                     color = textColor,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -254,33 +333,51 @@ internal fun MainPagesHeader(
                 HeaderActionButton(
                     text = "Поиск",
                     focusRequester = searchRequester,
-                    backgroundColor = actionBackground.copy(alpha = 0.72f),
-                    borderColor = textColor.copy(alpha = 0.72f),
-                    textColor = textColor,
-                    onClick = onSearchClick,
-                    onDown = onRequestContentFocus,
-                    onFocused = { onFocused(MainHeaderAction.Search) },
+                    colors =
+                        ShellButtonColors(
+                            backgroundColor = actionBackground.copy(alpha = 0.72f),
+                            borderColor = textColor.copy(alpha = 0.72f),
+                            textColor = textColor,
+                        ),
+                    callbacks =
+                        ShellButtonCallbacks(
+                            onClick = callbacks.onSearchClick,
+                            onDown = callbacks.onRequestContentFocus,
+                            onFocused = { callbacks.onFocused(MainHeaderAction.Search) },
+                        ),
                 )
                 HeaderActionButton(
                     text = "Каталог",
                     focusRequester = catalogRequester,
-                    backgroundColor = actionBackground,
-                    borderColor = textColor.copy(alpha = 0.72f),
-                    textColor = textColor,
-                    onClick = onCatalogClick,
-                    onDown = onRequestContentFocus,
-                    onFocused = { onFocused(MainHeaderAction.Catalog) },
+                    colors =
+                        ShellButtonColors(
+                            backgroundColor = actionBackground,
+                            borderColor = textColor.copy(alpha = 0.72f),
+                            textColor = textColor,
+                        ),
+                    callbacks =
+                        ShellButtonCallbacks(
+                            onClick = callbacks.onCatalogClick,
+                            onDown = callbacks.onRequestContentFocus,
+                            onFocused = { callbacks.onFocused(MainHeaderAction.Catalog) },
+                        ),
                 )
-                if (hasUpdates) {
+                if (state.hasUpdates) {
                     HeaderActionButton(
                         text = "Обновление",
                         focusRequester = updateRequester,
-                        backgroundColor = accentColor.copy(alpha = 0.24f),
-                        borderColor = accentColor.copy(alpha = 0.82f),
-                        textColor = textColor,
-                        onClick = onUpdateClick,
-                        onDown = onRequestContentFocus,
-                        onFocused = { onFocused(MainHeaderAction.Update) },
+                        colors =
+                            ShellButtonColors(
+                                backgroundColor = accentColor.copy(alpha = 0.24f),
+                                borderColor = accentColor.copy(alpha = 0.82f),
+                                textColor = textColor,
+                            ),
+                        callbacks =
+                            ShellButtonCallbacks(
+                                onClick = callbacks.onUpdateClick,
+                                onDown = callbacks.onRequestContentFocus,
+                                onFocused = { callbacks.onFocused(MainHeaderAction.Update) },
+                            ),
                     )
                 }
             }
@@ -295,30 +392,24 @@ internal fun MainPagesHeader(
 
 @Composable
 internal fun MainPagesShell(
-    items: List<MainShellItem>,
-    selectedPageId: Long,
-    expanded: Boolean,
-    railWidth: Dp,
-    railFocusRequestToken: Int,
-    onPageFocused: (Long) -> Unit,
-    onRequestHeaderFocus: () -> Boolean,
-    onRequestContentFocus: () -> Boolean,
+    state: MainPagesRailState,
+    callbacks: MainPagesRailCallbacks,
 ) {
     val palette = rememberWatchingPalette()
     val surfaceColor = colorResource(R.color.dark_colorPrimary)
     val accentColor = colorResource(R.color.dark_colorAccent)
     val textColor = colorResource(R.color.dark_textDefault)
     val secondaryTextColor = colorResource(R.color.dark_textSecond)
-    val selectedIndex = items.indexOfFirst { it.id == selectedPageId }.coerceAtLeast(0)
-    val requesters = remember(items.size) { List(items.size) { FocusRequester() } }
+    val selectedIndex = state.items.indexOfFirst { it.id == state.selectedPageId }.coerceAtLeast(0)
+    val requesters = remember(state.items.size) { List(state.items.size) { FocusRequester() } }
 
     val panelOffset by animateDpAsState(
-        targetValue = if (expanded) 0.dp else -(railWidth + 12.dp),
+        targetValue = if (state.expanded) 0.dp else -(state.railWidth + 12.dp),
         label = "mainPagesRailOffset",
     )
 
-    LaunchedEffect(railFocusRequestToken, expanded, selectedPageId) {
-        if (!expanded) {
+    LaunchedEffect(state.focusRequestToken, state.expanded, state.selectedPageId) {
+        if (!state.expanded) {
             return@LaunchedEffect
         }
         requestWatchingFocusAfterAttach(
@@ -327,7 +418,7 @@ internal fun MainPagesShell(
         )
     }
 
-    if (expanded) {
+    if (state.expanded) {
         Box(
             modifier =
                 Modifier
@@ -412,22 +503,17 @@ internal fun MainPagesShell(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items.forEachIndexed { index, item ->
-                    RailPageButton(
-                        text = item.title,
-                        enabled = expanded,
-                        selected = item.id == selectedPageId,
-                        focusRequester = requesters[index],
-                        selectedColor = accentColor.copy(alpha = 0.22f),
-                        backgroundColor = Color.Transparent,
-                        textColor = textColor,
-                        secondaryTextColor = secondaryTextColor,
-                        borderColor = accentColor.copy(alpha = 0.85f),
-                        onFocused = { onPageFocused(item.id) },
-                        onUp = if (index == 0) onRequestHeaderFocus else null,
-                        onRight = onRequestContentFocus,
-                    )
-                }
+                MainPagesRailButtons(
+                    state = state,
+                    requesters = requesters,
+                    colors =
+                        MainPagesRailColors(
+                            accentColor = accentColor,
+                            textColor = textColor,
+                            secondaryTextColor = secondaryTextColor,
+                        ),
+                    callbacks = callbacks,
+                )
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -444,32 +530,65 @@ internal fun MainPagesShell(
 }
 
 @Composable
+private fun MainPagesRailButtons(
+    state: MainPagesRailState,
+    requesters: List<FocusRequester>,
+    colors: MainPagesRailColors,
+    callbacks: MainPagesRailCallbacks,
+) {
+    state.items.forEachIndexed { index, item ->
+        val selected = item.id == state.selectedPageId
+        val selectedColor = colors.accentColor.copy(alpha = 0.22f)
+        val onFocused = { callbacks.onPageFocused(item.id) }
+        RailPageButton(
+            text = item.title,
+            enabled = state.expanded,
+            selected = selected,
+            focusRequester = requesters[index],
+            colors =
+                ShellButtonColors(
+                    backgroundColor = if (selected) selectedColor else Color.Transparent,
+                    focusedBackgroundColor =
+                        if (selected) {
+                            selectedColor
+                        } else {
+                            colors.secondaryTextColor.copy(alpha = 0.18f)
+                        },
+                    textColor = colors.textColor,
+                    borderColor = colors.accentColor.copy(alpha = 0.85f),
+                ),
+            callbacks =
+                ShellButtonCallbacks(
+                    onClick = onFocused,
+                    onFocused = onFocused,
+                    onUp = if (index == 0) callbacks.onRequestHeaderFocus else null,
+                    onRight = callbacks.onRequestContentFocus,
+                ),
+        )
+    }
+}
+
+@Composable
 private fun HeaderActionButton(
     text: String,
     focusRequester: FocusRequester,
-    backgroundColor: Color,
-    textColor: Color,
-    borderColor: Color,
-    onClick: () -> Unit,
-    onDown: () -> Boolean,
-    onFocused: () -> Unit,
+    colors: ShellButtonColors,
+    callbacks: ShellButtonCallbacks,
 ) {
     ShellFocusableButton(
         text = text,
         enabled = true,
-        backgroundColor = backgroundColor,
-        focusedBackgroundColor = backgroundColor.copy(alpha = 1f),
-        textColor = textColor,
-        borderColor = borderColor,
-        onClick = onClick,
-        onDown = onDown,
-        onFocused = onFocused,
-        modifier = Modifier.width(TvUiDefaults.ShellHeaderActionWidth),
+        colors = colors.copy(focusedBackgroundColor = colors.backgroundColor.copy(alpha = 1f)),
+        callbacks = callbacks,
         focusRequester = focusRequester,
-        horizontalPadding = 18.dp,
-        verticalPadding = 10.dp,
-        minWidth = TvUiDefaults.ShellHeaderActionWidth,
-        textAlign = TextAlign.Center,
+        style =
+            ShellButtonStyle(
+                horizontalPadding = 18.dp,
+                verticalPadding = 10.dp,
+                modifier = Modifier.width(TvUiDefaults.ShellHeaderActionWidth),
+                minWidth = TvUiDefaults.ShellHeaderActionWidth,
+                textAlign = TextAlign.Center,
+            ),
     )
 }
 
@@ -479,37 +598,23 @@ private fun RailPageButton(
     enabled: Boolean,
     selected: Boolean,
     focusRequester: FocusRequester,
-    selectedColor: Color,
-    backgroundColor: Color,
-    textColor: Color,
-    secondaryTextColor: Color,
-    borderColor: Color,
-    onFocused: () -> Unit,
-    onUp: (() -> Boolean)?,
-    onRight: () -> Boolean,
+    colors: ShellButtonColors,
+    callbacks: ShellButtonCallbacks,
 ) {
     ShellFocusableButton(
         text = text,
         enabled = enabled,
-        backgroundColor = if (selected) selectedColor else backgroundColor,
-        focusedBackgroundColor =
-            if (selected) {
-                selectedColor
-            } else {
-                secondaryTextColor.copy(alpha = 0.18f)
-            },
-        textColor = textColor,
-        borderColor = borderColor,
-        onClick = onFocused,
-        onFocused = onFocused,
-        onUp = onUp,
-        onRight = onRight,
-        modifier = Modifier.fillMaxWidth(),
+        colors = colors,
+        callbacks = callbacks,
         focusRequester = focusRequester,
-        horizontalPadding = 18.dp,
-        verticalPadding = 15.dp,
-        minWidth = 0.dp,
-        selected = selected,
+        style =
+            ShellButtonStyle(
+                horizontalPadding = 18.dp,
+                verticalPadding = 15.dp,
+                modifier = Modifier.fillMaxWidth(),
+                minWidth = 0.dp,
+                selected = selected,
+            ),
     )
 }
 
@@ -517,53 +622,40 @@ private fun RailPageButton(
 private fun ShellFocusableButton(
     text: String,
     enabled: Boolean,
-    backgroundColor: Color,
-    focusedBackgroundColor: Color,
-    textColor: Color,
-    borderColor: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    colors: ShellButtonColors,
+    callbacks: ShellButtonCallbacks,
+    style: ShellButtonStyle,
     focusRequester: FocusRequester? = null,
-    onFocused: (() -> Unit)? = null,
-    onLeft: (() -> Boolean)? = null,
-    onUp: (() -> Boolean)? = null,
-    onRight: (() -> Boolean)? = null,
-    onDown: (() -> Boolean)? = null,
-    horizontalPadding: Dp,
-    verticalPadding: Dp,
-    minWidth: Dp = 120.dp,
-    selected: Boolean = false,
-    textAlign: TextAlign = TextAlign.Start,
 ) {
     WatchingFocusableSurface(
         focusRequester = focusRequester ?: FocusRequester.Default,
         enabled = enabled,
-        backgroundColor = backgroundColor,
-        focusedBackgroundColor = focusedBackgroundColor,
-        borderColor = borderColor,
-        onClick = onClick,
-        modifier = modifier.widthIn(min = minWidth),
-        selected = selected,
-        selectedBorderColor = borderColor,
+        backgroundColor = colors.backgroundColor,
+        focusedBackgroundColor = colors.focusedBackgroundColor,
+        borderColor = colors.borderColor,
+        onClick = callbacks.onClick,
+        modifier = style.modifier.widthIn(min = style.minWidth),
+        selected = style.selected,
+        selectedBorderColor = colors.borderColor,
         selectedBorderWidth = TvUiDefaults.FOCUSED_BORDER_WIDTH,
-        onFocused = onFocused,
-        onLeft = onLeft,
-        onUp = onUp,
-        onRight = onRight,
-        onDown = onDown,
+        onFocused = callbacks.onFocused,
+        onLeft = callbacks.onLeft,
+        onUp = callbacks.onUp,
+        onRight = callbacks.onRight,
+        onDown = callbacks.onDown,
         paddingValues =
-            androidx.compose.foundation.layout.PaddingValues(
-                horizontal = horizontalPadding,
-                vertical = verticalPadding,
+            PaddingValues(
+                horizontal = style.horizontalPadding,
+                vertical = style.verticalPadding,
             ),
     ) {
         Text(
             text = text,
             modifier = Modifier.fillMaxWidth(),
-            color = textColor,
+            color = colors.textColor,
             fontSize = 18.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            textAlign = textAlign,
+            fontWeight = if (style.selected) FontWeight.SemiBold else FontWeight.Normal,
+            textAlign = style.textAlign,
         )
     }
 }
@@ -650,15 +742,21 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
                     .height(headerHeight),
         ) {
             MainPagesHeader(
-                selectedPageTitle = MainPagesSpec.titles.getValue(selectedPageId),
-                hasUpdates = true,
-                preferredAction = MainHeaderAction.Search,
-                headerFocusRequestToken = 0,
-                onSearchClick = {},
-                onCatalogClick = {},
-                onUpdateClick = {},
-                onRequestContentFocus = { true },
-                onFocused = { _ -> },
+                state =
+                    MainPagesHeaderState(
+                        selectedPageTitle = MainPagesSpec.titles.getValue(selectedPageId),
+                        hasUpdates = true,
+                        preferredAction = MainHeaderAction.Search,
+                        focusRequestToken = 0,
+                    ),
+                callbacks =
+                    MainPagesHeaderCallbacks(
+                        onSearchClick = {},
+                        onCatalogClick = {},
+                        onUpdateClick = {},
+                        onRequestContentFocus = { true },
+                        onFocused = { _ -> },
+                    ),
             )
         }
 
@@ -671,14 +769,20 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
                     .padding(top = shellTopOffset),
         ) {
             MainPagesShell(
-                items = shellItems,
-                selectedPageId = selectedPageId,
-                expanded = railExpanded,
-                railWidth = railWidth,
-                railFocusRequestToken = 0,
-                onPageFocused = {},
-                onRequestHeaderFocus = { true },
-                onRequestContentFocus = { true },
+                state =
+                    MainPagesRailState(
+                        items = shellItems,
+                        selectedPageId = selectedPageId,
+                        expanded = railExpanded,
+                        railWidth = railWidth,
+                        focusRequestToken = 0,
+                    ),
+                callbacks =
+                    MainPagesRailCallbacks(
+                        onPageFocused = {},
+                        onRequestHeaderFocus = { true },
+                        onRequestContentFocus = { true },
+                    ),
             )
         }
     }

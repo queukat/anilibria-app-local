@@ -87,25 +87,34 @@ class MainPagesFragment : Fragment() {
             setContent {
                 ProvideGradientBackground(backgroundManager) {
                     MainPagesRoot(
-                        items = shellItems,
-                        selectedPageId = selectedPageId,
-                        hasUpdates = hasUpdates,
-                        headerVisible = isHeaderVisible,
-                        railExpanded = isRailExpanded,
-                        preferredHeaderAction = preferredHeaderAction,
-                        headerFocusRequestToken = headerFocusRequestToken,
-                        railFocusRequestToken = railFocusRequestToken,
-                        onHeaderFocused = { action ->
-                            preferredHeaderAction = action
-                            isRailExpanded = false
-                            applyHeaderVisibility(true)
-                        },
-                        onSearchClick = viewModel::onSearchClick,
-                        onCatalogClick = viewModel::onCatalogClick,
-                        onUpdateClick = viewModel::onAppUpdateClick,
-                        onPageFocused = ::showPageFromShell,
-                        onRequestHeaderFocus = ::requestHeaderFocus,
-                        onRequestContentFocus = ::moveFocusToContent,
+                        state =
+                            MainPagesRootState(
+                                items = shellItems,
+                                selectedPageId = selectedPageId,
+                                hasUpdates = hasUpdates,
+                                headerVisible = isHeaderVisible,
+                                railExpanded = isRailExpanded,
+                            ),
+                        focus =
+                            MainPagesRootFocus(
+                                preferredHeaderAction = preferredHeaderAction,
+                                headerFocusRequestToken = headerFocusRequestToken,
+                                railFocusRequestToken = railFocusRequestToken,
+                            ),
+                        callbacks =
+                            MainPagesRootCallbacks(
+                                onHeaderFocused = { action ->
+                                    preferredHeaderAction = action
+                                    isRailExpanded = false
+                                    applyHeaderVisibility(true)
+                                },
+                                onSearchClick = viewModel::onSearchClick,
+                                onCatalogClick = viewModel::onCatalogClick,
+                                onUpdateClick = viewModel::onAppUpdateClick,
+                                onPageFocused = ::showPageFromShell,
+                                onRequestHeaderFocus = ::requestHeaderFocus,
+                                onRequestContentFocus = ::moveFocusToContent,
+                            ),
                     ) {
                         MainPagesContentHost(
                             selectedPageId = selectedPageId,
