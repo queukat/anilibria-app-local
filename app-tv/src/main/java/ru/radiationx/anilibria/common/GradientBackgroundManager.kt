@@ -4,8 +4,6 @@ import androidx.annotation.ColorInt
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.palette.graphics.Palette
-import java.util.LinkedHashMap
-import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -21,6 +19,8 @@ import ru.radiationx.shared.ktx.coRunCatching
 import ru.radiationx.shared.ktx.coroutines.AppDispatchers
 import ru.radiationx.shared_app.imageloader.loadImageBitmap
 import timber.log.Timber
+import java.util.LinkedHashMap
+import javax.inject.Inject
 
 data class GradientBackgroundState(
     @ColorInt val baseColor: Int,

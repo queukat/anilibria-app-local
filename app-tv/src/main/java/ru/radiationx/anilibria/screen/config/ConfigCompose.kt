@@ -30,8 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.radiationx.anilibria.R
-import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
-import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvPageContentPadding
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvOverlayActionButton
@@ -62,8 +61,8 @@ internal fun ConfigScreenContent(
         modifier =
             Modifier
                 .fillMaxSize()
-                .tvAppBackground(palette, glowAlpha = 0.22f)
-                .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+                .tvAppBackground(palette)
+                .padding(TvPageContentPadding),
     ) {
         Box(
             modifier =
@@ -224,7 +223,7 @@ private fun ConfigStatusContent(
                             } else {
                                 R.string.config_action_restart
                             },
-                    ),
+                        ),
                     palette = palette,
                     focus =
                         TvOverlayActionButtonFocus(

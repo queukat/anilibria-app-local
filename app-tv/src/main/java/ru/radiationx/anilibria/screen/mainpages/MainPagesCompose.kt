@@ -20,14 +20,12 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,15 +34,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import ru.radiationx.anilibria.R
 import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
@@ -54,10 +51,10 @@ import ru.radiationx.anilibria.screen.main.MainContentRestoreState
 import ru.radiationx.anilibria.screen.main.MainScreen
 import ru.radiationx.anilibria.screen.main.MainSectionTitles
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
-import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
+import ru.radiationx.anilibria.ui.compose.TvShellDefaults
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
 import ru.radiationx.anilibria.ui.compose.tvAppBackground
 import ru.radiationx.data.entity.domain.types.ReleaseId
@@ -152,7 +149,7 @@ private data class ShellButtonStyle(
     val horizontalPadding: Dp,
     val verticalPadding: Dp,
     val modifier: Modifier = Modifier,
-    val minWidth: Dp = 120.dp,
+    val minWidth: Dp = TvShellDefaults.DefaultButtonMinWidth,
     val selected: Boolean = false,
     val textAlign: TextAlign = TextAlign.Start,
 )
@@ -165,9 +162,9 @@ internal fun MainPagesRoot(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val palette = rememberWatchingPalette()
-    val headerHeight = dimensionResource(R.dimen.main_pages_header_height)
-    val headerSpacing = dimensionResource(R.dimen.main_pages_header_spacing)
-    val railWidth = dimensionResource(R.dimen.main_pages_rail_width)
+    val headerHeight = TvShellDefaults.HeaderHeight
+    val headerSpacing = TvShellDefaults.HeaderSpacing
+    val railWidth = TvShellDefaults.RailWidth
     val shellTopOffset = if (state.headerVisible) headerHeight + headerSpacing else 0.dp
     val contentTopOffset by animateDpAsState(
         targetValue = shellTopOffset,
@@ -178,7 +175,7 @@ internal fun MainPagesRoot(
         modifier =
             Modifier
                 .fillMaxSize()
-                .tvAppBackground(palette, glowAlpha = 0.22f),
+                .tvAppBackground(palette, glowAlpha = TvUiDefaults.APP_BACKGROUND_GLOW_ALPHA),
     ) {
         Box(
             modifier =
@@ -253,7 +250,8 @@ internal fun MainPagesHeader(
     val palette = rememberWatchingPalette()
     val textColor = colorResource(R.color.dark_textDefault)
     val secondaryTextColor = colorResource(R.color.dark_textSecond)
-    val actionBackground = colorResource(R.color.dark_release_day_btn).copy(alpha = 0.92f)
+    val actionBackground =
+        colorResource(R.color.dark_release_day_btn).copy(alpha = TvShellDefaults.ACTION_BACKGROUND_ALPHA)
     val accentColor = colorResource(R.color.dark_colorAccent)
 
     val searchRequester = remember { FocusRequester() }
@@ -286,48 +284,48 @@ internal fun MainPagesHeader(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(TvUiDefaults.ShellHeaderPadding),
+                    .padding(TvShellDefaults.HeaderPadding),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(TvShellDefaults.HeaderContentSpacing),
         ) {
             Box(
                 modifier =
                     Modifier
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(accentColor.copy(alpha = 0.20f))
+                        .clip(TvShellDefaults.HeaderLogoShape)
+                        .background(accentColor.copy(alpha = TvShellDefaults.LOGO_BACKGROUND_ALPHA))
                         .border(
-                            width = 1.dp,
-                            color = accentColor.copy(alpha = 0.32f),
-                            shape = RoundedCornerShape(22.dp),
+                            width = TvUiDefaults.UNFOCUSED_BORDER_WIDTH,
+                            color = accentColor.copy(alpha = TvShellDefaults.LOGO_BORDER_ALPHA),
+                            shape = TvShellDefaults.HeaderLogoShape,
                         )
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .padding(TvShellDefaults.HeaderLogoPadding),
             ) {
                 Image(
                     painter = painterResource(R.drawable.ic_anilibria_splash),
                     contentDescription = null,
-                    modifier = Modifier.width(22.dp),
+                    modifier = Modifier.width(TvShellDefaults.HeaderLogoWidth),
                 )
             }
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(TvShellDefaults.HeaderTitleSpacing),
             ) {
                 Text(
                     text = "AniLibria TV",
                     color = secondaryTextColor,
-                    fontSize = 13.sp,
+                    fontSize = TvShellDefaults.HeaderEyebrowFontSize,
                 )
                 Text(
                     text = state.selectedPageTitle,
                     color = textColor,
-                    fontSize = 22.sp,
+                    fontSize = TvShellDefaults.HeaderTitleFontSize,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(TvShellDefaults.HeaderActionSpacing),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 HeaderActionButton(
@@ -335,8 +333,8 @@ internal fun MainPagesHeader(
                     focusRequester = searchRequester,
                     colors =
                         ShellButtonColors(
-                            backgroundColor = actionBackground.copy(alpha = 0.72f),
-                            borderColor = textColor.copy(alpha = 0.72f),
+                            backgroundColor = actionBackground.copy(alpha = TvShellDefaults.SEARCH_BACKGROUND_ALPHA),
+                            borderColor = textColor.copy(alpha = TvShellDefaults.ACTION_BORDER_ALPHA),
                             textColor = textColor,
                         ),
                     callbacks =
@@ -352,7 +350,7 @@ internal fun MainPagesHeader(
                     colors =
                         ShellButtonColors(
                             backgroundColor = actionBackground,
-                            borderColor = textColor.copy(alpha = 0.72f),
+                            borderColor = textColor.copy(alpha = TvShellDefaults.ACTION_BORDER_ALPHA),
                             textColor = textColor,
                         ),
                     callbacks =
@@ -368,8 +366,8 @@ internal fun MainPagesHeader(
                         focusRequester = updateRequester,
                         colors =
                             ShellButtonColors(
-                                backgroundColor = accentColor.copy(alpha = 0.24f),
-                                borderColor = accentColor.copy(alpha = 0.82f),
+                                backgroundColor = accentColor.copy(alpha = TvShellDefaults.UPDATE_BACKGROUND_ALPHA),
+                                borderColor = accentColor.copy(alpha = TvShellDefaults.UPDATE_BORDER_ALPHA),
                                 textColor = textColor,
                             ),
                         callbacks =
@@ -384,7 +382,7 @@ internal fun MainPagesHeader(
         }
 
         HorizontalDivider(
-            color = textColor.copy(alpha = 0.08f),
+            color = textColor.copy(alpha = TvShellDefaults.DIVIDER_ALPHA),
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
@@ -404,7 +402,7 @@ internal fun MainPagesShell(
     val requesters = remember(state.items.size) { List(state.items.size) { FocusRequester() } }
 
     val panelOffset by animateDpAsState(
-        targetValue = if (state.expanded) 0.dp else -(state.railWidth + 12.dp),
+        targetValue = if (state.expanded) 0.dp else -(state.railWidth + TvShellDefaults.RailCollapsedOvershoot),
         label = "mainPagesRailOffset",
     )
 
@@ -423,7 +421,7 @@ internal fun MainPagesShell(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(surfaceColor.copy(alpha = 0.16f)),
+                    .background(surfaceColor.copy(alpha = TvShellDefaults.RAIL_BACKDROP_ALPHA)),
         )
     }
 
@@ -432,12 +430,12 @@ internal fun MainPagesShell(
             Modifier
                 .fillMaxSize()
                 .offset { IntOffset(x = panelOffset.roundToPx(), y = 0) }
-                .clip(TvUiDefaults.ShellRailShape)
+                .clip(TvShellDefaults.RailShape)
                 .background(TvUiDefaults.shellRailBrush(palette))
                 .border(
-                    width = 1.dp,
-                    color = textColor.copy(alpha = 0.08f),
-                    shape = TvUiDefaults.ShellRailShape,
+                    width = TvUiDefaults.UNFOCUSED_BORDER_WIDTH,
+                    color = textColor.copy(alpha = TvShellDefaults.DIVIDER_ALPHA),
+                    shape = TvShellDefaults.RailShape,
                 ),
     ) {
         Box(
@@ -445,14 +443,14 @@ internal fun MainPagesShell(
                 Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
-                    .width(42.dp)
+                    .width(TvShellDefaults.RailStripeWidth)
                     .background(
                         brush =
                             Brush.verticalGradient(
                                 colors =
                                     listOf(
-                                        accentColor.copy(alpha = 0.28f),
-                                        accentColor.copy(alpha = 0.14f),
+                                        accentColor.copy(alpha = TvShellDefaults.RAIL_STRIPE_STRONG_ALPHA),
+                                        accentColor.copy(alpha = TvShellDefaults.RAIL_STRIPE_SOFT_ALPHA),
                                         Color.Transparent,
                                     ),
                             ),
@@ -462,22 +460,22 @@ internal fun MainPagesShell(
             Column(
                 modifier =
                     Modifier
-                        .padding(top = 28.dp)
-                        .width(24.dp),
+                        .padding(top = TvShellDefaults.RailStripeTopPadding)
+                        .width(TvShellDefaults.RailStripeMarkerWidth),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(TvShellDefaults.RailStripeSpacing),
             ) {
                 Image(
                     painter = painterResource(R.drawable.ic_anilibria_splash),
                     contentDescription = null,
-                    modifier = Modifier.width(18.dp),
+                    modifier = Modifier.width(TvShellDefaults.RailStripeIconWidth),
                 )
                 Box(
                     modifier =
                         Modifier
-                            .width(2.dp)
+                            .width(TvShellDefaults.RailStripeLineWidth)
                             .weight(1f)
-                            .background(textColor.copy(alpha = 0.28f)),
+                            .background(textColor.copy(alpha = TvShellDefaults.RAIL_LINE_ALPHA)),
                 )
             }
         }
@@ -486,22 +484,22 @@ internal fun MainPagesShell(
             modifier =
                 Modifier
                     .fillMaxHeight()
-                    .padding(TvUiDefaults.ShellRailPadding),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(TvShellDefaults.RailPadding),
+            verticalArrangement = Arrangement.spacedBy(TvShellDefaults.RailContentSpacing),
         ) {
             Text(
                 text = "Разделы",
                 color = secondaryTextColor,
-                fontSize = 14.sp,
+                fontSize = TvShellDefaults.RailTitleFontSize,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(start = 6.dp),
+                modifier = Modifier.padding(start = TvShellDefaults.RailTitleStartPadding),
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(TvShellDefaults.RailSectionTitleSpacer))
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(TvShellDefaults.RailButtonSpacing),
             ) {
                 MainPagesRailButtons(
                     state = state,
@@ -521,9 +519,9 @@ internal fun MainPagesShell(
             Text(
                 text = "Влево: навигация\nВправо: контент",
                 color = secondaryTextColor,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-                modifier = Modifier.padding(start = 6.dp),
+                fontSize = TvShellDefaults.RailHintFontSize,
+                lineHeight = TvShellDefaults.RailHintLineHeight,
+                modifier = Modifier.padding(start = TvShellDefaults.RailHintStartPadding),
             )
         }
     }
@@ -538,7 +536,7 @@ private fun MainPagesRailButtons(
 ) {
     state.items.forEachIndexed { index, item ->
         val selected = item.id == state.selectedPageId
-        val selectedColor = colors.accentColor.copy(alpha = 0.22f)
+        val selectedColor = colors.accentColor.copy(alpha = TvShellDefaults.RAIL_SELECTED_ALPHA)
         val onFocused = { callbacks.onPageFocused(item.id) }
         RailPageButton(
             text = item.title,
@@ -552,10 +550,10 @@ private fun MainPagesRailButtons(
                         if (selected) {
                             selectedColor
                         } else {
-                            colors.secondaryTextColor.copy(alpha = 0.18f)
+                            colors.secondaryTextColor.copy(alpha = TvShellDefaults.RAIL_FOCUSED_ALPHA)
                         },
                     textColor = colors.textColor,
-                    borderColor = colors.accentColor.copy(alpha = 0.85f),
+                    borderColor = colors.accentColor.copy(alpha = TvShellDefaults.RAIL_SELECTED_BORDER_ALPHA),
                 ),
             callbacks =
                 ShellButtonCallbacks(
@@ -578,15 +576,19 @@ private fun HeaderActionButton(
     ShellFocusableButton(
         text = text,
         enabled = true,
-        colors = colors.copy(focusedBackgroundColor = colors.backgroundColor.copy(alpha = 1f)),
+        colors =
+            colors.copy(
+                focusedBackgroundColor =
+                    colors.backgroundColor.copy(alpha = TvUiDefaults.SOLID_SURFACE_ALPHA),
+            ),
         callbacks = callbacks,
         focusRequester = focusRequester,
         style =
             ShellButtonStyle(
-                horizontalPadding = 18.dp,
-                verticalPadding = 10.dp,
-                modifier = Modifier.width(TvUiDefaults.ShellHeaderActionWidth),
-                minWidth = TvUiDefaults.ShellHeaderActionWidth,
+                horizontalPadding = TvShellDefaults.HeaderActionHorizontalPadding,
+                verticalPadding = TvShellDefaults.HeaderActionVerticalPadding,
+                modifier = Modifier.width(TvShellDefaults.HeaderActionWidth),
+                minWidth = TvShellDefaults.HeaderActionWidth,
                 textAlign = TextAlign.Center,
             ),
     )
@@ -609,8 +611,8 @@ private fun RailPageButton(
         focusRequester = focusRequester,
         style =
             ShellButtonStyle(
-                horizontalPadding = 18.dp,
-                verticalPadding = 15.dp,
+                horizontalPadding = TvShellDefaults.RailButtonHorizontalPadding,
+                verticalPadding = TvShellDefaults.RailButtonVerticalPadding,
                 modifier = Modifier.fillMaxWidth(),
                 minWidth = 0.dp,
                 selected = selected,
@@ -653,9 +655,16 @@ private fun ShellFocusableButton(
             text = text,
             modifier = Modifier.fillMaxWidth(),
             color = colors.textColor,
-            fontSize = 18.sp,
+            fontSize =
+                if (style.textAlign == TextAlign.Center) {
+                    TvShellDefaults.HeaderActionFontSize
+                } else {
+                    TvShellDefaults.RailButtonFontSize
+                },
             fontWeight = if (style.selected) FontWeight.SemiBold else FontWeight.Normal,
             textAlign = style.textAlign,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -696,10 +705,9 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
             }
         }
     val selectedPageId = MainPagesSpec.ID_MAIN
-    // Preview should not depend on generated R.dimen fields because layoutlib can lag behind resource stubs.
-    val headerHeight = 96.dp
-    val headerSpacing = 10.dp
-    val railWidth = 264.dp
+    val headerHeight = TvShellDefaults.HeaderHeight
+    val headerSpacing = TvShellDefaults.HeaderSpacing
+    val railWidth = TvShellDefaults.RailWidth
     val shellTopOffset = headerHeight + headerSpacing
 
     Box(
@@ -712,7 +720,7 @@ private fun MainPagesPreviewScene(railExpanded: Boolean) {
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(horizontal = TvCardScreenHorizontalPadding),
+                    .padding(top = shellTopOffset),
         ) {
             MainScreen(
                 sections = previewMainSections(),

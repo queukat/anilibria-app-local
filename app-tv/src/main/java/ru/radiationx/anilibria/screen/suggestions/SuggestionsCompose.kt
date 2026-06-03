@@ -43,9 +43,9 @@ import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
-import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvPageContentPadding
 import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
-import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvPageRowsTopContentPadding
 import ru.radiationx.anilibria.screen.watching.TvRowEndPadding
 import ru.radiationx.anilibria.screen.watching.TvRowSpacing
 import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
@@ -254,7 +254,7 @@ internal fun SuggestionsScreen(
             Modifier
                 .fillMaxSize()
                 .tvAppBackground(palette)
-                .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+                .padding(TvPageContentPadding),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -291,7 +291,7 @@ internal fun SuggestionsScreen(
                 verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
                 contentPadding =
                     PaddingValues(
-                        top = 4.dp,
+                        top = TvPageRowsTopContentPadding,
                         bottom =
                             if (hasContent) {
                                 descriptionOverlayClearance.bottomInset
@@ -548,7 +548,7 @@ private fun SuggestionsSectionBlock(
                                 palette = palette,
                                 focusRequester =
                                     requesters.getOrNull(stateFocusIndex ?: -1)
-                                    ?: FocusRequester.Default,
+                                        ?: FocusRequester.Default,
                                 onClick = { onItemClick(actionItem) },
                                 focus =
                                     tvContentStateActionFocus(

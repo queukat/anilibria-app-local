@@ -37,8 +37,8 @@ import ru.radiationx.anilibria.common.toTvCardDescription
 import ru.radiationx.anilibria.screen.main.MainSectionBlock
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.screen.watching.TvBottomContentInset
-import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
-import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvPageContentPadding
+import ru.radiationx.anilibria.screen.watching.TvPageRowsTopContentPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.WatchingFocusableSurface
@@ -335,7 +335,7 @@ internal fun ScheduleScreen(
             Modifier
                 .fillMaxSize()
                 .tvAppBackground(palette)
-                .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+                .padding(TvPageContentPadding),
     ) {
         LazyColumn(
             state = verticalState,
@@ -343,7 +343,7 @@ internal fun ScheduleScreen(
             verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
             contentPadding =
                 PaddingValues(
-                    top = 4.dp,
+                    top = TvPageRowsTopContentPadding,
                     bottom =
                         if (hasContent) {
                             descriptionOverlayClearance.bottomInset

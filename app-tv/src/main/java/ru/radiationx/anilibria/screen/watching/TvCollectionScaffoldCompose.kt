@@ -36,8 +36,8 @@ import ru.radiationx.anilibria.ui.compose.TvContentStatePanel
 import ru.radiationx.anilibria.ui.compose.TvContentStatePanelOptions
 import ru.radiationx.anilibria.ui.compose.TvTextActionButton
 import ru.radiationx.anilibria.ui.compose.TvUiDefaults
-import ru.radiationx.anilibria.ui.compose.tvPanelSurface
 import ru.radiationx.anilibria.ui.compose.tvContentStateActionFocus
+import ru.radiationx.anilibria.ui.compose.tvPanelSurface
 import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
 
 internal data class TvCollectionFilterAction(

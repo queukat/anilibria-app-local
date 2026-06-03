@@ -40,7 +40,8 @@ import ru.radiationx.anilibria.screen.watching.TvDescriptionBarPadding
 import ru.radiationx.anilibria.screen.watching.TvPosterCardWidth
 import ru.radiationx.anilibria.screen.watching.TvRowEndPadding
 import ru.radiationx.anilibria.screen.watching.TvRowSpacing
-import ru.radiationx.anilibria.screen.watching.TvRowsScreenVerticalPadding
+import ru.radiationx.anilibria.screen.watching.TvRowsContentPadding
+import ru.radiationx.anilibria.screen.watching.TvRowsTopContentPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionHeaderSpacing
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
@@ -273,7 +274,7 @@ internal fun MainScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(vertical = TvRowsScreenVerticalPadding),
+                .padding(TvRowsContentPadding),
     ) {
         LazyColumn(
             state = verticalState,
@@ -281,7 +282,7 @@ internal fun MainScreen(
             verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
             contentPadding =
                 PaddingValues(
-                    top = 6.dp,
+                    top = TvRowsTopContentPadding,
                     bottom =
                         if (hasContent) {
                             descriptionOverlayClearance.bottomInset

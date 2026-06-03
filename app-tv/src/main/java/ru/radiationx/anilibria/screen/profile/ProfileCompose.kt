@@ -31,9 +31,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.radiationx.anilibria.R
+import ru.radiationx.anilibria.screen.watching.TvPageContentPadding
 import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
-import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
-import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
 import ru.radiationx.anilibria.ui.compose.TvAsyncImage
@@ -73,7 +72,7 @@ internal fun ProfileScreen(
             Modifier
                 .fillMaxSize()
                 .tvAppBackground(palette)
-                .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+                .padding(TvPageContentPadding),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -146,8 +145,10 @@ internal fun ProfileScreen(
                         minWidth = 240.dp,
                         colors =
                             TvFocusableSurfaceColors(
-                                backgroundColor = palette.chipColor.copy(alpha = 0.94f),
-                                focusedBackgroundColor = palette.chipColor.copy(alpha = 0.94f),
+                                backgroundColor =
+                                    palette.chipColor.copy(alpha = TvUiDefaults.SUBTLE_SURFACE_ALPHA),
+                                focusedBackgroundColor =
+                                    palette.chipColor.copy(alpha = TvUiDefaults.SUBTLE_SURFACE_ALPHA),
                                 borderColor = accentColor.copy(alpha = 0.9f),
                             ),
                         paddingValues = TvUiDefaults.ActionButtonPadding,
@@ -172,7 +173,7 @@ private fun ProfileAvatar(
             Modifier
                 .size(140.dp)
                 .clip(CircleShape)
-                .background(backgroundColor.copy(alpha = 0.92f))
+                .background(backgroundColor.copy(alpha = TvUiDefaults.TRANSLUCENT_CONTROL_ALPHA))
                 .border(
                     width = 2.dp,
                     color = accentColor.copy(alpha = 0.55f),

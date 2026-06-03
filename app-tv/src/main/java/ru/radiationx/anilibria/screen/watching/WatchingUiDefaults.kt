@@ -21,44 +21,63 @@ import ru.radiationx.anilibria.common.LinkCard
 import ru.radiationx.anilibria.common.LoadingCard
 import kotlin.math.max
 
-internal val TvScreenHorizontalPadding = 10.dp
-internal val TvCardScreenHorizontalPadding = TvScreenHorizontalPadding
+// Root page rhythm: regular pages keep more top/bottom air, while row-heavy
+// shell content uses a tighter vertical inset so the first carousel stays high.
+internal val TvPageHorizontalPadding = 10.dp
+internal val TvScreenHorizontalPadding = TvPageHorizontalPadding
+internal val TvCardScreenHorizontalPadding = TvPageHorizontalPadding
+internal val TvPageVerticalPadding = 16.dp
+internal val TvRowsScreenVerticalPadding = 8.dp
+internal val TvPageContentPadding =
+    PaddingValues(
+        horizontal = TvPageHorizontalPadding,
+        vertical = TvPageVerticalPadding,
+    )
+internal val TvRowsContentPadding =
+    PaddingValues(
+        horizontal = TvCardScreenHorizontalPadding,
+        vertical = TvRowsScreenVerticalPadding,
+    )
+
+// Detail aligns wider hero text and action rows; keep it named separately so it
+// does not drift into the common page/card rhythm by accident.
 internal val TvDetailHorizontalPadding = 28.dp
+internal val TvRowsTopContentPadding = 6.dp
+internal val TvPageRowsTopContentPadding = 4.dp
+internal val TvDetailRowsTopContentPadding = 36.dp
 internal val TvCollectionTopFiltersPanelPadding =
     PaddingValues(
-        horizontal = 20.dp,
-        vertical = 18.dp,
+        horizontal = 16.dp,
+        vertical = 12.dp,
     )
-internal val TvCollectionTopFiltersSpacing = 14.dp
-internal val TvCollectionTopFiltersActionSpacing = 14.dp
-internal val TvCollectionTopFiltersActionWidth = 148.dp
-internal val TvRowsScreenVerticalPadding = 8.dp
-internal val TvPageVerticalPadding = 16.dp
+internal val TvCollectionTopFiltersSpacing = 10.dp
+internal val TvCollectionTopFiltersActionSpacing = 10.dp
+internal val TvCollectionTopFiltersActionWidth = 136.dp
 internal val TvPageHeaderSpacing = 18.dp
-internal val TvBottomDescriptionInset = 124.dp
-internal val TvGridBottomDescriptionInset = 164.dp
-internal val TvCollectionGridTopContentPadding = 12.dp
-internal val TvCollectionGridBottomDescriptionInset = 144.dp
+internal val TvBottomDescriptionInset = 112.dp
+internal val TvGridBottomDescriptionInset = 124.dp
+internal val TvCollectionGridTopContentPadding = 8.dp
+internal val TvCollectionGridBottomDescriptionInset = 108.dp
 internal val TvBottomContentInset = 28.dp
 internal val TvFocusedItemBottomGap = 24.dp
 internal val TvCollectionDescriptionBarPadding =
     PaddingValues(
         start = 20.dp,
-        top = 4.dp,
+        top = 2.dp,
         end = 20.dp,
-        bottom = 6.dp,
+        bottom = 4.dp,
     )
-internal val TvCollectionSolidDescriptionBarMinHeight = 84.dp
+internal val TvCollectionSolidDescriptionBarMinHeight = 76.dp
 internal val TvCollectionSolidDescriptionBarInnerPadding =
     PaddingValues(
         start = 20.dp,
-        top = 8.dp,
+        top = 6.dp,
         end = 20.dp,
-        bottom = 8.dp,
+        bottom = 6.dp,
     )
 internal val TvSectionSpacing = 26.dp
 internal val TvSectionHeaderSpacing = 12.dp
-internal val TvFilterRowSpacing = 10.dp
+internal val TvFilterRowSpacing = 8.dp
 internal val TvRowSpacing = 16.dp
 internal val TvRowEndPadding = 0.dp
 internal val TvPosterCardWidth = 152.dp
@@ -67,26 +86,26 @@ internal val TvPickerTopInset = 72.dp
 internal val TvDescriptionBarPadding =
     PaddingValues(
         start = 20.dp,
-        top = 8.dp,
+        top = 6.dp,
         end = 20.dp,
-        bottom = 10.dp,
+        bottom = 6.dp,
     )
-internal val TvSolidDescriptionBarMinHeight = 92.dp
+internal val TvSolidDescriptionBarMinHeight = 80.dp
 internal val TvSolidDescriptionBarInnerPadding =
     PaddingValues(
         start = 20.dp,
-        top = 12.dp,
+        top = 8.dp,
         end = 20.dp,
-        bottom = 12.dp,
+        bottom = 8.dp,
     )
-internal val TvSolidDescriptionBarVerticalOffset = 4.dp
-internal val TvSolidDescriptionBarContentVerticalOffset = 2.dp
+internal val TvSolidDescriptionBarVerticalOffset = 2.dp
+internal val TvSolidDescriptionBarContentVerticalOffset = 1.dp
 internal val TvDetailDescriptionBarPadding =
     PaddingValues(
         start = TvDetailHorizontalPadding,
-        top = 8.dp,
+        top = 6.dp,
         end = TvDetailHorizontalPadding,
-        bottom = 10.dp,
+        bottom = 6.dp,
     )
 internal val TvPlayerOverlayHorizontalPadding = 48.dp
 internal val TvPlayerOverlayBottomPadding = 28.dp

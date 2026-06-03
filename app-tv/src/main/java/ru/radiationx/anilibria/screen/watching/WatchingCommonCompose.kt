@@ -444,14 +444,20 @@ internal fun WatchingDescriptionBar(
                                     colors =
                                         listOf(
                                             if (solidSurface) {
-                                                Color.Black.copy(alpha = 0.20f)
+                                                Color.Black.copy(
+                                                    alpha = TvUiDefaults.DESCRIPTION_SOLID_SCRIM_START_ALPHA,
+                                                )
                                             } else {
                                                 Color.Transparent
                                             },
                                             if (solidSurface) {
-                                                Color.Black.copy(alpha = 0.96f)
+                                                Color.Black.copy(
+                                                    alpha = TvUiDefaults.DESCRIPTION_SOLID_SCRIM_END_ALPHA,
+                                                )
                                             } else {
-                                                Color.Black.copy(alpha = 0.88f)
+                                                Color.Black.copy(
+                                                    alpha = TvUiDefaults.DESCRIPTION_TRANSLUCENT_SCRIM_END_ALPHA,
+                                                )
                                             },
                                         ),
                                 ),
@@ -468,10 +474,10 @@ internal fun WatchingDescriptionBar(
                     Modifier
                         .fillMaxWidth()
                         .clip(TvUiDefaults.ScreenPanelShape)
-                        .background(palette.backgroundColor.copy(alpha = 0.94f))
+                        .background(TvUiDefaults.solidSurfaceColor(palette.backgroundColor))
                         .border(
                             width = 1.dp,
-                            color = palette.textColor.copy(alpha = 0.10f),
+                            color = palette.textColor.copy(alpha = TvUiDefaults.PANEL_BORDER_ALPHA),
                             shape = TvUiDefaults.ScreenPanelShape,
                         )
                         .then(

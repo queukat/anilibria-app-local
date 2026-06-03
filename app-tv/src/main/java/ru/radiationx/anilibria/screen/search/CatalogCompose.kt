@@ -46,8 +46,8 @@ import ru.radiationx.anilibria.screen.watching.TvCollectionSolidDescriptionBarMi
 import ru.radiationx.anilibria.screen.watching.TvCollectionStatePanelUiModel
 import ru.radiationx.anilibria.screen.watching.TvCollectionTopAction
 import ru.radiationx.anilibria.screen.watching.TvCollectionTopFiltersPanel
+import ru.radiationx.anilibria.screen.watching.TvPageContentPadding
 import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
-import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
 import ru.radiationx.anilibria.screen.watching.TvPosterCardSlotWidth
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.WatchingFilterPickerDialog
@@ -381,7 +381,7 @@ internal fun CatalogScreen(
             Modifier
                 .fillMaxSize()
                 .tvAppBackground(palette)
-                .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+                .padding(TvPageContentPadding),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(

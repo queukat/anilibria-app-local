@@ -321,7 +321,7 @@ internal fun WatchingFavoritesScreen(
             Modifier
                 .fillMaxSize()
                 .tvAppBackground(palette)
-                .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
+                .padding(TvRowsContentPadding),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(

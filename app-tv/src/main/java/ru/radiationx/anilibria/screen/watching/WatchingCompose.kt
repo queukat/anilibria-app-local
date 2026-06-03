@@ -23,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import ru.radiationx.anilibria.common.CardItem
 import ru.radiationx.anilibria.common.InfoCard
 import ru.radiationx.anilibria.common.LibriaCard
@@ -227,7 +226,7 @@ internal fun WatchingScreen(
             Modifier
                 .fillMaxSize()
                 .tvAppBackground(palette)
-                .padding(horizontal = TvCardScreenHorizontalPadding, vertical = TvRowsScreenVerticalPadding),
+                .padding(TvRowsContentPadding),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
@@ -236,7 +235,7 @@ internal fun WatchingScreen(
                 verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
                 contentPadding =
                     PaddingValues(
-                        top = 6.dp,
+                        top = TvRowsTopContentPadding,
                         bottom =
                             if (hasContent) {
                                 descriptionOverlayClearance.bottomInset

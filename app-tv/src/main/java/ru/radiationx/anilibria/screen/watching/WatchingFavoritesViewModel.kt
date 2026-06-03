@@ -4,7 +4,6 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +33,7 @@ import ru.radiationx.data.interactors.tv.TvFavoritesUseCase
 import ru.radiationx.data.interactors.tv.TvSearchUseCase
 import ru.radiationx.data.repository.AuthRepository
 import ru.radiationx.shared.ktx.coroutines.AppDispatchers
+import javax.inject.Inject
 
 class WatchingFavoritesViewModel
     @Inject

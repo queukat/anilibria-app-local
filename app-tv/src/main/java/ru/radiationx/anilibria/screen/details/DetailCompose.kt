@@ -35,6 +35,7 @@ import ru.radiationx.anilibria.screen.main.MainSectionBlock
 import ru.radiationx.anilibria.screen.main.MainSectionUiModel
 import ru.radiationx.anilibria.screen.watching.TvDetailDescriptionBarPadding
 import ru.radiationx.anilibria.screen.watching.TvDetailHorizontalPadding
+import ru.radiationx.anilibria.screen.watching.TvDetailRowsTopContentPadding
 import ru.radiationx.anilibria.screen.watching.TvSectionSpacing
 import ru.radiationx.anilibria.screen.watching.WatchingDescriptionBar
 import ru.radiationx.anilibria.screen.watching.clampedTvSectionTargetIndex
@@ -289,7 +290,7 @@ internal fun DetailScreen(
                     verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
                     contentPadding =
                         PaddingValues(
-                            top = 36.dp,
+                            top = TvDetailRowsTopContentPadding,
                             bottom = if (hasContent) descriptionOverlayClearance.bottomInset else 0.dp,
                         ),
                 ) {

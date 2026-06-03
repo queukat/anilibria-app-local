@@ -2,7 +2,6 @@ package ru.radiationx.anilibria.screen.main
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -25,7 +24,6 @@ import ru.radiationx.anilibria.screen.mainpages.MainShellCallbacks
 import ru.radiationx.anilibria.screen.mainpages.MainShellPageContent
 import ru.radiationx.anilibria.screen.mainpages.MainShellPageSectionsState
 import ru.radiationx.anilibria.screen.mainpages.collectStarted
-import ru.radiationx.anilibria.screen.watching.TvCardScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.TvPosterCardWidth
 import ru.radiationx.quill.getViewModel
 import ru.radiationx.shared_app.imageloader.libriaImageLoader
@@ -129,8 +127,7 @@ internal class MainPageContent(
         Box(
             modifier =
                 Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = TvCardScreenHorizontalPadding),
+                    .fillMaxSize(),
         ) {
             MainScreen(
                 sections = sectionsState.orderedSections,

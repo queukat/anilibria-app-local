@@ -186,7 +186,7 @@ internal fun TvContentStatePanel(
                     text = subtitle,
                     color =
                         if (options.accent) {
-                            palette.textColor.copy(alpha = 0.92f)
+                            palette.textColor.copy(alpha = TvUiDefaults.TRANSLUCENT_CONTROL_ALPHA)
                         } else {
                             palette.secondaryTextColor
                         },

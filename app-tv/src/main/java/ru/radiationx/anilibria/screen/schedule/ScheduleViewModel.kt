@@ -1,8 +1,6 @@
 package ru.radiationx.anilibria.screen.schedule
 
 import androidx.lifecycle.viewModelScope
-import java.util.Calendar
-import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +15,8 @@ import ru.radiationx.anilibria.screen.LifecycleViewModel
 import ru.radiationx.data.interactors.tv.TvContentUseCase
 import ru.radiationx.shared.ktx.asDayName
 import ru.radiationx.shared.ktx.coroutines.AppDispatchers
+import java.util.Calendar
+import javax.inject.Inject
 
 class ScheduleViewModel
     @Inject

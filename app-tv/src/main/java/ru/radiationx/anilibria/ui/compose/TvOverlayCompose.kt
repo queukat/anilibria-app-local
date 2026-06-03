@@ -146,7 +146,7 @@ internal fun TvOverlayPanelSurface(
 ) {
     Surface(
         shape = TvUiDefaults.OverlayPanelShape,
-        color = palette.surfaceColor.copy(alpha = 0.98f),
+        color = palette.surfaceColor.copy(alpha = TvUiDefaults.FLOATING_PANEL_ALPHA),
         modifier = modifier,
     ) {
         Column(
@@ -336,7 +336,7 @@ internal fun TvOverlayTextField(
                     width = if (isFocused) 2.dp else 1.dp,
                     color =
                         when {
-                            state.isError -> palette.accentColor.copy(alpha = 0.92f)
+                            state.isError -> palette.accentColor.copy(alpha = TvUiDefaults.STRONG_ACCENT_BORDER_ALPHA)
                             isFocused -> palette.textColor.copy(alpha = 0.78f)
                             else -> palette.textColor.copy(alpha = 0.16f)
                         },
@@ -585,7 +585,7 @@ private fun TvOverlayChoiceButton(
     onClick: () -> Unit,
 ) {
     val backgroundColor = palette.surfaceColor.copy(alpha = 0.88f)
-    val focusedBackgroundColor = palette.surfaceColor.copy(alpha = 0.98f)
+    val focusedBackgroundColor = palette.surfaceColor.copy(alpha = TvUiDefaults.FLOATING_PANEL_ALPHA)
 
     WatchingFocusableSurface(
         focusRequester = focusRequester,

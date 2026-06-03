@@ -53,13 +53,69 @@ internal data class TvPanelSurfaceStyle(
     val borderWidth: Dp = TvUiDefaults.UNFOCUSED_BORDER_WIDTH,
 )
 
+internal object TvShellDefaults {
+    val HeaderHeight = 68.dp
+    val HeaderSpacing = 4.dp
+    val HeaderPadding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)
+    val HeaderContentSpacing = 10.dp
+    val HeaderTitleSpacing = 2.dp
+    val HeaderLogoShape = RoundedCornerShape(18.dp)
+    val HeaderLogoPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+    val HeaderLogoWidth = 20.dp
+    val HeaderActionSpacing = 8.dp
+    val HeaderActionWidth = 148.dp
+    val HeaderActionHorizontalPadding = 14.dp
+    val HeaderActionVerticalPadding = 8.dp
+    val HeaderEyebrowFontSize = 12.sp
+    val HeaderTitleFontSize = 20.sp
+    val HeaderActionFontSize = 16.sp
+
+    val RailWidth = 232.dp
+    val RailShape = RoundedCornerShape(topEnd = 26.dp, bottomEnd = 26.dp)
+    val RailPadding = PaddingValues(start = 18.dp, top = 22.dp, end = 42.dp, bottom = 22.dp)
+    val RailCollapsedOvershoot = 8.dp
+    val RailStripeWidth = 34.dp
+    val RailStripeTopPadding = 22.dp
+    val RailStripeMarkerWidth = 20.dp
+    val RailStripeIconWidth = 16.dp
+    val RailStripeLineWidth = 2.dp
+    val RailStripeSpacing = 8.dp
+    val RailContentSpacing = 10.dp
+    val RailTitleStartPadding = 4.dp
+    val RailTitleFontSize = 13.sp
+    val RailSectionTitleSpacer = 2.dp
+    val RailButtonSpacing = 6.dp
+    val RailButtonHorizontalPadding = 14.dp
+    val RailButtonVerticalPadding = 11.dp
+    val RailButtonFontSize = 16.sp
+    val RailHintStartPadding = 4.dp
+    val RailHintFontSize = 12.sp
+    val RailHintLineHeight = 16.sp
+    val DefaultButtonMinWidth = 112.dp
+
+    const val ACTION_BACKGROUND_ALPHA = 0.92f
+    const val SEARCH_BACKGROUND_ALPHA = 0.72f
+    const val ACTION_BORDER_ALPHA = 0.72f
+    const val UPDATE_BACKGROUND_ALPHA = 0.24f
+    const val UPDATE_BORDER_ALPHA = 0.82f
+    const val LOGO_BACKGROUND_ALPHA = 0.20f
+    const val LOGO_BORDER_ALPHA = 0.32f
+    const val DIVIDER_ALPHA = 0.08f
+    const val RAIL_BACKDROP_ALPHA = 0.16f
+    const val RAIL_STRIPE_STRONG_ALPHA = 0.28f
+    const val RAIL_STRIPE_SOFT_ALPHA = 0.14f
+    const val RAIL_LINE_ALPHA = 0.28f
+    const val RAIL_SELECTED_ALPHA = 0.22f
+    const val RAIL_FOCUSED_ALPHA = 0.18f
+    const val RAIL_SELECTED_BORDER_ALPHA = 0.85f
+}
+
 internal object TvUiDefaults {
     val FocusableSurfaceShape = RoundedCornerShape(22.dp)
     val OverlayPanelShape = RoundedCornerShape(24.dp)
     val ContentStatePanelShape = RoundedCornerShape(28.dp)
     val ProfilePanelShape = RoundedCornerShape(32.dp)
     val ScreenPanelShape = RoundedCornerShape(26.dp)
-    val ShellRailShape = RoundedCornerShape(topEnd = 32.dp, bottomEnd = 32.dp)
     val InfoSurfaceShape = RoundedCornerShape(14.dp)
     val CircularIndicatorShape = RoundedCornerShape(percent = 50)
 
@@ -70,9 +126,6 @@ internal object TvUiDefaults {
     val ContentStatePanelPadding = PaddingValues(horizontal = 28.dp, vertical = 26.dp)
     val ProfilePanelPadding = PaddingValues(horizontal = 28.dp, vertical = 30.dp)
     val ScreenPanelPadding = PaddingValues(horizontal = 26.dp, vertical = 24.dp)
-    val ShellHeaderPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
-    val ShellRailPadding = PaddingValues(start = 24.dp, top = 30.dp, end = 56.dp, bottom = 30.dp)
-    val ShellHeaderActionWidth = 172.dp
 
     val FOCUSED_BORDER_WIDTH = 2.dp
     val UNFOCUSED_BORDER_WIDTH = 1.dp
@@ -82,12 +135,37 @@ internal object TvUiDefaults {
     const val POSTER_FOCUSED_SCALE = 1.02f
     val FOCUSED_SHADOW_ELEVATION = 18.dp
     const val APP_BACKGROUND_GLOW_ALPHA = 0.22f
+    const val SOLID_SURFACE_ALPHA = 1f
+    const val FLOATING_PANEL_ALPHA = 0.98f
+    const val SUBTLE_SURFACE_ALPHA = 0.94f
+    const val RAISED_SURFACE_ALPHA = 0.95f
+    const val TRANSLUCENT_CONTROL_ALPHA = 0.92f
+    const val CONTROL_BORDER_ALPHA = 0.72f
+    const val ACCENT_CONTROL_BACKGROUND_ALPHA = 0.18f
+    const val ACCENT_CONTROL_FOCUSED_BACKGROUND_ALPHA = 0.26f
+    const val ACCENT_CONTROL_BORDER_ALPHA = 0.84f
+    const val ACCENT_PANEL_ALPHA = 0.12f
+    const val ACCENT_PANEL_BORDER_ALPHA = 0.34f
+    const val ACCENT_SCREEN_PANEL_BORDER_ALPHA = 0.32f
+    const val STRONG_ACCENT_BORDER_ALPHA = 0.92f
+    const val SUBTLE_TEXT_BORDER_ALPHA = 0.58f
+    const val FOCUSED_PANEL_BORDER_ALPHA = 0.74f
+    const val PANEL_BORDER_ALPHA = 0.10f
+    const val SUBTLE_PANEL_BORDER_ALPHA = 0.08f
+    const val MODAL_SCRIM_ALPHA = 0.74f
+    const val DESCRIPTION_SOLID_SCRIM_START_ALPHA = 0.20f
+    const val DESCRIPTION_SOLID_SCRIM_END_ALPHA = 0.96f
+    const val DESCRIPTION_TRANSLUCENT_SCRIM_END_ALPHA = 0.88f
+
+    fun solidSurfaceColor(color: Color): Color = color.copy(alpha = SOLID_SURFACE_ALPHA)
+
+    fun floatingPanelColor(color: Color): Color = color.copy(alpha = FLOATING_PANEL_ALPHA)
 
     fun chipActionColors(
         palette: WatchingPalette,
-        backgroundAlpha: Float = 0.92f,
-        focusedBackgroundAlpha: Float = 1f,
-        borderAlpha: Float = 0.72f,
+        backgroundAlpha: Float = TRANSLUCENT_CONTROL_ALPHA,
+        focusedBackgroundAlpha: Float = SOLID_SURFACE_ALPHA,
+        borderAlpha: Float = CONTROL_BORDER_ALPHA,
     ): TvFocusableSurfaceColors {
         return TvFocusableSurfaceColors(
             backgroundColor = palette.chipColor.copy(alpha = backgroundAlpha),
@@ -98,9 +176,9 @@ internal object TvUiDefaults {
 
     fun accentActionColors(
         palette: WatchingPalette,
-        backgroundAlpha: Float = 0.18f,
-        focusedBackgroundAlpha: Float = 0.26f,
-        borderAlpha: Float = 0.84f,
+        backgroundAlpha: Float = ACCENT_CONTROL_BACKGROUND_ALPHA,
+        focusedBackgroundAlpha: Float = ACCENT_CONTROL_FOCUSED_BACKGROUND_ALPHA,
+        borderAlpha: Float = ACCENT_CONTROL_BORDER_ALPHA,
     ): TvFocusableSurfaceColors {
         return TvFocusableSurfaceColors(
             backgroundColor = palette.accentColor.copy(alpha = backgroundAlpha),
@@ -112,14 +190,14 @@ internal object TvUiDefaults {
     fun defaultPosterCardFocusStyle(palette: WatchingPalette): TvPosterCardFocusStyle {
         return TvPosterCardFocusStyle(
             focusedBackgroundColor = Color.Transparent,
-            borderColor = palette.accentColor.copy(alpha = 0.92f),
+            borderColor = palette.accentColor.copy(alpha = STRONG_ACCENT_BORDER_ALPHA),
         )
     }
 
     fun subtlePosterCardFocusStyle(palette: WatchingPalette): TvPosterCardFocusStyle {
         return TvPosterCardFocusStyle(
             focusedBackgroundColor = Color.Transparent,
-            borderColor = palette.textColor.copy(alpha = 0.58f),
+            borderColor = palette.textColor.copy(alpha = SUBTLE_TEXT_BORDER_ALPHA),
         )
     }
 
@@ -132,15 +210,15 @@ internal object TvUiDefaults {
             shape = ContentStatePanelShape,
             backgroundColor =
                 if (accent) {
-                    palette.accentColor.copy(alpha = 0.12f)
+                    palette.accentColor.copy(alpha = ACCENT_PANEL_ALPHA)
                 } else {
-                    palette.surfaceColor.copy(alpha = 0.92f)
+                    floatingPanelColor(palette.surfaceColor)
                 },
             borderColor =
                 when {
-                    focused -> palette.textColor.copy(alpha = 0.74f)
-                    accent -> palette.accentColor.copy(alpha = 0.34f)
-                    else -> palette.textColor.copy(alpha = 0.08f)
+                    focused -> palette.textColor.copy(alpha = FOCUSED_PANEL_BORDER_ALPHA)
+                    accent -> palette.accentColor.copy(alpha = ACCENT_PANEL_BORDER_ALPHA)
+                    else -> palette.textColor.copy(alpha = SUBTLE_PANEL_BORDER_ALPHA)
                 },
             borderWidth = if (focused) FOCUSED_BORDER_WIDTH else UNFOCUSED_BORDER_WIDTH,
         )
@@ -149,8 +227,8 @@ internal object TvUiDefaults {
     fun profilePanelStyle(palette: WatchingPalette): TvPanelSurfaceStyle {
         return TvPanelSurfaceStyle(
             shape = ProfilePanelShape,
-            backgroundColor = palette.surfaceColor.copy(alpha = 0.92f),
-            borderColor = palette.textColor.copy(alpha = 0.10f),
+            backgroundColor = floatingPanelColor(palette.surfaceColor),
+            borderColor = palette.textColor.copy(alpha = PANEL_BORDER_ALPHA),
         )
     }
 
@@ -163,15 +241,15 @@ internal object TvUiDefaults {
             shape = ScreenPanelShape,
             backgroundColor =
                 if (accent) {
-                    palette.accentColor.copy(alpha = 0.12f)
+                    palette.accentColor.copy(alpha = ACCENT_PANEL_ALPHA)
                 } else {
-                    palette.surfaceColor.copy(alpha = 0.92f)
+                    floatingPanelColor(palette.surfaceColor)
                 },
             borderColor =
                 when {
-                    focused -> palette.textColor.copy(alpha = 0.74f)
-                    accent -> palette.accentColor.copy(alpha = 0.32f)
-                    else -> palette.textColor.copy(alpha = 0.10f)
+                    focused -> palette.textColor.copy(alpha = FOCUSED_PANEL_BORDER_ALPHA)
+                    accent -> palette.accentColor.copy(alpha = ACCENT_SCREEN_PANEL_BORDER_ALPHA)
+                    else -> palette.textColor.copy(alpha = PANEL_BORDER_ALPHA)
                 },
             borderWidth = if (focused) FOCUSED_BORDER_WIDTH else UNFOCUSED_BORDER_WIDTH,
         )
@@ -194,8 +272,8 @@ internal object TvUiDefaults {
         return Brush.verticalGradient(
             colors =
                 listOf(
-                    palette.backgroundColor.copy(alpha = 0.98f),
-                    palette.surfaceColor.copy(alpha = 0.94f),
+                    palette.backgroundColor.copy(alpha = FLOATING_PANEL_ALPHA),
+                    palette.surfaceColor.copy(alpha = SUBTLE_SURFACE_ALPHA),
                 ),
         )
     }
@@ -204,8 +282,8 @@ internal object TvUiDefaults {
         return Brush.verticalGradient(
             colors =
                 listOf(
-                    palette.surfaceColor.copy(alpha = 0.98f),
-                    palette.surfaceColor.copy(alpha = 0.94f),
+                    palette.surfaceColor.copy(alpha = FLOATING_PANEL_ALPHA),
+                    palette.surfaceColor.copy(alpha = SUBTLE_SURFACE_ALPHA),
                 ),
         )
     }
@@ -214,16 +292,16 @@ internal object TvUiDefaults {
         return Brush.verticalGradient(
             colors =
                 listOf(
-                    palette.surfaceColor.copy(alpha = 0.98f),
-                    palette.surfaceColor.copy(alpha = 0.95f),
-                    palette.backgroundColor.copy(alpha = 0.94f),
+                    palette.surfaceColor.copy(alpha = FLOATING_PANEL_ALPHA),
+                    palette.surfaceColor.copy(alpha = RAISED_SURFACE_ALPHA),
+                    palette.backgroundColor.copy(alpha = SUBTLE_SURFACE_ALPHA),
                 ),
         )
     }
 
     fun modalScrimColor(
         palette: WatchingPalette,
-        alpha: Float = 0.74f,
+        alpha: Float = MODAL_SCRIM_ALPHA,
     ): Color {
         return palette.backgroundColor.copy(alpha = alpha)
     }

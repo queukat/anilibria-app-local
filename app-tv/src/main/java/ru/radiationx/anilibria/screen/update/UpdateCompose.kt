@@ -51,9 +51,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import ru.radiationx.anilibria.screen.watching.TvPageContentPadding
 import ru.radiationx.anilibria.screen.watching.TvPageHeaderSpacing
-import ru.radiationx.anilibria.screen.watching.TvPageVerticalPadding
-import ru.radiationx.anilibria.screen.watching.TvScreenHorizontalPadding
 import ru.radiationx.anilibria.screen.watching.rememberWatchingPalette
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocus
 import ru.radiationx.anilibria.screen.watching.requestWatchingFocusAfterAttach
@@ -110,7 +109,7 @@ internal fun UpdateScreen(
                 Modifier
                     .fillMaxSize()
                     .tvAppBackground(palette)
-                    .padding(horizontal = TvScreenHorizontalPadding, vertical = TvPageVerticalPadding),
+                    .padding(TvPageContentPadding),
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
